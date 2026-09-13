@@ -1,0 +1,79 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${fabric_loom_version}"
+}
+
+base {
+    archivesName = project.archives_base_name
+    version = project.mod_version
+    group = project.maven_group
+}
+
+loom {
+    // 将 26.1.2 包私有的 GlDevice 提升为可访问（Skija 取主 Framebuffer 名字所需）
+    accessWidenerPath = file('src/main/resources/yiyiaddon.accesswidener')
+
+    runs {
+        client {
+            // 固定玩家名：离线 UUID 由名字派生，随机名会导致每次启动都是"新玩家"
+            programArgs '--username', 'yiyi'
+        }
+    }
+}
+
+repositories {
+    // 本地仓库只承载无公开 Maven 坐标的第三方构件（当前仅 Baritone）
+    maven {
+        name = 'YiyiAddonLocal'
+        url = uri('maven-repo')
+    }
+}
+
+dependencies {
+    // 26.1.2 为官方/原生名称体系，Loom 直接使用 Mojang artifacts，无需 mappings 声明
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // Baritone（LGPL-3.0）：compileOnly 编译期类型；runtimeOnly 让开发期 Fabric Loader
+    // 把它当独立 Mod 加载；include 以独立嵌套 jar 进发布产物（不 shade、不改包名，
+    // 满足 LGPL 的可替换 / 可重链接条件）
+    compileOnly "baritone:baritone-fabric:${project.baritone_version}"
+    runtimeOnly "baritone:baritone-fabric:${project.baritone_version}"
+    include "baritone:baritone-fabric:${project.baritone_version}"
+
+    // Skija 2D 渲染器（Apache-2.0）
+    implementation "io.github.humbleui:types:${project.skija_types_version}"
+    include "io.github.humbleui:types:${project.skija_types_version}"
+    implementation "io.github.humbleui:skija-shared:${project.skija_version}"
+    include "io.github.humbleui:skija-shared:${project.skija_version}"
+    runtimeOnly "io.github.humbleui:skija-windows-x64:${project.skija_version}"
+    include "io.github.humbleui:skija-windows-x64:${project.skija_version}"
+    runtimeOnly "io.github.humbleui:skija-windows-arm64:${project.skija_version}"
+    include "io.github.humbleui:skija-windows-arm64:${project.skija_version}"
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(project.jdk_version as int)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // Mixin 注解处理器最高只支持 class file 65（Java 21），工具链仍是 Java 25
+    options.release = 21
+}
+
+processResources {
+    def propertyMap = [
+            version         : project.version,
+            minecraft_compat: project.minecraft_compat,
+            loader_version  : project.fabric_loader_version,
+            jdk_version     : project.jdk_version,
+    ]
+
+    inputs.properties(propertyMap)
+    filesMatching('fabric.mod.json') {
+        expand(propertyMap)
+    }
+}

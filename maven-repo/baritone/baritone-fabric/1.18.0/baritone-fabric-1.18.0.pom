@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    本地 Maven 坐标：Fabric 版 Baritone 没有公开可用的 Maven 坐标（upstream 未发布，
+    见 01-开发报告/导航/Baritone接入方案.md 的阻塞项）。这里用仓库内本地仓库承载
+    「我们自己从 upstream 源码构建出的产物」，让 Gradle / Loom 能拿到带模块元数据的构件，
+    从而支持 Jar-in-Jar 打包。
+
+    来源：https://github.com/cabaletta/baritone.git  分支 26.1  commit 016cc210434894f371baf0c327ac94907d12dcd3
+    构建：dev-reference/baritone 下 `gradlew :fabric:remapJar`（upstream 源码未做任何修改）
+    许可证：LGPL-3.0（义务见 docs/legal/BARITONE.md）
+  -->
+  <groupId>baritone</groupId>
+  <artifactId>baritone-fabric</artifactId>
+  <version>1.18.0</version>
+  <packaging>jar</packaging>
+
+  <name>Baritone (Fabric, Minecraft 26.1.2)</name>
+  <description>Google Maps for Blockgame - unmodified upstream build for Minecraft 26.1.2</description>
+  <url>https://github.com/cabaletta/baritone</url>
+
+  <licenses>
+    <license>
+      <name>GNU Lesser General Public License v3.0</name>
+      <url>https://www.gnu.org/licenses/lgpl-3.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+</project>

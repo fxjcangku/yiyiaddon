@@ -1,0 +1,204 @@
+yiyiaddon — NOTICE
+==================
+
+This project contains code that is derived from PVPUtils. The attribution and
+modification disclosure below are required by the PVPUtils Source-Available
+Non-Commercial License v1.0 (sections 8, 9 and 10). The full licence text is in
+LICENSE; it governs this project as a derivative work.
+
+----------------------------------------------------------------------
+1. Attribution (required by section 8)
+----------------------------------------------------------------------
+
+This project uses code from PVPUtils by Nachoneko_miao and PVPUtils contributors.
+
+    Project:             PVPUtils
+    Original Author:     Nachoneko_miao
+    Contributors:        PVPUtils contributors
+    Original Repository: https://github.com/bakabaicai/PVPUtils
+    Licence:             PVPUtils Source-Available Non-Commercial License v1.0
+
+The source snapshot used for this port is the reference copy of the PVPUtils
+repository at commit 20fc0d9d2b51df52991a18889df3a99d31142bbd.
+
+yiyiaddon is not affiliated with, endorsed by, approved by, maintained by or
+supported by the PVPUtils Original Author or its contributors.
+
+----------------------------------------------------------------------
+2. Modification disclosure (required by section 9)
+----------------------------------------------------------------------
+
+2.1 Where the PVPUtils-derived code lives
+-----------------------------------------
+
+All PVPUtils-derived code in yiyiaddon is located under the Java package
+`com.yiyiaddon.ui`:
+
+    src/main/java/com/yiyiaddon/ui/                       UiText.java
+    src/main/java/com/yiyiaddon/ui/keybind/               ModuleKeybindManager.java
+    src/main/java/com/yiyiaddon/ui/render/                SkiaGlState.java,
+                                                          SkiaGlBackend.java,
+                                                          SkiaBlurRenderer.java,
+                                                          SkiaScreen.java,
+                                                          FontRenderer.java
+    src/main/java/com/yiyiaddon/ui/theme/                  ClickGuiTheme.java,
+                                                          ClickGuiThemePalette.java,
+                                                          ClickGuiThemeMetrics.java,
+                                                          ClickGuiThemeColors.java,
+                                                          ClickGuiThemeManager.java,
+                                                          WhiteTheme.java, DarkTheme.java,
+                                                          GrayTheme.java, LightBlueTheme.java,
+                                                          DefaultClickGuiTheme.java,
+                                                          vape/VapeTheme.java
+    src/main/java/com/yiyiaddon/ui/widget/                 SettingWidget.java,
+                                                          SettingModule.java,
+                                                          SettingToggle.java,
+                                                          SettingSlider.java,
+                                                          SettingCycle.java,
+                                                          SettingTextBox.java,
+                                                          SettingPasswordBox.java,
+                                                          SettingButton.java,
+                                                          SettingColorPreview.java,
+                                                          SettingLink.java
+    src/main/java/com/yiyiaddon/ui/page/                   BasePage.java,
+                                                          SearchResultsPage.java
+    src/main/java/com/yiyiaddon/ui/screen/                 ClickGuiScreen.java
+
+Corresponding source files in PVPUtils:
+
+    src/client/java/com/pvp_utils/client/gui/clickgui/NewSettingsScreen.java
+        -> com/yiyiaddon/ui/screen/ClickGuiScreen.java
+    src/client/java/com/pvp_utils/client/gui/clickgui/UiText.java
+        -> com/yiyiaddon/ui/UiText.java
+    src/client/java/com/pvp_utils/client/gui/clickgui/pages/BasePage.java
+        -> com/yiyiaddon/ui/page/BasePage.java
+    src/client/java/com/pvp_utils/client/gui/clickgui/pages/SearchResultsPage.java
+        -> com/yiyiaddon/ui/page/SearchResultsPage.java
+    src/client/java/com/pvp_utils/client/gui/clickgui/widget/*.java
+        -> com/yiyiaddon/ui/widget/*.java
+    src/client/java/com/pvp_utils/client/gui/clickgui/theme/*.java
+        -> com/yiyiaddon/ui/theme/*.java
+    src/client/java/com/pvp_utils/client/render/skia/SkiaGlState.java
+        -> com/yiyiaddon/ui/render/SkiaGlState.java
+    src/client/java/com/pvp_utils/client/render/skia/SkiaGlBackend.java
+        -> com/yiyiaddon/ui/render/SkiaGlBackend.java
+    src/client/java/com/pvp_utils/client/render/skia/SkiaBlurRenderer.java
+        -> com/yiyiaddon/ui/render/SkiaBlurRenderer.java
+    src/client/java/com/pvp_utils/client/render/skia/SkiaScreen.java
+        -> com/yiyiaddon/ui/render/SkiaScreen.java
+    src/client/java/com/pvp_utils/client/render/font/FontRenderer.java
+        -> com/yiyiaddon/ui/render/FontRenderer.java
+    src/client/java/com/pvp_utils/client/ModuleKeybindManager.java
+        -> com/yiyiaddon/ui/keybind/ModuleKeybindManager.java
+
+2.2 Major changes made to the derived code
+------------------------------------------
+
+(a) Package and project identity
+    All classes were re-packaged from `com.pvp_utils.*` to `com.yiyiaddon.ui.*`.
+    The visible product name in the panel header was changed from "PVPUtils" to
+    "yiyiaddon". No PVPUtils copyright or attribution notice was removed.
+
+(b) Configuration backend
+    PVPUtils reads and writes a single global `com.pvp_utils.Config` (Gson,
+    persisted with `Config.save()`). yiyiaddon replaces it with a minimal
+    configuration object, `com.yiyiaddon.config.AddonConfig`, backed by
+    `config/yiyiaddon.json`. Only UI-related keys are carried over: panel theme,
+    GUI scale, panel blur, blur strength, blur tint, scroll speed, GUI keybind
+    and the Baritone localisation switch. No gameplay configuration was ported.
+
+(c) Business content removed, replaced by UI test data
+    Every PVPUtils ClickGUI page was removed and replaced by three pages that
+    contain only UI verification data and never touch gameplay:
+    `com.yiyiaddon.ui.page.TestPage`, `InterfacePage` and `SettingsPage`.
+    Removed PVPUtils pages: CombatPage, RenderPage, ToolPage, OptimizePage,
+    MiscPage, ThemePage (its theme/GUI portion was re-implemented as part of
+    InterfacePage), AddServerPage and TermsScreen. `ResetManager` was not ported;
+    the reset button now resets only yiyiaddon UI settings.
+
+(d) Rendering entry point adapted to Minecraft 26.1.2
+    PVPUtils targets Minecraft 1.21.11, where a screen draws through
+    `render(GuiGraphics, int, int, float)`. Minecraft 26.1.2 replaced that model
+    with an extract phase (`GuiGraphicsExtractor`). `SkiaScreen` was therefore
+    rewritten: the extract phase only records mouse position and frame delta, and
+    the actual Skija drawing is deferred to the end of the frame, where
+    `com.yiyiaddon.mixin.client.RenderTargetMixin` injects at the head of
+    `RenderTarget#blitToScreen` and calls `SkiaScreen#renderSkiaFrame`.
+
+(e) Frame-cache path not ported
+    PVPUtils ships a raster frame/region cache in
+    `client/render/skia/SkiaRenderer.java`. That path depends on
+    `GuiGraphics#blit` from 1.21.11, which does not exist in 26.1.2. It was not
+    ported; the ClickGUI draws directly to the main framebuffer through
+    `SkiaGlBackend` on every frame. Consequently the region content-hash hook
+    (`SkiaRenderer.feedRegionContent`) was dropped from `FontRenderer`.
+
+(f) Framebuffer handle lookup
+    Both PVPUtils and yiyiaddon need the GL name of the main RenderTarget.
+    PVPUtils reads it with `RenderSystem.getDevice() instanceof GlDevice`; in
+    26.1.2 the GL backend is nested inside the GpuDevice wrapper. yiyiaddon
+    reads it through the added `com.yiyiaddon.mixin.client.GpuDeviceAccessor`
+    mixin and the `accessible class com/mojang/blaze3d/opengl/GlDevice` entry in
+    `yiyiaddon.accesswidener`.
+
+(g) Input method handling
+    PVPUtils toggles Windows IME with JNA (`Imm32.ImmAssociateContext`) through
+    its `InputMethodFix` module. That module is gameplay/optimisation code and
+    was not ported. yiyiaddon uses the native 26.1.2 text-input API instead
+    (`Minecraft#onTextInputFocusChange`, `Screen#preeditUpdated`), wrapped in
+    `com.yiyiaddon.ui.render.ImeBridge`. IME pre-edit text is now drawn inline by
+    `SettingTextBox`.
+
+(h) Diagnostics and debug overlay removed
+    The GPU diagnostic pixel read-back (`tracePresentedFramebuffer`,
+    `captureMainFramebuffer`), the `Version.DEBUG` overlay and the
+    `PVPUtils.LOGGER` calls were removed from the screen.
+
+(i) Font resources
+    Font files were moved from `/fonts/*.ttf` to
+    `/assets/yiyiaddon/fonts/*.ttf`, which is the asset path required by the
+    yiyiaddon mod id. The font files themselves are unchanged.
+
+(j) Tab set
+    The six PVPUtils sidebar tabs (Combat / Render / Tools / Optimize / Misc /
+    Theme) were reduced to three (Test / Interface / Settings). Tab geometry,
+    sidebar metrics, animation curves and control styling are unchanged.
+
+(k) Theme registration left as-is
+    PVPUtils registers only WhiteTheme, DarkTheme and GrayTheme in
+    `ClickGuiThemeManager`. The remaining theme classes (LightBlueTheme,
+    DefaultClickGuiTheme, VapeTheme) are also unregistered upstream. This was
+    deliberately left unchanged: no visual redesign was performed in this phase.
+
+2.3 Code written for yiyiaddon (not derived from PVPUtils)
+----------------------------------------------------------
+
+    src/main/java/com/yiyiaddon/YiyiAddon.java
+    src/main/java/com/yiyiaddon/YiyiAddonClient.java
+    src/main/java/com/yiyiaddon/config/AddonConfig.java
+    src/main/java/com/yiyiaddon/integration/baritone/*            (Baritone localisation)
+    src/main/java/com/yiyiaddon/mixin/client/GpuDeviceAccessor.java
+    src/main/java/com/yiyiaddon/mixin/client/RenderTargetMixin.java
+    src/main/java/com/yiyiaddon/mixin/baritone/*                  (Baritone localisation)
+    src/main/java/com/yiyiaddon/ui/render/ImeBridge.java
+    src/main/java/com/yiyiaddon/ui/page/TestPage.java
+    src/main/java/com/yiyiaddon/ui/page/InterfacePage.java
+    src/main/java/com/yiyiaddon/ui/page/SettingsPage.java
+
+----------------------------------------------------------------------
+3. Preservation of notices (required by section 10)
+----------------------------------------------------------------------
+
+The PVPUtils licence text is reproduced in full in LICENSE. The attribution
+above is reproduced in CREDITS and is also stated in the mod metadata
+(`fabric.mod.json`). No PVPUtils notice, author name or contributor notice has
+been removed, hidden or misrepresented.
+
+----------------------------------------------------------------------
+4. Third-party components
+----------------------------------------------------------------------
+
+See THIRD_PARTY_NOTICES.md. The Baritone integration is shipped as an unmodified
+nested jar under the LGPL-3.0 (see src/main/resources/LICENSE-baritone.txt), and
+Skija is bundled under the Apache-2.0. These components remain under their own
+licences and are not covered by the PVPUtils licence.

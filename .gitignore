@@ -1,0 +1,37 @@
+# Gradle
+.gradle/
+build/
+out/
+bin/
+loom-cache/
+
+# Fabric / 运行期
+run/
+logs/
+crash-reports/
+.fabric/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+.settings/
+.project
+.classpath
+
+# 编译产物与二进制中间物
+*.class
+*.jar
+*.log
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 版本库内必须保留的构件（覆盖上方 *.jar 规则）
+!gradle/wrapper/gradle-wrapper.jar
+!maven-repo/**/*.jar

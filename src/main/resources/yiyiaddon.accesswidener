@@ -1,0 +1,5 @@
+accessWidener v2 official
+
+# Skija 需要把 Minecraft 主 RenderTarget 的 GL Framebuffer 名字交给
+# BackendRenderTarget.makeGL 使用，因此必须能引用到包私有的 GlDevice。
+accessible class com/mojang/blaze3d/opengl/GlDevice

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "yiyiaddon",
+  "version": "${version}",
+  "name": "yiyiaddon",
+  "description": "Standalone Fabric client addon for Minecraft 26.1.2.",
+  "authors": [
+    "yiyiaddon"
+  ],
+  "license": "See LICENSE",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "com.yiyiaddon.YiyiAddon"
+    ],
+    "client": [
+      "com.yiyiaddon.YiyiAddonClient"
+    ]
+  },
+  "mixins": [
+    "yiyiaddon.mixins.json",
+    "yiyiaddon.baritone.mixins.json"
+  ],
+  "accessWidener": "yiyiaddon.accesswidener",
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_compat}",
+    "java": ">=${jdk_version}",
+    "fabric-api": "*"
+  }
+}

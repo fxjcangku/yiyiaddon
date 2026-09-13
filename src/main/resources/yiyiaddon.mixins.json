@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.yiyiaddon.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "GpuDeviceAccessor",
+    "RenderTargetMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
