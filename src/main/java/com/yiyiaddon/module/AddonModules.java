@@ -70,17 +70,18 @@ public final class AddonModules {
     }
 
     /**
-     * 注册模块分类。
+     * 注册模块分类（模块分组）。
      *
-     * <p><b>用户交互资产：</b>分类中文名、颜色样式与排列顺序沿用旧项目 {@code AddonTemplate} 原文。
-     * 唯一改动：去掉旧原文中的 {@code §c§lyiyiaddon } 段（第十七章第 110 条禁止显示
-     * {@code yiyiaddon}），其余 {@code §a§l工具} 这类颜色与加粗保持不变。此改动已由用户定稿。</p>
+     * <p><b>不属迁移范围：</b>分类是 yiyiaddon 自己界面的分组结构，不照旧项目还原——旧项目的 5 个分类
+     * 属于旧框架的界面产物，功能模块最终都归入本项目的模块分组。分类的划分、名称、样式与顺序一律
+     * 由本项目界面设计决定，禁止按旧项目增删或改名。</p>
      */
     private static void registerCategories() {
-        CategoryRegistry.register(new ModuleCategory("tools", "§a§l工具", "管理工具类功能", "\uF06A", 10));
-        CategoryRegistry.register(new ModuleCategory("automation", "§e§l自动化", "管理自动执行类功能", "\uEBBC", 20));
-        CategoryRegistry.register(new ModuleCategory("tactical", "§b§l绕过", "管理绕过类功能", "\uE919", 30));
-        CategoryRegistry.register(new ModuleCategory("assist", "§d§l辅助", "管理辅助工具功能", "\uEF76", 40));
-        CategoryRegistry.register(new ModuleCategory("stardew", "§6§l星露谷", "管理农场模拟功能", "\uE8CD", 50));
+        CategoryRegistry.register(new ModuleCategory("automation", "自动化", "管理自动执行类功能", "\uEBBC", 10));
+        CategoryRegistry.register(new ModuleCategory("assist", "辅助", "管理辅助工具功能", "\uEF76", 20));
+        CategoryRegistry.register(new ModuleCategory("tools", "工具", "管理工具类功能", "\uF06A", 30));
+        CategoryRegistry.register(new ModuleCategory("navigation", "导航", "管理路径与移动功能", "\uE919", 40));
+        CategoryRegistry.register(new ModuleCategory("enchant", "附魔", "管理装备强化功能", "\uE659", 50));
+        CategoryRegistry.register(new ModuleCategory("stardew", "星露谷", "管理农场模拟功能", "\uE8CD", 60));
     }
 }
