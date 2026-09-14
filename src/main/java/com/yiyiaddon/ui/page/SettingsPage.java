@@ -14,11 +14,11 @@ public final class SettingsPage extends BasePage {
 
     public SettingsPage() {
         modules.add(new SettingModule(UiText.t("指令前缀", "Command Prefix"),
-                UiText.t("客户端指令的起始符号，默认 .　留空或填入 / 时回落到默认值", "Leading symbol of client commands, default .　Falls back to default when blank or /"),
+                UiText.t("客户端指令的起始符号，单个字符，默认 .　留空或填入 / 时回落到默认值", "Leading symbol of client commands, single character, default .　Falls back to default when blank or /"),
                 new SettingTextBox(() -> AddonConfig.commandPrefix, value -> {
                     AddonConfig.commandPrefix = value;
                     AddonConfig.save();
-                }, 4)));
+                }, 1)));
 
         modules.add(new SettingModule(UiText.t("GUI 快捷键", "GUI Keybind"), UiText.t("点击右侧按键块后按下任意键完成录入", "Click the key block, then press any key to bind"), null)
                 .keybindAction(ModuleKeybindManager.ACTION_CLICK_GUI));

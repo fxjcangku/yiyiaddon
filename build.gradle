@@ -15,7 +15,7 @@ loom {
     runs {
         client {
             // 固定玩家名：离线 UUID 由名字派生，随机名会导致每次启动都是"新玩家"
-            programArgs '--username', 'yiyi'
+            programArgs '--username', 'yiyijia'
         }
     }
 }

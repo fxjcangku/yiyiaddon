@@ -28,8 +28,8 @@ public final class CommandManager {
     /** 默认指令前缀，与传统客户端模组保持一致的 {@code .} */
     public static final String DEFAULT_PREFIX = ".";
 
-    /** 前缀允许的最大字符数 */
-    private static final int MAX_PREFIX_LENGTH = 4;
+    /** 前缀固定为单个字符 */
+    private static final int MAX_PREFIX_LENGTH = 1;
 
     /** 框架级回执前缀（指令框架自身提示的归属功能名） */
     public static final String FRAMEWORK_PREFIX = "帮助";
