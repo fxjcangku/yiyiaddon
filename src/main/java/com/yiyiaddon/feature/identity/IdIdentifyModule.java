@@ -27,19 +27,23 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * ID 识别与配置管理模块：第六阶段的第一个真实模块，用于验证整套模块运行时。
+ * ID 识别模块（旧项目 {@code IdIdentifyModule}）：只管「识别」这一件事。
  *
- * <p>覆盖的能力：模块注册与元数据、生命周期（初始化 / 启用 / 关闭 / 自检）、事件订阅、
- * 设置持久化、模块页面、模块指令、快捷键绑定。</p>
+ * <p><b>用户交互资产：</b>模块中文名 {@code ID识别}、分类 {@code 辅助}、description 与全部播报
+ * 文本均沿用旧项目原文，禁止改写。数据管理相关功能由 {@link IdConfigModule} 独立承载，
+ * 与旧项目一样是两个可单独开关的模块。</p>
  *
- * <p>业务实现全部复用第五阶段产物：识别走 {@code ItemIdentifier} / {@code BlockIdentifier} /
+ * <p>业务实现复用第五阶段产物：识别走 {@code ItemIdentifier} / {@code BlockIdentifier} /
  * {@code EntityIdentifier}，数据走 {@code IdentityService}，目标选择走 {@code IdentityTargetConfig}，
  * 本模块只负责把它们串起来并给出中文回显。</p>
  */
-public final class IdentityModule extends Module {
+public final class IdIdentifyModule extends Module {
 
     /** 模块 ID，同时作为状态文件键与快捷键键名后缀 */
-    public static final String MODULE_ID = "identity";
+    public static final String MODULE_ID = "id_identify";
+
+    /** 回执前缀使用的模块名：旧项目 {@code IdCommand.MODULE_NAME} 原文 */
+    public static final String MESSAGE_MODULE = "ID识别";
 
     /** 图标字形，与界面搜索图标同一字形（已确认存在于所引字体） */
     private static final String ICON = "\uE8B6";
@@ -49,13 +53,13 @@ public final class IdentityModule extends Module {
     /** 本会话最近一次识别结果；关闭模块时清空 */
     private volatile IdentitySummary latest;
 
-    public IdentityModule() {
-        super(MODULE_ID, "ID识别", "assist", "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
+    public IdIdentifyModule() {
+        super(MODULE_ID, MESSAGE_MODULE, "assist", "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
     }
 
     @Override
     public String name() {
-        return "IdentityTool";
+        return "IdIdentify";
     }
 
     @Override
@@ -165,7 +169,7 @@ public final class IdentityModule extends Module {
     /** 输出身份库统计到聊天栏 */
     public void reportStats() {
         IdentityService service = IdentityService.shared();
-        CommandMessageFormatter.of(displayName(), "身份库")
+        CommandMessageFormatter.of(MESSAGE_MODULE, "身份库")
                 .field("物品", "§f" + service.itemCount() + " 项")
                 .field("实体", "§f" + service.entityCount() + " 项")
                 .field("方块", "§f" + service.blockCount() + " 项")
@@ -180,7 +184,7 @@ public final class IdentityModule extends Module {
     /** 清理失效的识别目标 */
     public void pruneTargets() {
         int pruned = IdentityActions.pruneInvalidTargets();
-        ClientChat.send(displayName(), pruned == 0 ? "§7没有失效的识别目标" : "§7已清理 " + pruned + " 项失效的识别目标");
+        ClientChat.send(MESSAGE_MODULE, pruned == 0 ? "§7没有失效的识别目标" : "§7已清理 " + pruned + " 项失效的识别目标");
     }
 
     public IdentityModuleConfig config() {
@@ -199,7 +203,7 @@ public final class IdentityModule extends Module {
     public void setModeIndex(int index) {
         config.setModeIndex(index);
         persist();
-        CommandMessageFormatter.of(displayName(), "识别模式")
+        CommandMessageFormatter.of(MESSAGE_MODULE, "识别模式")
                 .field("当前模式", "§f" + config.mode().displayName())
                 .field("说明", "§7" + IdentityModuleConfig.describe(config.mode()))
                 .status(CommandMessageFormatter.Level.SUCCESS, "已切换").send();
@@ -234,12 +238,12 @@ public final class IdentityModule extends Module {
     /** 清理失效的识别目标，仅在确有清理时提示 */
     private void pruneSilently() {
         int pruned = IdentityActions.pruneInvalidTargets();
-        if (pruned > 0) ClientChat.send(displayName(), "§7已清理 " + pruned + " 项失效的识别目标");
+        if (pruned > 0) ClientChat.send(MESSAGE_MODULE, "§7已清理 " + pruned + " 项失效的识别目标");
     }
 
     private boolean requireEnabled() {
         if (isEnabled()) return true;
-        ClientChat.send(displayName(), "§6§l模块未启用（" + CommandManager.PREFIX + "module on " + id() + " 可开启）");
+        ClientChat.send(MESSAGE_MODULE, "§6§l模块未启用（" + CommandManager.PREFIX + "module on " + id() + " 可开启）");
         return false;
     }
 
@@ -259,19 +263,19 @@ public final class IdentityModule extends Module {
         IdentitySummary.Kind kind = summary.kind();
         if (!summary.success()) {
             String reason = summary.rows().isEmpty() ? "未知原因" : summary.rows().get(0).value();
-            ClientChat.send(displayName(), "§6§l" + reason);
+            ClientChat.send(MESSAGE_MODULE, "§6§l" + reason);
             return;
         }
-        ClientChat.send(displayName(), "§a§l✓ 已识别" + kind.displayName() + " §8▸ §a§l" + summary.title());
+        ClientChat.send(MESSAGE_MODULE, "§a§l✓ 已识别" + kind.displayName() + " §8▸ §a§l" + summary.title());
         if (summary.saved()) {
-            ClientChat.send(displayName(),
+            ClientChat.send(MESSAGE_MODULE,
                     CommandMessageFormatter.line("保存文件", "§f" + summary.fileName()));
         } else if (config.savesToLibrary()) {
-            ClientChat.send(displayName(), alreadyText(kind));
+            ClientChat.send(MESSAGE_MODULE, alreadyText(kind));
         }
         if (!config.verbose()) return;
         for (IdentitySummary.Row row : summary.rows()) {
-            ClientChat.send(displayName(), CommandMessageFormatter.line(row.label(), "§f" + row.value()));
+            ClientChat.send(MESSAGE_MODULE, CommandMessageFormatter.line(row.label(), "§f" + row.value()));
         }
     }
 

@@ -4,7 +4,7 @@ import com.yiyiaddon.command.ClientCommand;
 import com.yiyiaddon.command.CommandContext;
 import com.yiyiaddon.command.CommandManager;
 import com.yiyiaddon.core.CommandMessageFormatter;
-import com.yiyiaddon.feature.identity.IdentityModule;
+import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.feature.identity.config.IdentityModuleConfig;
 import com.yiyiaddon.model.identity.IdentifyMode;
 
@@ -25,13 +25,13 @@ import java.util.Locale;
 public final class IdentityCommand extends ClientCommand {
 
     /** 回执前缀：旧项目 {@code IdCommand.MODULE_NAME} 原文 */
-    private static final String MODULE_NAME = "ID识别";
+    private static final String MODULE_NAME = IdIdentifyModule.MESSAGE_MODULE;
 
     private static final List<String> SUBCOMMANDS = List.of("物品", "实体", "方块", "统计", "模式");
 
-    private final IdentityModule module;
+    private final IdIdentifyModule module;
 
-    public IdentityCommand(IdentityModule module) {
+    public IdentityCommand(IdIdentifyModule module) {
         this.module = module;
     }
 

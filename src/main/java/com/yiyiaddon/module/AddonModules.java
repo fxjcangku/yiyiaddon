@@ -6,7 +6,8 @@ import com.yiyiaddon.command.ResourceCommand;
 import com.yiyiaddon.core.event.EventDispatcher;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
-import com.yiyiaddon.feature.identity.IdentityModule;
+import com.yiyiaddon.feature.identity.IdConfigModule;
+import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.service.resourcepack.ResourceIndexProbe;
 
@@ -53,7 +54,8 @@ public final class AddonModules {
     /** 全部功能模块；新增模块只改这里 */
     private static List<Module> createModules() {
         return List.of(
-                new IdentityModule()
+                new IdIdentifyModule(),
+                new IdConfigModule()
         );
     }
 
