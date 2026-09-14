@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * yiyiaddon 最小配置系统。
  *
  * <p>本阶段只保存 UI 框架自用的少量状态：主题、GUI 缩放、面板模糊、GUI 快捷键、
- * UI 测试值，以及 Baritone 汉化开关。不承载任何业务模块配置。</p>
+ * UI 测试值、Baritone 汉化开关，以及客户端指令前缀。不承载任何业务模块配置。</p>
  *
  * <p>全部字段以显式 {@link JsonObject} 读写实现，不依赖反射序列化：
  * 任何字段缺失、类型不符或文件损坏都会静默回落到默认值，不会阻断客户端启动。</p>
@@ -40,6 +40,10 @@ public final class AddonConfig {
 
     // —— Baritone 汉化 ——
     public static boolean baritoneChinese = true;
+
+    // —— 客户端指令 ——
+    /** 客户端指令前缀的原始输入值；合法性与回落由 {@code CommandManager.normalizePrefix} 负责。 */
+    public static String commandPrefix = ".";
 
     private static boolean loaded;
 
@@ -69,6 +73,7 @@ public final class AddonConfig {
             scrollSpeed = number(json, "scrollSpeed", scrollSpeed);
             moduleKeybinds = string(json, "moduleKeybinds", moduleKeybinds);
             baritoneChinese = bool(json, "baritoneChinese", baritoneChinese);
+            commandPrefix = string(json, "commandPrefix", commandPrefix);
         } catch (Exception ignored) {
             // 配置文件损坏：保持默认值，不阻断启动。
         }
@@ -85,6 +90,7 @@ public final class AddonConfig {
         json.addProperty("scrollSpeed", scrollSpeed);
         json.addProperty("moduleKeybinds", moduleKeybinds);
         json.addProperty("baritoneChinese", baritoneChinese);
+        json.addProperty("commandPrefix", commandPrefix);
         try {
             Path file = path();
             Files.createDirectories(file.getParent());

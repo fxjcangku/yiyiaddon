@@ -40,7 +40,7 @@ public abstract class ClientCommand {
 
     /** 用法示例，含前缀 */
     public String usage() {
-        return CommandManager.PREFIX + name();
+        return CommandManager.prefix() + name();
     }
 
     /** 执行 */

@@ -34,7 +34,7 @@ public final class HelpCommand extends ClientCommand {
 
     @Override
     public String usage() {
-        return CommandManager.PREFIX + "help [指令名]";
+        return CommandManager.prefix() + "help [指令名]";
     }
 
     @Override
@@ -48,7 +48,7 @@ public final class HelpCommand extends ClientCommand {
             context.error("未找到指令：" + context.arg(0));
             return;
         }
-        CommandMessageFormatter.of(prefixName(), CommandManager.PREFIX + command.name())
+        CommandMessageFormatter.of(prefixName(), CommandManager.prefix() + command.name())
                 .field("别名", command.aliases().isEmpty() ? "无" : String.join("、", command.aliases()))
                 .field("用法", command.usage())
                 .field("说明", command.description())
@@ -65,14 +65,14 @@ public final class HelpCommand extends ClientCommand {
         List<ClientCommand> commands = CommandRegistry.all();
         CommandMessageFormatter formatter = CommandMessageFormatter.of(prefixName(), "客户端指令");
         for (ClientCommand command : commands) {
-            StringBuilder label = new StringBuilder(CommandManager.PREFIX).append(command.name());
+            StringBuilder label = new StringBuilder(CommandManager.prefix()).append(command.name());
             if (!command.aliases().isEmpty()) {
                 label.append("（").append(String.join("、", command.aliases())).append("）");
             }
             formatter.field(label.toString(), "§f" + command.description());
         }
         formatter.status(CommandMessageFormatter.Level.INFO,
-                "共 " + commands.size() + " 个（前缀 " + CommandManager.PREFIX + "）").send();
-        ClientChat.send(prefixName(), "§7输入 " + CommandManager.PREFIX + "help 指令名 查看单条用法");
+                "共 " + commands.size() + " 个（前缀 " + CommandManager.prefix() + "）").send();
+        ClientChat.send(prefixName(), "§7输入 " + CommandManager.prefix() + "help 指令名 查看单条用法");
     }
 }

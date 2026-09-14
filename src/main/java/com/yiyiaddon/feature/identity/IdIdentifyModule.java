@@ -243,7 +243,7 @@ public final class IdIdentifyModule extends Module {
 
     private boolean requireEnabled() {
         if (isEnabled()) return true;
-        ClientChat.send(MESSAGE_MODULE, "§6§l模块未启用（" + CommandManager.PREFIX + "module on " + id() + " 可开启）");
+        ClientChat.send(MESSAGE_MODULE, "§6§l模块未启用（" + CommandManager.prefix() + "module on " + id() + " 可开启）");
         return false;
     }
 

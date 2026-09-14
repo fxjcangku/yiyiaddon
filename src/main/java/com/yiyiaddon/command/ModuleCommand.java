@@ -43,7 +43,7 @@ public final class ModuleCommand extends ClientCommand {
 
     @Override
     public String usage() {
-        return CommandManager.PREFIX + "module <list|on|off|toggle|status> [模块]";
+        return CommandManager.prefix() + "module <list|on|off|toggle|status> [模块]";
     }
 
     @Override

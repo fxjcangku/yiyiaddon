@@ -58,7 +58,7 @@ public final class ResourceCommand extends ClientCommand {
 
     @Override
     public String usage() {
-        return CommandManager.PREFIX + "resource <check|analyze|status|cache>";
+        return CommandManager.prefix() + "resource <check|analyze|status|cache>";
     }
 
     @Override
@@ -115,7 +115,7 @@ public final class ResourceCommand extends ClientCommand {
 
         ResourceAnalysisResult result = probe.lastResult();
         if (result == null) {
-            formatter.field("最近解析", "§7尚未解析资源（" + CommandManager.PREFIX + "resource analyze 可直接解析）");
+            formatter.field("最近解析", "§7尚未解析资源（" + CommandManager.prefix() + "resource analyze 可直接解析）");
             formatter.status(CommandMessageFormatter.Level.INFO, ResourceExtractionService.statusLabel()).send();
             return;
         }

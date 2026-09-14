@@ -52,7 +52,7 @@ public final class IdentityCommand extends ClientCommand {
 
     @Override
     public String usage() {
-        return CommandManager.PREFIX + "id [物品|实体|方块]";
+        return CommandManager.prefix() + "id [物品|实体|方块]";
     }
 
     @Override
@@ -104,7 +104,7 @@ public final class IdentityCommand extends ClientCommand {
                     .field("当前模式", "§f" + module.config().mode().displayName())
                     .field("说明", "§7" + IdentityModuleConfig.describe(module.config().mode()))
                     .field("可选", "§f" + String.join("、", module.modeLabels()))
-                    .status(CommandMessageFormatter.Level.INFO, "输入 " + CommandManager.PREFIX + "id 模式 <模式> 切换")
+                    .status(CommandMessageFormatter.Level.INFO, "输入 " + CommandManager.prefix() + "id 模式 <模式> 切换")
                     .send();
             return;
         }
