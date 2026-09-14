@@ -2,12 +2,8 @@ package com.yiyiaddon.feature.identity.ui;
 
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
-import com.yiyiaddon.feature.identity.config.IdentityModuleConfig;
-import com.yiyiaddon.feature.identity.service.IdentityActions;
 import com.yiyiaddon.module.ModuleEntry;
-import com.yiyiaddon.ui.component.CollapsibleSection;
 import com.yiyiaddon.ui.component.CompactRow;
-import com.yiyiaddon.ui.component.KeyValueRow;
 import com.yiyiaddon.ui.component.KeybindBadge;
 import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.page.BasePage;
@@ -17,25 +13,28 @@ import com.yiyiaddon.ui.widget.SettingSegmented;
 import com.yiyiaddon.ui.widget.SettingText;
 import com.yiyiaddon.ui.widget.SettingToggle;
 
-import java.util.List;
-
 /**
- * ID 识别模块（{@code ID识别}）的独立页面：紧凑型模块控制面板。
+ * ID 识别模块（{@code ID识别}）的独立页面。
  *
- * <p>按「顶部状态 → 中间核心配置 → 底部状态信息」三段排布，高频操作一屏可见，低频项收进折叠的
- * 高级设置，不再是一条需要长滚动的设置列表。</p>
- *
- * <p>设置项的读写路径完全保持原样：模块开关仍然写 {@code ModuleManager.setEnabled}，识别模式仍然
- * 读写 {@code IdentityModuleConfig} 的模式字段，详细输出仍然读写详细输出字段，三个识别动作仍然
- * 调用模块自己的识别入口；统计与最近结果每帧从身份服务与识别目标配置读取，不保存任何副本。</p>
+ * <p>页面外壳为本项目紧凑面板；<b>页面上的字段标签与说明全部为旧项目 {@code IdIdentifyModule} 原文</b>，
+ * 与其 {@code sgIdentify}（「识别」组）的三个设置项一一对应：{@code 识别模式}、{@code 当前模式}、
+ * {@code 方块语义调试}。旧项目没有的设置项一律不得出现（《开发习惯》第 126 / 128 / 163 条）。</p>
  *
  * <p>数据管理类操作（重读磁盘、清理失效目标、打开数据目录）归 {@code ID配置管理} 模块，
  * 不在本页出现。</p>
  */
 public final class IdentityModulePage extends CompactModulePage implements ModulePage {
 
-    /** 识别动作分段：下标 0 物品、1 方块、2 实体，顺序与所属动作一一对应。 */
-    private static final List<String> ACTION_LABELS = List.of("物品", "方块", "实体");
+    /** 旧项目「识别模式」设置项描述原文（一条完整描述，未拆分改写） */
+    private static final String MODE_DESCRIPTION =
+            "聊天复制/显示：识别手持物品后弹出结果屏幕；自动保存：识别手持物品后直接写入 ID 配置；准星方块识别：识别准星真实命中的方块。";
+
+    /** 旧项目「当前模式」设置项描述原文 */
+    private static final String CURRENT_MODE_DESCRIPTION = "当前选中的识别模式（实时显示）。";
+
+    /** 旧项目「方块语义调试」设置项描述原文 */
+    private static final String BLOCK_SEMANTIC_DEBUG_DESCRIPTION =
+            "开启后，.id 方块 会把方块资源包语义解析的完整过程输出到日志 latest.log（前缀 [BlockSemanticDebug]），用于定位真机解析失败原因。默认关闭。";
 
     private final IdIdentifyModule module;
 
@@ -67,42 +66,12 @@ public final class IdentityModulePage extends CompactModulePage implements Modul
                 new KeybindBadge(module.keybindId()),
                 new SettingToggle(module::isEnabled, value -> ModuleManager.setEnabled(module.id(), value))));
 
-        // 中间：核心配置，全部一屏可见
-        addCore(new CompactRow("识别模式",
-                () -> IdentityModuleConfig.describe(module.config().mode()),
+        // 「识别」组：识别模式 → 当前模式 → 方块语义调试（对应旧项目 sgIdentify）
+        addCore(new CompactRow("识别模式", () -> MODE_DESCRIPTION,
                 new SettingSegmented(module.modeLabels(), module::modeIndex, module::setModeIndex)));
-        addCore(new CompactRow("", () -> "点击执行对应识别动作",
-                new SettingSegmented(ACTION_LABELS, this::runIdentify)));
-        addCore(new CompactRow("详细输出", () -> "开启后额外输出全部识别字段",
-                new SettingToggle(module::verbose, module::setVerbose)));
-
-        // 底部：运行结果与统计
-        addFooter(new KeyValueRow("最近结果", List.of(KeyValueRow.Value.of(module::latestText))));
-        addFooter(new KeyValueRow("数据统计", List.of(
-                KeyValueRow.Value.of("物品", () -> String.valueOf(IdentityActions.itemCount())),
-                KeyValueRow.Value.of("实体", () -> String.valueOf(IdentityActions.entityCount())),
-                KeyValueRow.Value.of("方块", () -> String.valueOf(IdentityActions.blockCount())))));
-
-        // 折叠：快照与目标数量（维护类操作归 ID配置管理）
-        CollapsibleSection advanced = new CollapsibleSection("高级设置", () -> "快照与识别目标");
-        advanced.content()
-                .add(new CompactRow("物品快照", () -> "已保存的物品状态快照数量",
-                        new SettingText(() -> IdentityActions.itemSnapshotCount() + " 项")))
-                .add(new CompactRow("方块快照", () -> "已保存的方块状态快照数量",
-                        new SettingText(() -> IdentityActions.blockSnapshotCount() + " 项")))
-                .add(new CompactRow("已选识别目标", () -> "识别目标配置中仍有效的选中项",
-                        new SettingText(() -> IdentityActions.selectedTargetCount() + " 项")));
-        addFooter(advanced);
-    }
-
-    /** 分段动作：下标与识别动作一一对应。 */
-    private void runIdentify(int index) {
-        switch (index) {
-            case 0 -> module.identifyItem();
-            case 1 -> module.identifyBlock();
-            case 2 -> module.identifyEntity();
-            default -> {
-            }
-        }
+        addCore(new CompactRow("当前模式", () -> CURRENT_MODE_DESCRIPTION,
+                new SettingText(() -> "§a§l" + module.config().mode().displayName())));
+        addCore(new CompactRow("方块语义调试", () -> BLOCK_SEMANTIC_DEBUG_DESCRIPTION,
+                new SettingToggle(module::blockSemanticDebug, module::setBlockSemanticDebug)));
     }
 }

@@ -23,6 +23,7 @@ import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.platform.identity.BlockIdentifier;
 import com.yiyiaddon.platform.identity.EntityIdentifier;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
+import com.yiyiaddon.platform.resource.BlockStateModelResolver;
 import com.yiyiaddon.platform.storage.GamePaths;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.page.ModulePage;
@@ -134,6 +135,8 @@ public final class IdIdentifyModule extends Module {
     @Override
     public void loadSettings(JsonObject settings) {
         config.load(settings);
+        // 初始同步一次：旧项目在构造末尾把开关当前值同步给解析器（onChanged 只在变更时触发）
+        BlockStateModelResolver.setVerbose(config.blockSemanticDebug());
     }
 
     @Override
@@ -283,13 +286,14 @@ public final class IdIdentifyModule extends Module {
                 .status(CommandMessageFormatter.Level.SUCCESS, "已切换").send();
     }
 
-    public boolean verbose() {
-        return config.verbose();
+    public boolean blockSemanticDebug() {
+        return config.blockSemanticDebug();
     }
 
-    /** 切换详细输出并立即持久化 */
-    public void setVerbose(boolean value) {
-        config.setVerbose(value);
+    /** 方块语义调试：开关立即作用到解析器并持久化（旧项目同款即时生效） */
+    public void setBlockSemanticDebug(boolean value) {
+        config.setBlockSemanticDebug(value);
+        BlockStateModelResolver.setVerbose(value);
         persist();
     }
 
@@ -346,10 +350,6 @@ public final class IdIdentifyModule extends Module {
                     CommandMessageFormatter.line("保存文件", "§f" + summary.fileName()));
         } else if (config.savesToLibrary()) {
             ClientChat.send(MESSAGE_MODULE, alreadyText(kind));
-        }
-        if (!config.verbose()) return;
-        for (IdentitySummary.Row row : summary.rows()) {
-            ClientChat.send(MESSAGE_MODULE, CommandMessageFormatter.line(row.label(), "§f" + row.value()));
         }
     }
 

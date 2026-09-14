@@ -9,18 +9,19 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * ID 模块配置：识别模式与输出详细程度。
+ * ID 模块配置：识别模式与方块语义调试开关。
  *
- * <p>只负责字段编解码，读写与落盘由模块运行时的 {@code loadSettings} / {@code saveSettings} 统一处理，
- * 因此本类不接触文件与路径。</p>
+ * <p>字段与旧项目 {@code IdIdentifyModule} 的 {@code sgIdentify}（「识别」组）一致：
+ * {@code 识别模式}（枚举）与 {@code 方块语义调试}（布尔）。只负责字段编解码，读写与落盘由模块运行时的
+ * {@code loadSettings} / {@code saveSettings} 统一处理，因此本类不接触文件与路径。</p>
  */
 public final class IdentityModuleConfig {
 
     private static final String KEY_MODE = "识别模式";
-    private static final String KEY_VERBOSE = "详细输出";
+    private static final String KEY_BLOCK_SEMANTIC_DEBUG = "方块语义调试";
 
     private IdentifyMode mode = IdentifyMode.AUTO_SAVE;
-    private boolean verbose;
+    private boolean blockSemanticDebug;
 
     public IdentifyMode mode() {
         return mode;
@@ -35,12 +36,13 @@ public final class IdentityModuleConfig {
         return mode != IdentifyMode.CHAT_COPY;
     }
 
-    public boolean verbose() {
-        return verbose;
+    /** 方块语义调试：开启后 {@code .id 方块} 把语义解析全过程输出到 latest.log */
+    public boolean blockSemanticDebug() {
+        return blockSemanticDebug;
     }
 
-    public void setVerbose(boolean verbose) {
-        this.verbose = verbose;
+    public void setBlockSemanticDebug(boolean value) {
+        this.blockSemanticDebug = value;
     }
 
     /** 模式下拉框文案 */
@@ -77,12 +79,12 @@ public final class IdentityModuleConfig {
 
     public void load(JsonObject json) {
         mode = parseMode(Json.string(json, KEY_MODE, mode.name()));
-        verbose = Json.bool(json, KEY_VERBOSE, verbose);
+        blockSemanticDebug = Json.bool(json, KEY_BLOCK_SEMANTIC_DEBUG, blockSemanticDebug);
     }
 
     public void save(JsonObject json) {
         json.addProperty(KEY_MODE, mode.name());
-        json.addProperty(KEY_VERBOSE, verbose);
+        json.addProperty(KEY_BLOCK_SEMANTIC_DEBUG, blockSemanticDebug);
     }
 
     private static IdentifyMode parseMode(String raw) {

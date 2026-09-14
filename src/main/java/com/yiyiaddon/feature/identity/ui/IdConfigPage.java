@@ -25,7 +25,6 @@ import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
-import com.yiyiaddon.ui.widget.SettingText;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
@@ -130,9 +129,8 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
         // 汇总：旧项目面板原文格式
         addCore(new TextLine(summaryText()).height(SUMMARY_HEIGHT));
 
-        // 搜索：旧项目标签原文
+        // 搜索：旧项目标签原文（旧项目只有标签与输入框，无额外说明文字）
         addCore(new CompactRow("§7搜索（中文名 / 技术ID / 坐标）",
-                () -> "输入后即时过滤当前 ID 清单",
                 new SettingTextBox(() -> search, this::applySearch, 64)));
 
         // 分类筛选：选中态为文字前缀，与旧项目一致
@@ -152,10 +150,6 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
 
         // 使用说明：旧项目放在分页之后，作为独立入口
         addCore(new ButtonRow(new Button("§e使用说明", this::openHelp)));
-
-        // 底部：数据目录（本项目保留的状态信息）
-        addFooter(new CompactRow("数据目录", () -> "身份数据在磁盘上的位置",
-                new SettingText(() -> GamePaths.identityRoot().toString(), 280f)));
     }
 
     /** 汇总行：旧项目面板原文格式。 */
