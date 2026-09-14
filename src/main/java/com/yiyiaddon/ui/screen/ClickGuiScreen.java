@@ -836,7 +836,6 @@ public class ClickGuiScreen extends SkiaScreen {
         BasePage page = activePage();
         if (page != null) {
             page.releasePress();
-            page.releaseDrag();
         }
         return false;
     }

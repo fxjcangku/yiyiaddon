@@ -2,6 +2,7 @@ package com.yiyiaddon.ui.widget;
 
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 
@@ -43,10 +44,16 @@ public class SettingText extends SettingWidget {
 
     @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
-        String shown = CardLayout.ellipsize(resolve(), width, FONT_SIZE);
-        float textWidth = FontRenderer.measureTextWidth(shown, FONT_SIZE);
-        FontRenderer.drawText(canvas, shown, x + width - textWidth, y + 14f, FONT_SIZE,
-                withAlpha(ClickGuiThemeColors.current().secondaryText, alpha));
+        String shown = resolve();
+        if (shown.isEmpty()) return;
+        float textWidth = MinecraftText.measure(shown, FONT_SIZE, false);
+        if (textWidth > width) {
+            // 超宽：退化为纯文本截断，保证不溢出控件区域（颜色码在截断时丢弃）
+            shown = CardLayout.ellipsize(MinecraftText.strip(shown), width, FONT_SIZE);
+            textWidth = FontRenderer.measureTextWidth(shown, FONT_SIZE);
+        }
+        MinecraftText.draw(canvas, shown, x + width - textWidth, y + 14f, FONT_SIZE,
+                ClickGuiThemeColors.current().secondaryText, alpha);
     }
 
     private String resolve() {

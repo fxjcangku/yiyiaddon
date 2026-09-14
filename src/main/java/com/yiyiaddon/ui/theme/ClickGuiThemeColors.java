@@ -60,6 +60,19 @@ public final class ClickGuiThemeColors {
     public final int dangerHoverBackground;
     public final int dangerHoverText;
 
+    // —— 派生色：快捷键徽章（常态 / 悬停 / 解绑悬停） ——
+    public final int keybindBackground;
+    public final int keybindHoverBackground;
+    public final int keybindUnbindBackground;
+
+    // —— 派生色：调色板 ——
+    /** 透明度棋盘格的浅格 */
+    public final int checkerLight;
+    /** 透明度棋盘格的深格 */
+    public final int checkerDark;
+    /** 拾色器指示器（色相游标、面板游标、选中描边） */
+    public final int pickerIndicator;
+
     public final boolean dark;
 
     private ClickGuiThemeColors(
@@ -73,6 +86,8 @@ public final class ClickGuiThemeColors {
             int searchBackground, int searchFocusedBackground, int searchIcon,
             int searchCursor, int searchText, int searchTextPlaceholder,
             int dangerHoverBackground, int dangerHoverText,
+            int keybindBackground, int keybindHoverBackground, int keybindUnbindBackground,
+            int checkerLight, int checkerDark, int pickerIndicator,
             boolean dark) {
         this.window = window;
         this.sidebar = sidebar;
@@ -109,7 +124,26 @@ public final class ClickGuiThemeColors {
         this.searchTextPlaceholder = searchTextPlaceholder;
         this.dangerHoverBackground = dangerHoverBackground;
         this.dangerHoverText = dangerHoverText;
+        this.keybindBackground = keybindBackground;
+        this.keybindHoverBackground = keybindHoverBackground;
+        this.keybindUnbindBackground = keybindUnbindBackground;
+        this.checkerLight = checkerLight;
+        this.checkerDark = checkerDark;
+        this.pickerIndicator = pickerIndicator;
         this.dark = dark;
+    }
+
+    /** 给 RGB 叠上 0-1 的透明度。界面与渲染的取色统一走这里，禁止各组件自己写位运算。 */
+    public static int withAlpha(int rgb, float alpha) {
+        float value = alpha < 0f ? 0f : (alpha > 1f ? 1f : alpha);
+        return (((int) (value * 255f)) << 24) | (rgb & 0xFFFFFF);
+    }
+
+    /** 取已有 ARGB 的透明度再乘一个系数，用于整体淡出时保留颜色自身的透明度。 */
+    public static int scaleAlpha(int argb, float factor) {
+        float value = factor < 0f ? 0f : (factor > 1f ? 1f : factor);
+        int base = (argb >>> 24) & 0xFF;
+        return (((int) (base * value)) << 24) | (argb & 0xFFFFFF);
     }
 
     /**
@@ -159,6 +193,16 @@ public final class ClickGuiThemeColors {
         int dangerHoverBackground = dark ? 0x3D2226 : 0xFFE5E5;
         int dangerHoverText = dark ? 0xFF6B6B : 0xCC2222;
 
+        // 快捷键徽章：常态/悬停用中性灰，解绑悬停用语义红；按明暗自适应
+        int keybindBackground = dark ? 0x777777 : 0x555555;
+        int keybindHoverBackground = dark ? 0x949494 : 0x777777;
+        int keybindUnbindBackground = dark ? 0xE14D4D : 0xCC3333;
+
+        // 调色板：棋盘格用于表现透明度，按明暗自适应；拾色游标取与底色高对比的一端
+        int checkerLight = dark ? 0x8A8A8A : 0xC9C9C9;
+        int checkerDark = dark ? 0x5C5C5C : 0xA8A8A8;
+        int pickerIndicator = dark ? 0xFFFFFF : 0x1A1A1A;
+
         // iOS 语义层：分隔线取边框的弱化版；高光恒为白，靠 alpha 控制强度；
         // 强调色上的文字按强调色亮度取黑或白，保证对比度。
         int separator = mix(border, dark ? 0x000000 : 0xFFFFFF, dark ? 0.35f : 0.45f);
@@ -180,6 +224,8 @@ public final class ClickGuiThemeColors {
                 searchBackground, searchFocusedBackground, searchIcon,
                 searchCursor, searchText, searchTextPlaceholder,
                 dangerHoverBackground, dangerHoverText,
+                keybindBackground, keybindHoverBackground, keybindUnbindBackground,
+                checkerLight, checkerDark, pickerIndicator,
                 dark);
     }
 

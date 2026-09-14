@@ -1,0 +1,410 @@
+package com.yiyiaddon.ui.screen;
+
+import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.ui.component.BackButton;
+import com.yiyiaddon.ui.component.ButtonRow;
+import com.yiyiaddon.ui.component.CompactElement;
+import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.component.PanelFrame;
+import com.yiyiaddon.ui.component.ScrollViewport;
+import com.yiyiaddon.ui.component.TextLine;
+import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.ImeBridge;
+import com.yiyiaddon.ui.render.SkiaGlBackend;
+import com.yiyiaddon.ui.render.SkiaScreen;
+import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
+import com.yiyiaddon.ui.widget.Button;
+import com.yiyiaddon.ui.widget.SettingTextBox;
+import io.github.humbleui.skija.Canvas;
+import io.github.humbleui.types.RRect;
+import io.github.humbleui.types.Rect;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
+
+/**
+ * 通用独立面板窗口：本项目全部「独立小窗口」的统一骨架。
+ *
+ * <p>负责面板玻璃、圆角、阴影、标题栏、返回按钮、内容滚动与命中分发；子类只往 {@link #content()}
+ * 里追加元素，不接触几何与输入处理。模块的独立页面用 {@code ModuleScreen}，一次性小窗口用本类。</p>
+ *
+ * <p>内容元素按设计高度单列排布，超出可视高度时滚动；面板尺寸与主界面一致
+ * （{@link PanelFrame#CARD_W} x {@link PanelFrame#CARD_H}），因此样式与主界面完全统一。</p>
+ *
+ * <p><b>用法</b>：子类构造末尾调用内容助手填内容，例如：</p>
+ *
+ * <pre>
+ * public MyScreen(Screen parent) {
+ *     super("窗口标题", parent);
+ *     addSectionTitle("§b§l▌ 分区标题");
+ *     addField("标签", "值");
+ *     addDivider();
+ *     addButton("确定", this::confirm);
+ * }
+ * </pre>
+ */
+public abstract class PanelScreen extends SkiaScreen {
+
+    /** 内容区左右留白。 */
+    protected static final float CONTENT_PAD = 18f;
+    /** 内容区顶部（标题区下方）。 */
+    protected static final float CONTENT_TOP = 70f;
+    /** 元素之间的默认间距。 */
+    protected static final float LINE_GAP = 6f;
+
+    private static final float BACK_X = 18f;
+    private static final float BACK_Y = 16f;
+    private static final float TITLE_X = BACK_X + BackButton.SIZE + 12f;
+    private static final float TITLE_Y = 27f;
+    private static final float PAGE_INSET_X = 10f;
+    private static final float PAGE_RESERVED_W = 40f;
+    private static final float CONTENT_BOTTOM_PAD = 8f;
+    private static final float TRACK_INSET = 8f;
+    private static final float TRACK_TOP_PAD = 4f;
+
+    private static final float SECTION_TITLE_HEIGHT = 26f;
+    private static final float SECTION_TITLE_SIZE = 12f;
+    private static final float GAP_HEIGHT = 8f;
+    private static final float DIVIDER_HEIGHT = 13f;
+    /** 入场时面板的下沉距离：与缩放、淡入一起构成「弹出」观感；关闭时反向播放。 */
+    private static final float ENTER_RISE = 16f;
+
+    private final String windowTitle;
+    private final CompactStack content = new CompactStack(LINE_GAP).enterAnimation(true);
+    private final PanelFrame frame = new PanelFrame();
+    private final ScrollViewport scroll = new ScrollViewport();
+    private final BackButton backButton = new BackButton();
+    private final SkiaGlBackend glBackend = new SkiaGlBackend();
+
+    private boolean closingRequested;
+    private boolean draggingInContent;
+    private boolean draggingScrollbar;
+    private boolean exitToGame;
+    private long lastRenderMs;
+
+    protected PanelScreen(String windowTitle, Screen parent) {
+        super(Component.literal(windowTitle), parent);
+        this.windowTitle = windowTitle;
+    }
+
+    // ── 内容构建助手 ──
+
+    /** 内容容器；子类在此追加任意 {@link CompactElement}。 */
+    protected final CompactStack content() {
+        return content;
+    }
+
+    /** 分区标题（旧项目格式 {@code §b§l▌ 标题}）。 */
+    protected final void addSectionTitle(String text) {
+        content.add(new TextLine(text).height(SECTION_TITLE_HEIGHT).size(SECTION_TITLE_SIZE).bold(true));
+    }
+
+    /** 字段行（旧项目格式 {@code §7标签 §8▸ §f值}）。 */
+    protected final void addField(String label, String value) {
+        content.add(TextLine.field(label, value));
+    }
+
+    /** 满宽按钮：单个按钮撑满整行（本项目尺寸自动适配，不设固定宽度）。 */
+    protected final void addButton(String label, Runnable action) {
+        content.add(new ButtonRow(new Button(label, action)));
+    }
+
+    /** 一行多个等宽按钮。 */
+    protected final void addButtons(Button... buttons) {
+        content.add(new ButtonRow(buttons));
+    }
+
+    /** 空行：用于把操作按钮与信息区分开。 */
+    protected final void addGap() {
+        content.add(new TextLine(" ").height(GAP_HEIGHT));
+    }
+
+    /** 水平分隔线：旧项目用它把危险操作与常规操作分区。 */
+    protected final void addDivider() {
+        content.add(new CompactElement() {
+            @Override
+            public float height() {
+                return DIVIDER_HEIGHT;
+            }
+
+            @Override
+            public void update(float dt) {
+            }
+
+            @Override
+            public void draw(Canvas canvas, float x, float y, float width, float alpha,
+                             float mouseX, float mouseY) {
+                GlassPanel.divider(canvas, x + 6f, y + DIVIDER_HEIGHT / 2f, width - 12f,
+                        ClickGuiThemeColors.current().separator, alpha);
+            }
+
+            @Override
+            public boolean onClick(float mx, float my, float x, float y, float width, int button) {
+                return false;
+            }
+
+            @Override
+            public boolean onDrag(float mx, float my, float x, float y, float width) {
+                return false;
+            }
+        });
+    }
+
+    // ── 反馈与剪贴板 ──
+
+    /** 聊天栏反馈：前缀为模块名（第十七章第 110-113 条）。 */
+    protected final void feedback(String moduleName, String message) {
+        ClientChat.send(moduleName, message);
+    }
+
+    /** 复制到系统剪贴板。 */
+    protected static void copyToClipboard(String text) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.keyboardHandler == null) return;
+        client.keyboardHandler.setClipboard(text == null ? "" : text);
+    }
+
+    // ── 窗口骨架 ──
+
+    @Override
+    protected void init() {
+        super.init();
+        frame.update(minecraft, 0f);
+    }
+
+    private float contentHeight() {
+        return frame.cardHeight() - CONTENT_TOP - CONTENT_PAD;
+    }
+
+    @Override
+    protected void drawFrame(int width, int height, int mouseX, int mouseY, float delta) {
+        if (minecraft == null) return;
+        Canvas canvas = glBackend.begin(SkiaGlBackend.mainFramebufferId());
+        if (canvas == null) return;
+        try {
+            drawPanel(canvas, width, height, mouseX, mouseY);
+        } finally {
+            glBackend.end();
+        }
+    }
+
+    private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY) {
+        long now = System.currentTimeMillis();
+        float dt = lastRenderMs == 0L ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
+        lastRenderMs = now;
+
+        if (frame.update(minecraft, dt)) {
+            closing();
+            return;
+        }
+
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        float alpha = frame.animationAlpha();
+        float cardRadius = frame.cardRadius();
+        float cardX = frame.cardX();
+        float cardY = frame.cardY();
+        float cardW = frame.cardWidth();
+        float cardH = frame.cardHeight();
+        float designMouseX = frame.toDesignX(mouseX, width);
+        float designMouseY = frame.toDesignY(mouseY, height);
+
+        float contentX = cardX + CONTENT_PAD;
+        float contentY = cardY + CONTENT_TOP;
+        float contentW = cardW - CONTENT_PAD * 2f;
+        float contentH = contentHeight();
+        // 关闭时返回按钮跟随整体淡出，不瞬间消失
+        boolean backVisible = alpha > 0.01f;
+
+        backButton.update(designMouseX, designMouseY, cardX + BACK_X, cardY + BACK_Y, dt, backVisible);
+        scroll.layout(content.height() + CONTENT_BOTTOM_PAD, contentH);
+        scroll.update(dt);
+        content.update(dt);
+
+        canvas.save();
+        frame.applyTransform(canvas, width, height);
+        // 面板自下方略微上浮归位；关闭时反向下沉
+        canvas.translate(0f, (1f - alpha) * ENTER_RISE);
+        try {
+            GlassPanel.shadow(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.shadow, alpha, 1.15f);
+            GlassPanel.frost(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.window,
+                    AddonConfig.panelBlur ? 0.62f : 0.94f, alpha);
+
+            canvas.save();
+            canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);
+            try {
+                GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.20f);
+                backButton.draw(canvas, cardX + BACK_X, cardY + BACK_Y, alpha, tc, backVisible);
+                FontRenderer.drawTextBold(canvas, windowTitle, cardX + TITLE_X, cardY + TITLE_Y, 19f,
+                        GlassPanel.withAlpha(tc.primaryText, alpha));
+
+                // 滚动偏移并入元素起点，不做画布平移——与既有 BasePage 体系一致
+                // （BasePage 的 onDraw/onClick 同样是「宿主把偏移算进 y」，避免两套滚动语义并存）
+                float scrollValue = scroll.value();
+
+                canvas.save();
+                canvas.clipRect(Rect.makeXYWH(contentX, contentY, contentW, contentH));
+                try {
+                    content.draw(canvas, contentX + PAGE_INSET_X, contentY - scrollValue, contentW - PAGE_RESERVED_W,
+                            alpha, contentY, contentY + contentH, designMouseX, designMouseY);
+                } finally {
+                    canvas.restore();
+                }
+                scroll.drawScrollbar(canvas, contentX + contentW - TRACK_INSET, contentY + TRACK_TOP_PAD,
+                        contentH - TRACK_TOP_PAD * 2f, alpha, tc);
+            } finally {
+                canvas.restore();
+            }
+        } finally {
+            canvas.restore();
+        }
+    }
+
+    // ── 输入 ──
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean consumed) {
+        if (closingRequested) return false;
+        if (event.button() > GLFW.GLFW_MOUSE_BUTTON_RIGHT) return true;
+
+        float mouseX = frame.toDesignX(event.x(), this.width);
+        float mouseY = frame.toDesignY(event.y(), this.height);
+        float cardX = frame.cardX();
+        float cardY = frame.cardY();
+        float contentX = cardX + CONTENT_PAD;
+        float contentY = cardY + CONTENT_TOP;
+        float contentW = frame.cardWidth() - CONTENT_PAD * 2f;
+        float contentH = contentHeight();
+
+        if (event.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                && backButton.hit(mouseX, mouseY, cardX + BACK_X, cardY + BACK_Y)) {
+            backButton.press();
+            requestClose();
+            return true;
+        }
+        if (mouseX < contentX || mouseX > contentX + contentW
+                || mouseY < contentY || mouseY > contentY + contentH) {
+            SettingTextBox.clearFocus();
+            return false;
+        }
+
+        float trackTop = contentY + TRACK_TOP_PAD;
+        float trackHeight = contentH - TRACK_TOP_PAD * 2f;
+        scroll.layout(content.height() + CONTENT_BOTTOM_PAD, contentH);
+        if (event.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && scroll.hasScrollbar()
+                && scroll.isInTrack(mouseX, mouseY, contentX + contentW - TRACK_INSET, trackTop, trackHeight)) {
+            draggingScrollbar = true;
+            scroll.beginDrag(mouseY, trackTop, trackHeight);
+            return true;
+        }
+        // 元素起点并入滚动偏移；鼠标与可见边界都用屏幕坐标，与绘制口径一致
+        float scrollValue = scroll.value();
+        // 按钮可能持有输入框焦点，因此命中内容时不抢先清焦点
+        boolean hit = content.onClick(mouseX, mouseY, contentX + PAGE_INSET_X, contentY - scrollValue,
+                contentW - PAGE_RESERVED_W, contentY + contentH, event.button());
+        if (!hit) SettingTextBox.clearFocus();
+        if (hit && event.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            draggingInContent = true;
+        }
+        return hit;
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        float mouseX = frame.toDesignX(event.x(), this.width);
+        float mouseY = frame.toDesignY(event.y(), this.height);
+        float cardX = frame.cardX();
+        float cardY = frame.cardY();
+        float contentX = cardX + CONTENT_PAD;
+        float contentY = cardY + CONTENT_TOP;
+        float contentW = frame.cardWidth() - CONTENT_PAD * 2f;
+        float contentH = contentHeight();
+
+        if (draggingScrollbar) {
+            scroll.layout(content.height() + CONTENT_BOTTOM_PAD, contentH);
+            float trackTop = contentY + TRACK_TOP_PAD;
+            scroll.dragTo(mouseY, trackTop, contentH - TRACK_TOP_PAD * 2f);
+            return true;
+        }
+        if (draggingInContent) {
+            content.onDrag(mouseX, mouseY, contentX + PAGE_INSET_X, contentY - scroll.value(),
+                    contentW - PAGE_RESERVED_W, contentY + contentH);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        draggingInContent = false;
+        draggingScrollbar = false;
+        content.releaseDrag();
+        backButton.release();
+        return false;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+        float designX = frame.toDesignX(mouseX, this.width);
+        float designY = frame.toDesignY(mouseY, this.height);
+        float contentX = frame.cardX() + CONTENT_PAD;
+        float contentY = frame.cardY() + CONTENT_TOP;
+        float contentW = frame.cardWidth() - CONTENT_PAD * 2f;
+        float contentH = contentHeight();
+
+        if (designX >= contentX && designX <= contentX + contentW
+                && designY >= contentY && designY <= contentY + contentH) {
+            scroll.layout(content.height() + CONTENT_BOTTOM_PAD, contentH);
+            scroll.scrollBy(vertical, AddonConfig.scrollSpeed);
+            return true;
+        }
+        return false;
+    }
+
+    // ── 关闭 ──
+
+    /**
+     * 标记本窗口关闭后直接回到游戏，而不是返回上级窗口。
+     *
+     * <p>旧项目里「使用说明 / 手动添加 / 二次确认 / 识别结果」这类窗口的关闭按钮都是
+     * {@code setScreen(null)}，即连同整个 GUI 一起关掉；只有「数据清理」的「返回」是回到
+     * 「更多管理」。本方法用于复刻前一种行为。</p>
+     */
+    protected final void exitToGame() {
+        this.exitToGame = true;
+    }
+
+    /** 播放关闭动画，动画结束后回到上级界面。 */
+    protected final void requestClose() {
+        if (closingRequested) return;
+        closingRequested = true;
+        SettingTextBox.clearFocus();
+        backButton.cancel();
+        frame.beginClose();
+    }
+
+    @Override
+    protected void closing() {
+        if (exitToGame && this.minecraft != null) {
+            this.minecraft.setScreen(null);
+            return;
+        }
+        super.closing();
+    }
+
+    @Override
+    public void onClose() {
+        requestClose();
+    }
+
+    @Override
+    public void removed() {
+        SettingTextBox.clearFocus();
+        ImeBridge.reset();
+        glBackend.destroy();
+        super.removed();
+    }
+}

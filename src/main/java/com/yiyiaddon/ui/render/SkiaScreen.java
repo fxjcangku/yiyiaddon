@@ -33,6 +33,8 @@ public abstract class SkiaScreen extends Screen {
         frameMouseY = mouseY;
         frameDelta = partialTick;
         framePending = true;
+        // 把本帧待加载的物品图标画进屏幕中心的隐藏格子，帧末截取成贴图后即可被面板覆盖。
+        ItemIconCache.getInstance().renderPending(graphics);
         // 面板需要模糊时，借原版 GUI 后处理管线对背后的世界做真模糊，替代 Skija 的截屏近似。
         // 原版该效果由「菜单背景模糊」选项开关与定半径，选项为 0 时管线不执行，这里同步拉满。
         if (AddonConfig.panelBlur && this.minecraft != null) {
@@ -51,6 +53,8 @@ public abstract class SkiaScreen extends Screen {
             return;
         }
         framePending = false;
+        // 先截取图标，再画面板：截取要求隐藏格子仍是主 Framebuffer 的最上层内容。
+        ItemIconCache.getInstance().capturePending();
         drawFrame(this.width, this.height, frameMouseX, frameMouseY, frameDelta);
     }
 

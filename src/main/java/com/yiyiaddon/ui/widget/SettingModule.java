@@ -190,7 +190,10 @@ public class SettingModule {
             float wx = x + contentW - PAD_X - widgetWidth;
             float wy = y + (MODULE_H - 8f - widgetHeight) / 2f;
             drawKeybind(canvas, wx, wy, alpha, mouseX, mouseY);
-            if (mainWidget != null) mainWidget.draw(canvas, wx, wy, alpha);
+            if (mainWidget != null) {
+                mainWidget.hover(mouseX, mouseY, wx, wy, widgetWidth);
+                mainWidget.draw(canvas, wx, wy, alpha);
+            }
         }
         if (expandProgress > 0.01f) {
             float sy = y + MODULE_H;
@@ -200,6 +203,7 @@ public class SettingModule {
                 if (subBottom > viewportTop && sy < viewportBottom && sub.widget != null) {
                     float wx = x + contentW - PAD_X - sub.widget.getWidth();
                     float wy = sy + (SUB_H - 6f - sub.widget.getHeight()) / 2f;
+                    sub.widget.hover(mouseX, mouseY, wx, wy, sub.widget.getWidth());
                     sub.widget.draw(canvas, wx, wy, alpha * expandProgress);
                 }
                 sy += SUB_H;
@@ -211,6 +215,7 @@ public class SettingModule {
                         if (childBottom > viewportTop && sy < viewportBottom && child.widget != null) {
                             float wx = x + contentW - PAD_X - child.widget.getWidth();
                             float wy = sy + (SUB_H - 6f - child.widget.getHeight()) / 2f;
+                            child.widget.hover(mouseX, mouseY, wx, wy, child.widget.getWidth());
                             child.widget.draw(canvas, wx, wy, childAlpha);
                         }
                         sy += SUB_H;
@@ -231,9 +236,9 @@ public class SettingModule {
         keybindHover += ((hovered ? 1f : 0f) - keybindHover) * 0.2f;
         keybindRed += ((bound && hovered && !capturing && !ModuleKeybindManager.ACTION_CLICK_GUI.equals(id) ? 1f : 0f) - keybindRed) * 0.2f;
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
-        int baseGray = tc.dark ? 0x777777 : 0x555555;
-        int hoverGray = tc.dark ? 0x949494 : 0x777777;
-        int unbindRed = tc.dark ? 0xE14D4D : 0xCC3333;
+        int baseGray = tc.keybindBackground;
+        int hoverGray = tc.keybindHoverBackground;
+        int unbindRed = tc.keybindUnbindBackground;
         int hoverColor = lerpColor(baseGray, hoverGray, keybindHover);
         float buttonAlpha = alpha * (0.34f + keybindHover * 0.18f + keybindRed * 0.32f);
         keybindPaint.setColor(withAlpha(lerpColor(hoverColor, unbindRed, keybindRed), buttonAlpha));
@@ -395,11 +400,6 @@ public class SettingModule {
             float wy = y + (MODULE_H - 8f - textBox.getHeight()) / 2f;
             if (textBox.onDrag(mx, my, wx, wy)) return true;
         }
-        if (mainWidget instanceof SettingSlider s && s.isDragging()) {
-            float wx = x + contentW - PAD_X - s.getWidth();
-            float wy = y + (MODULE_H - 8f - s.getHeight()) / 2f;
-            return s.onDrag(mx, my, wx, wy);
-        }
         if (expanded) {
             float sy = y + MODULE_H;
             for (SubEntry sub : subEntries) {
@@ -408,11 +408,6 @@ public class SettingModule {
                     float wx = x + contentW - PAD_X - textBox.getWidth();
                     float wy = sy + (SUB_H - 6f - textBox.getHeight()) / 2f;
                     if (textBox.onDrag(mx, my, wx, wy)) return true;
-                }
-                if (sub.widget instanceof SettingSlider s && s.isDragging()) {
-                    float wx = x + contentW - PAD_X - s.getWidth();
-                    float wy = sy + (SUB_H - 6f - s.getHeight()) / 2f;
-                    return s.onDrag(mx, my, wx, wy);
                 }
                 sy += SUB_H;
                 if (sub.group && sub.childProgress > 0.01f) {
@@ -423,27 +418,12 @@ public class SettingModule {
                             float wy = sy + (SUB_H - 6f - textBox.getHeight()) / 2f;
                             if (textBox.onDrag(mx, my, wx, wy)) return true;
                         }
-                        if (child.widget instanceof SettingSlider s && s.isDragging()) {
-                            float wx = x + contentW - PAD_X - s.getWidth();
-                            float wy = sy + (SUB_H - 6f - s.getHeight()) / 2f;
-                            return s.onDrag(mx, my, wx, wy);
-                        }
                         sy += SUB_H;
                     }
                 }
             }
         }
         return false;
-    }
-
-    public void releaseDrag() {
-        if (mainWidget instanceof SettingSlider s) s.releaseDrag();
-        for (SubEntry sub : subEntries) {
-            if (sub.isVisible() && sub.widget instanceof SettingSlider s) s.releaseDrag();
-            for (SubEntry child : sub.children) {
-                if (child.isVisible() && child.widget instanceof SettingSlider cs) cs.releaseDrag();
-            }
-        }
     }
 
     private float visibleSubHeight() {

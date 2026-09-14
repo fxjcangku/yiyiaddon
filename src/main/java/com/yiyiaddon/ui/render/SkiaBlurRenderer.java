@@ -22,6 +22,8 @@ import static org.lwjgl.opengl.GL45.*;
 public final class SkiaBlurRenderer {
     private static final SkiaBlurRenderer INSTANCE = new SkiaBlurRenderer();
     private static final float MIN_CAPTURE_MARGIN = 18f;
+    /** 冰霜层压暗叠加（6% 黑）：让被模糊的内容沉下去。属材质合成参数，与主题配色无关。 */
+    private static final int FROST_DARKEN = 0x10000000;
     private final Paint blurPaint = new Paint().setAntiAlias(true);
     private final Paint frostPaint = new Paint().setAntiAlias(true);
     private final Paint tintPaint = new Paint().setAntiAlias(true);
@@ -58,6 +60,24 @@ public final class SkiaBlurRenderer {
         } finally {
             framebufferBackend.end();
         }
+    }
+
+    /**
+     * 把主 Framebuffer 的指定区域截取为一张 Skija 图像。
+     *
+     * <p>供离屏贴图采集使用（例如把原版 GUI 画好的物品图标取出成贴图）。坐标与尺寸均为
+     * GUI 逻辑坐标，内部按 GUI Scale 换算到物理像素。返回的图像由调用方负责 {@code close()}；
+     * 采集失败返回 {@code null}。</p>
+     */
+    public Image captureRegionImage(DirectContext context, float x, float y, float width, float height) {
+        Minecraft client = Minecraft.getInstance();
+        if (context == null || client == null || client.getWindow() == null || client.getMainRenderTarget() == null) {
+            return null;
+        }
+        ensureNativeLoaded();
+        float scale = (float) client.getWindow().getGuiScale();
+        Capture capture = captureRegion(context, client, mainFramebufferId(client), x, y, width, height, scale, 0f);
+        return capture.image;
     }
 
     public boolean renderRegions(Minecraft client, List<Region> regions, int tintColor, float strength) {
@@ -112,7 +132,7 @@ public final class SkiaBlurRenderer {
                     blurPaint,
                     true);
 
-            frostPaint.setColor(0x10000000);
+            frostPaint.setColor(FROST_DARKEN);
             canvas.drawRRect(RRect.makeXYWH(x, y, width, height, radius), frostPaint);
 
             tintPaint.setColor(tintColor);
@@ -138,7 +158,7 @@ public final class SkiaBlurRenderer {
         canvas.save();
         try {
             blurPaint.setImageFilter(blurEnabled ? encodeFilter : null);
-            frostPaint.setColor(0x10000000);
+            frostPaint.setColor(FROST_DARKEN);
             tintPaint.setColor(tintColor);
             Rect source = Rect.makeXYWH(0f, 0f, capture.width, capture.height);
             Rect destination = Rect.makeXYWH(capture.dstX, capture.dstY, capture.dstW, capture.dstH);

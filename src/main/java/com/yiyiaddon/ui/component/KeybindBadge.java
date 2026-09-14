@@ -71,9 +71,9 @@ public final class KeybindBadge {
                 - unbind) * HOVER_SMOOTHING;
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
-        int baseGray = tc.dark ? 0x777777 : 0x555555;
-        int hoverGray = tc.dark ? 0x949494 : 0x777777;
-        int unbindRed = tc.dark ? 0xE14D4D : 0xCC3333;
+        int baseGray = tc.keybindBackground;
+        int hoverGray = tc.keybindHoverBackground;
+        int unbindRed = tc.keybindUnbindBackground;
         int color = GlassPanel.mix(GlassPanel.mix(baseGray, hoverGray, hover), unbindRed, unbind);
         float buttonAlpha = alpha * (0.34f + hover * 0.18f + unbind * 0.32f);
         paint.setColor(GlassPanel.withAlpha(color, buttonAlpha));

@@ -7,7 +7,7 @@ import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
 import com.yiyiaddon.ui.widget.SettingCycle;
 import com.yiyiaddon.ui.widget.SettingLink;
 import com.yiyiaddon.ui.widget.SettingModule;
-import com.yiyiaddon.ui.widget.SettingSlider;
+import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
@@ -38,19 +38,19 @@ public final class InterfacePage extends BasePage {
             AddonConfig.save();
         }))
                 .addSub(UiText.t("模糊强度", "Blur Strength"), UiText.t("调整高斯模糊半径", "Adjusts the Gaussian blur radius"),
-                        new SettingSlider(0.0, 2.0, "%.2f", () -> (double) AddonConfig.blurStrength, value -> {
+                        new SettingNumberBox(0.0, 2.0, 0.05, "%.2f", () -> (double) AddonConfig.blurStrength, value -> {
                             AddonConfig.blurStrength = value.floatValue();
                             AddonConfig.save();
                         }))
                 .addSubWhen(() -> AddonConfig.panelBlur, UiText.t("模糊底色", "Blur Tint"),
                         UiText.t("面板下方叠加的底色透明度", "Tint alpha composited under the panel"),
-                        new SettingSlider(0x00, 0xFF, "%.0f", () -> (double) (AddonConfig.blurTint >>> 24), value -> {
+                        new SettingNumberBox(0, 255, 1, "%.0f", () -> (double) (AddonConfig.blurTint >>> 24), value -> {
                             int alpha = (int) Math.round(value) & 0xFF;
                             AddonConfig.blurTint = (alpha << 24) | (AddonConfig.blurTint & 0x00FFFFFF);
                             AddonConfig.save();
                         })));
 
-        modules.add(new SettingModule(UiText.t("滚动", "Scrolling"), UiText.t("滚轮速度与长列表行为", "Wheel speed and long-list behaviour"), new SettingSlider(0.2, 5.0, "%.1fx", () -> (double) AddonConfig.scrollSpeed, value -> {
+        modules.add(new SettingModule(UiText.t("滚动", "Scrolling"), UiText.t("滚轮速度与长列表行为", "Wheel speed and long-list behaviour"), new SettingNumberBox(0.2, 5.0, 0.1, "%.1fx", () -> (double) AddonConfig.scrollSpeed, value -> {
             AddonConfig.scrollSpeed = value.floatValue();
             AddonConfig.save();
         })));

@@ -277,7 +277,6 @@ public final class ModuleScreen extends SkiaScreen {
         draggingScrollbar = false;
         backButton.release();
         page.releasePress();
-        page.releaseDrag();
         return false;
     }
 

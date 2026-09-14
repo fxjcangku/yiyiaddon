@@ -1,8 +1,8 @@
 package com.yiyiaddon.ui.component;
 
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
-import com.yiyiaddon.ui.widget.SettingSlider;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import com.yiyiaddon.ui.widget.SettingWidget;
 import io.github.humbleui.skija.Canvas;
@@ -79,12 +79,15 @@ public final class CompactRow implements CompactElement {
 
         float centerY = y + HEIGHT / 2f;
         if (!label.isEmpty()) {
-            FontRenderer.drawTextBold(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE), LABEL_SIZE,
-                    GlassPanel.withAlpha(tc.primaryText, alpha));
+            MinecraftText.draw(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE),
+                    LABEL_SIZE, tc.primaryText, alpha, true);
         }
         drawHint(canvas, x, y, width, alpha, tc);
         if (control != null) {
-            control.draw(canvas, controlX(x, width), controlY(y), alpha);
+            float cx = controlX(x, width);
+            float cy = controlY(y);
+            control.hover(mouseX, mouseY, cx, cy, control.getWidth());
+            control.draw(canvas, cx, cy, alpha);
         }
     }
 
@@ -103,15 +106,7 @@ public final class CompactRow implements CompactElement {
         if (control instanceof SettingTextBox textBox) {
             return textBox.onDrag(mx, my, controlX(x, width), controlY(y));
         }
-        if (control instanceof SettingSlider slider && slider.isDragging()) {
-            return slider.onDrag(mx, my, controlX(x, width), controlY(y));
-        }
         return false;
-    }
-
-    @Override
-    public void releaseDrag() {
-        if (control instanceof SettingSlider slider) slider.releaseDrag();
     }
 
     /** 控件左边界；绘制与命中共用。 */
@@ -137,7 +132,7 @@ public final class CompactRow implements CompactElement {
             startX = control == null ? x + PAD_X : controlX(x, width) + control.getWidth() + HINT_GAP;
             endX = x + width - PAD_X;
         } else {
-            startX = x + PAD_X + FontRenderer.measureTextWidthBold(label, LABEL_SIZE) + HINT_GAP;
+            startX = x + PAD_X + MinecraftText.measure(label, LABEL_SIZE, true) + HINT_GAP;
             endX = control == null ? x + width - PAD_X : controlX(x, width) - HINT_GAP;
         }
         float available = endX - startX;
