@@ -72,15 +72,15 @@ public final class AddonModules {
     /**
      * 注册模块分类。
      *
-     * <p><b>用户交互资产：</b>分类中文名、颜色样式与排列顺序全部沿用旧项目
-     * {@code AddonTemplate} 原文，禁止改名、禁止改样式、禁止改顺序。分类显示名中的
-     * {@code §c§lyiyiaddon } 段为旧项目原文，是否按第十七章第 110 条去掉需用户定稿。</p>
+     * <p><b>用户交互资产：</b>分类中文名、颜色样式与排列顺序沿用旧项目 {@code AddonTemplate} 原文。
+     * 唯一改动：去掉旧原文中的 {@code §c§lyiyiaddon } 段（第十七章第 110 条禁止显示
+     * {@code yiyiaddon}），其余 {@code §a§l工具} 这类颜色与加粗保持不变。此改动已由用户定稿。</p>
      */
     private static void registerCategories() {
-        CategoryRegistry.register(new ModuleCategory("tools", "§c§lyiyiaddon §a§l工具", "管理工具类功能", "\uF06A", 10));
-        CategoryRegistry.register(new ModuleCategory("automation", "§c§lyiyiaddon §e§l自动化", "管理自动执行类功能", "\uEBBC", 20));
-        CategoryRegistry.register(new ModuleCategory("tactical", "§c§lyiyiaddon §b§l绕过", "管理绕过类功能", "\uE919", 30));
-        CategoryRegistry.register(new ModuleCategory("assist", "§c§lyiyiaddon §d§l辅助", "管理辅助工具功能", "\uEF76", 40));
-        CategoryRegistry.register(new ModuleCategory("stardew", "§c§lyiyiaddon §6§l星露谷", "管理农场模拟功能", "\uE8CD", 50));
+        CategoryRegistry.register(new ModuleCategory("tools", "§a§l工具", "管理工具类功能", "\uF06A", 10));
+        CategoryRegistry.register(new ModuleCategory("automation", "§e§l自动化", "管理自动执行类功能", "\uEBBC", 20));
+        CategoryRegistry.register(new ModuleCategory("tactical", "§b§l绕过", "管理绕过类功能", "\uE919", 30));
+        CategoryRegistry.register(new ModuleCategory("assist", "§d§l辅助", "管理辅助工具功能", "\uEF76", 40));
+        CategoryRegistry.register(new ModuleCategory("stardew", "§6§l星露谷", "管理农场模拟功能", "\uE8CD", 50));
     }
 }
