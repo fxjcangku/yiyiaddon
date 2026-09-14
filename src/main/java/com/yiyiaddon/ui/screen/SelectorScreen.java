@@ -21,12 +21,13 @@ import java.util.function.Supplier;
 /**
  * 通用双栏选择器窗口：左栏候选、右栏已选。
  *
- * <p><b>交互口径照旧项目：</b>顶部搜索框打开即聚焦，边输边过滤（匹配显示名与技术 ID，忽略大小写）；
- * 左栏按分组标题排列未选项，组内为空时显示 {@code §8无}；每条右侧一个加入按钮；
- * 右栏为已选项，每条右侧一个移除按钮。分组标题用旧项目原文格式 {@code §a§l▌ 组名}。</p>
+ * <p><b>交互与文字照旧项目：</b>顶部搜索框（旧项目该窗无标签无提示）打开即输入过滤，匹配显示名与技术 ID、
+ * 忽略大小写；左栏按分组排列未选项，组内为空时显示 {@code §8无}；每条右侧一个加入按钮；
+ * 右栏为已选项，每条右侧一个移除按钮。<b>分组标题由调用方给出完整原文</b>（含 {@code §} 颜色码与
+ * {@code ▌} 前缀），本类不做任何拼接或配色，避免与旧项目原文产生差异。</p>
  *
- * <p><b>超越旧项目的地方：</b>每条带图标（旧项目用旧框架表格控件，列表无图标）。
- * 图标由调用方通过 {@link Entry#drawIcon} 提供，因此物品、方块、实体、附魔共用这一个窗口。</p>
+ * <p>列表行支持物品 / 方块 / 实体贴图（由调用方通过 {@link Entry#drawIcon} 提供）：原版条目能取得贴图，
+ * 服务器自定义条目与无贴图条目自动回退为纯文字。旧项目列表为纯文字，本项为展示增强（用户 2026-09-14 决定保留）。</p>
  *
  * <p>本类不持有选中数据：读 {@code selectedKeys}、写走 {@code onAdd} / {@code onRemove}，
  * 数据源始终唯一在业务侧，避免出现第二份副本。</p>
@@ -42,7 +43,7 @@ public final class SelectorScreen extends PanelScreen {
         /** 行标题，可含 {@code §} 颜色码。 */
         String title();
 
-        /** 分组标题；返回 {@code null} 表示不分组。 */
+        /** 分组标题（完整原文，含颜色码与 {@code ▌} 前缀）；返回 {@code null} 或空表示不分组。 */
         String group();
 
         /** 图标绘制；坐标与尺寸由宿主给出，返回是否真的画出。 */
@@ -83,8 +84,8 @@ public final class SelectorScreen extends PanelScreen {
     }
 
     private void build() {
-        content().add(new CompactRow("§7搜索（显示名 / 技术ID）",
-                () -> "输入后即时过滤两侧清单",
+        // 搜索框：旧项目该窗为无标签输入框（ItemTargetSelectScreen:34），不加标签与提示
+        content().add(new CompactRow("",
                 new SettingTextBox(() -> filter, this::applyFilter, (int) SEARCH_MAX_LENGTH)));
         content().add(split);
         rebuild();
@@ -120,7 +121,8 @@ public final class SelectorScreen extends PanelScreen {
         }
         for (Map.Entry<String, List<Entry>> group : groups.entrySet()) {
             if (!group.getKey().isEmpty()) {
-                left.add(new TextLine("§a§l▌ " + group.getKey())
+                // 标题原样显示调用方给的原文（旧项目：§a§l▌ 原版物品 / §d§l▌ 自定义物品）
+                left.add(new TextLine(group.getKey())
                         .height(GROUP_TITLE_HEIGHT)
                         .size(GROUP_TITLE_SIZE)
                         .bold(true));

@@ -4,6 +4,7 @@ import com.yiyiaddon.command.CommandManager;
 import com.yiyiaddon.core.event.EventDispatcher;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
+import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.feature.visuals.EspTestModule;
@@ -54,6 +55,7 @@ public final class AddonModules {
         return List.of(
                 new IdIdentifyModule(),
                 new IdConfigModule(),
+                new AutoChestModule(),
                 new EspTestModule()
         );
     }
