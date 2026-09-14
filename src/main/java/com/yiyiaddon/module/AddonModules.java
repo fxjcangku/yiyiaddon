@@ -8,6 +8,7 @@ import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
+import com.yiyiaddon.feature.visuals.EspTestModule;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.service.resourcepack.ResourceIndexProbe;
 
@@ -55,7 +56,8 @@ public final class AddonModules {
     private static List<Module> createModules() {
         return List.of(
                 new IdIdentifyModule(),
-                new IdConfigModule()
+                new IdConfigModule(),
+                new EspTestModule()
         );
     }
 

@@ -8,6 +8,7 @@
     "ClientLevelPredictionAccessor",
     "ConnectionPacketMixin",
     "GpuDeviceAccessor",
+    "GuiRendererMixin",
     "ModelManagerReloadMixin",
     "RenderTargetMixin",
     "ResourcePackPushMixin"
