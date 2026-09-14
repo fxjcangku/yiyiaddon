@@ -70,16 +70,18 @@ public final class AddonModules {
     }
 
     /**
-     * 注册模块分组。
+     * 注册模块分类（模块分组）。
      *
-     * <p><b>只注册一个分组：</b>本项目的模块中心只有一个模块分组，全部功能模块都归入其中，不按功能
-     * 再划分多个分类。因此这里只有一条注册，模块的 {@code categoryId} 统一使用
-     * {@link CategoryRegistry#MODULE_GROUP_ID}。</p>
-     *
-     * <p>分组不属迁移范围：旧项目的多个分类是旧框架界面的产物，禁止按旧项目增删或改名。</p>
+     * <p><b>不属迁移范围：</b>分类是 yiyiaddon 自己界面的分组结构，不照旧项目还原——旧项目的 5 个分类
+     * 属于旧框架的界面产物，功能模块最终都归入本项目的模块分组。分类的划分、名称、样式与顺序一律
+     * 由本项目界面设计决定，禁止按旧项目增删或改名。</p>
      */
     private static void registerCategories() {
-        CategoryRegistry.register(new ModuleCategory(
-                CategoryRegistry.MODULE_GROUP_ID, "功能模块", "全部功能模块", "\uEBBC", 10));
+        CategoryRegistry.register(new ModuleCategory("automation", "自动化", "管理自动执行类功能", "\uEBBC", 10));
+        CategoryRegistry.register(new ModuleCategory("assist", "辅助", "管理辅助工具功能", "\uEF76", 20));
+        CategoryRegistry.register(new ModuleCategory("tools", "工具", "管理工具类功能", "\uF06A", 30));
+        CategoryRegistry.register(new ModuleCategory("navigation", "导航", "管理路径与移动功能", "\uE919", 40));
+        CategoryRegistry.register(new ModuleCategory("enchant", "附魔", "管理装备强化功能", "\uE659", 50));
+        CategoryRegistry.register(new ModuleCategory("stardew", "星露谷", "管理农场模拟功能", "\uE8CD", 60));
     }
 }

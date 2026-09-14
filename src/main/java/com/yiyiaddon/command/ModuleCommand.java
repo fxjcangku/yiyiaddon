@@ -77,8 +77,6 @@ public final class ModuleCommand extends ClientCommand {
             return moduleTokens();
         }
         if (action.equals("list") || action.equals("列表")) {
-            // 只有一个模块分组时不暴露分组 token，避免补全出无意义的分组 ID
-            if (CategoryRegistry.count() <= 1) return List.of("全部");
             List<String> categories = new ArrayList<>();
             for (ModuleCategory category : CategoryRegistry.all()) {
                 categories.add(category.id());
@@ -105,18 +103,14 @@ public final class ModuleCommand extends ClientCommand {
         }
 
         CommandMessageFormatter formatter = CommandMessageFormatter.of(prefixName(), "功能模块");
-        // 本项目只有一个模块分组，单分组时不再逐行重复分类名
-        boolean showCategory = CategoryRegistry.count() > 1;
         int matched = 0;
         for (Module module : modules) {
             if (categoryFilter != null && !categoryFilter.equals(module.categoryId())) continue;
             matched++;
-            String label = module.displayName() + " (" + module.id() + ")";
-            if (showCategory) {
-                ModuleCategory category = CategoryRegistry.byId(module.categoryId());
-                label = "[" + (category == null ? "未分类" : category.displayName()) + "] " + label;
-            }
-            formatter.field(label, module.isEnabled() ? "§a已启用" : "§7未启用");
+            ModuleCategory category = CategoryRegistry.byId(module.categoryId());
+            String categoryName = category == null ? "未分类" : category.displayName();
+            formatter.field("[" + categoryName + "] " + module.displayName() + " (" + module.id() + ")",
+                    module.isEnabled() ? "§a已启用" : "§7未启用");
         }
         if (matched == 0) {
             ClientChat.send(prefixName(), "§7该分类下没有模块");

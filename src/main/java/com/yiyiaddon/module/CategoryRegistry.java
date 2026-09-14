@@ -14,13 +14,6 @@ import java.util.Map;
  */
 public final class CategoryRegistry {
 
-    /**
-     * 本项目唯一的模块分组 ID：全部功能模块统一归入这一个分组，不再按功能划分多个分类。
-     *
-     * <p>模块构造时传本常量作为 {@code categoryId}，保证模块归属与注册的分类始终一致。</p>
-     */
-    public static final String MODULE_GROUP_ID = "modules";
-
     private static final Comparator<ModuleCategory> BY_ORDER =
             Comparator.comparingInt(ModuleCategory::order).thenComparing(ModuleCategory::id);
 

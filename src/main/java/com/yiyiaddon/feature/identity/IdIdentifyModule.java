@@ -16,7 +16,6 @@ import com.yiyiaddon.feature.identity.model.IdentitySummary;
 import com.yiyiaddon.feature.identity.service.IdentityActions;
 import com.yiyiaddon.feature.identity.ui.IdentityModulePage;
 import com.yiyiaddon.model.identity.IdentifyMode;
-import com.yiyiaddon.module.CategoryRegistry;
 import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.platform.storage.GamePaths;
 import com.yiyiaddon.service.identity.IdentityService;
@@ -30,9 +29,8 @@ import java.util.Set;
 /**
  * ID 识别模块（旧项目 {@code IdIdentifyModule}）：只管「识别」这一件事。
  *
- * <p><b>用户交互资产：</b>模块中文名 {@code ID识别}、description 与全部播报文本均沿用旧项目原文，
- * 禁止改写。分类不属迁移资产：本模块与其余全部模块统一归入本项目唯一的模块分组
- * {@link CategoryRegistry#MODULE_GROUP_ID}。数据管理相关功能由 {@link IdConfigModule} 独立承载，
+ * <p><b>用户交互资产：</b>模块中文名 {@code ID识别}、分类 {@code 辅助}、description 与全部播报
+ * 文本均沿用旧项目原文，禁止改写。数据管理相关功能由 {@link IdConfigModule} 独立承载，
  * 与旧项目一样是两个可单独开关的模块。</p>
  *
  * <p>业务实现复用第五阶段产物：识别走 {@code ItemIdentifier} / {@code BlockIdentifier} /
@@ -56,8 +54,7 @@ public final class IdIdentifyModule extends Module {
     private volatile IdentitySummary latest;
 
     public IdIdentifyModule() {
-        super(MODULE_ID, MESSAGE_MODULE, CategoryRegistry.MODULE_GROUP_ID,
-                "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
+        super(MODULE_ID, MESSAGE_MODULE, "assist", "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
     }
 
     @Override
