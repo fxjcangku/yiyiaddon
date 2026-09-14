@@ -36,7 +36,7 @@ public final class RegisterService {
                 HttpApi.Response response = HttpApi.post("/api/register", ReportPayload.register(), TIMEOUT);
                 JsonObject root = response.json();
                 if (!response.ok() || root == null) {
-                    ClientChat.send("§c注册上报失败（HTTP " + response.status() + "）");
+                    ClientChat.send("用户统计", "§c注册上报失败（HTTP " + response.status() + "）");
                     return;
                 }
                 showWelcome(new RegisterOutcome(
@@ -45,7 +45,7 @@ public final class RegisterService {
                         Json.integer(root, "total_users", -1),
                         Json.integer(root, "is_premium", 0) == 1));
             } catch (Exception e) {
-                ClientChat.send("§c注册上报异常：" + e.getMessage());
+                ClientChat.send("用户统计", "§c注册上报异常：" + e.getMessage());
             }
         });
     }
@@ -58,13 +58,15 @@ public final class RegisterService {
     private static void showWelcome(RegisterOutcome outcome) {
         String name = ClientIdentity.name();
         String account = outcome.premium() ? "§a§l[正版]" : "§c§l[离线]";
-        String rankLine = outcome.newUser()
-                ? "§7你是第 §e§l#" + outcome.rank() + " §7个使用者 §a§l✓"
-                : "§7欢迎回来，你是第 §e§l#" + outcome.rank() + " §7个使用者";
 
         ClientChat.raw("§3§m───────────────────────────────────");
-        ClientChat.raw("§3│ " + account + " §6§l" + name);
-        ClientChat.raw("§3│ " + rankLine);
+        if (outcome.newUser()) {
+            ClientChat.raw("§3│ " + account + " §6§l" + name);
+            ClientChat.raw("§3│ §7你是第 §e§l#" + outcome.rank() + " §7个使用者 §a§l✓");
+        } else {
+            ClientChat.raw("§3│ §7欢迎回来 " + account + " §6§l" + name);
+            ClientChat.raw("§3│ §7你是第 §e§l#" + outcome.rank() + " §7个使用者");
+        }
         ClientChat.raw("§7当前已有 §2§l" + outcome.totalUsers() + " §f§l位玩家使用");
         ClientChat.raw("§3§m───────────────────────────────────");
     }

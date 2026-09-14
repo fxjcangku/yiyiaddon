@@ -13,9 +13,18 @@ import java.util.Arrays;
 public final class CommandContext {
 
     private final String[] args;
+    private final String prefixName;
 
     public CommandContext(String[] args) {
+        this(args, null);
+    }
+
+    /**
+     * @param prefixName 回执前缀用的功能名（模块显示名）；为 {@code null} 时退回 {@code 客户端}
+     */
+    public CommandContext(String[] args, String prefixName) {
         this.args = args == null ? new String[0] : args;
+        this.prefixName = prefixName;
     }
 
     public String[] args() {
@@ -54,16 +63,16 @@ public final class CommandContext {
 
     /** 普通提示 */
     public void reply(String text) {
-        ClientChat.send(text);
+        ClientChat.send(prefixName, text);
     }
 
     /** 错误提示 */
     public void error(String text) {
-        ClientChat.send("§c" + text);
+        ClientChat.send(prefixName, "§c" + text);
     }
 
     /** 用法提示 */
     public void usage(String usage) {
-        ClientChat.send("§e用法：" + usage);
+        ClientChat.send(prefixName, "§e用法：" + usage);
     }
 }

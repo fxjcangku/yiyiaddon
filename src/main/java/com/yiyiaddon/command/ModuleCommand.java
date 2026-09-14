@@ -1,6 +1,7 @@
 package com.yiyiaddon.command;
 
 import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.module.CategoryRegistry;
@@ -23,6 +24,11 @@ public final class ModuleCommand extends ClientCommand {
     @Override
     public String name() {
         return "module";
+    }
+
+    @Override
+    public String prefixName() {
+        return "模块";
     }
 
     @Override
@@ -87,26 +93,31 @@ public final class ModuleCommand extends ClientCommand {
     private void listModules(String categoryToken) {
         List<Module> modules = ModuleManager.all();
         if (modules.isEmpty()) {
-            ClientChat.send("§7当前没有注册任何功能模块");
+            ClientChat.send(prefixName(), "§7当前没有注册任何功能模块");
             return;
         }
         String categoryFilter = resolveCategoryId(categoryToken);
         if (categoryToken != null && !categoryToken.isBlank() && categoryFilter == null) {
-            ClientChat.send("§c未找到分类：" + categoryToken);
+            ClientChat.send(prefixName(), "§c未找到分类：" + categoryToken);
             return;
         }
 
-        ClientChat.send("§b功能模块（共 " + modules.size() + " 个，启用 " + ModuleManager.enabledIds().size() + " 个）");
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(prefixName(), "功能模块");
         int matched = 0;
         for (Module module : modules) {
             if (categoryFilter != null && !categoryFilter.equals(module.categoryId())) continue;
             matched++;
             ModuleCategory category = CategoryRegistry.byId(module.categoryId());
             String categoryName = category == null ? "未分类" : category.displayName();
-            ClientChat.send("§7[" + categoryName + "] §f" + module.displayName() + " §8(" + module.id() + ") §7"
-                    + (module.isEnabled() ? "已启用" : "未启用"));
+            formatter.field("[" + categoryName + "] " + module.displayName() + " (" + module.id() + ")",
+                    module.isEnabled() ? "§a已启用" : "§7未启用");
         }
-        if (matched == 0) ClientChat.send("§7该分类下没有模块");
+        if (matched == 0) {
+            ClientChat.send(prefixName(), "§7该分类下没有模块");
+            return;
+        }
+        formatter.status(CommandMessageFormatter.Level.INFO,
+                "共 " + modules.size() + " 个，启用 " + ModuleManager.enabledIds().size() + " 个").send();
     }
 
     private void switchModule(CommandContext context, boolean enabled) {
@@ -127,16 +138,16 @@ public final class ModuleCommand extends ClientCommand {
         Module module = requireModule(context);
         if (module == null) return;
         ModuleCategory category = CategoryRegistry.byId(module.categoryId());
-        ClientChat.send("§b" + module.displayName() + " §8(" + module.id() + ")");
-        ClientChat.send("§7分类：" + (category == null ? "未分类" : category.displayName())
-                + " §7版本：" + module.version());
-        ClientChat.send("§7状态：" + ModuleManager.statusText(module));
         List<String> problems = ModuleManager.problemsOf(module);
-        if (problems.isEmpty()) {
-            ClientChat.send("§7自检：通过");
-        } else {
-            ClientChat.send("§c自检未通过：" + String.join("；", problems));
-        }
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(prefixName(),
+                        module.displayName() + " (" + module.id() + ")")
+                .field("分类", category == null ? "未分类" : category.displayName())
+                .field("版本", module.version())
+                .field("状态", ModuleManager.statusText(module))
+                .field("自检", problems.isEmpty() ? "通过" : String.join("；", problems));
+        formatter.status(problems.isEmpty() ? CommandMessageFormatter.Level.SUCCESS
+                        : CommandMessageFormatter.Level.FAILURE,
+                problems.isEmpty() ? "可用" : "未通过，条件满足后会自动开启").send();
     }
 
     // ── 解析 ──

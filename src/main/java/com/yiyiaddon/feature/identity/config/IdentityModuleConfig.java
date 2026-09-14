@@ -59,12 +59,19 @@ public final class IdentityModuleConfig {
         setMode(values[Math.floorMod(index, values.length)]);
     }
 
-    /** 模式说明，用于页面子行 */
+    /**
+     * 模式说明，用于页面子行与模式卡片。
+     *
+     * <p>文本取自旧项目 {@code IdIdentifyModule} 的「识别模式」设置项描述原文，按模式拆分为三条，
+     * 未做任何改写。旧项目原文为一条完整描述：
+     * 「聊天复制/显示：识别手持物品后弹出结果屏幕；自动保存：识别手持物品后直接写入 ID 配置；
+     * 准星方块识别：识别准星真实命中的方块。」</p>
+     */
     public static String describe(IdentifyMode value) {
         return switch (value) {
-            case CHAT_COPY -> "只展示识别结果，不写入身份库";
-            case AUTO_SAVE -> "识别后直接写入身份库";
-            case CROSSHAIR_BLOCK -> "识别准星命中的方块并写入身份库";
+            case CHAT_COPY -> "聊天复制/显示：识别手持物品后弹出结果屏幕";
+            case AUTO_SAVE -> "自动保存：识别手持物品后直接写入 ID 配置";
+            case CROSSHAIR_BLOCK -> "准星方块识别：识别准星真实命中的方块";
         };
     }
 

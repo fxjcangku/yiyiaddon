@@ -1,17 +1,25 @@
 package com.yiyiaddon.command;
 
 import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.core.CommandMessageFormatter;
 
 import java.util.List;
 
 /**
  * 内置指令：列出全部客户端指令，或查看单个指令的别名与用法。
+ *
+ * <p>回执走旧项目的统一卡片排版（标题 + {@code §8▸} 字段 + 状态行），不自行拼字符串。</p>
  */
 public final class HelpCommand extends ClientCommand {
 
     @Override
     public String name() {
         return "help";
+    }
+
+    @Override
+    public String prefixName() {
+        return "帮助";
     }
 
     @Override
@@ -40,10 +48,12 @@ public final class HelpCommand extends ClientCommand {
             context.error("未找到指令：" + context.arg(0));
             return;
         }
-        List<String> aliases = command.aliases();
-        ClientChat.send("§b" + CommandManager.PREFIX + command.name() + " §7" + command.description());
-        ClientChat.send("§7别名：" + (aliases.isEmpty() ? "无" : String.join("、", aliases)));
-        ClientChat.send("§7用法：" + command.usage());
+        CommandMessageFormatter.of(prefixName(), CommandManager.PREFIX + command.name())
+                .field("别名", command.aliases().isEmpty() ? "无" : String.join("、", command.aliases()))
+                .field("用法", command.usage())
+                .field("说明", command.description())
+                .status(CommandMessageFormatter.Level.INFO, "共 " + CommandRegistry.count() + " 条指令")
+                .send();
     }
 
     @Override
@@ -53,11 +63,16 @@ public final class HelpCommand extends ClientCommand {
 
     private void printAll() {
         List<ClientCommand> commands = CommandRegistry.all();
-        ClientChat.send("§b客户端指令（共 " + commands.size() + " 个，前缀 " + CommandManager.PREFIX + "）");
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(prefixName(), "客户端指令");
         for (ClientCommand command : commands) {
-            List<String> aliases = command.aliases();
-            String aliasText = aliases.isEmpty() ? "" : "§8（" + String.join("、", aliases) + "）";
-            ClientChat.send("§f" + CommandManager.PREFIX + command.name() + aliasText + " §7" + command.description());
+            StringBuilder label = new StringBuilder(CommandManager.PREFIX).append(command.name());
+            if (!command.aliases().isEmpty()) {
+                label.append("（").append(String.join("、", command.aliases())).append("）");
+            }
+            formatter.field(label.toString(), "§f" + command.description());
         }
+        formatter.status(CommandMessageFormatter.Level.INFO,
+                "共 " + commands.size() + " 个（前缀 " + CommandManager.PREFIX + "）").send();
+        ClientChat.send(prefixName(), "§7输入 " + CommandManager.PREFIX + "help 指令名 查看单条用法");
     }
 }

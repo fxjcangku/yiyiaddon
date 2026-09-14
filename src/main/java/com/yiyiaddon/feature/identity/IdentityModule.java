@@ -3,7 +3,9 @@ package com.yiyiaddon.feature.identity;
 import com.google.gson.JsonObject;
 import com.yiyiaddon.command.ClientCommand;
 import com.yiyiaddon.command.CommandManager;
+import com.yiyiaddon.config.identity.IdentityTargetConfig;
 import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.core.event.ClientEvent;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
@@ -15,6 +17,7 @@ import com.yiyiaddon.feature.identity.service.IdentityActions;
 import com.yiyiaddon.feature.identity.ui.IdentityModulePage;
 import com.yiyiaddon.model.identity.IdentifyMode;
 import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.platform.storage.GamePaths;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.page.ModulePage;
 
@@ -47,7 +50,7 @@ public final class IdentityModule extends Module {
     private volatile IdentitySummary latest;
 
     public IdentityModule() {
-        super(MODULE_ID, "ID识别与配置管理", "tools", "识别物品、实体、方块，管理身份库与识别目标");
+        super(MODULE_ID, "ID识别", "assist", "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
     }
 
     @Override
@@ -87,9 +90,7 @@ public final class IdentityModule extends Module {
     @Override
     protected void onEnable() {
         IdentityService.shared().load();
-        int pruned = IdentityActions.pruneInvalidTargets();
-        if (pruned > 0) ClientChat.send("已清理 " + pruned + " 项失效的识别目标");
-        ClientChat.send("识别模式：" + config.mode().displayName() + " ｜ " + IdentityActions.statsText());
+        pruneSilently();
     }
 
     @Override
@@ -112,8 +113,7 @@ public final class IdentityModule extends Module {
     public void onEvent(ClientEvent event) {
         if (event.type() != ClientEventType.JOIN_SERVER) return;
         IdentityService.shared().reload();
-        int pruned = IdentityActions.pruneInvalidTargets();
-        if (pruned > 0) ClientChat.send("已清理 " + pruned + " 项失效的识别目标");
+        pruneSilently();
     }
 
     // ── 设置 ──
@@ -164,13 +164,23 @@ public final class IdentityModule extends Module {
 
     /** 输出身份库统计到聊天栏 */
     public void reportStats() {
-        ClientChat.send("身份库统计：" + IdentityActions.statsText());
+        IdentityService service = IdentityService.shared();
+        CommandMessageFormatter.of(displayName(), "身份库")
+                .field("物品", "§f" + service.itemCount() + " 项")
+                .field("实体", "§f" + service.entityCount() + " 项")
+                .field("方块", "§f" + service.blockCount() + " 项")
+                .field("物品快照", "§f" + service.itemSnapshotCount() + " 项")
+                .field("方块快照", "§f" + service.blockSnapshotCount() + " 项")
+                .field("已选目标", "§f" + IdentityTargetConfig.countText(service))
+                .field("数据目录", "§f" + GamePaths.identityRoot())
+                .status(CommandMessageFormatter.Level.INFO, "统计完成")
+                .send();
     }
 
     /** 清理失效的识别目标 */
     public void pruneTargets() {
         int pruned = IdentityActions.pruneInvalidTargets();
-        ClientChat.send(pruned == 0 ? "没有失效的识别目标" : "已清理 " + pruned + " 项失效的识别目标");
+        ClientChat.send(displayName(), pruned == 0 ? "§7没有失效的识别目标" : "§7已清理 " + pruned + " 项失效的识别目标");
     }
 
     public IdentityModuleConfig config() {
@@ -189,7 +199,10 @@ public final class IdentityModule extends Module {
     public void setModeIndex(int index) {
         config.setModeIndex(index);
         persist();
-        ClientChat.send("识别模式：" + config.mode().displayName() + "（" + IdentityModuleConfig.describe(config.mode()) + "）");
+        CommandMessageFormatter.of(displayName(), "识别模式")
+                .field("当前模式", "§f" + config.mode().displayName())
+                .field("说明", "§7" + IdentityModuleConfig.describe(config.mode()))
+                .status(CommandMessageFormatter.Level.SUCCESS, "已切换").send();
     }
 
     public boolean verbose() {
@@ -218,9 +231,15 @@ public final class IdentityModule extends Module {
         ModuleManager.saveSettings(this);
     }
 
+    /** 清理失效的识别目标，仅在确有清理时提示 */
+    private void pruneSilently() {
+        int pruned = IdentityActions.pruneInvalidTargets();
+        if (pruned > 0) ClientChat.send(displayName(), "§7已清理 " + pruned + " 项失效的识别目标");
+    }
+
     private boolean requireEnabled() {
         if (isEnabled()) return true;
-        ClientChat.send("§c模块未启用：" + displayName() + "（" + CommandManager.PREFIX + "module on " + id() + "）");
+        ClientChat.send(displayName(), "§6§l模块未启用（" + CommandManager.PREFIX + "module on " + id() + " 可开启）");
         return false;
     }
 
@@ -230,23 +249,38 @@ public final class IdentityModule extends Module {
         return summary;
     }
 
+    /**
+     * 播报识别结果，文本与旧项目逐字一致。
+     *
+     * <p>成功沿用旧项目 {@code §a§l✓ 已识别物品 §8▸ <名>}；失败沿用旧项目 {@code notifyError}
+     * 的橙色加粗单行；「已存在」分支沿用旧项目的稳定身份判定说明。</p>
+     */
     private void report(IdentitySummary summary) {
+        IdentitySummary.Kind kind = summary.kind();
         if (!summary.success()) {
             String reason = summary.rows().isEmpty() ? "未知原因" : summary.rows().get(0).value();
-            ClientChat.send("§c" + summary.kind().displayName() + "识别失败：" + reason);
+            ClientChat.send(displayName(), "§6§l" + reason);
             return;
         }
-        ClientChat.send("§b" + summary.kind().displayName() + "识别：§f" + summary.title());
+        ClientChat.send(displayName(), "§a§l✓ 已识别" + kind.displayName() + " §8▸ §a§l" + summary.title());
         if (summary.saved()) {
-            ClientChat.send("§7已写入身份库：" + summary.fileName());
+            ClientChat.send(displayName(),
+                    CommandMessageFormatter.line("保存文件", "§f" + summary.fileName()));
         } else if (config.savesToLibrary()) {
-            ClientChat.send("§7未写入身份库（该身份已存在或写入失败）");
-        } else {
-            ClientChat.send("§7当前为只展示模式，未写入身份库");
+            ClientChat.send(displayName(), alreadyText(kind));
         }
         if (!config.verbose()) return;
         for (IdentitySummary.Row row : summary.rows()) {
-            ClientChat.send("§7" + row.label() + "：§f" + row.value());
+            ClientChat.send(displayName(), CommandMessageFormatter.line(row.label(), "§f" + row.value()));
         }
+    }
+
+    /** 「已在配置中」文案：沿用旧项目原文 */
+    private static String alreadyText(IdentitySummary.Kind kind) {
+        return switch (kind) {
+            case ITEM -> "§7该物品已在 ID 配置中（稳定身份相同）";
+            case BLOCK -> "§7该方块已在方块记录中（稳定身份相同）";
+            case ENTITY -> "§7该实体已在实体 ID 配置中";
+        };
     }
 }

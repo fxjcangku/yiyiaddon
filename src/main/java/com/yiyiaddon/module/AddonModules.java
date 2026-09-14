@@ -67,12 +67,18 @@ public final class AddonModules {
         CommandRegistry.register(new ResourceCommand(RESOURCE_PROBE));
     }
 
+    /**
+     * 注册模块分类。
+     *
+     * <p><b>用户交互资产：</b>分类中文名、颜色样式与排列顺序全部沿用旧项目
+     * {@code AddonTemplate} 原文，禁止改名、禁止改样式、禁止改顺序。分类显示名中的
+     * {@code §c§lyiyiaddon } 段为旧项目原文，是否按第十七章第 110 条去掉需用户定稿。</p>
+     */
     private static void registerCategories() {
-        CategoryRegistry.register(new ModuleCategory("automation", "自动化", "管理自动执行类功能", "\uEBBC", 10));
-        CategoryRegistry.register(new ModuleCategory("assist", "辅助", "管理辅助工具功能", "\uEF76", 20));
-        CategoryRegistry.register(new ModuleCategory("tools", "工具", "管理工具类功能", "\uF06A", 30));
-        CategoryRegistry.register(new ModuleCategory("navigation", "导航", "管理路径与移动功能", "\uE919", 40));
-        CategoryRegistry.register(new ModuleCategory("enchant", "附魔", "管理装备强化功能", "\uE659", 50));
-        CategoryRegistry.register(new ModuleCategory("stardew", "星露谷", "管理农场模拟功能", "\uE8CD", 60));
+        CategoryRegistry.register(new ModuleCategory("tools", "§c§lyiyiaddon §a§l工具", "管理工具类功能", "\uF06A", 10));
+        CategoryRegistry.register(new ModuleCategory("automation", "§c§lyiyiaddon §e§l自动化", "管理自动执行类功能", "\uEBBC", 20));
+        CategoryRegistry.register(new ModuleCategory("tactical", "§c§lyiyiaddon §b§l绕过", "管理绕过类功能", "\uE919", 30));
+        CategoryRegistry.register(new ModuleCategory("assist", "§c§lyiyiaddon §d§l辅助", "管理辅助工具功能", "\uEF76", 40));
+        CategoryRegistry.register(new ModuleCategory("stardew", "§c§lyiyiaddon §6§l星露谷", "管理农场模拟功能", "\uE8CD", 50));
     }
 }

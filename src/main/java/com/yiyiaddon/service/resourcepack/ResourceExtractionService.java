@@ -1,6 +1,7 @@
 package com.yiyiaddon.service.resourcepack;
 
 import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.model.resource.ResourcePhase;
 import com.yiyiaddon.model.resource.ResourceScanResult;
 import com.yiyiaddon.model.resource.ResourceSource;
@@ -41,8 +42,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public final class ResourceExtractionService {
 
-    /** 提示前缀使用的模块名 */
-    private static final String MODULE = "资源核心";
+    /** 提示前缀使用的模块名：旧项目 {@code ServerResourceService} 原文，禁止改动 */
+    private static final String MODULE = "服务器核心";
 
     /** CHECKING 阶段等待服务器资源包推送的上限（tick，约 10 秒） */
     private static final int NO_PACK_TIMEOUT = 200;
@@ -309,18 +310,18 @@ public final class ResourceExtractionService {
             return;
         }
         if (isSingleplayer()) {
-            notice("§c资源检测仅支持多人服务器");
+            notice("§c星露谷资源检测仅支持多人服务器");
             return;
         }
         if (isBusy()) {
-            notice("§e资源正在处理中（" + phase.label() + "），请稍候");
+            notice("§e资源正在处理中（" + phase.label() + "），请稍候…");
             return;
         }
 
         String key = currentKey();
         if (key == null) key = serverKey;
         if (key == null) {
-            notice("§c无法识别当前服务器地址，资源检测已取消");
+            notice("§c无法识别当前服务器地址，资源检测已取消。");
             return;
         }
         if (!key.equals(serverKey)) beginSession(key);
@@ -342,7 +343,10 @@ public final class ResourceExtractionService {
 
         phase = ResourcePhase.CHECKING;
         extractionRequested = true;
-        announce("check", "§e开始检测服务器资源");
+        announce("check", "§e开始检测服务器资源"
+                + "\n" + CommandMessageFormatter.line("服务器名称", "§b" + textOf(GameProbe.serverName()))
+                + "\n" + CommandMessageFormatter.line("服务器地址", "§b" + textOf(key))
+                + "\n" + CommandMessageFormatter.line("状态", "§e检测中"));
         advanceChecking();
     }
 
@@ -393,7 +397,7 @@ public final class ResourceExtractionService {
             extractBaseReloadGen = reloadGeneration;
             loadingBaseReloadGen = reloadGeneration;
             phase = ResourcePhase.CHECKING;
-            announce("autoSession", "§e检测到已授权的同服切换，正在自动读取当前资源");
+            announce("autoSession", "§e检测到已授权的同服子服切换，正在自动读取当前资源…");
         } else {
             phase = ResourcePhase.NOT_CHECKED;
         }
@@ -458,7 +462,7 @@ public final class ResourceExtractionService {
         scanResult = ResourceScanResult.empty();
         stageTicks = 0;
         phase = ResourcePhase.PARSING;
-        announce("automaticRefresh", "§e检测到同服资源已更新，正在自动重新读取");
+        announce("automaticRefresh", "§e检测到同服子服资源已更新，正在自动重新读取…");
     }
 
     /**
@@ -474,7 +478,7 @@ public final class ResourceExtractionService {
         stageTicks = 0;
         extractBaseReloadGen = reloadGeneration;
         phase = ResourcePhase.CHECKING;
-        announce("retry", "§e检测到资源重载，重新尝试提取资源");
+        announce("retry", "§e检测到资源重载，重新尝试提取星露谷资源…");
         advanceChecking();
     }
 
@@ -488,14 +492,14 @@ public final class ResourceExtractionService {
         // 1) 已有该服务器缓存 → 直接复用，不重复下载
         File zip = ResourcePackCache.cachedZip(serverKey);
         if (zip != null) {
-            announce("cache", "§a已发现资源缓存，直接复用 §8» §f" + zip.getName());
+            announce("cache", "§a已发现资源缓存，直接复用§8 › §f" + zip.getName());
             adoptCache(zip);
             return;
         }
 
         // 2) 没有缓存但有资源包推送信息 → 调下载器下载一次
         if (packId != null && packUrl != null && !packUrl.isBlank()) {
-            announce("download", "§e正在下载当前服务器资源包");
+            announce("download", "§e正在下载当前服务器资源包…");
             phase = ResourcePhase.DOWNLOADING;
             stageTicks = 0;
             ResourcePackCache.downloadAsync(packId, packUrl, packHash,
@@ -508,14 +512,17 @@ public final class ResourceExtractionService {
         if (clientHasContent()) {
             temporaryFallback = true;
             source = ResourceSource.LOADED;
-            announce("reuse", "§6未发现本地缓存，也没有可用的资源包下载地址，改用客户端已加载的服务器资源");
+            announce("reuse", "§6未发现本地缓存，也没有可用的资源包下载地址，改用客户端已加载的服务器资源"
+                + "\n" + CommandMessageFormatter.line("资源来源", "§6当前服务器已加载资源（临时）")
+                + "\n" + CommandMessageFormatter.line("资源缓存", "§6未建立（临时解析）")
+                + "\n" + CommandMessageFormatter.line("说明", "§7本次未落盘，无法留作下次复用"));
             enterLoading();
             return;
         }
 
         // 4) 都没等到：给玩家接受资源包的时间，超时则明确失败
         if (stageTicks > NO_PACK_TIMEOUT) {
-            fail("未收到服务器资源包推送，且本地无缓存、客户端也未加载目标资源");
+            fail("未收到服务器资源包推送，且本地无缓存、客户端也未加载星露谷资源");
         }
     }
 
@@ -571,7 +578,7 @@ public final class ResourceExtractionService {
         phase = ResourcePhase.LOADING;
         stageTicks = 0;
         loadingBaseReloadGen = reloadGeneration;
-        announce("loading", "§e正在等待客户端应用当前服务器资源");
+        announce("loading", "§e正在等待客户端应用当前服务器资源…");
     }
 
     /**
@@ -595,10 +602,10 @@ public final class ResourceExtractionService {
 
         // 超时兜底：必须确认当前加载的资源不属于「上一台服务器」，避免把 A 服资源当 B 服解析
         if (contentFromOtherServer()) {
-            fail("等待资源生效超时：客户端仍加载着上一服务器的资源，已阻止跨服串档");
+            fail("等待资源生效超时：客户端仍加载着上一服务器的资源包，已阻止跨服串档");
             return;
         }
-        announce("fallback", "§6未观察到资源应用完成信号，按当前已加载资源继续解析");
+        announce("fallback", "§6⚠ 未观察到资源应用完成信号，按当前已加载资源继续解析");
         enterParsing();
     }
 
@@ -620,7 +627,7 @@ public final class ResourceExtractionService {
     private static void enterParsing() {
         phase = ResourcePhase.PARSING;
         stageTicks = 0;
-        announce("parsing", "§e正在解析资源");
+        announce("parsing", "§e正在解析资源…");
     }
 
     private static void advanceParsing() {
@@ -638,7 +645,7 @@ public final class ResourceExtractionService {
 
         if (result.isEmpty()) {
             phase = ResourcePhase.NO_CONTENT;
-            announce("noContent", "§c当前服务器未检测到可识别的目标资源，未建立资源档案");
+            announce("noContent", "§c当前服务器未检测到可识别的星露谷资源，未建立资源档案。");
             return;
         }
 
@@ -647,8 +654,12 @@ public final class ResourceExtractionService {
         lastReadyContentIds = currentContentIds();
         lastReadyServerKey = serverKey;
 
-        announce("ready", "§a资源检测完成 §8» §f" + countsText()
-            + (temporaryFallback ? " §6(临时可用)" : ""));
+        announce("ready", "§a资源检测完成"
+            + "\n" + CommandMessageFormatter.line("资源来源", "§f" + resourceSource().label())
+            + "\n" + CommandMessageFormatter.line("资源缓存", "§f" + cacheLabel())
+            + "\n" + CommandMessageFormatter.line("资源指纹", "§b" + fingerprintLabel())
+            + "\n" + CommandMessageFormatter.line("资源分类", "§f" + countsText())
+            + "\n" + CommandMessageFormatter.line("状态", temporaryFallback ? "§6临时可用" : "§a成功"));
         notifyReady();
     }
 
@@ -672,7 +683,7 @@ public final class ResourceExtractionService {
         failReason = reason;
         stageTicks = 0;
         failedReloadGen = reloadGeneration;
-        announce("fail", "§c资源准备失败：" + reason);
+        announce("fail", "§c星露谷资源准备失败：" + reason);
     }
 
     /**
@@ -738,12 +749,17 @@ public final class ResourceExtractionService {
     }
 
     private static void notifyChat(String text) {
-        String message = "§f§l[" + MODULE + "]§r " + text;
+        String message = ClientChat.prefix(MODULE) + text;
         if (Minecraft.getInstance().player != null) {
             ClientChat.raw(message);
         } else {
             PENDING_NOTICES.add(message);
         }
+    }
+
+    /** 空值兜底：显示层绝不出现 null（与旧项目 {@code CommandMessageFormatter.safe} 同口径） */
+    private static String textOf(String value) {
+        return value == null || value.isBlank() ? "无" : value;
     }
 
     private static void flushPending() {

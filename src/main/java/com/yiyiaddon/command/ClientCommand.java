@@ -16,6 +16,20 @@ public abstract class ClientCommand {
     /** 指令名，不含前缀 */
     public abstract String name();
 
+    /**
+     * 回执前缀使用的功能名：模块指令返回模块中文显示名，框架指令返回功能名。
+     *
+     * <p>前缀属于用户交互资产，固定为 {@code [功能名]}（白色加粗），禁止出现 {@code yiyiaddon}。</p>
+     */
+    public String prefixName() {
+        return name();
+    }
+
+    /** 创建携带正确回执前缀的上下文 */
+    public CommandContext context(String[] args) {
+        return new CommandContext(args, prefixName());
+    }
+
     /** 别名，可含中文；返回空列表表示无别名 */
     public List<String> aliases() {
         return List.of();

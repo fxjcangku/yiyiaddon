@@ -39,33 +39,34 @@ public final class IdentityActions {
     /** 识别主手物品 */
     public static IdentitySummary identifyItem(boolean save) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return IdentitySummary.failed(IdentitySummary.Kind.ITEM, "未进入世界");
+        if (client.player == null) return IdentitySummary.failed(IdentitySummary.Kind.ITEM, "玩家未加载");
 
         ItemStack stack = client.player.getItemInHand(InteractionHand.MAIN_HAND);
         if (stack == null || stack.isEmpty()) {
-            return IdentitySummary.failed(IdentitySummary.Kind.ITEM, "主手没有物品");
+            return IdentitySummary.failed(IdentitySummary.Kind.ITEM, "没有可识别物品：主手和副手都是空的");
         }
 
         ItemIdentity identity = ItemIdentifier.identifyItem(stack);
         if (identity == null) {
-            return IdentitySummary.failed(IdentitySummary.Kind.ITEM, "该物品无法识别");
+            return IdentitySummary.failed(IdentitySummary.Kind.ITEM, "无法解析该物品的稳定身份");
         }
 
         String fileName = save ? IdentityService.shared().addItem(identity) : null;
         List<IdentitySummary.Row> rows = new ArrayList<>();
-        rows.add(new IdentitySummary.Row("物品ID", identity.itemId()));
-        rows.add(new IdentitySummary.Row("类型", identity.typeName()));
+        rows.add(new IdentitySummary.Row("名称", identity.displayName()));
+        rows.add(new IdentitySummary.Row("物品 ID", identity.itemId()));
+        rows.add(new IdentitySummary.Row("物品类型", identity.typeName()));
         if (identity.customLogicId() != null) {
-            rows.add(new IdentitySummary.Row("自定义逻辑ID", identity.customLogicId()));
+            rows.add(new IdentitySummary.Row("自定义身份", identity.customLogicId()));
         }
         if (identity.itemModel() != null) {
-            rows.add(new IdentitySummary.Row("物品模型", identity.itemModel()));
+            rows.add(new IdentitySummary.Row("资源模型", identity.itemModel()));
         }
         if (identity.isRenamed()) {
-            rows.add(new IdentitySummary.Row("改名", identity.customName()));
+            rows.add(new IdentitySummary.Row("自定义名称", identity.customName()));
         }
         if (identity.itemName() != null) {
-            rows.add(new IdentitySummary.Row("服务器显示名", identity.itemName()));
+            rows.add(new IdentitySummary.Row("原始名称", identity.itemName()));
         }
         if (identity.hasEnchantments()) {
             rows.add(new IdentitySummary.Row("附魔", enchantmentText(identity.enchantments())));
@@ -84,19 +85,20 @@ public final class IdentityActions {
         BlockIdentity identity = BlockIdentifier.identify();
         if (identity == null) {
             Minecraft client = Minecraft.getInstance();
-            String reason = client.player == null ? "未进入世界" : "准星没有指向方块";
+            String reason = client.player == null ? "玩家未加载" : "准星当前没有指向有效方块";
             return IdentitySummary.failed(IdentitySummary.Kind.BLOCK, reason);
         }
 
         String fileName = save ? IdentityService.shared().addBlock(identity) : null;
         List<IdentitySummary.Row> rows = new ArrayList<>();
-        rows.add(new IdentitySummary.Row("方块ID", identity.blockId()));
+        rows.add(new IdentitySummary.Row("名称", identity.displayName()));
+        rows.add(new IdentitySummary.Row("方块 ID", identity.blockId()));
         rows.add(new IdentitySummary.Row("方块状态", identity.blockStateDisplay()));
         rows.add(new IdentitySummary.Row("坐标", identity.x() + ", " + identity.y() + ", " + identity.z()));
         rows.add(new IdentitySummary.Row("维度", identity.dimension()));
         rows.add(new IdentitySummary.Row("服务器", identity.server()));
         if (identity.blockEntityTypeId() != null) {
-            rows.add(new IdentitySummary.Row("方块实体", identity.blockEntityTypeId()));
+            rows.add(new IdentitySummary.Row("方块实体类型", identity.blockEntityTypeId()));
         }
         rows.add(new IdentitySummary.Row("解析状态", identity.semanticCertainty() == null ? "未解析" : identity.semanticCertainty()));
         if (identity.semanticIdentity() != null) {
@@ -113,17 +115,18 @@ public final class IdentityActions {
     /** 识别准星命中的实体 */
     public static IdentitySummary identifyEntity(boolean save) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return IdentitySummary.failed(IdentitySummary.Kind.ENTITY, "未进入世界");
+        if (client.player == null) return IdentitySummary.failed(IdentitySummary.Kind.ENTITY, "玩家未加载");
 
         Entity target = client.crosshairPickEntity;
-        if (target == null) return IdentitySummary.failed(IdentitySummary.Kind.ENTITY, "准星没有指向实体");
+        if (target == null) return IdentitySummary.failed(IdentitySummary.Kind.ENTITY, "当前准星未指向可识别实体");
 
         EntityIdentity identity = EntityIdentifier.identifyEntity(target);
-        if (identity == null) return IdentitySummary.failed(IdentitySummary.Kind.ENTITY, "该实体无法识别");
+        if (identity == null) return IdentitySummary.failed(IdentitySummary.Kind.ENTITY, "无法解析该实体的稳定身份");
 
         String fileName = save ? IdentityService.shared().addEntity(identity) : null;
         List<IdentitySummary.Row> rows = new ArrayList<>();
-        rows.add(new IdentitySummary.Row("实体ID", identity.entityId()));
+        rows.add(new IdentitySummary.Row("名称", identity.displayName()));
+        rows.add(new IdentitySummary.Row("实体 ID", identity.entityId()));
         rows.add(new IdentitySummary.Row("原始名称", identity.baseName()));
         if (identity.isNamed()) {
             rows.add(new IdentitySummary.Row("自定义名称", identity.customName()));

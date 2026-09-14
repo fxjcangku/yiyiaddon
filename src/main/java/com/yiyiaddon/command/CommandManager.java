@@ -24,6 +24,9 @@ public final class CommandManager {
     /** 指令前缀，与传统客户端模组保持一致的 {@code .} */
     public static final String PREFIX = ".";
 
+    /** 框架级回执前缀（指令框架自身提示的归属功能名） */
+    public static final String FRAMEWORK_PREFIX = "帮助";
+
     /** 单次补全最多展示的候选数量 */
     private static final int MAX_PRINTED_CANDIDATES = 30;
 
@@ -60,23 +63,23 @@ public final class CommandManager {
 
         String body = message.substring(PREFIX.length()).strip();
         if (body.isEmpty()) {
-            ClientChat.send("客户端指令共 " + CommandRegistry.count() + " 个，输入 " + PREFIX + "help 查看全部");
+            ClientChat.send(FRAMEWORK_PREFIX, "客户端指令共 " + CommandRegistry.count() + " 个，输入 " + PREFIX + "help 查看全部");
             return true;
         }
 
         String[] tokens = body.split("\\s+");
         ClientCommand command = CommandRegistry.find(tokens[0]);
         if (command == null) {
-            ClientChat.send("§c未知客户端指令：" + tokens[0] + "（输入 " + PREFIX + "help 查看全部指令）");
+            ClientChat.send(FRAMEWORK_PREFIX, "§c未知客户端指令：" + tokens[0] + "（输入 " + PREFIX + "help 查看全部指令）");
             return true;
         }
 
-        CommandContext context = new CommandContext(Arrays.copyOfRange(tokens, 1, tokens.length));
+        CommandContext context = command.context(Arrays.copyOfRange(tokens, 1, tokens.length));
         try {
             command.execute(context);
         } catch (Throwable error) {
             LOGGER.error("指令 {} 执行异常", command.name(), error);
-            ClientChat.send("§c指令 " + PREFIX + command.name() + " 执行异常："
+            ClientChat.send(FRAMEWORK_PREFIX, "§c指令 " + PREFIX + command.name() + " 执行异常："
                     + error.getClass().getSimpleName()
                     + (error.getMessage() == null ? "" : "：" + error.getMessage()));
         }
@@ -98,7 +101,7 @@ public final class CommandManager {
         boolean trailingSpace = !body.isEmpty() && body.charAt(body.length() - 1) == ' ';
         String trimmed = body.strip();
         if (trimmed.isEmpty()) {
-            ClientChat.send("客户端指令共 " + CommandRegistry.count() + " 个，输入 " + PREFIX + "help 查看全部");
+            ClientChat.send(FRAMEWORK_PREFIX, "客户端指令共 " + CommandRegistry.count() + " 个，输入 " + PREFIX + "help 查看全部");
             return input;
         }
 
@@ -114,7 +117,7 @@ public final class CommandManager {
         int completed = trailingSpace ? tokens.length : tokens.length - 1;
         String[] args = Arrays.copyOfRange(tokens, 1, Math.max(1, completed));
 
-        List<String> candidates = safeComplete(command, new CommandContext(args), currentWord);
+        List<String> candidates = safeComplete(command, command.context(args), currentWord);
         return applyCandidates(candidates, currentWord, tokens, completed, input);
     }
 
@@ -196,6 +199,6 @@ public final class CommandManager {
         StringBuilder text = new StringBuilder("§7补全候选（" + candidates.size() + " 项）：§f");
         text.append(String.join("§7，§f", candidates.subList(0, shown)));
         if (shown < candidates.size()) text.append("§7，…");
-        ClientChat.send(text.toString());
+        ClientChat.send(FRAMEWORK_PREFIX, text.toString());
     }
 }

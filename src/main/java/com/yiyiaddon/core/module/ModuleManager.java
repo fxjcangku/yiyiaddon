@@ -147,7 +147,7 @@ public final class ModuleManager {
             switch (tryEnable(module, false)) {
                 case SUCCESS -> {
                     PENDING.remove(moduleId);
-                    ClientChat.send("已自动启用模块：" + module.displayName());
+                    ClientChat.send(module.displayName(), "§a§l已开启");
                 }
                 case FAILED -> {
                     PENDING.remove(moduleId);
@@ -212,15 +212,17 @@ public final class ModuleManager {
         if (module.isEnabled()) return EnableResult.SUCCESS;
 
         if (BROKEN.contains(module.id())) {
-            if (announce) ClientChat.send("§c模块 " + module.displayName() + " 初始化失败，本次会话不可用");
+            if (announce) ClientChat.send(module.displayName(), "§c初始化失败，本次会话不可用");
             return EnableResult.FAILED;
         }
 
         List<String> problems = problemsOf(module);
         if (!problems.isEmpty()) {
             if (announce) {
-                ClientChat.send("§c模块 " + module.displayName() + " 暂无法启用：" + String.join("；", problems)
-                        + "（条件满足后会自动开启）");
+                ClientChat.send(module.displayName(), "§6§l还差 " + problems.size() + " 项没配好，配完再开：");
+                for (int i = 0; i < problems.size(); i++) {
+                    ClientChat.send(module.displayName(), "§6  " + (i + 1) + ". §f" + problems.get(i));
+                }
             }
             return EnableResult.BLOCKED;
         }
@@ -232,14 +234,14 @@ public final class ModuleManager {
             return EnableResult.FAILED;
         }
         persistEnabled(module, true);
-        if (announce) ClientChat.send("已启用模块：" + module.displayName());
+        if (announce) ClientChat.send(module.displayName(), "§a§l已开启");
         return EnableResult.SUCCESS;
     }
 
     private static boolean disable(Module module, boolean announce) {
         if (!module.isEnabled()) return true;
         forceDisable(module);
-        if (announce) ClientChat.send("已关闭模块：" + module.displayName());
+        if (announce) ClientChat.send(module.displayName(), "§c§l已关闭");
         return true;
     }
 
@@ -282,7 +284,7 @@ public final class ModuleManager {
             if (!module.isEnabled()) continue;
             if (!runSafely(module, "运行", () -> module.onTick(client))) {
                 forceDisable(module);
-                ClientChat.send("§c模块 " + module.displayName() + " 运行异常，已自动关闭");
+                ClientChat.send(module.displayName(), "§c运行异常，已自动关闭");
             }
         }
     }
@@ -309,7 +311,7 @@ public final class ModuleManager {
         Module module = byId(moduleId);
         if (module == null) return;
         LOGGER.error("模块 {} 事件处理异常", moduleId, error);
-        ClientChat.send("§c模块 " + module.displayName() + " 事件处理异常，已自动关闭：" + describe(error));
+        ClientChat.send(module.displayName(), "§c事件处理异常，已自动关闭：" + describe(error));
         forceDisable(module);
     }
 
@@ -323,7 +325,7 @@ public final class ModuleManager {
             module.saveSettings(settings);
         } catch (Throwable error) {
             LOGGER.error("模块 {} 保存设置异常", module.id(), error);
-            ClientChat.send("§c模块 " + module.displayName() + " 设置保存失败：" + describe(error));
+            ClientChat.send(module.displayName(), "§c设置保存失败：" + describe(error));
             return false;
         }
         ModuleStateConfig.putSettings(module.id(), settings);
