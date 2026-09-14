@@ -1,7 +1,6 @@
 package com.yiyiaddon.feature.identity;
 
 import com.yiyiaddon.core.ClientChat;
-import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.feature.identity.service.IdentityActions;
 import com.yiyiaddon.feature.identity.ui.IdConfigPage;
@@ -385,21 +384,6 @@ public final class IdConfigModule extends Module {
         ClientChat.send(MESSAGE_MODULE, okItems && okEntities && okBlocks && okSnapshots
                 ? "§a§l✓ 已清空全部 ID 数据（物品 + 实体 + 方块稳定记录 + 历史快照）"
                 : "§c§l✗ 清空全部 ID 数据部分失败：请检查各目录磁盘状态");
-    }
-
-    /** 输出身份库统计到聊天栏 */
-    public void reportStats() {
-        IdentityService service = IdentityService.shared();
-        CommandMessageFormatter.of(MESSAGE_MODULE, "身份库")
-                .field("物品", "§f" + service.itemCount() + " 项")
-                .field("实体", "§f" + service.entityCount() + " 项")
-                .field("方块", "§f" + service.blockCount() + " 项")
-                .field("物品快照", "§f" + service.itemSnapshotCount() + " 项")
-                .field("方块快照", "§f" + service.blockSnapshotCount() + " 项")
-                .field("已选目标", "§f" + IdentityActions.selectedTargetCount() + " 项")
-                .field("数据目录", "§f" + GamePaths.identityRoot())
-                .status(CommandMessageFormatter.Level.INFO, "统计完成")
-                .send();
     }
 
     /** 清理失效的识别目标 */

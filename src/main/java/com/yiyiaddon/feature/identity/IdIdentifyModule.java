@@ -3,7 +3,6 @@ package com.yiyiaddon.feature.identity;
 import com.google.gson.JsonObject;
 import com.yiyiaddon.command.ClientCommand;
 import com.yiyiaddon.command.CommandManager;
-import com.yiyiaddon.config.identity.IdentityTargetConfig;
 import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.core.event.ClientEvent;
@@ -254,21 +253,6 @@ public final class IdIdentifyModule extends Module {
         latest = summary;
         client.execute(() -> IdScreens.openEntityResult(identity, client.screen));
         return summary;
-    }
-
-    /** 输出身份库统计到聊天栏 */
-    public void reportStats() {
-        IdentityService service = IdentityService.shared();
-        CommandMessageFormatter.of(MESSAGE_MODULE, "身份库")
-                .field("物品", "§f" + service.itemCount() + " 项")
-                .field("实体", "§f" + service.entityCount() + " 项")
-                .field("方块", "§f" + service.blockCount() + " 项")
-                .field("物品快照", "§f" + service.itemSnapshotCount() + " 项")
-                .field("方块快照", "§f" + service.blockSnapshotCount() + " 项")
-                .field("已选目标", "§f" + IdentityTargetConfig.countText(service))
-                .field("数据目录", "§f" + GamePaths.identityRoot())
-                .status(CommandMessageFormatter.Level.INFO, "统计完成")
-                .send();
     }
 
     /** 清理失效的识别目标 */
