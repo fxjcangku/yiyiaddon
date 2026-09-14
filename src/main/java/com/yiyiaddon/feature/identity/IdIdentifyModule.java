@@ -60,9 +60,6 @@ public final class IdIdentifyModule extends Module {
 
     private final IdentityModuleConfig config = new IdentityModuleConfig();
 
-    /** 本会话最近一次识别结果；关闭模块时清空 */
-    private volatile IdentitySummary latest;
-
     public IdIdentifyModule() {
         super(MODULE_ID, MESSAGE_MODULE, "assist", "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
     }
@@ -105,11 +102,6 @@ public final class IdIdentifyModule extends Module {
     protected void onEnable() {
         IdentityService.shared().load();
         pruneSilently();
-    }
-
-    @Override
-    protected void onDisable() {
-        latest = null;
     }
 
     /**
@@ -194,7 +186,6 @@ public final class IdIdentifyModule extends Module {
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ITEM,
                 identity.displayName(), List.of(), null);
-        latest = summary;
         client.execute(() -> IdScreens.openItemResult(identity, client.screen));
         return summary;
     }
@@ -228,7 +219,6 @@ public final class IdIdentifyModule extends Module {
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.BLOCK,
                 identity.displayName(), List.of(), null);
-        latest = summary;
         client.execute(() -> IdScreens.openBlockResult(identity, client.screen));
         return summary;
     }
@@ -253,7 +243,6 @@ public final class IdIdentifyModule extends Module {
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ENTITY,
                 identity.displayName(), List.of(), null);
-        latest = summary;
         client.execute(() -> IdScreens.openEntityResult(identity, client.screen));
         return summary;
     }
@@ -280,10 +269,6 @@ public final class IdIdentifyModule extends Module {
     public void setModeIndex(int index) {
         config.setModeIndex(index);
         persist();
-        CommandMessageFormatter.of(MESSAGE_MODULE, "识别模式")
-                .field("当前模式", "§f" + config.mode().displayName())
-                .field("说明", "§7" + IdentityModuleConfig.describe(config.mode()))
-                .status(CommandMessageFormatter.Level.SUCCESS, "已切换").send();
     }
 
     public boolean blockSemanticDebug() {
@@ -295,16 +280,6 @@ public final class IdIdentifyModule extends Module {
         config.setBlockSemanticDebug(value);
         BlockStateModelResolver.setVerbose(value);
         persist();
-    }
-
-    /** 最近一次识别结果的一行文案 */
-    public String latestText() {
-        IdentitySummary summary = latest;
-        return summary == null ? "无" : summary.kind().displayName() + " ｜ " + summary.statusText();
-    }
-
-    public String statsText() {
-        return IdentityActions.statsText();
     }
 
     // ── 内部 ──
@@ -326,7 +301,6 @@ public final class IdIdentifyModule extends Module {
     }
 
     private IdentitySummary finish(IdentitySummary summary) {
-        latest = summary;
         report(summary);
         return summary;
     }

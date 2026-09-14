@@ -126,12 +126,4 @@ public final class IdentityTargetConfig {
         if (removed > 0) setSelectedItemKeys(valid);
         return removed;
     }
-
-    /** 计数文案：未选择目标（共 N 项）/ 已选 X / N 项 */
-    public static String countText(IdentityService service) {
-        int total = service.itemCount();
-        int selected = SELECTED_ITEM_KEYS.size();
-        if (selected == 0) return "未选择目标（共 " + total + " 项）";
-        return "已选 " + selected + " / " + total + " 项";
-    }
 }

@@ -162,19 +162,6 @@ public final class IdentityActions {
         return IdentityService.shared().blockSnapshotCount();
     }
 
-    public static int selectedTargetCount() {
-        return IdentityTargetConfig.selectedItemKeys().size();
-    }
-
-    /** 一行式统计文案 */
-    public static String statsText() {
-        return "物品 " + itemCount()
-                + " ｜ 实体 " + entityCount()
-                + " ｜ 方块 " + blockCount()
-                + " ｜ 快照 " + (itemSnapshotCount() + blockSnapshotCount())
-                + " ｜ 已选目标 " + selectedTargetCount();
-    }
-
     /** 清理已失效的选中目标，返回移除数量 */
     public static int pruneInvalidTargets() {
         return IdentityTargetConfig.pruneInvalid(IdentityService.shared());
