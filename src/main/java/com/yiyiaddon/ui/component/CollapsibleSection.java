@@ -3,6 +3,7 @@ package com.yiyiaddon.ui.component;
 import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.types.Rect;
@@ -91,8 +92,8 @@ public final class CollapsibleSection implements CompactElement {
 
         boolean pressed = press.apply(canvas, x, y, width, HEADER_HEIGHT);
         float centerY = y + HEADER_HEIGHT / 2f;
-        FontRenderer.drawTextBold(canvas, title, x + PAD_X, CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
-                GlassPanel.withAlpha(tc.primaryText, alpha));
+        MinecraftText.draw(canvas, title, x + PAD_X, CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
+                tc.primaryText, alpha, true);
 
         float progress = expand.value();
         float arrowWidth = FontRenderer.measureTextWidth(ARROW, ARROW_SIZE, FontRenderer.MATERIAL_SYMBOLS);
@@ -102,7 +103,7 @@ public final class CollapsibleSection implements CompactElement {
             String text = summary.get();
             if (text != null && !text.isBlank()) {
                 float available = width - PAD_X * 2f - arrowWidth - SUMMARY_GAP
-                        - FontRenderer.measureTextWidthBold(title, TITLE_SIZE) - SUMMARY_GAP;
+                        - MinecraftText.measure(title, TITLE_SIZE, true) - SUMMARY_GAP;
                 if (available > 24f) {
                     String shown = CardLayout.ellipsize(text, available, SUMMARY_SIZE);
                     float textWidth = FontRenderer.measureTextWidth(shown, SUMMARY_SIZE);

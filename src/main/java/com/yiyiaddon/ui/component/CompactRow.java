@@ -1,6 +1,8 @@
 package com.yiyiaddon.ui.component;
 
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.MinecraftText;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import com.yiyiaddon.ui.widget.SettingWidget;
@@ -33,6 +35,9 @@ public final class CompactRow implements CompactElement {
     private final Supplier<String> hint;
     private final SettingWidget control;
 
+    /** 浮层说明来源：多行、不截断，悬停时登记到 {@link TooltipLayer}；与行内 hint 可并存。 */
+    private Supplier<String> tooltip;
+
     private boolean hovered;
     private float hover;
 
@@ -50,6 +55,12 @@ public final class CompactRow implements CompactElement {
     /** 无悬停提示的紧凑行。 */
     public CompactRow(String label, SettingWidget control) {
         this(label, null, control);
+    }
+
+    /** 登记浮层说明（多行、不截断，悬停时显示；与行内 hint 并存）。 */
+    public CompactRow tooltip(Supplier<String> text) {
+        this.tooltip = text;
+        return this;
     }
 
     @Override
@@ -75,11 +86,15 @@ public final class CompactRow implements CompactElement {
         if (hover > 0.01f) {
             GlassPanel.fill(canvas, x, y, width, HEIGHT, radius, tc.surfaceHover, rowAlpha * hover);
         }
+        // 悬停了就登记浮层说明；只登记，绘制由屏幕骨架在最末统一完成
+        if (hovered && tooltip != null) {
+            TooltipLayer.show(tooltip.get(), mouseX, mouseY);
+        }
 
         float centerY = y + HEIGHT / 2f;
         if (!label.isEmpty()) {
-            FontRenderer.drawTextBold(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE), LABEL_SIZE,
-                    GlassPanel.withAlpha(tc.primaryText, alpha));
+            MinecraftText.draw(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE), LABEL_SIZE,
+                    tc.primaryText, alpha, true);
         }
         drawHint(canvas, x, y, width, alpha, tc);
         if (control != null) {
@@ -128,7 +143,7 @@ public final class CompactRow implements CompactElement {
             startX = control == null ? x + PAD_X : controlX(x, width) + control.getWidth() + HINT_GAP;
             endX = x + width - PAD_X;
         } else {
-            startX = x + PAD_X + FontRenderer.measureTextWidthBold(label, LABEL_SIZE) + HINT_GAP;
+            startX = x + PAD_X + MinecraftText.measure(label, LABEL_SIZE, true) + HINT_GAP;
             endX = control == null ? x + width - PAD_X : controlX(x, width) - HINT_GAP;
         }
         float available = endX - startX;

@@ -15,6 +15,7 @@ import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
 import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.SkiaScreen;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingTextBox;
@@ -194,6 +195,7 @@ public abstract class PanelScreen extends SkiaScreen {
     }
 
     private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY) {
+        TooltipLayer.beginFrame();
         long now = System.currentTimeMillis();
         float dt = lastRenderMs == 0L ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
         lastRenderMs = now;
@@ -273,6 +275,10 @@ public abstract class PanelScreen extends SkiaScreen {
             } finally {
                 canvas.restore();
             }
+            // 浮层在面板变换内、内容裁剪外绘制：不会被内容裁掉，也不被后续行覆盖。
+            // 视口取设计空间屏幕尺寸（PanelFrame 未暴露，按其居中几何 cardX=(designW-cardW)/2 反推）。
+            TooltipLayer.draw(canvas, frame.cardX() * 2f + frame.cardWidth(),
+                    frame.cardY() * 2f + frame.cardHeight(), alpha);
         } finally {
             canvas.restore();
         }
