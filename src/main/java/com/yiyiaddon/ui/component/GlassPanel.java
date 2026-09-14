@@ -1,6 +1,7 @@
 package com.yiyiaddon.ui.component;
 
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
+import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.Paint;
 import io.github.humbleui.skija.PaintMode;
@@ -28,8 +29,8 @@ public final class GlassPanel {
     private static final float SHADOW_SPREAD = 1.7f;
 
     /** 霜化渐变：顶部白色约 9% 不透明度，底部约 3%，这是「玻璃」而非「色块」的关键。 */
-    private static final float FROST_TOP_ALPHA = 0.09f;
-    private static final float FROST_BOTTOM_ALPHA = 0.03f;
+    private static final float FROST_TOP_ALPHA = 0.15f;
+    private static final float FROST_BOTTOM_ALPHA = 0.025f;
 
     /** 不透明度量化档数：用于复用渐变着色器，避免每帧新建原生对象。 */
     private static final int ALPHA_BUCKETS = 8;
@@ -38,7 +39,19 @@ public final class GlassPanel {
     private static final Map<Long, Shader> FROST_SHADERS = new LinkedHashMap<>(16, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Long, Shader> eldest) {
-            return size() > SHADER_CACHE_LIMIT;
+            if (size() <= SHADER_CACHE_LIMIT) return false;
+            eldest.getValue().close();
+            return true;
+        }
+    };
+
+    /** 环境光与交互高光独立缓存，避免与玻璃边缘材质共享键空间。 */
+    private static final Map<Long, Shader> LIGHT_SHADERS = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Long, Shader> eldest) {
+            if (size() <= SHADER_CACHE_LIMIT) return false;
+            eldest.getValue().close();
+            return true;
         }
     };
 
@@ -56,25 +69,44 @@ public final class GlassPanel {
      */
     public static void frost(Canvas canvas, float x, float y, float w, float h, float radius,
                              int baseColor, float baseAlphaFraction, float alpha) {
-        if (alpha <= 0.01f) return;
+        if (alpha <= 0.01f || w <= 0f || h <= 0f) return;
         FILL.setShader(null);
-        FILL.setColor(withAlpha(baseColor, baseAlphaFraction * alpha));
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        // 所有主题共享透光规律；浅主题多留乳白遮罩维持深色文字对比，暗主题保留更多场景色。
+        float density = ClickGuiThemeColors.panelBackgroundAlpha(1f) < 1f
+                ? (tc.dark ? 0.78f : 0.90f) : 1f;
+        FILL.setColor(withAlpha(baseColor, baseAlphaFraction * density * alpha));
         canvas.drawRRect(RRect.makeXYWH(x, y, w, h, radius), FILL);
 
-        FILL.setShader(frostShader(y, y + h, alpha));
-        canvas.drawRRect(RRect.makeXYWH(x, y, w, h, radius), FILL);
-        FILL.setShader(null);
+        // 局部坐标使滚动与窗口移动复用同一材质；透明度交给画刷连续合成，避免分档闪烁。
+        canvas.save();
+        try {
+            canvas.translate(x, y);
+            FILL.setColor(withAlpha(ClickGuiThemeColors.current().rim, alpha));
+            FILL.setShader(frostShader(0f, h, 1f));
+            canvas.drawRRect(RRect.makeXYWH(0f, 0f, w, h, radius), FILL);
+        } finally {
+            FILL.setShader(null);
+            canvas.restore();
+        }
+        // 细内阴影压住下缘，让叠层表面具有厚度，不增加背景采样或模糊通道。
+        stroke(canvas, x + 1f, y + 1.5f, Math.max(0f, w - 2f), Math.max(0f, h - 3f),
+                Math.max(0f, radius - 1f), ClickGuiThemeColors.current().shadow, alpha * 0.075f, 0.75f);
     }
 
     /** 按矩形纵向范围与不透明度档位缓存线性渐变着色器。 */
     private static Shader frostShader(float top, float bottom, float alpha) {
         int bucket = Math.round(Math.max(0f, Math.min(1f, alpha)) * ALPHA_BUCKETS);
-        long key = ((long) Math.round(top) << 40) ^ ((long) Math.round(bottom) << 16) ^ bucket;
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        long key = ((long) Math.round(bottom - top) << 32) | (tc.accent & 0xFFFFFFL)
+                | (tc.dark ? 1L << 24 : 0L);
         return FROST_SHADERS.computeIfAbsent(key, k -> {
             float scale = bucket / (float) ALPHA_BUCKETS;
+            // 顶部乳光、中央清透、底部淡淡的主题色反光；不使用固定灰色蒙版。
             return Shader.makeLinearGradient(0f, top, 0f, bottom, new int[]{
-                    withAlpha(0xFFFFFF, FROST_TOP_ALPHA * scale),
-                    withAlpha(0xFFFFFF, FROST_BOTTOM_ALPHA * scale)});
+                    withAlpha(tc.rim, (tc.dark ? 0.12f : 0.28f) * scale),
+                    withAlpha(tc.rim, 0.012f * scale),
+                    withAlpha(mix(tc.rim, tc.accent, 0.24f), (tc.dark ? 0.055f : 0.12f) * scale)});
         });
     }
 
@@ -98,7 +130,120 @@ public final class GlassPanel {
      */
     public static void rim(Canvas canvas, float x, float y, float w, float h, float radius, int rimColor, float alpha, float strength) {
         if (strength <= 0.001f) return;
-        stroke(canvas, x + 0.5f, y + 0.5f, w - 1f, h - 1f, Math.max(0f, radius - 0.5f), rimColor, alpha * strength, 1f);
+        if (w <= 2f || h <= 2f) return;
+        // 整圈弱轮廓和斜向连续反光共同定义玻璃厚度，避免截断式上沿白线。
+        stroke(canvas, x + 0.5f, y + 0.5f, w - 1f, h - 1f, Math.max(0f, radius - 0.5f), rimColor, alpha * strength * 0.45f, 1f);
+        canvas.save();
+        try {
+            canvas.translate(x, y);
+            STROKE.setColor(withAlpha(rimColor, alpha * Math.min(1f, strength * 2.1f)));
+            // 对实际尺寸生成的着色器通过缓存复用，滚动不会分配新材质。
+            STROKE.setShader(edgeShader(w, h));
+            STROKE.setStrokeWidth(1f);
+            canvas.drawRRect(RRect.makeXYWH(0.5f, 0.5f, w - 1f, h - 1f, Math.max(0f, radius - 0.5f)), STROKE);
+        } finally {
+            STROKE.setShader(null);
+            canvas.restore();
+        }
+    }
+
+    /** 斜向反光按几何缓存，颜色随主题切换即时失效，缓存淘汰释放原生资源。 */
+    private static Shader edgeShader(float width, float height) {
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        long key = Long.MIN_VALUE | ((long) Math.round(width) << 40)
+                | ((long) Math.round(height) << 24) | tc.accent;
+        return FROST_SHADERS.computeIfAbsent(key, k -> Shader.makeLinearGradient(0f, 0f, width, height,
+                new int[]{withAlpha(tc.rim, 0.95f), withAlpha(tc.rim, 0.08f),
+                        withAlpha(mix(tc.rim, tc.accent, 0.20f), 0.62f)}));
+    }
+
+    /**
+     * 主题环境光：用两束低透明径向光把平面玻璃分成受光面与背光面。
+     *
+     * <p>环境光只在调用方已经建立的圆角裁剪内绘制，不改变控件几何，也不会遮住文字。</p>
+     */
+    public static void ambientGlow(Canvas canvas, float x, float y, float w, float h,
+                                   ClickGuiThemeColors tc, float alpha, float strength) {
+        if (alpha <= 0.01f || strength <= 0.001f || w <= 0f || h <= 0f) return;
+        canvas.save();
+        try {
+            canvas.translate(x, y);
+            FILL.setColor(withAlpha(tc.rim, alpha * strength));
+            FILL.setShader(lightShader(1, w, h, tc));
+            canvas.drawRect(io.github.humbleui.types.Rect.makeXYWH(0f, 0f, w, h), FILL);
+            FILL.setShader(lightShader(2, w, h, tc));
+            canvas.drawRect(io.github.humbleui.types.Rect.makeXYWH(0f, 0f, w, h), FILL);
+        } finally {
+            FILL.setShader(null);
+            canvas.restore();
+        }
+    }
+
+    /** 强调色玻璃胶囊：用于选中态，使导航层级在所有主题下都足够醒目。 */
+    public static void accentPill(Canvas canvas, float x, float y, float w, float h, float radius,
+                                  ClickGuiThemeColors tc, float alpha) {
+        if (alpha <= 0.01f || w <= 0f || h <= 0f) return;
+        shadow(canvas, x, y, w, h, radius, tc.accent, alpha, 0.32f);
+        canvas.save();
+        try {
+            canvas.translate(x, y);
+            FILL.setColor(withAlpha(tc.rim, alpha));
+            FILL.setShader(lightShader(3, w, h, tc));
+            canvas.drawRRect(RRect.makeXYWH(0f, 0f, w, h, radius), FILL);
+        } finally {
+            FILL.setShader(null);
+            canvas.restore();
+        }
+        rim(canvas, x, y, w, h, radius, tc.rim, alpha, tc.dark ? 0.30f : 0.48f);
+    }
+
+    /** 悬停高光：在卡片上形成克制的斜向反射，静止时完全不绘制。 */
+    public static void sheen(Canvas canvas, float x, float y, float w, float h, float radius,
+                             ClickGuiThemeColors tc, float alpha, float hover) {
+        if (hover <= 0.01f || alpha <= 0.01f) return;
+        canvas.save();
+        try {
+            canvas.clipRRect(RRect.makeXYWH(x, y, w, h, radius), true);
+            canvas.translate(x, y);
+            FILL.setColor(withAlpha(tc.rim, alpha * hover));
+            FILL.setShader(lightShader(4, w, h, tc));
+            canvas.drawRect(io.github.humbleui.types.Rect.makeXYWH(0f, 0f, w, h), FILL);
+        } finally {
+            FILL.setShader(null);
+            canvas.restore();
+        }
+    }
+
+    /** 根据用途、几何与主题生成稳定缓存键，主题切换后不会复用旧配色。 */
+    private static Shader lightShader(int kind, float width, float height, ClickGuiThemeColors tc) {
+        int w = Math.round(width);
+        int h = Math.round(height);
+        long key = 1469598103934665603L;
+        key = (key ^ kind) * 1099511628211L;
+        key = (key ^ w) * 1099511628211L;
+        key = (key ^ h) * 1099511628211L;
+        key = (key ^ tc.accent) * 1099511628211L;
+        key = (key ^ (tc.dark ? 1 : 0)) * 1099511628211L;
+        return LIGHT_SHADERS.computeIfAbsent(key, ignored -> switch (kind) {
+            case 1 -> Shader.makeRadialGradient(width * 0.08f, height * 0.02f,
+                    Math.max(width, height) * 0.72f,
+                    new int[]{withAlpha(mix(tc.rim, tc.accent, 0.30f), tc.dark ? 0.24f : 0.18f),
+                            withAlpha(tc.accent, tc.dark ? 0.075f : 0.045f), withAlpha(tc.accent, 0f)},
+                    new float[]{0f, 0.42f, 1f});
+            case 2 -> Shader.makeRadialGradient(width * 0.96f, height * 0.98f,
+                    Math.max(width, height) * 0.62f,
+                    new int[]{withAlpha(tc.accent, tc.dark ? 0.14f : 0.08f),
+                            withAlpha(tc.accent, 0.025f), withAlpha(tc.accent, 0f)},
+                    new float[]{0f, 0.48f, 1f});
+            case 3 -> Shader.makeLinearGradient(0f, 0f, width, height,
+                    new int[]{withAlpha(mix(tc.accent, tc.rim, tc.dark ? 0.32f : 0.16f), 1f),
+                            withAlpha(tc.accent, 1f),
+                            withAlpha(mix(tc.accent, tc.shadow, tc.dark ? 0.10f : 0.04f), 1f)});
+            default -> Shader.makeLinearGradient(-width * 0.15f, height, width * 0.75f, 0f,
+                    new int[]{withAlpha(tc.rim, 0f), withAlpha(tc.rim, tc.dark ? 0.12f : 0.20f),
+                            withAlpha(mix(tc.rim, tc.accent, 0.25f), 0.035f), withAlpha(tc.rim, 0f)},
+                    new float[]{0f, 0.42f, 0.58f, 1f});
+        });
     }
 
     /**
@@ -131,6 +276,12 @@ public final class GlassPanel {
     public static void divider(Canvas canvas, float x, float y, float w, int color, float alpha) {
         FILL.setColor(withAlpha(color, alpha));
         canvas.drawRect(io.github.humbleui.types.Rect.makeXYWH(x, y, w, 1f), FILL);
+    }
+
+    /** 1px 纵向分隔线。 */
+    public static void verticalDivider(Canvas canvas, float x, float y, float h, int color, float alpha) {
+        FILL.setColor(withAlpha(color, alpha));
+        canvas.drawRect(io.github.humbleui.types.Rect.makeXYWH(x, y, 1f, h), FILL);
     }
 
     /**

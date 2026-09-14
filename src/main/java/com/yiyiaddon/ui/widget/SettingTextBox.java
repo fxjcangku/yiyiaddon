@@ -27,13 +27,13 @@ public class SettingTextBox extends SettingWidget {
     private final Supplier<String> valueSupplier;
     private final Consumer<String> valueConsumer;
     private final int maxLength;
-    /** 控件宽度。 */
-    private float width = 150f;
     private final Paint bgPaint = new Paint().setAntiAlias(true);
     private final Paint linePaint = new Paint().setAntiAlias(true);
     private final Paint selectionPaint = new Paint().setAntiAlias(true);
     private final Paint cursorPaint = new Paint().setAntiAlias(true);
     private final Paint preeditPaint = new Paint().setAntiAlias(true);
+    /** 控件宽度；默认 150，可由 {@link #width(float)} 覆盖（输入行按宿主分配宽度绘制）。 */
+    private float width = 150f;
     private float focusAlpha;
     private float textOffset;
     private float cursorTime;
@@ -48,9 +48,9 @@ public class SettingTextBox extends SettingWidget {
         this.maxLength = Math.max(1, maxLength);
     }
 
-    /** 设置宽度；不设置时使用默认宽度。 */
+    /** 链式设置控件宽度。 */
     public SettingTextBox width(float width) {
-        if (width > 0f) this.width = width;
+        this.width = Math.max(1f, width);
         return this;
     }
 

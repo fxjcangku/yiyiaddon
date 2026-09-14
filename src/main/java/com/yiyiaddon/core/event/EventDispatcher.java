@@ -5,11 +5,23 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
+import net.minecraft.network.protocol.game.ClientboundSetScorePacket;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.network.protocol.game.ClientboundTabListPacket;
+import net.minecraft.world.BossEvent;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,7 +32,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <ul>
  *     <li>每刻 / 进服 / 断线：Fabric 生命周期事件，主线程直接派发；</li>
  *     <li>打开界面 / 关闭界面：Fabric 界面事件，主线程直接派发；</li>
- *     <li>收包 / 发包：由 Mixin 在网络线程入队，主线程每刻出队派发。</li>
+ *     <li>收包 / 发包：由 Mixin 在网络线程入队，主线程每刻出队派发；收包时另派生
+ *         {@link ClientEventType#SERVER_TEXT}，把界面文本类包的原文交给订阅者。</li>
  * </ul>
  *
  * <p><b>为什么收发包要过队列：</b>网络读写发生在 Netty 线程上，若直接在网络线程回调模块，
@@ -37,8 +50,13 @@ public final class EventDispatcher {
     /** 队列上限：超过即丢弃并计数，避免客户端卡顿期间无上限堆积 */
     private static final int QUEUE_LIMIT = 4096;
 
-    /** 网络线程入队的原始记录：仅保留方向与包类名 */
-    private record QueuedPacket(boolean inbound, String packetName) {
+    /**
+     * 网络线程入队的原始记录：方向 + 包类名 + 包引用。
+     *
+     * <p>包引用只在「入队 → 主线程派发」这一小段内保留：派发时抽出类名与
+     * {@link ServerTextEvent}，随后立即随记录一起被丢弃，核心与模块都不长期持有包对象。</p>
+     */
+    private record QueuedPacket(boolean inbound, String packetName, Packet<?> packet) {
     }
 
     private static final ConcurrentLinkedQueue<QueuedPacket> PACKET_QUEUE = new ConcurrentLinkedQueue<>();
@@ -74,7 +92,13 @@ public final class EventDispatcher {
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
-        ClientEventBus.publish(ClientEvent.of(ClientEventType.SCREEN_OPEN, screen.getClass().getName()));
+        ClientEvent event = ClientEvent.cancellable(ClientEventType.SCREEN_OPEN, screen.getClass().getName());
+        ClientEventBus.publish(event);
+        if (event.isCancelled()) {
+            // 模块判定该界面不该弹（例如后台物流的箱子界面只取消渲染、继续用 containerMenu 发包）
+            client.setScreen(null);
+            return;
+        }
         if (!TRACKED_SCREENS.add(screen)) return;
         ScreenEvents.remove(screen).register(removed -> {
             TRACKED_SCREENS.remove(removed);
@@ -89,7 +113,65 @@ public final class EventDispatcher {
             ClientEventBus.publish(ClientEvent.of(
                     packet.inbound() ? ClientEventType.PACKET_RECEIVE : ClientEventType.PACKET_SEND,
                     packet.packetName()));
+            if (packet.inbound()) publishServerText(packet.packet());
         }
+    }
+
+    // ── 服务器文本抽取（模块拿不到包对象，只拿到文本） ──
+
+    /** 把界面文本类数据包抽取为 {@link ServerTextEvent}；非文本包不做任何事 */
+    private static void publishServerText(Packet<?> packet) {
+        if (packet == null) return;
+        if (packet instanceof ClientboundSetActionBarTextPacket p) {
+            publishText(ServerTextEvent.ACTION_BAR, p.text(), "");
+        } else if (packet instanceof ClientboundSetTitleTextPacket p) {
+            publishText(ServerTextEvent.TITLE, p.text(), "");
+        } else if (packet instanceof ClientboundSetSubtitleTextPacket p) {
+            publishText(ServerTextEvent.SUBTITLE, p.text(), "");
+        } else if (packet instanceof ClientboundSystemChatPacket p) {
+            publishText(p.overlay() ? ServerTextEvent.CHAT_OVERLAY : ServerTextEvent.CHAT, p.content(), "");
+        } else if (packet instanceof ClientboundTabListPacket p) {
+            publishText(ServerTextEvent.TAB_LIST_HEADER, p.header(), "");
+            publishText(ServerTextEvent.TAB_LIST_FOOTER, p.footer(), "");
+        } else if (packet instanceof ClientboundSetObjectivePacket p) {
+            boolean removed = p.getMethod() == ClientboundSetObjectivePacket.METHOD_REMOVE;
+            publishText(removed ? ServerTextEvent.OBJECTIVE_REMOVED : ServerTextEvent.OBJECTIVE_TITLE,
+                    p.getDisplayName(), String.valueOf(p.getObjectiveName()));
+        } else if (packet instanceof ClientboundSetScorePacket p) {
+            String objective = String.valueOf(p.objectiveName());
+            Component display = p.display().orElse(null);
+            if (display != null) {
+                publishText(ServerTextEvent.SCORE_DISPLAY, display, objective);
+            } else {
+                publishText(ServerTextEvent.SCORE_OWNER, Component.literal(p.owner()), objective);
+            }
+        } else if (packet instanceof ClientboundSetPlayerTeamPacket p) {
+            p.getParameters().ifPresent(parameters -> {
+                publishText(ServerTextEvent.TEAM_DISPLAY, parameters.getDisplayName(), "");
+                publishText(ServerTextEvent.TEAM_PREFIX, parameters.getPlayerPrefix(), "");
+                publishText(ServerTextEvent.TEAM_SUFFIX, parameters.getPlayerSuffix(), "");
+            });
+        } else if (packet instanceof ClientboundBossEventPacket p) {
+            p.dispatch(new ClientboundBossEventPacket.Handler() {
+                @Override
+                public void add(UUID id, Component name, float progress, BossEvent.BossBarColor color,
+                                BossEvent.BossBarOverlay overlay, boolean darkenScreen,
+                                boolean playMusic, boolean createWorldFog) {
+                    publishText(ServerTextEvent.BOSS_BAR, name, "");
+                }
+
+                @Override
+                public void updateName(UUID id, Component name) {
+                    publishText(ServerTextEvent.BOSS_BAR, name, "");
+                }
+            });
+        }
+    }
+
+    /** 发布一条服务器文本；文本为空时不发布（避免模块收到空证据） */
+    private static void publishText(String channel, Component text, String context) {
+        if (text == null) return;
+        ClientEventBus.publish(ClientEvent.ofText(new ServerTextEvent(channel, text, context)));
     }
 
     // ── 网络线程入口（由 Mixin 调用，禁止在此做除入队之外的任何事情） ──
@@ -110,7 +192,7 @@ public final class EventDispatcher {
             DROPPED_PACKETS.incrementAndGet();
             return;
         }
-        PACKET_QUEUE.add(new QueuedPacket(inbound, packet.getClass().getName()));
+        PACKET_QUEUE.add(new QueuedPacket(inbound, packet.getClass().getName(), packet));
     }
 
     // ── 诊断 ──

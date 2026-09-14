@@ -1,6 +1,7 @@
 package com.yiyiaddon.ui.widget;
 
 import com.yiyiaddon.ui.anim.Spring;
+import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.Paint;
@@ -9,6 +10,7 @@ import io.github.humbleui.types.RRect;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+/** 玻璃开关：动画使用局部坐标，布局移动时滑钮仍贴合轨道。 */
 public class SettingToggle extends SettingWidget {
 
     /** 滑块行程。 */
@@ -20,11 +22,10 @@ public class SettingToggle extends SettingWidget {
 
     private final Supplier<Boolean> getter;
     private final Consumer<Boolean> setter;
-    /** 滑块用欠阻尼弹簧：约 200ms 到位，过冲约 8% 后回落。 */
-    private final Spring thumbSpring = Spring.overshoot(0.20f, 0.08f);
+    /** 滑钮使用临界阻尼，在轨道内平滑到位且不越过边缘。 */
+    private final Spring thumbSpring = Spring.critical(0.22f);
     private boolean initialized;
     private float colorT = -1f;
-    private float lastDrawX = 0f;
     private final Paint trackPaint = new Paint().setAntiAlias(true);
     private final Paint thumbPaint = new Paint().setAntiAlias(true);
 
@@ -43,31 +44,34 @@ public class SettingToggle extends SettingWidget {
     @Override
     public void update(float dt) {
         if (!initialized) return;
-        thumbSpring.setTarget(getter.get() ? lastDrawX + THUMB_ON_X : lastDrawX + THUMB_OFF_X);
+        thumbSpring.setTarget(getter.get() ? THUMB_ON_X : THUMB_OFF_X);
         thumbSpring.update(dt);
+        // 指数插值按秒计算，避免高刷新率下颜色提前跳到终态。
+        colorT += ((getter.get() ? 1f : 0f) - colorT)
+                * (1f - (float) Math.exp(-14f * Math.max(0f, dt)));
     }
 
     @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
         boolean on = getter.get();
-        lastDrawX = x;
 
         if (!initialized) {
             initialized = true;
-            thumbSpring.set(on ? x + THUMB_ON_X : x + THUMB_OFF_X);
+            thumbSpring.set(on ? THUMB_ON_X : THUMB_OFF_X);
         }
         if (colorT < 0f) colorT = on ? 1f : 0f;
 
-        float targetColorT = on ? 1f : 0f;
-        colorT += (targetColorT - colorT) * 0.2f;
-        float thumbX = thumbSpring.value();
+        float thumbX = x + thumbSpring.value();
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         int trackColor = lerpColor(tc.scrollbarTrack, tc.accent, colorT);
 
         trackPaint.setColor(withAlpha(trackColor, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        thumbPaint.setColor(withAlpha(0xFFFFFF, alpha));
+        thumbPaint.setColor(withAlpha(tc.rim, alpha));
         canvas.drawRRect(RRect.makeXYWH(x, y, TRACK_W, TRACK_H, TRACK_H / 2f), trackPaint);
+        GlassPanel.rim(canvas, x, y, TRACK_W, TRACK_H, TRACK_H / 2f, tc.rim, alpha, 0.16f);
+        GlassPanel.shadow(canvas, thumbX, y + 2f, THUMB_SIZE, THUMB_SIZE, THUMB_SIZE / 2f,
+                tc.shadow, alpha, 0.45f);
         canvas.drawRRect(RRect.makeXYWH(thumbX, y + 2f, THUMB_SIZE, THUMB_SIZE, THUMB_SIZE / 2f), thumbPaint);
     }
 

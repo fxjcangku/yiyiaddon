@@ -22,7 +22,7 @@ public final class PanelFrame {
     public static final float CARD_W = 740f;
     public static final float CARD_H = 500f;
     /** 面板基准圆角。 */
-    public static final float CARD_RADIUS = 16f;
+    public static final float CARD_RADIUS = 22f;
     /** 屏幕外边距：面板与窗口边缘的总留白（设计空间单位）。 */
     private static final float SCREEN_MARGIN = 24f;
 
@@ -149,5 +149,20 @@ public final class PanelFrame {
     /** GUI 逻辑坐标 → 设计空间纵坐标。 */
     public float toDesignY(double mouseY, int screenHeight) {
         return designHeight * 0.5f + ((float) mouseY - screenHeight * 0.5f) / scale;
+    }
+
+    /** 设计空间横坐标转换为 GUI 逻辑坐标，供面板背景采样与实际绘制严格对齐。 */
+    public float toScreenX(float designX, int screenWidth) {
+        return screenWidth * 0.5f + (designX - designWidth * 0.5f) * scale;
+    }
+
+    /** 设计空间纵坐标转换为 GUI 逻辑坐标，供面板背景采样与实际绘制严格对齐。 */
+    public float toScreenY(float designY, int screenHeight) {
+        return screenHeight * 0.5f + (designY - designHeight * 0.5f) * scale;
+    }
+
+    /** 设计空间长度转换为 GUI 逻辑长度。 */
+    public float toScreenLength(float designLength) {
+        return designLength * scale;
     }
 }

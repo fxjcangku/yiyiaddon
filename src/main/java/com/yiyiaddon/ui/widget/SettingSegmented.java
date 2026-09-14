@@ -1,6 +1,7 @@
 package com.yiyiaddon.ui.widget;
 
 import com.yiyiaddon.ui.anim.PressState;
+import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.render.FontRenderer;
@@ -45,6 +46,11 @@ public class SettingSegmented extends SettingWidget {
     private final PressState[] press;
     private final Paint paint = new Paint().setAntiAlias(true);
     private final float totalWidth;
+    /** 位置和宽度同步追踪，文字长短不同的分段也能连续滑动。 */
+    private final Spring selectionX = Spring.critical(0.22f);
+    private final Spring selectionWidth = Spring.critical(0.22f);
+    private final Spring selectionAlpha = Spring.critical(0.18f);
+    private boolean selectionReady;
 
     /**
      * 选择型分段控件。
@@ -87,6 +93,28 @@ public class SettingSegmented extends SettingWidget {
     @Override
     public void update(float dt) {
         for (PressState state : press) state.update(dt);
+        updateSelection(dt);
+    }
+
+    /** 首帧直接定位，后续改变只追踪局部几何，不延迟真实选中值写回。 */
+    private void updateSelection(float dt) {
+        int index = currentIndex();
+        float offset = 0f;
+        for (int i = 0; i < index; i++) offset += widths[i] + SEG_GAP;
+        if (!selectionReady) {
+            selectionX.set(offset);
+            selectionWidth.set(index < 0 ? 0f : widths[index]);
+            selectionAlpha.set(index < 0 ? 0f : 1f);
+            selectionReady = true;
+        }
+        if (index >= 0) {
+            selectionX.setTarget(offset);
+            selectionWidth.setTarget(widths[index]);
+        }
+        selectionAlpha.setTarget(index < 0 ? 0f : 1f);
+        selectionX.update(dt);
+        selectionWidth.update(dt);
+        selectionAlpha.update(dt);
     }
 
     @Override
@@ -94,6 +122,22 @@ public class SettingSegmented extends SettingWidget {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float rowAlpha = ClickGuiThemeColors.panelBackgroundAlpha(alpha);
         int selectedIndex = currentIndex();
+        if (!selectionReady) updateSelection(0f);
+        // 先绘制底座与滑动玻璃，再绘文字，确保所有字号始终在材质层之上。
+        float baseX = x;
+        for (float width : widths) {
+            GlassPanel.frost(canvas, baseX, y, width, SEG_HEIGHT, SEG_RADIUS,
+                    tc.buttonBackground, 1f, rowAlpha);
+            baseX += width + SEG_GAP;
+        }
+        if (selectionAlpha.value() > 0.001f && selectionWidth.value() > 0f) {
+            float sx = x + selectionX.value();
+            float sw = selectionWidth.value();
+            GlassPanel.fill(canvas, sx, y, sw, SEG_HEIGHT, SEG_RADIUS, tc.accent,
+                    alpha * selectionAlpha.value() * 0.92f);
+            GlassPanel.rim(canvas, sx, y, sw, SEG_HEIGHT, SEG_RADIUS, tc.rim,
+                    alpha * selectionAlpha.value(), 0.25f);
+        }
         float cursor = x;
         for (int i = 0; i < widths.length; i++) {
             float width = widths[i];
@@ -101,10 +145,16 @@ public class SettingSegmented extends SettingWidget {
             int background = isSelected
                     ? tc.accent
                     : GlassPanel.mix(tc.buttonBackground, tc.accent, press[i].progress() * PRESS_TINT);
-            int textColor = isSelected ? tc.accentOn : tc.subModuleText;
+            float overlap = Math.max(0f, Math.min(cursor + width, x + selectionX.value() + selectionWidth.value())
+                    - Math.max(cursor, x + selectionX.value()));
+            int textColor = GlassPanel.mix(tc.subModuleText, tc.accentOn,
+                    Math.min(1f, overlap / width) * selectionAlpha.value());
             boolean scaled = press[i].apply(canvas, cursor, y, width, SEG_HEIGHT);
-            paint.setColor(GlassPanel.withAlpha(background, rowAlpha));
-            canvas.drawRRect(RRect.makeXYWH(cursor, y, width, SEG_HEIGHT, SEG_RADIUS), paint);
+            // 动作型仍保留点击反馈，选择型背景由唯一滑动选中层承担。
+            if (selected == null) {
+                paint.setColor(GlassPanel.withAlpha(background, rowAlpha * press[i].progress()));
+                canvas.drawRRect(RRect.makeXYWH(cursor, y, width, SEG_HEIGHT, SEG_RADIUS), paint);
+            }
             String shown = CardLayout.ellipsize(labels.get(i), width - TEXT_INSET * 2f, TEXT_SIZE);
             float textWidth = FontRenderer.measureTextWidth(shown, TEXT_SIZE);
             FontRenderer.drawText(canvas, shown, cursor + (width - textWidth) / 2f,
@@ -113,6 +163,14 @@ public class SettingSegmented extends SettingWidget {
             if (scaled) canvas.restore();
             cursor += width + SEG_GAP;
         }
+    }
+
+    /** 静止后不再将控件标记为动画中，避免宿主无效刷新。 */
+    @Override
+    public boolean isAnimating() {
+        for (PressState state : press) if (!state.isIdle()) return true;
+        return selectionReady && (!selectionX.isSettled() || !selectionWidth.isSettled()
+                || !selectionAlpha.isSettled());
     }
 
     @Override

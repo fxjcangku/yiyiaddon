@@ -44,9 +44,20 @@ public final class ClientChat {
     /** 输出原始文本（自带颜色码与前缀，不再补任何内容）。 */
     public static void raw(String text) {
         if (text == null) return;
+        rawComponent(Component.literal(text));
+    }
+
+    /**
+     * 输出已构造好的组件（自带颜色码与前缀，不再补任何内容）。
+     *
+     * <p>给需要按真实字体测量对齐的排版器使用：对齐依赖字体测量与自定义字形，
+     * 必须在组件层构造，不能先降级成纯文本。</p>
+     */
+    public static void rawComponent(Component text) {
+        if (text == null) return;
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-            if (mc.player != null) mc.player.sendSystemMessage(Component.literal(text));
+            if (mc.player != null) mc.player.sendSystemMessage(text);
         });
     }
 }

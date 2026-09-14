@@ -7,8 +7,6 @@ import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
-import io.github.humbleui.skija.Paint;
-import io.github.humbleui.types.RRect;
 
 import java.util.function.Supplier;
 
@@ -65,7 +63,6 @@ public class Button extends SettingWidget {
     private final Supplier<String> label;
     private final Runnable action;
     private final PressState press = new PressState();
-    private final Paint paint = new Paint().setAntiAlias(true);
 
     private Variant variant = Variant.SECONDARY;
     private Size size = Size.MEDIUM;
@@ -75,6 +72,8 @@ public class Button extends SettingWidget {
     private float fixedWidth = -1f;
 
     private float hover;
+    /** 仅插值选中外观，点击回调与选中数据仍立即生效。 */
+    private float selectedBlend = -1f;
     private boolean hovered;
 
     private String cachedLabel = "";
@@ -197,13 +196,18 @@ public class Button extends SettingWidget {
     @Override
     public void update(float dt) {
         press.update(dt);
-        hover += ((hovered ? 1f : 0f) - hover) * Math.min(1f, Math.max(0f, dt) * HOVER_SMOOTHING);
+        float blend = 1f - (float) Math.exp(-Math.max(0f, dt) * HOVER_SMOOTHING);
+        hover += ((hovered ? 1f : 0f) - hover) * blend;
+        float target = isSelected() ? 1f : 0f;
+        if (selectedBlend < 0f) selectedBlend = target;
+        selectedBlend += (target - selectedBlend) * blend;
         if (hover < 0.001f) hover = 0f;
     }
 
     @Override
     public boolean isAnimating() {
-        return !press.isIdle() || hover > 0.01f;
+        return !press.isIdle() || Math.abs(hover - (hovered ? 1f : 0f)) > 0.01f
+                || (selectedBlend >= 0f && Math.abs(selectedBlend - (isSelected() ? 1f : 0f)) > 0.01f);
     }
 
     // ── 绘制 ──
@@ -224,13 +228,15 @@ public class Button extends SettingWidget {
         int foreground = tc.buttonText;
         float backgroundAlpha = ClickGuiThemeColors.panelBackgroundAlpha(contentAlpha);
 
-        if (isSelected()) {
-            background = GlassPanel.mix(tc.accent, 0xFFFFFF, hover * HOVER_TINT);
-            foreground = tc.accentOn;
+        if (selectedBlend < 0f) selectedBlend = isSelected() ? 1f : 0f;
+        if (selectedBlend > 0.001f) {
+            background = GlassPanel.mix(tc.buttonBackground,
+                    GlassPanel.mix(tc.accent, tc.rim, hover * HOVER_TINT), selectedBlend);
+            foreground = GlassPanel.mix(tc.subModuleText, tc.accentOn, selectedBlend);
         } else {
             switch (variant) {
                 case PRIMARY -> {
-                    background = GlassPanel.mix(tc.accent, 0xFFFFFF, hover * HOVER_TINT);
+                    background = GlassPanel.mix(tc.accent, tc.rim, hover * HOVER_TINT);
                     foreground = tc.accentOn;
                 }
                 case DANGER -> {
@@ -251,11 +257,10 @@ public class Button extends SettingWidget {
 
         boolean scaled = press.apply(canvas, x, y, width, height);
         if (backgroundAlpha > 0.004f) {
-            paint.setColor(GlassPanel.withAlpha(background, backgroundAlpha));
-            canvas.drawRRect(RRect.makeXYWH(x, y, width, height, radius), paint);
-            if (isSelected() || variant == Variant.PRIMARY) {
-                GlassPanel.rim(canvas, x, y, width, height, radius, tc.rim, contentAlpha, 0.12f);
-            }
+            // 玻璃只叠加轻量材质，沿用既有命中矩形与密集按钮尺寸。
+            GlassPanel.frost(canvas, x, y, width, height, radius, background, 1f, backgroundAlpha);
+            GlassPanel.rim(canvas, x, y, width, height, radius, tc.rim, backgroundAlpha,
+                    0.16f + 0.10f * hover);
         }
 
         drawContent(canvas, x, y, width, height, contentAlpha, foreground);

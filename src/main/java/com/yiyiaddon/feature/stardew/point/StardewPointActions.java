@@ -1,0 +1,359 @@
+package com.yiyiaddon.feature.stardew.point;
+
+import com.yiyiaddon.core.CommandMessageFormatter;
+import com.yiyiaddon.feature.stardew.StardewContext;
+import com.yiyiaddon.feature.stardew.config.StardewSettings;
+import com.yiyiaddon.feature.stardew.profile.SprinklerDefinition;
+import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
+import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
+import com.yiyiaddon.feature.stardew.profile.WateringCanDefinition;
+import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
+import com.yiyiaddon.feature.stardew.recognition.CropState;
+import com.yiyiaddon.feature.stardew.recognition.PotState;
+import com.yiyiaddon.feature.stardew.service.StardewProfileAssembler;
+import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
+import com.yiyiaddon.feature.stardew.task.StardewCoordinator;
+import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.Container;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 点位设置（GUI 按钮与 {@code .stardew} 指令共用同一实现，禁止各写一套）。
+ *
+ * <p>逐字搬运自旧项目 {@code stardew/StardewFarmModule.java:1059-1446}。只做框架适配：
+ * 旧 {@code ServerResourceService} → {@link ResourceExtractionService} + {@link GameProbe}，
+ * 旧模块字段 {@code pointManager / index / profile / coordinator / 六类选择 / reach}
+ * 由构造器注入。</p>
+ */
+public final class StardewPointActions {
+
+    private final Minecraft mc = Minecraft.getInstance();
+    private final StardewPointManager pointManager;
+    private final StardewResourceIndex index;
+    private final StardewProfileAssembler assembler;
+    private final StardewCoordinator coordinator;
+    private final StardewInventoryService inventory;
+    private final StardewSettings settings;
+
+    public StardewPointActions(StardewPointManager pointManager, StardewResourceIndex index,
+                               StardewProfileAssembler assembler, StardewCoordinator coordinator,
+                               StardewInventoryService inventory, StardewSettings settings) {
+        this.pointManager = pointManager;
+        this.index = index;
+        this.assembler = assembler;
+        this.coordinator = coordinator;
+        this.inventory = inventory;
+        this.settings = settings;
+    }
+
+    /**
+     * 准星设置单点位：真实 {@link BlockHitResult} → 严格校验 → 落盘 → 统一播报。
+     *
+     * <p>校验按点位业务语义分流：容器类必须命中 {@link Container}；补水点必须是静止水源。
+     * 失败时给出明确中文原因，绝不出现「对着普通方块也能保存成功」。</p>
+     */
+    public boolean setPointFromCrosshair(StardewPointType type) {
+        if (!pointEnvironmentAllowed()) return false;
+        StardewPointManager.StardewPoint existing = pointManager.get(type);
+        if (existing != null) {
+            pointFailure(type.title(), "已绑定在 X:" + existing.x() + " Y:" + existing.y() + " Z:" + existing.z()
+                + "，请先删除原点位再重新设置");
+            return false;
+        }
+        BlockPos pos = type == StardewPointType.WATER_SOURCE ? crosshairFluidBlock() : crosshairBlock();
+        if (pos == null) {
+            pointFailure(type.title(), "准星没有对准任何方块");
+            return false;
+        }
+        if (type == StardewPointType.START || type == StardewPointType.END) {
+            pos = normalizeFarmBoundary(pos);
+            if (pos == null) {
+                pointFailure(type.title(), "请对准种植盆，或对准其上方已识别的作物");
+                return false;
+            }
+        }
+        if (type.requiresContainer() && !(mc.level.getBlockEntity(pos) instanceof Container)) {
+            pointFailure(type.title(), "准星目标不是容器（箱子 / 木桶 / 潜影盒）");
+            return false;
+        }
+
+        // 补水点：必须是静止水源（26.1.2 真实 FluidState.isSource() + water 流体标签）
+        String verify = null;
+        if (type == StardewPointType.WATER_SOURCE) {
+            String failure = waterSourceFailure(pos);
+            if (failure != null) {
+                pointFailure(type.title(), failure);
+                return false;
+            }
+            verify = "静止水源";
+        }
+
+        savePoint(type, new StardewPointManager.StardewPoint(pos.getX(), pos.getY(), pos.getZ(),
+            StardewContext.dimension(), verify, null, type.title(), null));
+        pointSuccess(type.title(), pos, verify, null, null);
+        return true;
+    }
+
+    /**
+     * 准星添加洒水器点位：资源语义能识别时自动匹配，否则由本次明确用户操作建立服务器专属绑定。
+     *
+     * <p>人工绑定仅属于 Stardew 业务层，不回写通用 BlockIdentity；同一载体在其它 ServerKey 或
+     * 资源 fingerprint 下不会继承为洒水器。</p>
+     */
+    public boolean addSprinklerFromCrosshair() {
+        if (!pointEnvironmentAllowed()) return false;
+        BlockPos pos = crosshairBlock();
+        if (pos == null) {
+            pointFailure(StardewPointType.SPRINKLER.title(), "准星没有对准任何方块");
+            return false;
+        }
+        SprinklerDefinition definition = matchSprinkler(pos);
+        boolean manuallyConfirmed = false;
+        if (definition == null) {
+            List<SprinklerDefinition> selected = new ArrayList<>();
+            for (String key : settings.selectedSprinklerKeys) {
+                StardewToolDefinition entry = index.entryByKey(key);
+                if (entry instanceof SprinklerDefinition sprinkler) selected.add(sprinkler);
+            }
+            if (selected.size() != 1) {
+                pointFailure(StardewPointType.SPRINKLER.title(),
+                    "资源语义无法自动识别；请先只选择一个洒水器类型，再对准实物执行设置");
+                return false;
+            }
+            definition = selected.get(0);
+            manuallyConfirmed = true;
+        }
+        SprinklerWorldBinding binding = SprinklerWorldBinding.capture(pos, definition.key());
+        if (binding == null) {
+            pointFailure(StardewPointType.SPRINKLER.title(), "无法读取准星方块的稳定世界载体状态");
+            return false;
+        }
+        savePoint(StardewPointType.SPRINKLER, new StardewPointManager.StardewPoint(pos.getX(), pos.getY(), pos.getZ(),
+            StardewContext.dimension(), manuallyConfirmed ? "人工确认世界载体" : "资源语义已验证",
+            definition.key(), definition.displayName(), definition.statusLabel(), binding));
+        pointSuccess("洒水器点位", pos, manuallyConfirmed ? "人工确认世界载体" : "资源语义已验证",
+            definition.displayName(), definition.statusLabel());
+        return true;
+    }
+
+    /**
+     * START / END 只保存稳定种植盆坐标。准星命中动态作物载体时，必须用真实世界状态
+     * 证明下方是干/湿种植盆后才下移一格；普通方块绝不无条件 below。
+     */
+    private BlockPos normalizeFarmBoundary(BlockPos hit) {
+        if (mc.level == null || hit == null) return null;
+        PotState direct = CropRecognizer.recognizePot(mc.level.getBlockState(hit));
+        if (direct == PotState.DRY || direct == PotState.WET) return hit;
+        CropRecognizer.CropRecognition crop = CropRecognizer.recognize(mc.level.getBlockState(hit), assembler.profile());
+        if (crop.state() == CropState.EMPTY || crop.state() == CropState.UNKNOWN) return null;
+        BlockPos below = hit.below();
+        PotState pot = CropRecognizer.recognizePot(mc.level.getBlockState(below));
+        return pot == PotState.DRY || pot == PotState.WET ? below : null;
+    }
+
+    /**
+     * 一次性兼容旧版把 START / END 存在作物层的记录。只在当前位置或正下方真实识别为盆时迁移，
+     * 即使作物层已经因收获变成空气，也能恢复到稳定盆坐标；其它坐标原样保留并显示失效。
+     */
+    public void normalizeStoredFarmBoundaries(String serverKey) {
+        if (mc.level == null || serverKey == null) return;
+        boolean changed = false;
+        for (StardewPointType type : List.of(StardewPointType.START, StardewPointType.END)) {
+            StardewPointManager.StardewPoint point = pointManager.get(type);
+            if (point == null || !point.inCurrentDimension() || !mc.level.isLoaded(point.pos())) continue;
+            PotState direct = CropRecognizer.recognizePot(mc.level.getBlockState(point.pos()));
+            if (direct == PotState.DRY || direct == PotState.WET) continue;
+            BlockPos below = point.pos().below();
+            PotState belowPot = CropRecognizer.recognizePot(mc.level.getBlockState(below));
+            if (belowPot != PotState.DRY && belowPot != PotState.WET) continue;
+            CropRecognizer.CropRecognition crop = CropRecognizer.recognize(mc.level.getBlockState(point.pos()), assembler.profile());
+            if (!mc.level.getBlockState(point.pos()).isAir()
+                && (crop.state() == CropState.EMPTY || crop.state() == CropState.UNKNOWN)) continue;
+            pointManager.set(type, new StardewPointManager.StardewPoint(
+                below.getX(), below.getY(), below.getZ(), point.dimension(), "稳定种植盆边界",
+                null, type.title(), null));
+            changed = true;
+        }
+        if (changed) pointManager.save(serverKey);
+    }
+
+    /** 准星移除洒水器点位（GUI「移除」按钮与 {@code .stardew 移除洒水器} 共用） */
+    public boolean removeSprinklerFromCrosshair() {
+        if (!pointEnvironmentAllowed()) return false;
+        BlockPos pos = crosshairBlock();
+        if (pos == null) {
+            pointFailure(StardewPointType.SPRINKLER.title(), "准星没有对准任何方块");
+            return false;
+        }
+        StardewPointManager.StardewPoint existing = findSprinkler(pointManager, pos);
+        if (existing == null) {
+            pointFailure(StardewPointType.SPRINKLER.title(), "该坐标没有洒水器点位");
+            return false;
+        }
+        pointManager.load(StardewContext.serverKey());
+        pointManager.removeSprinkler(pos);
+        pointManager.save(StardewContext.serverKey());
+        coordinator.reset();
+        CommandMessageFormatter.of("星露谷农场", "已删除洒水器点位")
+            .world()
+            .field("维度", StardewContext.dimension())
+            .coord(pos.getX(), pos.getY(), pos.getZ())
+            .field("类型", existing.typeName() == null ? "洒水器" : existing.typeName())
+            .status(CommandMessageFormatter.Level.SUCCESS, "已删除")
+            .send();
+        return true;
+    }
+
+    /** 删除单点位（GUI「删除」按钮与 {@code .stardew 移除 xxx} 共用） */
+    public boolean removePoint(StardewPointType type) {
+        if (!pointEnvironmentAllowed()) return false;
+        pointManager.load(StardewContext.serverKey());
+        StardewPointManager.StardewPoint existing = pointManager.get(type);
+        if (existing == null) {
+            pointFailure(type.title(), "本来就没有绑定");
+            return false;
+        }
+        pointManager.clear(type);
+        pointManager.save(StardewContext.serverKey());
+        coordinator.reset();
+        CommandMessageFormatter.of("星露谷农场", "已删除" + type.title())
+            .world()
+            .field("维度", existing.dimension())
+            .coord(existing.x(), existing.y(), existing.z())
+            .field("类型", existing.typeName() == null ? type.title() : existing.typeName())
+            .status(CommandMessageFormatter.Level.SUCCESS, "已删除")
+            .send();
+        return true;
+    }
+
+    /** 清空全部点位（GUI 与 {@code .stardew 清空} 共用） */
+    public void clearAllPoints() {
+        if (!pointEnvironmentAllowed()) return;
+        pointManager.load(StardewContext.serverKey());
+        int bound = 0;
+        for (StardewPointType type : StardewPointType.values()) bound += pointManager.count(type);
+        pointManager.clearAll();
+        pointManager.save(StardewContext.serverKey());
+        coordinator.reset();
+        CommandMessageFormatter.of("星露谷农场", "已清空全部点位")
+            .world()
+            .field("数量", bound + " 个")
+            .status(CommandMessageFormatter.Level.SUCCESS, "已清空")
+            .send();
+    }
+
+    /** 点位只允许写入当前已检测的多人服务器。 */
+    private boolean pointEnvironmentAllowed() {
+        if (GameProbe.isMultiplayer() && ResourceExtractionService.isReady()) {
+            pointManager.load(StardewContext.serverKey());
+            return true;
+        }
+        pointFailure("点位", "仅支持已检测资源的多人服务器");
+        return false;
+    }
+
+    // ── 点位校验与播报（私有） ──
+
+    /** 准星命中的方块坐标；未命中返回 null（统一 BlockHitResult 判定，绝不强转） */
+    private BlockPos crosshairBlock() {
+        if (mc.player == null || mc.level == null) return null;
+        HitResult hit = mc.hitResult;
+        if (hit == null || hit.getType() != HitResult.Type.BLOCK) return null;
+        if (!(hit instanceof BlockHitResult blockHit)) return null;
+        return blockHit.getBlockPos().immutable();
+    }
+
+    /** 补水点使用包含流体的射线检测，否则原版准星只会命中水底或水后的实体方块。 */
+    private BlockPos crosshairFluidBlock() {
+        if (mc.player == null || mc.level == null) return null;
+        HitResult hit = mc.player.pick(settings.reach, 1.0F, true);
+        if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) return null;
+        return blockHit.getBlockPos().immutable();
+    }
+
+    /** 多选水壶时按背包中实际存在的最高等级完成启动自检，与执行层选择规则保持一致。 */
+    public WateringCanDefinition preferredAvailableCan() {
+        WateringCanDefinition best = null;
+        for (String key : settings.selectedCanKeys) {
+            StardewToolDefinition entry = index.entryByKey(key);
+            if (!(entry instanceof WateringCanDefinition can) || inventory.findSlotEntry(can, false) < 0) continue;
+            if (best == null || can.canIndex() > best.canIndex()) best = can;
+        }
+        return best;
+    }
+
+    /**
+     * 静止水源校验。
+     *
+     * <p>必须同时满足「流体非空」+「{@code FluidState.isSource()}（等价旧写法的 level=0）」+
+     * 「属于 {@code FluidTags.WATER}」。流动水、空气、普通方块、岩浆、未知流体全部拒绝。</p>
+     *
+     * @return null 表示通过；否则为可读的中文失败原因
+     */
+    private String waterSourceFailure(BlockPos pos) {
+        return StardewPointManager.waterSourceFailure(pos);
+    }
+
+    /** 世界方块 → 当前服务器洒水器定义；无法可靠匹配返回 null */
+    private SprinklerDefinition matchSprinkler(BlockPos pos) {
+        return StardewPointManager.matchSprinkler(pos, index);
+    }
+
+    /** 取资源 id / 模型路径的末段；空值返回 null */
+    private static String lastSegment(String value) {
+        if (value == null || value.isBlank()) return null;
+        int slash = value.lastIndexOf('/');
+        String tail = slash >= 0 ? value.substring(slash + 1) : value;
+        int colon = tail.lastIndexOf(':');
+        return colon >= 0 ? tail.substring(colon + 1) : tail;
+    }
+
+    /** 在当前维度的洒水器点位里找指定坐标 */
+    public static StardewPointManager.StardewPoint findSprinkler(StardewPointManager pointManager, BlockPos pos) {
+        for (StardewPointManager.StardewPoint p : pointManager.getAll(StardewPointType.SPRINKLER)) {
+            if (p.inCurrentDimension() && p.pos().equals(pos)) return p;
+        }
+        return null;
+    }
+
+    /** 保存点位（先加载当前服务器文件，避免写到别的服务器档） */
+    private void savePoint(StardewPointType type, StardewPointManager.StardewPoint point) {
+        pointManager.load(StardewContext.serverKey());
+        if (type == StardewPointType.SPRINKLER) pointManager.addSprinkler(point);
+        else pointManager.set(type, point);
+        pointManager.save(StardewContext.serverKey());
+        coordinator.reset();
+    }
+
+    /** 点位设置失败：统一「标题 + 原因 + 状态」中文播报 */
+    private void pointFailure(String title, String reason) {
+        CommandMessageFormatter.of("星露谷农场", "设置" + title + "失败")
+            .world()
+            .field("维度", StardewContext.dimension())
+            .field("原因", reason)
+            .status(CommandMessageFormatter.Level.FAILURE, "未保存")
+            .send();
+    }
+
+    /**
+     * 点位设置成功：统一「服务器 / 地址 / 维度 / 坐标 / 验证」播报。
+     *
+     * <p>多服务器、多维度环境下只报「设置成功」等于没报——玩家无法判断这条点位落在哪台服。</p>
+     */
+    private void pointSuccess(String title, BlockPos pos, String verify, String typeName, String evidence) {
+        CommandMessageFormatter formatter = CommandMessageFormatter.of("星露谷农场", "已设置" + title)
+            .world()
+            .field("维度", StardewContext.dimension())
+            .coord(pos.getX(), pos.getY(), pos.getZ());
+        if (verify != null) formatter.field("验证", verify);
+        formatter.field("类型", typeName == null ? title : typeName);
+        formatter.status(CommandMessageFormatter.Level.SUCCESS, evidence == null ? "成功" : "已验证").send();
+    }
+}

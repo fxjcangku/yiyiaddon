@@ -426,6 +426,15 @@ public class SettingModule {
         return false;
     }
 
+    /**
+     * 释放拖动状态。
+     *
+     * <p>本项目控件没有需要显式收尾的拖动会话（文本框拖动即时跟随光标、松手即结束），
+     * 与 {@code CompactElement.releaseDrag} 的默认行为一致，此处只保证宿主链路完整。</p>
+     */
+    public void releaseDrag() {
+    }
+
     private float visibleSubHeight() {
         float height = 0f;
         for (SubEntry sub : subEntries) {

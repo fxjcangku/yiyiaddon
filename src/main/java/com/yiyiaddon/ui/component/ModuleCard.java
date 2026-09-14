@@ -53,6 +53,7 @@ public final class ModuleCard {
         // 悬停时投影与描边高光同步提升（抬升 1px 由卡片页统一施加）
         GlassPanel.shadow(canvas, x, y, w, HEIGHT, radius, tc.shadow, alpha, 0.55f + 0.65f * hover);
         GlassPanel.frost(canvas, x, y, w, HEIGHT, radius, background, 0.70f, alpha);
+        GlassPanel.sheen(canvas, x, y, w, HEIGHT, radius, tc, alpha, hover);
         GlassPanel.rim(canvas, x, y, w, HEIGHT, radius, tc.rim, alpha, 0.10f + 0.16f * hover);
 
         float iconX = x + PAD_X;

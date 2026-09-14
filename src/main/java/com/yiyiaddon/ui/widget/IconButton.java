@@ -114,13 +114,14 @@ public class IconButton extends SettingWidget {
     @Override
     public void update(float dt) {
         press.update(dt);
-        hover += ((hovered ? 1f : 0f) - hover) * Math.min(1f, Math.max(0f, dt) * HOVER_SMOOTHING);
+        hover += ((hovered ? 1f : 0f) - hover)
+                * (1f - (float) Math.exp(-Math.max(0f, dt) * HOVER_SMOOTHING));
         if (hover < 0.001f) hover = 0f;
     }
 
     @Override
     public boolean isAnimating() {
-        return !press.isIdle() || hover > 0.01f;
+        return !press.isIdle() || Math.abs(hover - (hovered ? 1f : 0f)) > 0.01f;
     }
 
     // ── 绘制 ──
@@ -135,12 +136,13 @@ public class IconButton extends SettingWidget {
         float backgroundAlpha = ClickGuiThemeColors.panelBackgroundAlpha(contentAlpha);
         backgroundAlpha *= ghost ? hover : (0.6f + 0.4f * hover);
 
-        int foreground = danger && hover > 0.5f ? tc.dangerHoverText : tc.secondaryText;
+        int foreground = GlassPanel.mix(tc.secondaryText, danger ? tc.dangerHoverText : tc.primaryText, hover);
 
         boolean scaled = press.apply(canvas, x, y, size, size);
         if (backgroundAlpha > 0.004f) {
             paint.setColor(GlassPanel.withAlpha(background, backgroundAlpha));
             canvas.drawRRect(RRect.makeXYWH(x, y, size, size, radius), paint);
+            GlassPanel.rim(canvas, x, y, size, size, radius, tc.rim, backgroundAlpha, 0.18f);
         }
 
         float iconSize = resolvedIconSize();

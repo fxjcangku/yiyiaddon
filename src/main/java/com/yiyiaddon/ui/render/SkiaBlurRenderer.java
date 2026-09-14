@@ -1,6 +1,8 @@
 package com.yiyiaddon.ui.render;
 
 import io.github.humbleui.skija.Canvas;
+import io.github.humbleui.skija.ClipMode;
+import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.ColorFilter;
 import io.github.humbleui.skija.ColorType;
 import io.github.humbleui.skija.DirectContext;
@@ -19,6 +21,7 @@ import java.util.List;
 
 import static org.lwjgl.opengl.GL45.*;
 
+/** 背景玻璃合成：一次捕获供磨砂主体和圆角折射边带共同使用。 */
 public final class SkiaBlurRenderer {
     private static final SkiaBlurRenderer INSTANCE = new SkiaBlurRenderer();
     private static final float MIN_CAPTURE_MARGIN = 18f;
@@ -27,6 +30,8 @@ public final class SkiaBlurRenderer {
     private final Paint blurPaint = new Paint().setAntiAlias(true);
     private final Paint frostPaint = new Paint().setAntiAlias(true);
     private final Paint tintPaint = new Paint().setAntiAlias(true);
+    /** 折射仅绘制窄边带，不对每个控件重复捕获或模糊场景。 */
+    private final Paint refractionPaint = new Paint().setAntiAlias(true);
     private final SkiaGlBackend framebufferBackend = new SkiaGlBackend();
     private ImageFilter linearizeFilter;
     private ImageFilter blurFilter;
@@ -132,10 +137,11 @@ public final class SkiaBlurRenderer {
                     blurPaint,
                     true);
 
-            frostPaint.setColor(FROST_DARKEN);
+            drawRefraction(canvas, capture, x, y, width, height, radius);
+            frostPaint.setColor(ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window, 0.035f));
             canvas.drawRRect(RRect.makeXYWH(x, y, width, height, radius), frostPaint);
 
-            tintPaint.setColor(tintColor);
+            tintPaint.setColor(glassTint(tintColor));
             canvas.drawRRect(RRect.makeXYWH(x, y, width, height, radius), tintPaint);
             return true;
         } finally {
@@ -158,8 +164,8 @@ public final class SkiaBlurRenderer {
         canvas.save();
         try {
             blurPaint.setImageFilter(blurEnabled ? encodeFilter : null);
-            frostPaint.setColor(FROST_DARKEN);
-            tintPaint.setColor(tintColor);
+            frostPaint.setColor(ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window, 0.035f));
+            tintPaint.setColor(glassTint(tintColor));
             Rect source = Rect.makeXYWH(0f, 0f, capture.width, capture.height);
             Rect destination = Rect.makeXYWH(capture.dstX, capture.dstY, capture.dstW, capture.dstH);
             for (Region region : regions) {
@@ -167,6 +173,7 @@ public final class SkiaBlurRenderer {
                 canvas.save();
                 canvas.clipRRect(shape, true);
                 canvas.drawImageRect(capture.image, source, destination, SamplingMode.LINEAR, blurPaint, true);
+                drawRefraction(canvas, capture, region.x(), region.y(), region.width(), region.height(), region.radius());
                 canvas.drawRRect(shape, frostPaint);
                 canvas.drawRRect(shape, tintPaint);
                 canvas.restore();
@@ -176,6 +183,47 @@ public final class SkiaBlurRenderer {
             blurPaint.setImageFilter(null);
             canvas.restore();
             capture.image.close();
+        }
+    }
+
+    /** 色调取自当前主题，保留透明度设置的控制作用，浅色主题不再被固定黑色污染。 */
+    private static int glassTint(int requested) {
+        return ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window,
+                ((requested >>> 24) / 255f) * 0.45f);
+    }
+
+    /**
+     * 六条圆角边带对同一背景作递减放大采样，模拟厚玻璃边缘的光线偏折。
+     * 中心保留磨砂；最外缘位移最强，向内衰减，不移动文字或交互坐标。
+     */
+    private void drawRefraction(Canvas canvas, Capture capture, float x, float y,
+                                float width, float height, float radius) {
+        float depth = Math.min(9f, Math.min(width, height) * 0.08f);
+        if (depth < 1f) return;
+        Rect source = Rect.makeXYWH(0f, 0f, capture.width, capture.height);
+        for (int band = 0; band < 6; band++) {
+            float inset = depth * band / 6f;
+            float next = depth * (band + 1) / 6f;
+            float falloff = 1f - band / 6f;
+            float magnify = 1f + 0.035f * falloff * falloff;
+            float cx = x + width * 0.5f;
+            float cy = y + height * 0.5f;
+            canvas.save();
+            try {
+                canvas.clipRRect(RRect.makeXYWH(x + inset, y + inset, width - 2f * inset,
+                        height - 2f * inset, Math.max(0f, radius - inset)), true);
+                canvas.clipRRect(RRect.makeXYWH(x + next, y + next, width - 2f * next,
+                        height - 2f * next, Math.max(0f, radius - next)), ClipMode.DIFFERENCE, true);
+                refractionPaint.setColor(ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().rim,
+                        0.58f * falloff));
+                canvas.drawImageRect(capture.image, source,
+                        Rect.makeXYWH(cx + (capture.dstX - cx) * magnify,
+                                cy + (capture.dstY - cy) * magnify,
+                                capture.dstW * magnify, capture.dstH * magnify),
+                        SamplingMode.LINEAR, refractionPaint, true);
+            } finally {
+                canvas.restore();
+            }
         }
     }
 

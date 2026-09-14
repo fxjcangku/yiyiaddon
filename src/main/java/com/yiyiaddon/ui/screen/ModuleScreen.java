@@ -13,6 +13,7 @@ import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
+import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.SkiaScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.SettingTextBox;
@@ -147,6 +148,18 @@ public final class ModuleScreen extends SkiaScreen {
         scroll.update(dt);
         page.update(dt);
 
+        if (AddonConfig.panelBlur) {
+            SkiaBlurRenderer.getInstance().render(canvas, glBackend.getContext(), minecraft,
+                    SkiaGlBackend.mainFramebufferId(), frame.toScreenX(cardX, width),
+                    frame.toScreenY(cardY, height), frame.toScreenLength(cardW),
+                    frame.toScreenLength(cardH), frame.toScreenLength(cardRadius),
+                    AddonConfig.blurTintColor(), AddonConfig.blurStrength);
+        }
+
+        // 轻微环境压暗提升玻璃与游戏场景的景深差异，不影响面板内文字对比度。
+        GlassPanel.fill(canvas, 0f, 0f, width, height, 0f, tc.shadow,
+                alpha * (tc.dark ? 0.16f : 0.10f));
+
         // 面板变换、窗口裁剪、内容裁剪三层 save 与 finally 中的三次 restore 严格配对
         canvas.save();
         frame.applyTransform(canvas, width, height);
@@ -158,7 +171,8 @@ public final class ModuleScreen extends SkiaScreen {
             canvas.save();
             canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);
             try {
-                GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.20f);
+                GlassPanel.ambientGlow(canvas, cardX, cardY, cardW, cardH, tc, alpha, 0.46f);
+                GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.26f);
                 drawHeader(canvas, cardX, cardY, contentW, alpha, tc, backVisible);
 
                 canvas.save();

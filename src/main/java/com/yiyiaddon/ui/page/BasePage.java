@@ -105,6 +105,11 @@ public abstract class BasePage {
         return false;
     }
 
+    public void releaseDrag() {
+        ensureLayoutCache();
+        for (SettingModule m : visibleModules) m.releaseDrag();
+    }
+
     /** 鼠标松开时释放按压动画；默认页面没有按压元素。 */
     public void releasePress() {
     }

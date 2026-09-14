@@ -97,6 +97,12 @@ public abstract class CompactModulePage extends BasePage {
         return footer.onDrag(mx, my, contentX, footerTop, contentW, Float.MAX_VALUE);
     }
 
+    @Override
+    public void releaseDrag() {
+        core.releaseDrag();
+        footer.releaseDrag();
+    }
+
     private float headerHeight() {
         return header == null ? 0f : header.height();
     }

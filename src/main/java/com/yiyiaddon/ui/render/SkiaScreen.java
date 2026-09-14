@@ -35,15 +35,7 @@ public abstract class SkiaScreen extends Screen {
         framePending = true;
         // 把本帧待加载的物品图标画进屏幕中心的隐藏格子，帧末截取成贴图后即可被面板覆盖。
         ItemIconCache.getInstance().renderPending(graphics);
-        // 面板需要模糊时，借原版 GUI 后处理管线对背后的世界做真模糊，替代 Skija 的截屏近似。
-        // 原版该效果由「菜单背景模糊」选项开关与定半径，选项为 0 时管线不执行，这里同步拉满。
-        if (AddonConfig.panelBlur && this.minecraft != null) {
-            if (this.minecraft.options.getMenuBackgroundBlurriness() < 1.0F) {
-                // 传入超出滑块上限的值，由 OptionInstance 自行夹取到最大值
-                this.minecraft.options.menuBackgroundBlurriness().set(10);
-            }
-            graphics.blurBeforeThisStratum();
-        }
+        // 局部玻璃在帧末只采样面板区域；这里不再模糊整屏，否则折射边缘与主体失去差异。
     }
 
     /** 由帧末 Mixin 在主 Framebuffer blit 之前调用。 */

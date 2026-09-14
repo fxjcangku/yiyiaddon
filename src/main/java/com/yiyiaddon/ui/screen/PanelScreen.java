@@ -13,6 +13,7 @@ import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
+import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.SkiaScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
@@ -224,6 +225,19 @@ public abstract class PanelScreen extends SkiaScreen {
         scroll.update(dt);
         content.update(dt);
 
+        if (AddonConfig.panelBlur) {
+            float rise = (1f - alpha) * ENTER_RISE;
+            SkiaBlurRenderer.getInstance().render(canvas, glBackend.getContext(), minecraft,
+                    SkiaGlBackend.mainFramebufferId(), frame.toScreenX(cardX, width),
+                    frame.toScreenY(cardY + rise, height), frame.toScreenLength(cardW),
+                    frame.toScreenLength(cardH), frame.toScreenLength(cardRadius),
+                    AddonConfig.blurTintColor(), AddonConfig.blurStrength);
+        }
+
+        // 轻微环境压暗提升玻璃与游戏场景的景深差异，不影响面板内文字对比度。
+        GlassPanel.fill(canvas, 0f, 0f, width, height, 0f, tc.shadow,
+                alpha * (tc.dark ? 0.16f : 0.10f));
+
         canvas.save();
         frame.applyTransform(canvas, width, height);
         // 面板自下方略微上浮归位；关闭时反向下沉
@@ -236,7 +250,8 @@ public abstract class PanelScreen extends SkiaScreen {
             canvas.save();
             canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);
             try {
-                GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.20f);
+                GlassPanel.ambientGlow(canvas, cardX, cardY, cardW, cardH, tc, alpha, 0.46f);
+                GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.26f);
                 backButton.draw(canvas, cardX + BACK_X, cardY + BACK_Y, alpha, tc, backVisible);
                 FontRenderer.drawTextBold(canvas, windowTitle, cardX + TITLE_X, cardY + TITLE_Y, 19f,
                         GlassPanel.withAlpha(tc.primaryText, alpha));

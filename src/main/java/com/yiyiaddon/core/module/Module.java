@@ -106,6 +106,16 @@ public abstract class Module {
     protected void onDisable() {
     }
 
+    /**
+     * 是否抑制运行时的统一开关播报「已开启」。
+     *
+     * <p>默认 {@code false}，既有模块行为不变。模块在 {@link #onEnable()} 里已经用统一状态源给出
+     * 完整启动结论时，可覆写为 {@code true}，避免同一次启用出现两条提示。</p>
+     */
+    protected boolean suppressEnableAnnounce() {
+        return false;
+    }
+
     /** 每刻调用，仅在启用状态下 */
     public void onTick(Minecraft client) {
     }

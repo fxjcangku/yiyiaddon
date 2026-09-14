@@ -21,6 +21,7 @@ import com.yiyiaddon.ui.page.SettingsPage;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
+import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.SkiaScreen;
 import com.yiyiaddon.ui.theme.ClickGuiTheme;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
@@ -57,6 +58,7 @@ import java.util.List;
  * <p>绘制时机见 {@link SkiaScreen}：extract 阶段只记录输入，帧末由 Mixin 触发 Skija 直绘。</p>
  */
 public class ClickGuiScreen extends SkiaScreen {
+    // 2026-09-14 视觉更新：页面改为 160ms 交叉淡化，上述瞬时切换说明仅对应历史实现。
 
     private static final String[] NAV_ICONS = {"\uE88A", "\uE61D", "\uE429", "\uE8B8"};
     private static final String[] NAV_KEYS_ZH = {"首页", "模块", "界面", "设置"};
@@ -98,6 +100,12 @@ public class ClickGuiScreen extends SkiaScreen {
     private boolean searchFocused = false;
     private String searchText = "";
     private BasePage searchResultsPage;
+    /** 页面交叉淡化只改变透明度，内容坐标与输入路由保持原样。 */
+    private BasePage displayedPage;
+    private BasePage fadingPage;
+    private float pageFade = 1f;
+    private float displayedScroll;
+    private float fadingScroll;
     private boolean draggingInContent = false;
     private boolean draggingScrollbar = false;
 
@@ -121,7 +129,6 @@ public class ClickGuiScreen extends SkiaScreen {
         for (int i = 0; i < navPress.length; i++) navPress[i] = new PressState();
     }
 
-    private final Paint indicatorPaint = new Paint().setAntiAlias(true);
     private final Paint hoverPaint = new Paint().setAntiAlias(true);
     private final Paint resetBgPaint = new Paint().setAntiAlias(true);
     private final Paint closeBgPaint = new Paint().setAntiAlias(true);
@@ -281,13 +288,31 @@ public class ClickGuiScreen extends SkiaScreen {
         float layoutMouseY = frame.toDesignY(mouseY, height);
         float[] l = layout();
         BasePage currentPage = activePage();
+        // 仅保留上一页一个短暂引用，快速切页也不会积累页面或离屏纹理。
+        if (displayedPage != currentPage) {
+            fadingPage = displayedPage;
+            fadingScroll = displayedScroll;
+            displayedPage = currentPage;
+            pageFade = fadingPage == null ? 1f : 0f;
+        }
+        pageFade = Math.min(1f, pageFade + Math.max(0f, dt) / 0.16f);
+        if (pageFade >= 1f) fadingPage = null;
         refreshScroll();
         scroll.update(dt);
+        displayedScroll = scroll.value();
+
         float cardX = l[0], cardY = l[1], cardW = l[2], cardH = l[3];
         float sidebarW = l[4], tabStartY = l[5], tabH = l[6], tabGap = l[7], tabW = l[8];
         float closeX = l[9], closeY = l[10], closeH = l[11], resetY = l[12], resetH = l[13];
         float contentX = l[14], contentY = l[15], contentW = l[16], contentH = l[17];
         float searchX = cardX + 18f, searchY = cardY + 66f, searchW = sidebarW - 36f, searchH = 28f;
+
+        drawPanelGlass(canvas, width, height, cardX, cardY, cardW, cardH, cardRadius);
+
+        // 控制中心式环境压暗把视觉焦点收回面板，透明度足够低，不掩盖游戏状态。
+        ClickGuiThemeColors backdropColors = ClickGuiThemeColors.current();
+        GlassPanel.fill(canvas, 0f, 0f, width, height, 0f, backdropColors.shadow,
+                animT * (backdropColors.dark ? 0.16f : 0.10f));
 
         hoveredTab = -1;
         closeHovered = false;
@@ -326,7 +351,7 @@ public class ClickGuiScreen extends SkiaScreen {
                 backButtonY(contentY), dt, backButtonVisible());
 
         float alpha = animT;
-        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        ClickGuiThemeColors tc = backdropColors;
 
         // 面板变换、窗口裁剪、内容裁剪三层 save 与 finally 中的三次 restore 严格配对
         canvas.save();
@@ -340,16 +365,30 @@ public class ClickGuiScreen extends SkiaScreen {
             canvas.save();
             canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);
             try {
+                // 侧栏使用独立材质层；保留原布局，同时让导航区与内容区产生清晰的空间纵深。
+                GlassPanel.fill(canvas, cardX, cardY, sidebarW, cardH, 0f, tc.sidebar,
+                        AddonConfig.panelBlur ? alpha * 0.48f : alpha);
+                GlassPanel.ambientGlow(canvas, cardX, cardY, sidebarW, cardH, tc, alpha, 0.72f);
+                GlassPanel.verticalDivider(canvas, cardX + sidebarW, cardY + 18f, cardH - 36f,
+                        tc.rim, alpha * (tc.dark ? 0.10f : 0.24f));
+
                 // 整窗高光：玻璃边缘的细亮线
                 GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.20f);
+                // 内容玻璃浮在窗体之上，保留原有侧栏宽度、页面边距与信息密度。
+                GlassPanel.shadow(canvas, contentX, contentY, contentW, contentH, 16f,
+                        tc.shadow, alpha, 0.38f);
+                GlassPanel.frost(canvas, contentX, contentY, contentW, contentH, 16f,
+                        tc.content, AddonConfig.panelBlur ? 0.24f : 0.65f, alpha);
+                GlassPanel.ambientGlow(canvas, contentX, contentY, contentW, contentH, tc, alpha, 0.34f);
+                GlassPanel.rim(canvas, contentX, contentY, contentW, contentH, 16f,
+                        tc.rim, alpha, 0.18f);
 
                 FontRenderer.drawTextBold(canvas, "yiyiaddon", cardX + 18f, cardY + 38f, 17f, withAlpha(tc.primaryText, alpha));
                 FontRenderer.drawText(canvas, UiText.t("在下方调整设置...", "Adjust the settings below..."), cardX + 18f, cardY + 55f, 11f, withAlpha(tc.labelTertiary, alpha));
                 drawSearchBox(canvas, searchX, searchY, searchW, searchH, alpha, dt, tc);
 
                 // 选中指示块滑到当前导航项，项内文字随滑块位置在普通色与反色之间过渡
-                indicatorPaint.setColor(withAlpha(tc.accent, alpha));
-                canvas.drawRRect(RRect.makeXYWH(cardX + 12f, indicatorY, tabW, tabH, NAV_RADIUS), indicatorPaint);
+                GlassPanel.accentPill(canvas, cardX + 12f, indicatorY, tabW, tabH, NAV_RADIUS, tc, alpha);
 
                 for (int i = 0; i < NAV_KEYS_ZH.length; i++) {
                     float tabY = tabStartY + i * (tabH + tabGap);
@@ -404,7 +443,9 @@ public class ClickGuiScreen extends SkiaScreen {
                     FontRenderer.drawTextBold(canvas, UiText.t("面板主题", "Panel Theme"), contentX + 18f, contentY + 27f, 19f, withAlpha(tc.primaryText, alpha));
                     FontRenderer.drawText(canvas, UiText.t("点击缩略图切换面板配色", "Click a thumbnail to switch the panel theme"), contentX + 18f, contentY + 44f, 11f, withAlpha(tc.secondaryText, alpha));
                 } else {
-                    drawPageHeader(canvas, currentPage, contentX, contentY, contentW, alpha, tc);
+                    if (fadingPage != null) drawPageHeader(canvas, fadingPage, contentX, contentY,
+                            contentW, alpha * (1f - pageFade), tc);
+                    drawPageHeader(canvas, currentPage, contentX, contentY, contentW, alpha * pageFade, tc);
                 }
 
                 backButton.draw(canvas, backButtonX(contentX, contentW), backButtonY(contentY), alpha, tc, backButtonVisible());
@@ -416,8 +457,13 @@ public class ClickGuiScreen extends SkiaScreen {
                     if (themePreviewMode) {
                         drawThemePreviewGrid(canvas, contentX, contentY, contentW, alpha, layoutMouseX, layoutMouseY);
                     } else {
+                        if (fadingPage != null) {
+                            fadingPage.draw(canvas, contentX + PAGE_INSET_X, contentY + CONTENT_HEADER_H,
+                                    contentW - PAGE_RESERVED_W, contentH - CONTENT_HEADER_H,
+                                    alpha * (1f - pageFade), fadingScroll, -Float.MAX_VALUE, -Float.MAX_VALUE);
+                        }
                         currentPage.draw(canvas, contentX + PAGE_INSET_X, contentY + CONTENT_HEADER_H,
-                                contentW - PAGE_RESERVED_W, contentH - CONTENT_HEADER_H, alpha, scroll.value(),
+                                contentW - PAGE_RESERVED_W, contentH - CONTENT_HEADER_H, alpha * pageFade, scroll.value(),
                                 layoutMouseX, layoutMouseY);
                     }
                 } finally {
@@ -433,6 +479,16 @@ public class ClickGuiScreen extends SkiaScreen {
         } finally {
             canvas.restore();
         }
+    }
+
+    /** 一次局部背景采样同时提供磨砂主体与厚边折射。 */
+    private void drawPanelGlass(Canvas canvas, int width, int height, float x, float y,
+                                float w, float h, float radius) {
+        if (!AddonConfig.panelBlur) return;
+        SkiaBlurRenderer.getInstance().render(canvas, glBackend.getContext(), minecraft,
+                SkiaGlBackend.mainFramebufferId(), frame.toScreenX(x, width), frame.toScreenY(y, height),
+                frame.toScreenLength(w), frame.toScreenLength(h), frame.toScreenLength(radius),
+                AddonConfig.blurTintColor(), AddonConfig.blurStrength);
     }
 
     /** 内容区头部：页面标题与副标题。 */

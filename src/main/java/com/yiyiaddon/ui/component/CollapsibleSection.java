@@ -156,4 +156,9 @@ public final class CollapsibleSection implements CompactElement {
         float contentTop = y + HEADER_HEIGHT + CONTENT_GAP;
         return content.onDrag(mx, my, x, contentTop, width, contentTop + expand.value() * content.height());
     }
+
+    @Override
+    public void releaseDrag() {
+        content.releaseDrag();
+    }
 }

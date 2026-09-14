@@ -16,11 +16,13 @@ public final class PressState {
     /** 按下时长：过短会看不出，过长会显得迟钝。 */
     private static final float PRESS_DURATION = 0.09f;
     /** 回弹时长。 */
-    private static final float RELEASE_DURATION = 0.26f;
+    private static final float RELEASE_DURATION = 0.20f;
     /** 按压缩放深度：1.0 - 0.03 = 0.97。 */
     private static final float PRESS_DEPTH = 0.03f;
 
     private float progress;
+    /** 连续点击从当前形变衔接，避免重新从零产生视觉跳变。 */
+    private float pressFrom;
     private float pressElapsed;
     private float releaseElapsed;
     private float releaseFrom;
@@ -30,6 +32,7 @@ public final class PressState {
 
     /** 按下。 */
     public void press() {
+        pressFrom = progress;
         pressing = true;
         releasing = false;
         pressElapsed = 0f;
@@ -38,6 +41,7 @@ public final class PressState {
 
     /** 松开：从当前进度回弹到 0。 */
     public void release() {
+        if (releasing) return;
         if (!pressing && !releasing) {
             autoRelease = false;
             return;
@@ -106,9 +110,11 @@ public final class PressState {
     }
 
     public void update(float dt) {
+        dt = Float.isFinite(dt) ? Math.max(0f, dt) : 0f;
         if (pressing) {
             pressElapsed += dt;
-            progress = Easing.easeOutCubic(Math.min(1f, pressElapsed / PRESS_DURATION));
+            progress = pressFrom + (1f - pressFrom)
+                    * Easing.easeOutCubic(Math.min(1f, pressElapsed / PRESS_DURATION));
             if (autoRelease && pressElapsed >= PRESS_DURATION) {
                 pressing = false;
                 releasing = true;
@@ -119,7 +125,8 @@ public final class PressState {
         } else if (releasing) {
             releaseElapsed += dt;
             float t = Math.min(1f, releaseElapsed / RELEASE_DURATION);
-            progress = releaseFrom * (1f - Easing.easeOutBack(t));
+            // 克制的回位不越过原尺寸，避免密集控件在连续点击时跳动。
+            progress = releaseFrom * (1f - Easing.easeOutCubic(t));
             if (t >= 1f) {
                 releasing = false;
                 progress = 0f;

@@ -1,7 +1,6 @@
 package com.yiyiaddon.ui.component;
 
 import com.yiyiaddon.ui.render.FontRenderer;
-import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import com.yiyiaddon.ui.widget.SettingWidget;
@@ -79,15 +78,12 @@ public final class CompactRow implements CompactElement {
 
         float centerY = y + HEIGHT / 2f;
         if (!label.isEmpty()) {
-            MinecraftText.draw(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE),
-                    LABEL_SIZE, tc.primaryText, alpha, true);
+            FontRenderer.drawTextBold(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE), LABEL_SIZE,
+                    GlassPanel.withAlpha(tc.primaryText, alpha));
         }
         drawHint(canvas, x, y, width, alpha, tc);
         if (control != null) {
-            float cx = controlX(x, width);
-            float cy = controlY(y);
-            control.hover(mouseX, mouseY, cx, cy, control.getWidth());
-            control.draw(canvas, cx, cy, alpha);
+            control.draw(canvas, controlX(x, width), controlY(y), alpha);
         }
     }
 
@@ -132,7 +128,7 @@ public final class CompactRow implements CompactElement {
             startX = control == null ? x + PAD_X : controlX(x, width) + control.getWidth() + HINT_GAP;
             endX = x + width - PAD_X;
         } else {
-            startX = x + PAD_X + MinecraftText.measure(label, LABEL_SIZE, true) + HINT_GAP;
+            startX = x + PAD_X + FontRenderer.measureTextWidthBold(label, LABEL_SIZE) + HINT_GAP;
             endX = control == null ? x + width - PAD_X : controlX(x, width) - HINT_GAP;
         }
         float available = endX - startX;

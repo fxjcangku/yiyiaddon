@@ -10,6 +10,9 @@ import com.yiyiaddon.config.AddonConfig;
  * <p>所有颜色均为 RGB（不含 alpha），使用方通过 {@code withAlpha(color, alpha)} 叠加透明度。</p>
  */
 public final class ClickGuiThemeColors {
+    /** 主题不可变，缓存派生色避免每个控件每帧重复分配整套色槽。 */
+    private static ClickGuiTheme cachedTheme;
+    private static ClickGuiThemeColors cachedColors;
 
     // —— 核心色（直接来自调色板） ——
     public final int window;
@@ -157,7 +160,8 @@ public final class ClickGuiThemeColors {
         boolean dark = luminance(p.primaryText()) > luminance(p.windowBackground());
 
         int primaryText = rgb(p.primaryText());
-        int secondaryText = rgb(p.secondaryText());
+        // 玻璃背景会引入场景明暗变化，次级文字向主文字收拢以保留可读性。
+        int secondaryText = mix(rgb(p.secondaryText()), primaryText, dark ? 0.18f : 0.38f);
         int window = rgb(p.windowBackground());
         int sidebar = rgb(p.sidebarBackground());
         int accent = rgb(p.accent());
@@ -167,7 +171,7 @@ public final class ClickGuiThemeColors {
         int mutedText = mix(secondaryText, dark ? window : 0x000000, dark ? 0.35f : 0.25f);
         int inactiveText = mix(primaryText, dark ? window : 0x000000, dark ? 0.45f : 0.40f);
         int inactiveIcon = mix(secondaryText, dark ? window : 0x000000, dark ? 0.25f : 0.20f);
-        int subModuleText = mix(primaryText, dark ? window : 0x000000, dark ? 0.40f : 0.35f);
+        int subModuleText = mix(primaryText, dark ? window : 0x000000, dark ? 0.14f : 0.12f);
 
         // 指示/悬停：accent 极淡地叠加在窗口底色上
         int indicator = mix(window, accent, dark ? 0.22f : 0.20f);
@@ -209,9 +213,9 @@ public final class ClickGuiThemeColors {
         int rim = 0xFFFFFF;
         int shadow = 0x000000;
         int accentOn = luminance(accent) > 0.62f ? 0x000000 : 0xFFFFFF;
-        int labelTertiary = mix(secondaryText, window, 0.35f);
+        int labelTertiary = mix(secondaryText, window, 0.12f);
         int labelQuaternary = mix(secondaryText, window, 0.60f);
-        int surfaceHover = mix(rgb(p.moduleBackground()), accent, dark ? 0.14f : 0.10f);
+        int surfaceHover = mix(rgb(p.moduleBackground()), dark ? 0xFFFFFF : accent, dark ? 0.12f : 0.07f);
         int field = mix(sidebar, dark ? 0xFFFFFF : 0x000000, dark ? 0.06f : 0.04f);
 
         return new ClickGuiThemeColors(
@@ -231,10 +235,15 @@ public final class ClickGuiThemeColors {
 
     /** 取当前已选主题的颜色。 */
     public static ClickGuiThemeColors current() {
-        return of(ClickGuiThemeManager.current());
+        ClickGuiTheme theme = ClickGuiThemeManager.current();
+        if (cachedColors == null || cachedTheme != theme) {
+            cachedTheme = theme;
+            cachedColors = of(theme);
+        }
+        return cachedColors;
     }
 
-    /** Lets blurred game content remain visible through ClickGUI background surfaces. */
+    /** 模糊开启时保留场景透光，关闭时恢复主题声明的不透明度。 */
     public static float panelBackgroundAlpha(float alpha) {
         return AddonConfig.panelBlur ? alpha * 0.46f : alpha;
     }

@@ -23,6 +23,10 @@ public interface CompactElement {
     /** 左键点击；返回 true 表示本元素消费了这次点击。 */
     boolean onClick(float mx, float my, float x, float y, float width, int button);
 
-    /** 拖动（输入框等需要跟手的元素）。 */
+    /** 拖动（滑条、输入框等需要跟手的元素）。 */
     boolean onDrag(float mx, float my, float x, float y, float width);
+
+    /** 松开鼠标；默认无拖动状态。 */
+    default void releaseDrag() {
+    }
 }

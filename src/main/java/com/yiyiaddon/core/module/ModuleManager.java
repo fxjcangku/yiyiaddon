@@ -179,6 +179,18 @@ public final class ModuleManager {
         return enabled ? enable(module) : disable(module, true);
     }
 
+    /**
+     * 静默开关：不播报「已开启 / 已关闭」。
+     *
+     * <p>供模块自己已经用统一状态源播报过结论的场景使用（如自检失败禁止启动、死亡强制停止、
+     * 状态源已给出「已停止」），避免同一次状态变化出现两条提示。</p>
+     */
+    public static boolean setEnabledSilently(String moduleId, boolean enabled) {
+        Module module = byId(moduleId);
+        if (module == null) return false;
+        return enabled ? enable(module, false) : disable(module, false);
+    }
+
     /** 反转开关状态 */
     public static boolean toggle(String moduleId) {
         Module module = byId(moduleId);
@@ -192,7 +204,11 @@ public final class ModuleManager {
     }
 
     private static boolean enable(Module module) {
-        return switch (tryEnable(module, true)) {
+        return enable(module, true);
+    }
+
+    private static boolean enable(Module module, boolean announce) {
+        return switch (tryEnable(module, announce)) {
             case SUCCESS -> {
                 PENDING.remove(module.id());
                 yield true;
@@ -234,7 +250,7 @@ public final class ModuleManager {
             return EnableResult.FAILED;
         }
         persistEnabled(module, true);
-        if (announce) ClientChat.send(module.displayName(), "§a§l已开启");
+        if (announce && !module.suppressEnableAnnounce()) ClientChat.send(module.displayName(), "§a§l已开启");
         return EnableResult.SUCCESS;
     }
 
