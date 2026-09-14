@@ -14,12 +14,22 @@ import com.yiyiaddon.feature.identity.command.IdentityCommand;
 import com.yiyiaddon.feature.identity.config.IdentityModuleConfig;
 import com.yiyiaddon.feature.identity.model.IdentitySummary;
 import com.yiyiaddon.feature.identity.service.IdentityActions;
+import com.yiyiaddon.feature.identity.ui.IdScreens;
 import com.yiyiaddon.feature.identity.ui.IdentityModulePage;
+import com.yiyiaddon.model.identity.BlockIdentity;
+import com.yiyiaddon.model.identity.EntityIdentity;
 import com.yiyiaddon.model.identity.IdentifyMode;
+import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.platform.identity.BlockIdentifier;
+import com.yiyiaddon.platform.identity.EntityIdentifier;
+import com.yiyiaddon.platform.identity.ItemIdentifier;
 import com.yiyiaddon.platform.storage.GamePaths;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.page.ModulePage;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -151,19 +161,99 @@ public final class IdIdentifyModule extends Module {
         return config.mode() == IdentifyMode.CROSSHAIR_BLOCK ? identifyBlock() : identifyItem();
     }
 
+    /** 识别手持物品；「聊天复制/显示」模式下改为弹出识别结果窗口（旧项目行为）。 */
     public IdentitySummary identifyItem() {
         if (!requireEnabled()) return null;
+        if (config.mode() == IdentifyMode.CHAT_COPY) return openItemResultScreen();
         return finish(IdentityActions.identifyItem(config.savesToLibrary()));
     }
 
+    /**
+     * 「聊天复制/显示」模式：识别手持物品并弹出识别结果窗口，识别本身不写盘。
+     *
+     * <p>与旧项目一致：失败时聊天栏给出中文原因；成功后直接开窗，不在聊天栏重复罗列字段。</p>
+     */
+    private IdentitySummary openItemResultScreen() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l玩家未加载");
+            return null;
+        }
+        ItemStack held = client.player.getItemInHand(InteractionHand.MAIN_HAND);
+        if (held == null || held.isEmpty()) held = client.player.getItemInHand(InteractionHand.OFF_HAND);
+        if (held == null || held.isEmpty()) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l没有可识别物品：主手和副手都是空的");
+            return null;
+        }
+        ItemIdentity identity = ItemIdentifier.identifyItem(held);
+        if (identity == null) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l识别失败");
+            return null;
+        }
+        IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ITEM,
+                identity.displayName(), List.of(), null);
+        latest = summary;
+        client.execute(() -> IdScreens.openItemResult(identity, client.screen));
+        return summary;
+    }
+
+    /** 识别准星方块；「准星方块识别」模式下弹出方块结果窗口（旧项目行为）。 */
     public IdentitySummary identifyBlock() {
         if (!requireEnabled()) return null;
+        if (config.mode() == IdentifyMode.CROSSHAIR_BLOCK) return openBlockResultScreen();
         return finish(IdentityActions.identifyBlock(config.savesToLibrary()));
     }
 
+    /** 识别准星实体并弹出实体结果窗口（旧项目 {@code .id 实体} 的行为）。 */
     public IdentitySummary identifyEntity() {
         if (!requireEnabled()) return null;
-        return finish(IdentityActions.identifyEntity(config.savesToLibrary()));
+        return openEntityResultScreen();
+    }
+
+    /**
+     * 「准星方块识别」模式：识别准星命中的方块并弹出方块结果窗口，识别本身不写盘。
+     */
+    private IdentitySummary openBlockResultScreen() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l玩家未加载");
+            return null;
+        }
+        BlockIdentity identity = BlockIdentifier.identify();
+        if (identity == null) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l自动识别失败：准星当前没有指向有效方块");
+            return null;
+        }
+        IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.BLOCK,
+                identity.displayName(), List.of(), null);
+        latest = summary;
+        client.execute(() -> IdScreens.openBlockResult(identity, client.screen));
+        return summary;
+    }
+
+    /**
+     * 识别准星实体并弹出实体结果窗口，识别本身不写盘（结果窗口内可保存）。
+     */
+    private IdentitySummary openEntityResultScreen() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l玩家未加载");
+            return null;
+        }
+        if (client.crosshairPickEntity == null) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l当前准星未指向可识别实体");
+            return null;
+        }
+        EntityIdentity identity = EntityIdentifier.identifyEntity(client.crosshairPickEntity);
+        if (identity == null) {
+            ClientChat.send(MESSAGE_MODULE, "§6§l无法解析该实体的稳定身份");
+            return null;
+        }
+        IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ENTITY,
+                identity.displayName(), List.of(), null);
+        latest = summary;
+        client.execute(() -> IdScreens.openEntityResult(identity, client.screen));
+        return summary;
     }
 
     /** 输出身份库统计到聊天栏 */
