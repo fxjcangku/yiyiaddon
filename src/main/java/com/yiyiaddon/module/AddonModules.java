@@ -1,8 +1,6 @@
 package com.yiyiaddon.module;
 
 import com.yiyiaddon.command.CommandManager;
-import com.yiyiaddon.command.CommandRegistry;
-import com.yiyiaddon.command.ResourceCommand;
 import com.yiyiaddon.core.event.EventDispatcher;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
@@ -15,7 +13,7 @@ import com.yiyiaddon.service.resourcepack.ResourceIndexProbe;
 import java.util.List;
 
 /**
- * 模组装配总入口：分类、事件入口、资源探针、功能模块与指令的唯一引导点。
+ * 模组装配总入口：分类、事件入口、资源探针与功能模块的唯一引导点。
  *
  * <p>引导顺序固定，顺序本身有依赖关系，不可调换：</p>
  * <ol>
@@ -23,7 +21,7 @@ import java.util.List;
  *     <li>事件入口：先于模块注册，模块启用时订阅的事件立刻可被派发；</li>
  *     <li>资源探针：注册给资源生命周期服务，使解析阶段能真正产出内容；</li>
  *     <li>功能模块：注册元数据、初始化、恢复启用状态、发布模块中心条目；</li>
- *     <li>指令：内置指令与模组自带指令最后注册，此时模块与探针数据都已就绪。</li>
+ *     <li>指令：内置指令最后注册（新增模组自带指令时在此之后追加）。</li>
  * </ol>
  *
  * <p>新增功能模块只需在 {@link #createModules()} 里补一条构造，模块中心、模块列表、页面路由、
@@ -31,7 +29,7 @@ import java.util.List;
  */
 public final class AddonModules {
 
-    /** 资源内容探针：同时交给资源生命周期服务与资源指令，必须只有一份实例 */
+    /** 资源内容探针：交给资源生命周期服务，必须只有一份实例 */
     private static final ResourceIndexProbe RESOURCE_PROBE = new ResourceIndexProbe();
 
     private static boolean bootstrapped;
@@ -49,7 +47,6 @@ public final class AddonModules {
         registerResourceProbe();
         ModuleManager.bootstrap(createModules());
         CommandManager.bootstrap();
-        registerAddonCommands();
     }
 
     /** 全部功能模块；新增模块只改这里 */
@@ -64,11 +61,6 @@ public final class AddonModules {
     /** 注册资源内容探针（未注册时资源解析必然收尾于「未发现目标资源」） */
     private static void registerResourceProbe() {
         ResourceExtractionService.registerProbe(RESOURCE_PROBE);
-    }
-
-    /** 不属于任何模块的模组自带指令；模块自带指令由模块运行时统一注册 */
-    private static void registerAddonCommands() {
-        CommandRegistry.register(new ResourceCommand(RESOURCE_PROBE));
     }
 
     /**

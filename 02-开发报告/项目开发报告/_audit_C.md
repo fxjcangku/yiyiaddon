@@ -1,0 +1,136 @@
+# 审计 C · 行为与默认值差异核查
+
+审计对象
+- 新项目：`d:\mcaddon\yiyiaddon\src\main\java\com\yiyiaddon\`
+- 旧项目：`d:\mcaddon\26.1.2\src\main\java\com\example\addon\`
+
+审计方式：只读比对源码；全部结论附 `文件:行号`；逐字照抄，含 `§` 颜色码。本文件为本次审计唯一新增产物，未修改任何源码，未创建其它文件。
+
+---
+
+## 0. 覆盖口径与证据方式
+
+- 口径：旧项目的功能 / 模块 / 互相关联全量复刻，**唯一变化是 UI 外壳**；按钮文字与点击作用逐字照旧。凡旧项目已有的「名称 / 行为 / 默认值」被改动，即记为差异项，并给出旧原文。
+- 证据：差异项一律给「旧项目文件:行号」与「新项目文件:行号」两侧证据。
+- 旧项目指令体系的旁证：`d:\mcaddon\yiyiaddon\02-开发报告\项目开发报告\07-基准-06-指令体系全量清单.md`（下称《基准-06》），用于确认旧项目指令由 Meteor 注册、无自建前缀。
+- 覆盖范围：指令前缀、模块分类、模块名与描述、`.id` 指令行为、快捷键默认值、界面默认值、其它自建可见行为。
+- 说明：新项目当前只有 3 个功能模块（`AddonModules.java:53-59`），故模块层面只有它们的「旧↔新」可逐字比。
+
+---
+
+## 1. 结论摘要（差异项总数 + 按严重度分级）
+
+差异项共 **13** 条。
+
+| 严重度 | 条数 | 差异项编号 |
+| --- | --- | --- |
+| 高 | 0 | — |
+| 中 | 4 | D1、D2、D3、D9 |
+| 低 | 9 | D4、D5、D6、D7、D8、D10、D11、D12、D13 |
+
+分级依据：
+- 中：对**已迁移功能**的用户可见文本 / 分组结构造成实际改动（同一功能在新旧项目看到的文字不同）。
+- 低：新增能力或新增默认值，未改动旧项目既有行为；或只影响非展示层（持久化键、内部名）。
+
+**关键否定结论（任务「已知问题」逐条核实）**：任务书所列「`.id` 子命令主名由中文改英文」「无参由『显示帮助』改为『执行识别』」「description 被改写」三条，在当前源码中**均未复现**——新 `IdentityCommand` 的子命令仍为中文 `物品/实体/方块`，裸 `.id` 仍输出帮助卡片，`description()` 与旧 `super(...)` 第二参逐字相同。详见 D4 与第 6 章。
+
+---
+
+## 2. 差异清单
+
+| # | 差异项 | 旧项目原文/行为（文件:行） | 新项目现状（文件:行） | 类型 | 严重度 | 建议处置 |
+| --- | --- | --- | --- | --- | --- | --- |
+| D1 | **聊天播报的模块前缀整体改写**：删除了 `[yiyiaddon]` 段 | `§c§l[yiyiaddon]§r§f§l[模块名]§r` + 正文（`26.1.2/.../core/YiyiaddonModule.java:294-298`；`notify`/`notifyError` 走此格式 `:117-129`）；指令卡片标题行同格式（`26.1.2/.../core/CommandMessageFormatter.java:155`） | `§f§l[模块名]§r§l` + 正文（`yiyiaddon/.../core/ClientChat.java:9-32`，`CommandMessageFormatter.java:94`）。代码注释自称「与旧项目唯一差别是按第十七章第 110 条去掉了 yiyiaddon 段」（`ClientChat.java:10-12`） | 文案改写 | 中 | 确认该条是否为**已批准的口径变更**；若「逐字照旧」为硬口径，应恢复 `§c§l[yiyiaddon]§r` 段。模块名与正文文字本身未改 |
+| D2 | **模块分类中文名去掉了统一前缀** | `"§c§lyiyiaddon §a§l工具"` / `"§c§lyiyiaddon §e§l自动化"` / `"§c§lyiyiaddon §b§l绕过"` / `"§c§lyiyiaddon §d§l辅助"` / `"§c§lyiyiaddon §6§l星露谷"`（`26.1.2/.../core/AddonTemplate.java:84-95`） | `"自动化"` / `"辅助"` / `"工具"` / `"导航"` / `"附魔"` / `"星露谷"`（`yiyiaddon/.../module/AddonModules.java:74-79`） | 文案改写 | 中 | 分类被新项目声明为「不属迁移范围」（`AddonModules.java:66-72`）；需确认此声明是否被验收口径接受 |
+| D3 | **分类的数量与顺序改变**：5 个 → 6 个 | 旧 5 个，注册顺序 工具 → 自动化 → 绕过 → 辅助 → 星露谷（`26.1.2/.../core/AddonTemplate.java:242-249`） | 新 6 个，按 order 升序 自动化(10) → 辅助(20) → 工具(30) → 导航(40) → 附魔(50) → 星露谷(60)（`yiyiaddon/.../module/AddonModules.java:74-79`；排序 `module/CategoryRegistry.java:17-18`） | 结构改变 | 中 | 新增「导航」「附魔」，旧「绕过」在新项目缺失。若属 UI 外壳分组，需在报告中显式披露；「绕过」下模块尚未迁移 |
+| D4 | **`.id` 新增两个子命令 `统计` / `模式`** | 旧仅 `物品` / `实体` / `方块` 三个中文 literal（`26.1.2/.../itemid/IdCommand.java:67-80`） | 新增 `统计`（输出身份库统计，`feature/identity/IdIdentifyModule.java:260-272`）与 `模式`（查看/切换识别模式，`IdentityCommand.java:101-117`）；子命令清单 `List.of("物品","实体","方块","统计","模式")`（`yiyiaddon/.../feature/identity/command/IdentityCommand.java:30`） | 新增行为 | 低 | 旧行为未被改动，属附加入口；建议在差异说明中登记为「新增」 |
+| D5 | **`.id` 新增 `usage()` 文本、未知子命令中文报错、`.id` 模式提示** | 旧无 `usage()`；未知子命令由 Brigadier 处理（`26.1.2/.../itemid/IdCommand.java:60-81`，无 `usage`/错误分支） | `usage()` 返回 `prefix()+"id [物品\|实体\|方块]"`（`IdentityCommand.java:54-56`）；`default -> context.error("未知子命令：" + ...)`（`:70-73`）；帮助卡片新增 `输入 .id [物品\|实体\|方块]` 状态行（`:97`） | 新增行为 | 低 | 属框架补齐（旧项目无补全与错误提示）；新增文本不影响旧文本 |
+| D6 | **`.id` 新增 TAB 补全** | 旧 `IdCommand` 全文无任何 `suggests(...)`（《基准-06》§1.3，`IdCommand.java:60-81`） | `complete()` 返回 `物品/实体/方块/统计/模式` 及模式候选（`IdentityCommand.java:78-87`）；聊天框补全入口 `ChatScreenCompletionMixin` | 新增行为 | 低 | 属框架补齐，不违反旧文本 |
+| D7 | **模块英文名 `name()` 自造** | 旧项目 Meteor 模块类无独立英文名，模块标识即中文 `title`（`super(类别, "ID识别", …)`，`26.1.2/.../itemid/IdIdentifyModule.java:54`） | `IdIdentifyModule.name()` = `"IdIdentify"`（`yiyiaddon/.../feature/identity/IdIdentifyModule.java:71-73`）；`IdConfigModule.name()` = `"IdConfig"`（`IdConfigModule.java:52-54`）；基类默认 `name()==id()`（`core/module/Module.java:49-52`） | 结构改变 | 低 | 该英文名会在 `.module on IdIdentify` 与补全候选中出现（`ModuleCommand.java:174`），旧项目无此字符串 |
+| D8 | **模块持久化键由「中文模块名 + modules.nbt」改为「英文 id + module-state.json」** | 旧状态/键位随 Meteor `modules.nbt`，键为模块显示名 | `MODULE_ID = "id_identify"`（`IdIdentifyModule.java:53`）、`"id_config"`（`IdConfigModule.java:41`）；落盘 `module-state.json`，字段 `模块/{id}/{启用,快捷键,设置}`（`config/ModuleStateConfig.java:41-46`） | 结构改变 | 低 | 用户不可直接感知，但会丢失旧 `modules.nbt` 的开关/键位；迁移类项目需说明 |
+| D9 | **新增模块「ESP测试」** | 旧项目无同名模块；旧同域模块为「水源显示」（`26.1.2/.../water/WaterESPModule.java:78-79`：`super(AddonTemplate.CATEGORY, "水源显示", "已放水渲染蓝色 9×9 灌溉范围，在已有水源旁显示红色建议框提示可放水位置。")`） | `super(MODULE_ID, "ESP测试", "tools", "世界渲染能力实测：框 / 线 / 面 / 射线 / 浮空字")`（`yiyiaddon/.../feature/visuals/EspTestModule.java:73-74`），已在 `createModules()` 注册（`AddonModules.java:57`），注释自述「这是脚手架，不是业务模块」（`:24-25`） | 新增行为 | 中 | 该模块会出现在模块中心，属新增用户可见功能；建议在业务迁移完成后按注释删除，或在验收报告中标注为脚手架 |
+| D10 | **界面开启快捷键为自建默认值 Right Shift** | 旧项目源码内无「打开界面」的自建键位（全项目无界面快捷键常量；指令/界面分别由 Meteor 命令系统与 Meteor GUI 负责，`AddonTemplate.java:180-220` 只 `Commands.add`） | 自建 `ACTION_CLICK_GUI = "action.clickgui"`，默认 `GLFW_KEY_RIGHT_SHIFT`（`yiyiaddon/.../ui/keybind/ModuleKeybindManager.java:32,236-238`），触发即 `setScreen(new ClickGuiScreen(null))`（`:205-209`）；设置页暴露「GUI 快捷键」录入（`ui/page/SettingsPage.java:23-24`） | 新增默认值 | 低 | 属 UI 外壳（旧 GUI 开启键由 Meteor 内置，旧源码无对应值，见第 6 章存疑） |
+| D11 | **界面外观默认值（新自建，旧项目多无对应项）** | 旧主题模块仅有配色方案（`26.1.2/.../theme/ThemeModule.java:34-42` 默认 `Palette.SAKURA`；`Palette` 9 个色字段 `:305-346`），无圆角 / 模糊 / 缩放 / 滚动速度参数 | `uiTheme="apple_dark"`、`uiScale=1`、`panelBlur=true`、`blurStrength=0.6f`、`blurTint=0x50101014`、`scrollSpeed=1.0f`（`yiyiaddon/.../config/AddonConfig.java:30-35`；实盘同值 `run/config/yiyiaddon.json:1-11`）；`AppleDarkTheme` 调色板 + 圆角指标 `(22,16,12,1,28)`（`ui/theme/AppleDarkTheme.java:15-27`）；`DefaultClickGuiTheme` 指标 `(16,10,8,1,0)`（`ui/theme/DefaultClickGuiTheme.java:4-15`） | 新增默认值 | 低 | 属「UI 外壳可自定义」范畴，只需登记；详见第 6 章 |
+| D12 | **新增框架内置指令 `.help` / `.module`** | 旧项目无此二指令（《基准-06》§0.2 第 2 条：旧项目这两项由界面提供）；旧项目 11 条指令全部经 Meteor `Commands.add` 注册（`AddonTemplate.java:180-220`） | `HelpCommand`：`name "help"`、别名 `h`、`帮助`（`yiyiaddon/.../command/HelpCommand.java:16-33`）；`ModuleCommand`：`name "module"`、别名 `m`、`模块`（`ModuleCommand.java:25-42`）；`CommandManager.bootstrap()` 注册（`command/CommandManager.java:89-90`） | 新增行为 | 低 | 框架能力，无旧对应物；但 `.module on/off/toggle` 是旧项目没有的开关途径，需登记 |
+| D13 | **其它自建交互** | 旧项目由 Meteor GUI 提供：模块卡片点击进入设置页、GUI 内滚动、模块搜索（翻译表见 `26.1.2/.../translations/YiyiaddonTranslator.java:667-669`，含 `Module Search Count`/`Search Module Aliases`/`Prefix`）；ID 面板分页为 `§7上一页` / `§7下一页`（`26.1.2/.../itemid/IdConfigModule.java:41,286-329`） | 新自建：模块卡片点击开独立屏（`ui/screen/ClickGuiScreen.java:156-162`）；滚轮滚动（`:844-857`）；面板搜索框（`:531-564`）；主题缩略图预览（`:599-609,766-778`）；「重置界面设置」二次点击确认（`:749-760`）；ID 分页文案沿用 `§7上一页`/`§7下一页`（`feature/identity/ui/IdConfigPage.java:227-234`） | 新增行为 | 低 | 分页文案与旧一致；其余为 UI 外壳，旧项目对应能力由 Meteor 界面承载，非旧项目自建 |
+
+---
+
+## 3. 旧项目分类名逐字表
+
+来源：`d:\mcaddon\26.1.2\src\main\java\com\example\addon\core\AddonTemplate.java`
+
+| 行号 | 常量名 | 中文名（逐字，含颜色码） | 图标物品 | 归属（注册顺序） |
+| --- | --- | --- | --- | --- |
+| 84 | `CATEGORY` | `§c§lyiyiaddon §a§l工具` | `Items.WRITABLE_BOOK` | 第 1（`:244`） |
+| 85 | `CATEGORY_AUTOMATION` | `§c§lyiyiaddon §e§l自动化` | `Items.REDSTONE` | 第 2（`:245`） |
+| 86 | `CATEGORY_TACTICAL` | `§c§lyiyiaddon §b§l绕过` | `Items.SHIELD` | 第 3（`:246`） |
+| 87 | `CATEGORY_ASSIST` | `§c§lyiyiaddon §d§l辅助` | `Items.CHEST` | 第 4（`:247`） |
+| 95 | `CATEGORY_STARDEW` | `§c§lyiyiaddon §6§l星露谷` | `Items.WHEAT` | 第 5（`:248`） |
+
+注册顺序代码逐字（`:244-248`）：
+```java
+Modules.registerCategory(CATEGORY);            // 工具
+Modules.registerCategory(CATEGORY_AUTOMATION); // 自动化
+Modules.registerCategory(CATEGORY_TACTICAL);   // 绕过
+Modules.registerCategory(CATEGORY_ASSIST);     // 辅助
+Modules.registerCategory(CATEGORY_STARDEW);    // 星露谷
+```
+
+新项目对照（`yiyiaddon/.../module/AddonModules.java:74-79`，展示名为 order 升序）：`自动化`(10) → `辅助`(20) → `工具`(30) → `导航`(40) → `附魔`(50) → `星露谷`(60)。
+
+逐条差异：
+1. 5 个旧分类的展示名均带前缀 `§c§lyiyiaddon §X§l`，新项目 6 个分类展示名均为裸中文（D2）。
+2. 顺序不一致：旧首位是「工具」，新首位是「自动化」；旧「辅助」第 4，新第 2。
+3. 新增「导航」「附魔」两个旧项目不存在的分类。
+4. 旧「绕过」在新项目无对应分类。
+5. 旧「星露谷」在新项目保留为第 6（`AddonModules.java:79`）。
+
+---
+
+## 4. 旧项目模块名与描述逐字表（已迁移的模块）
+
+来源：`d:\mcaddon\26.1.2\src\main\java\com\example\addon\`
+
+| 模块类 | 所属分类（旧） | 中文名（逐字） | 描述（逐字） | 行号 |
+| --- | --- | --- | --- | --- |
+| `itemid/IdIdentifyModule` | `CATEGORY_ASSIST`（辅助） | `ID识别` | `识别手持物品或准星方块并加入ID配置。点击开启即识别。` | `:54` |
+| `itemid/IdConfigModule` | `CATEGORY_ASSIST`（辅助） | `ID配置管理` | `管理已识别的物品/实体/方块ID：搜索、筛选、分页、删除、清空、打开目录。点击按钮查看说明。` | `:67` |
+
+（未迁移但同域、供对照）`water/WaterESPModule`：`CATEGORY`（工具）/ `水源显示` / `已放水渲染蓝色 9×9 灌溉范围，在已有水源旁显示红色建议框提示可放水位置。`（`:78-79`）。
+
+---
+
+## 5. 新项目已迁移模块的对照结论
+
+对照来源：`yiyiaddon/.../feature/identity/` 与 `.../feature/visuals/`
+
+| 新模块 | 中文名 | 描述 | 分类 | 与旧项目逐字比对 |
+| --- | --- | --- | --- | --- |
+| `IdIdentifyModule`（`:67`） | `ID识别` | `识别手持物品或准星方块并加入ID配置。点击开启即识别。` | `assist`（辅助） | 中文名与描述**逐字一致**；分类 id `assist` 对应旧 `CATEGORY_ASSIST`（辅助）。差异仅在英文 `name()="IdIdentify"`（`:71-73`）与 `MODULE_ID="id_identify"`（`:53`） |
+| `IdConfigModule`（`:47-49`） | `ID配置管理` | `管理已识别的物品/实体/方块ID：搜索、筛选、分页、删除、清空、打开目录。点击按钮查看说明。` | `assist`（辅助） | 中文名与描述**逐字一致**。差异仅在英文 `name()="IdConfig"`（`:52-54`）与 `MODULE_ID="id_config"`（`:41`） |
+| `EspTestModule`（`:73-74`） | `ESP测试` | `世界渲染能力实测：框 / 线 / 面 / 射线 / 浮空字` | `tools`（工具） | **旧项目无对应模块**（旧同域为「水源显示」），属新增脚手架（D9） |
+
+补充结论（设置项层面）：旧 `IdIdentifyModule` 的「识别模式」默认值为 `IdentifyMode.AUTO_SAVE`（`26.1.2/.../itemid/IdIdentifyModule.java:64`）；新 `IdentityModuleConfig` 默认同为 `AUTO_SAVE`（`yiyiaddon/.../feature/identity/config/IdentityModuleConfig.java:22`），`IdentifyMode` 三个枚举名与中文 `聊天复制/显示`、`自动保存`、`准星方块识别` 逐字一致（旧 `26.1.2/.../itemid/IdentifyMode.java:17-23`；新 `yiyiaddon/.../model/identity/IdentifyMode.java:15-21`）。
+
+---
+
+## 6. 存疑项
+
+1. **旧项目的指令前缀「可修改」能力无法从旧源码证实。**
+   已证实部分：旧项目 11 条指令全部经 Meteor `Commands.add(...)` 注册（`26.1.2/.../core/AddonTemplate.java:180-220`），旧项目自身**无**前缀常量、无聊天前缀拦截；唯一与「/ 开头消息」相关的注入是纯日志上报（`26.1.2/.../mixin/ClientCommandSourceMixin.java:27-38`，只把指令名上报后台上报，不参与派发）。《基准-06》§7.4（`:489-491`）亦确认旧项目这 6 条指令「未使用 yiyiaddon 自有 CommandManager，全部经 Meteor Commands.add 注册」，并在 §0.2 结论 4（`:57`）写明「. 前缀与旧项目一致」。
+   存疑部分：旧项目源码内**未定位到** Meteor 命令前缀的定义与默认值，也**未定位到**可修改前缀的入口；仅 `26.1.2/.../translations/YiyiaddonTranslator.java:669`（`case "Prefix" -> "前缀";`）暗示 Meteor 层存在名为 `Prefix` 的设置项，无法据此断定旧项目具备「用户可改前缀」能力。
+   因此：D1/D10/D12 的「旧项目无自建前缀能力」结论成立；「旧项目能否改前缀」标为存疑，需以 Meteor 版本侧资料定论。
+
+2. **任务书所述 `.id` 已知问题未复现。**
+   逐条核实（已核，非存疑，此处集中记录以免误传）：
+   - 「子命令主名由中文改英文」→ **未复现**：新仍为 `物品/实体/方块`（`IdentityCommand.java:65-67`，`SUBCOMMANDS` `:30`），旧为 `literal("物品"/"实体"/"方块")`（`IdCommand.java:67-80`）。
+   - 「无参由『显示帮助』改为『执行识别』」→ **未复现**：新 `execute` 首行 `if (context.isEmpty()) { showHelp(); return; }`（`IdentityCommand.java:59-63`），与旧 `builder.executes(ctx -> showHelp())`（`IdCommand.java:62-65`）同义；帮助卡片三行文本逐字一致（新 `:93-96` ↔ 旧 `:291-295`）。
+   - 「description 被改写」→ **未复现**：新 `description()`（`:49-51`）为 `识别物品、实体或方块并保存ID（.id 物品 / .id 实体 / .id 方块）`，与旧 `super("id", …)` 第二参（`IdCommand.java:52`）逐字相同。
+   实际差异只有 D4/D5/D6 所列的「新增」（`统计`/`模式` 子命令、`usage()`、未知子命令错误、TAB 补全）。
+
+3. **Meteor 默认 GUI 开启键是否为 Right Shift 未在旧项目源码定位。**
+   旧项目未定义界面开启键；新项目自建默认 `Right Shift`（`ModuleKeybindManager.java:237`）。若 Meteor 内置默认键同为 Right Shift，则 D10 属「等价复刻」；若不同，则属默认值改变。因旧源码无证据，标为存疑。
+
+4. **`feature/identity` 的 `统计`/`模式` 子命令与页面入口的重合度未逐字核。**
+   新 `IdentityCommand` 的 `统计`/`模式` 自述对应旧项目 GUI 内统计与模式切换（`IdentityCommand.java:22-23`），但旧项目该二能力的具体展示文本（页面内文案）本次未逐字比对（超出本次 7 项必查范围），若需判「等价入口」应另立审计。
