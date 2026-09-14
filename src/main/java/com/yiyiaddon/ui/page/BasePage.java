@@ -9,6 +9,9 @@ import java.util.Locale;
 
 public abstract class BasePage {
 
+    /** 模块之间的垂直间距（像素）。滚动上限与绘制都按此值计算。 */
+    public static final float MODULE_GAP = 8f;
+
     protected final List<SettingModule> modules = new ArrayList<>();
     private final List<SettingModule> visibleModules = new ArrayList<>();
     private final List<Float> visibleModuleHeights = new ArrayList<>();
@@ -34,6 +37,12 @@ public abstract class BasePage {
     public float getTotalHeight() {
         ensureLayoutCache();
         return cachedTotalHeight;
+    }
+
+    /** 可见模块之间的间距总量，供内容区计算滚动上限。 */
+    public float getVisibleSpacing() {
+        ensureLayoutCache();
+        return visibleModules.size() * MODULE_GAP;
     }
 
     public boolean hasSearchResults() {
@@ -66,7 +75,7 @@ public abstract class BasePage {
             if (cy + mh > viewportTop && cy < viewportBottom) {
                 m.draw(canvas, x, cy, contentW, alpha, viewportTop, viewportBottom, mouseX, mouseY);
             }
-            cy += mh + 8f;
+            cy += mh + MODULE_GAP;
         }
     }
 
@@ -79,7 +88,7 @@ public abstract class BasePage {
             if (my >= cy && my <= cy + mh) {
                 return m.onClick(mx, my, contentX, cy, contentW, button);
             }
-            cy += mh + 8f;
+            cy += mh + MODULE_GAP;
         }
         return false;
     }
@@ -91,7 +100,7 @@ public abstract class BasePage {
             SettingModule m = visibleModules.get(i);
             float mh = visibleModuleHeights.get(i);
             if (m.onDrag(mx, my, contentX, cy, contentW)) return true;
-            cy += mh + 8f;
+            cy += mh + MODULE_GAP;
         }
         return false;
     }
@@ -99,6 +108,14 @@ public abstract class BasePage {
     public void releaseDrag() {
         ensureLayoutCache();
         for (SettingModule m : visibleModules) m.releaseDrag();
+    }
+
+    /** 鼠标松开时释放按压动画；默认页面没有按压元素。 */
+    public void releasePress() {
+    }
+
+    /** 页面被丢弃、不再绘制时直接复位按压动画，避免留下按下的残影。 */
+    public void cancelPress() {
     }
 
     private void ensureLayoutCache() {

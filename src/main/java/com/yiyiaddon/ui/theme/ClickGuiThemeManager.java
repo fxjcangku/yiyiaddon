@@ -9,11 +9,12 @@ import java.util.Optional;
 
 public final class ClickGuiThemeManager {
     private static final Map<String, ClickGuiTheme> THEMES = new LinkedHashMap<>();
-    private static final ClickGuiTheme FALLBACK = new WhiteTheme();
+    private static final ClickGuiTheme FALLBACK = new AppleDarkTheme();
     private static ClickGuiTheme currentTheme;
 
     static {
         register(FALLBACK);
+        register(new WhiteTheme());
         register(new DarkTheme());
         register(new GrayTheme());
         currentTheme = FALLBACK;

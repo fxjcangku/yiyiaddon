@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.widget;
 
+import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.render.FontRenderer;
 import io.github.humbleui.skija.Canvas;
@@ -15,6 +16,7 @@ import java.util.function.Supplier;
 public class SettingLink extends SettingWidget {
     private final Supplier<String> label;
     private final Runnable action;
+    private final PressState press = new PressState();
     private final Paint bgPaint = new Paint().setAntiAlias(true);
     private String cachedText = "";
     private float cachedTextWidth = 0f;
@@ -28,21 +30,34 @@ public class SettingLink extends SettingWidget {
     @Override public float getHeight() { return 24f; }
 
     @Override
+    public void update(float dt) {
+        press.update(dt);
+    }
+
+    @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         bgPaint.setColor(withAlpha(tc.buttonBackground, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(x, y, getWidth(), getHeight(), 6f), bgPaint);
         String text = label.get() + " \u203A";
         if (!text.equals(cachedText)) {
             cachedText = text;
             cachedTextWidth = FontRenderer.measureTextWidth(text, 12f);
         }
+        boolean pressed = press.apply(canvas, x, y, getWidth(), getHeight());
+        canvas.drawRRect(RRect.makeXYWH(x, y, getWidth(), getHeight(), 6f), bgPaint);
         FontRenderer.drawText(canvas, text, x + (getWidth() - cachedTextWidth) / 2f, y + 16f, 12f, withAlpha(tc.subModuleText, alpha));
+        if (pressed) canvas.restore();
+    }
+
+    @Override
+    public boolean isAnimating() {
+        return !press.isIdle();
     }
 
     @Override
     public boolean onClick(float mx, float my, float x, float y, int button) {
         if (button != 0) return false;
+        press.pulse();
         action.run();
         return true;
     }

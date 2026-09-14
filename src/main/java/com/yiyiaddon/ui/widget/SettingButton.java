@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.widget;
 
+import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.render.FontRenderer;
 import io.github.humbleui.skija.Canvas;
@@ -11,6 +12,7 @@ import java.util.function.Supplier;
 public class SettingButton extends SettingWidget {
     private final Supplier<String> label;
     private final Runnable action;
+    private final PressState press = new PressState();
     private float pressT = 0f;
     private final Paint bgPaint = new Paint().setAntiAlias(true);
     private String cachedText = "";
@@ -29,29 +31,37 @@ public class SettingButton extends SettingWidget {
     @Override public float getHeight() { return 24f; }
 
     @Override
+    public void update(float dt) {
+        press.update(dt);
+    }
+
+    @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
         pressT += (0f - pressT) * 0.18f;
         int accent = ClickGuiThemeColors.current().accent;
         int bgColor = lerpColor(accent, 0x000000, pressT * 0.18f);
         bgPaint.setColor(withAlpha(bgColor, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(x, y, getWidth(), getHeight(), 8f), bgPaint);
         String text = label.get();
         if (!text.equals(cachedText)) {
             cachedText = text;
             cachedTextWidth = FontRenderer.measureTextWidth(text, 11f);
         }
+        boolean pressed = press.apply(canvas, x, y, getWidth(), getHeight());
+        canvas.drawRRect(RRect.makeXYWH(x, y, getWidth(), getHeight(), 8f), bgPaint);
         FontRenderer.drawText(canvas, text, x + (getWidth() - cachedTextWidth) * 0.5f, y + 15.5f, 11f, withAlpha(0xFFFFFF, alpha));
+        if (pressed) canvas.restore();
     }
 
     @Override
     public boolean isAnimating() {
-        return pressT > 0.01f;
+        return pressT > 0.01f || !press.isIdle();
     }
 
     @Override
     public boolean onClick(float mx, float my, float x, float y, int button) {
         if (button != 0) return false;
         if (mx < x || mx > x + getWidth() || my < y || my > y + getHeight()) return false;
+        press.pulse();
         pressT = 1f;
         action.run();
         return true;

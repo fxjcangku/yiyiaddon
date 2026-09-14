@@ -1,6 +1,7 @@
 package com.yiyiaddon.ui.widget;
 
 import com.yiyiaddon.ui.UiText;
+import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
@@ -19,6 +20,9 @@ import java.util.function.Supplier;
 
 public class SettingTextBox extends SettingWidget {
     protected static SettingTextBox focused;
+
+    /** 焦点环过渡时间常数（秒）。 */
+    private static final float FOCUS_DURATION = 0.15f;
 
     private final Supplier<String> valueSupplier;
     private final Consumer<String> valueConsumer;
@@ -48,7 +52,6 @@ public class SettingTextBox extends SettingWidget {
     @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
         boolean active = focused == this;
-        focusAlpha += ((active ? 1f : 0f) - focusAlpha) * 0.22f;
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         int background = lerpColor(tc.searchBackground, tc.searchFocusedBackground, focusAlpha);
@@ -92,6 +95,9 @@ public class SettingTextBox extends SettingWidget {
         float linePulse = 0.3f + 0.7f * (0.5f + 0.5f * (float) Math.sin(cursorTime * 6f));
         linePaint.setColor(withAlpha(tc.searchCursor, alpha * focusAlpha * linePulse));
         canvas.drawRect(Rect.makeXYWH(x + 8f, y + getHeight() - 2f, getWidth() - 16f, 1f), linePaint);
+
+        // 获得输入焦点时描一圈强调色焦点环
+        GlassPanel.focusRing(canvas, x, y, getWidth(), getHeight(), 7f, tc.accent, alpha * focusAlpha);
     }
 
     /** 绘制 IME 预编辑串（拼音组合等）：跟随光标位置，带下划线。 */
@@ -118,6 +124,9 @@ public class SettingTextBox extends SettingWidget {
     @Override
     public void update(float dt) {
         cursorTime += dt;
+        // 焦点环过渡约 150ms（一个时间常数），帧率无关
+        focusAlpha += ((focused == this ? 1f : 0f) - focusAlpha) * Math.min(1f, dt / FOCUS_DURATION);
+        if (focusAlpha < 0.001f) focusAlpha = 0f;
     }
 
     @Override

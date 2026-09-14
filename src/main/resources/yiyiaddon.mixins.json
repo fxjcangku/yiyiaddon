@@ -4,8 +4,13 @@
   "package": "com.yiyiaddon.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ChatScreenCompletionMixin",
+    "ClientLevelPredictionAccessor",
+    "ConnectionPacketMixin",
     "GpuDeviceAccessor",
-    "RenderTargetMixin"
+    "ModelManagerReloadMixin",
+    "RenderTargetMixin",
+    "ResourcePackPushMixin"
   ],
   "injectors": {
     "defaultRequire": 1

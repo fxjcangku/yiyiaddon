@@ -27,7 +27,7 @@ public final class AddonConfig {
     private static final String FILE_NAME = "yiyiaddon.json";
 
     // —— UI 外观 ——
-    public static String uiTheme = "white";
+    public static String uiTheme = "apple_dark";
     public static int uiScale = 1;
     public static boolean panelBlur = true;
     public static float blurStrength = 0.6f;
@@ -40,18 +40,6 @@ public final class AddonConfig {
 
     // —— Baritone 汉化 ——
     public static boolean baritoneChinese = true;
-
-    // —— UI 测试值（仅用于验证控件行为，不参与任何游戏逻辑）——
-    public static boolean testToggle = true;
-    public static double testSlider = 35.0;
-    public static int testCycle = 0;
-    public static String testText = "yiyiaddon";
-    public static int testColorPrimary = 0xFF6D8CFF;
-    public static int testColorSecondary = 0xFFFF6B6B;
-    public static boolean testColorSplit = false;
-    public static String testKeybindAction = "测试快捷键";
-    public static boolean testCondition = true;
-    public static int testCounter = 0;
 
     private static boolean loaded;
 
@@ -81,16 +69,6 @@ public final class AddonConfig {
             scrollSpeed = number(json, "scrollSpeed", scrollSpeed);
             moduleKeybinds = string(json, "moduleKeybinds", moduleKeybinds);
             baritoneChinese = bool(json, "baritoneChinese", baritoneChinese);
-            testToggle = bool(json, "testToggle", testToggle);
-            testSlider = number(json, "testSlider", testSlider);
-            testCycle = integer(json, "testCycle", testCycle);
-            testText = string(json, "testText", testText);
-            testColorPrimary = integer(json, "testColorPrimary", testColorPrimary);
-            testColorSecondary = integer(json, "testColorSecondary", testColorSecondary);
-            testColorSplit = bool(json, "testColorSplit", testColorSplit);
-            testKeybindAction = string(json, "testKeybindAction", testKeybindAction);
-            testCondition = bool(json, "testCondition", testCondition);
-            testCounter = integer(json, "testCounter", testCounter);
         } catch (Exception ignored) {
             // 配置文件损坏：保持默认值，不阻断启动。
         }
@@ -107,16 +85,6 @@ public final class AddonConfig {
         json.addProperty("scrollSpeed", scrollSpeed);
         json.addProperty("moduleKeybinds", moduleKeybinds);
         json.addProperty("baritoneChinese", baritoneChinese);
-        json.addProperty("testToggle", testToggle);
-        json.addProperty("testSlider", testSlider);
-        json.addProperty("testCycle", testCycle);
-        json.addProperty("testText", testText);
-        json.addProperty("testColorPrimary", testColorPrimary);
-        json.addProperty("testColorSecondary", testColorSecondary);
-        json.addProperty("testColorSplit", testColorSplit);
-        json.addProperty("testKeybindAction", testKeybindAction);
-        json.addProperty("testCondition", testCondition);
-        json.addProperty("testCounter", testCounter);
         try {
             Path file = path();
             Files.createDirectories(file.getParent());
@@ -151,16 +119,6 @@ public final class AddonConfig {
         if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) return fallback;
         try {
             return element.getAsFloat();
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private static double number(JsonObject json, String key, double fallback) {
-        JsonElement element = json.get(key);
-        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) return fallback;
-        try {
-            return element.getAsDouble();
         } catch (NumberFormatException e) {
             return fallback;
         }

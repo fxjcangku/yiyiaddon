@@ -11,6 +11,7 @@ import java.util.Map;
 public class FontRenderer {
 
     public static final String DEFAULT = "harmony";
+    public static final String DEFAULT_BOLD = "harmony_bold";
     public static final String ICON = "icon";
     public static final String MATERIAL_SYMBOLS = "material_symbols";
 
@@ -22,6 +23,7 @@ public class FontRenderer {
 
     static {
         registerFromResources(DEFAULT, "/assets/yiyiaddon/fonts/harmony.ttf");
+        registerFromResources(DEFAULT_BOLD, "/assets/yiyiaddon/fonts/harmony_bold.ttf");
         registerFromResources(ICON, "/assets/yiyiaddon/fonts/icon.ttf");
         registerFromResources(MATERIAL_SYMBOLS, "/assets/yiyiaddon/fonts/MaterialSymbolsRounded.ttf");
     }
@@ -72,6 +74,16 @@ public class FontRenderer {
             drawText(canvas, seg.text, cursor, y, seg.size, seg.argb, seg.fontName);
             cursor += measureTextWidth(seg.text, seg.size, seg.fontName) + seg.gap;
         }
+    }
+
+    /** 用粗体字族绘制文本，用于标题层级。 */
+    public static void drawTextBold(Canvas canvas, String text, float x, float y, float size, int argb) {
+        drawText(canvas, text, x, y, size, argb, DEFAULT_BOLD);
+    }
+
+    /** 粗体文本宽度。 */
+    public static float measureTextWidthBold(String text, float size) {
+        return measureTextWidth(text, size, DEFAULT_BOLD);
     }
 
     public static float measureTextWidth(String text, float size) {

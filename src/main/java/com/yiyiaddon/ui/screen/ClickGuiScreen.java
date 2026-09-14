@@ -1,18 +1,27 @@
 package com.yiyiaddon.ui.screen;
 
 import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.UiText;
+import com.yiyiaddon.ui.anim.PressState;
+import com.yiyiaddon.ui.anim.Spring;
+import com.yiyiaddon.ui.component.BackButton;
+import com.yiyiaddon.ui.component.CardLayout;
+import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.component.PanelFrame;
+import com.yiyiaddon.ui.component.ScrollViewport;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
+import com.yiyiaddon.ui.navigation.PageRouter;
 import com.yiyiaddon.ui.page.BasePage;
+import com.yiyiaddon.ui.page.HomePage;
 import com.yiyiaddon.ui.page.InterfacePage;
+import com.yiyiaddon.ui.page.ModuleCenterPage;
 import com.yiyiaddon.ui.page.SearchResultsPage;
 import com.yiyiaddon.ui.page.SettingsPage;
-import com.yiyiaddon.ui.page.TestPage;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
 import com.yiyiaddon.ui.render.SkiaScreen;
-import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.theme.ClickGuiTheme;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
@@ -37,32 +46,50 @@ import java.util.List;
 /**
  * yiyiaddon ClickGUI 主界面。
  *
- * <p>界面结构、布局常量、动画曲线与交互方式移植自 PVPUtils 的
- * {@code client/gui/clickgui/NewSettingsScreen.java}（Source-Available Non-Commercial
- * License，署名见 NOTICE）。本阶段只做「可运行移植」：业务页面全部替换为 UI 测试页，
- * 未对视觉与布局做任何重新设计。</p>
+ * <p>左侧为固定主导航（首页 / 模块 / 界面 / 设置），右侧为内容区。面板内的页面切换是
+ * 瞬时切换：只绘制当前页面，页与页之间没有任何位移与交叉绘制，因此任意时刻绘制坐标都与
+ * 布局坐标一致。点击模块列表里的模块不再在面板内翻页，而是由 {@link ModuleScreen}
+ * 单独打开一个界面。</p>
+ *
+ * <p>面板几何与滚动分别由 {@link PanelFrame} 与 {@link ScrollViewport} 提供，
+ * 与模块页共用同一套尺寸、缩放与滚动行为。</p>
  *
  * <p>绘制时机见 {@link SkiaScreen}：extract 阶段只记录输入，帧末由 Mixin 触发 Skija 直绘。</p>
  */
 public class ClickGuiScreen extends SkiaScreen {
 
-    private static final String[] TAB_ICONS = {"\uE868", "\uE40A", "\uE8B8"};
-    private static final String[] TAB_ICON_FONTS = {FontRenderer.MATERIAL_SYMBOLS, FontRenderer.MATERIAL_SYMBOLS, FontRenderer.MATERIAL_SYMBOLS};
-    private static final String[] TAB_KEYS_ZH = {"测试", "界面", "设置"};
-    private static final String[] TAB_KEYS_EN = {"Test", "Interface", "Settings"};
+    private static final String[] NAV_ICONS = {"\uE88A", "\uE61D", "\uE429", "\uE8B8"};
+    private static final String[] NAV_KEYS_ZH = {"首页", "模块", "界面", "设置"};
+    private static final String[] NAV_KEYS_EN = {"Home", "Modules", "Interface", "Settings"};
 
-    private static final float OPEN_DURATION = 0.16f;
-    private static final float BASE_CARD_W = 740f;
-    private static final float BASE_CARD_H = 500f;
-    private static final float SCREEN_MARGIN = 24f;
+    /** 导航项与控件圆角，对齐苹果控件层级。 */
+    private static final float NAV_RADIUS = 10f;
+
+    /** 侧栏宽度。 */
+    private static final float SIDEBAR_W = 190f;
+    /** 内容区顶部相对面板的距离。 */
+    private static final float CONTENT_TOP = 66f;
+    /** 内容区头部高度（标题区），页面内容从其下方开始。 */
+    private static final float CONTENT_HEADER_H = 54f;
+    /** 内容底部留白，用于计算滚动上限。 */
+    private static final float CONTENT_BOTTOM_PAD = 12f;
+    /** 页面内容左内缩与右侧为滚动条预留的宽度。 */
+    private static final float PAGE_INSET_X = 10f;
+    private static final float PAGE_RESERVED_W = 40f;
+    /** 滚动条相对内容区的位置。 */
+    private static final float TRACK_INSET = 8f;
+    private static final float TRACK_TOP = 60f;
+    private static final float TRACK_BOTTOM_PAD = 8f;
+
     private static final float THUMB_SIZE = 96f;
     private static final float THUMB_GAP_X = 24f;
     private static final float THUMB_ROW_GAP = 42f;
     private static final int THUMB_COLS = 4;
 
-    private final List<BasePage> pages;
+    private final PageRouter router;
+    private final PanelFrame frame = new PanelFrame();
+    private final ScrollViewport scroll = new ScrollViewport();
 
-    private int selectedTab = 0;
     private int hoveredTab = -1;
     private boolean closeHovered = false;
     private boolean resetHovered = false;
@@ -71,84 +98,85 @@ public class ClickGuiScreen extends SkiaScreen {
     private boolean searchFocused = false;
     private String searchText = "";
     private BasePage searchResultsPage;
+    private boolean draggingInContent = false;
+    private boolean draggingScrollbar = false;
 
-    private final float[] tabHoverAlpha = new float[TAB_KEYS_ZH.length];
+    private final float[] tabHoverAlpha = new float[NAV_KEYS_ZH.length];
     private float closeHoverAlpha = 0f;
     private float resetHoverAlpha = 0f;
     private float indicatorY = -1f;
-    private float openProgress = 0f;
     private float searchFocusAlpha = 0f;
     private float searchTextOffset = 0f;
     private float searchCursorTime = 0f;
     private long lastRenderMs = 0;
-    private float animatedClickGuiScale = -1f;
-    private float lastDelta = 0f;
 
-    private float contentScrollOffset = 0f;
-    private float targetScrollOffset = 0f;
-    private boolean draggingInContent = false;
-    private boolean draggingScrollbar = false;
-    private float scrollbarDragOffset = 0f;
+    // —— 动画状态：滚动缓动、导航指示块弹簧、按压 ——
+    private final Spring indicatorSpring = Spring.critical(0.22f);
+    private final PressState[] navPress = new PressState[NAV_KEYS_ZH.length];
+    private final PressState closePress = new PressState();
+    private final PressState resetPress = new PressState();
+    private final BackButton backButton = new BackButton();
 
-    private final Paint cardPaint = new Paint().setAntiAlias(true);
-    private final Paint sidebarPaint = new Paint().setAntiAlias(true);
-    private final Paint dividerPaint = new Paint().setAntiAlias(true);
+    {
+        for (int i = 0; i < navPress.length; i++) navPress[i] = new PressState();
+    }
+
     private final Paint indicatorPaint = new Paint().setAntiAlias(true);
     private final Paint hoverPaint = new Paint().setAntiAlias(true);
     private final Paint resetBgPaint = new Paint().setAntiAlias(true);
     private final Paint closeBgPaint = new Paint().setAntiAlias(true);
-    private final Paint scrollbarTrackPaint = new Paint().setAntiAlias(true);
-    private final Paint scrollbarThumbPaint = new Paint().setAntiAlias(true);
     private final Paint searchBgPaint = new Paint().setAntiAlias(true);
     private final Paint searchLinePaint = new Paint().setAntiAlias(true);
     private final Paint thumbPaint = new Paint().setAntiAlias(true);
     private final Paint previewBorderPaint = new Paint().setAntiAlias(true).setMode(PaintMode.STROKE).setStrokeWidth(1.2f);
     private final SkiaGlBackend glBackend = new SkiaGlBackend();
     private final float resetIconWidth = FontRenderer.measureTextWidth("\uE042", 13f, FontRenderer.MATERIAL_SYMBOLS);
-    private final float themeBackIconWidth = FontRenderer.measureTextWidth("\uE5C4", 18f, FontRenderer.MATERIAL_SYMBOLS);
     private String cachedResetText = "";
     private float cachedResetTextWidth = 0f;
     private String cachedCloseText = "";
     private float cachedCloseTextWidth = 0f;
-    private BasePage cachedScrollPage = null;
-    private float cachedScrollContentH = Float.NaN;
-    private float cachedContentTotalHeight = 0f;
-    private float cachedScrollAreaHeight = 0f;
-    private float cachedScrollMax = 0f;
-    private int lastHoverSignature = Integer.MIN_VALUE;
 
     // 主题预览模式：右侧内容区显示全部主题缩略图（左侧功能栏保持不变）
     private boolean themePreviewMode = false;
     private int themeHoveredCard = -1;
-    private boolean themeBackHovered = false;
     private final List<ClickGuiTheme> previewThemes = new ArrayList<>(ClickGuiThemeManager.themes());
 
     public ClickGuiScreen(Screen parent) {
         super(Component.literal("yiyiaddon"), parent);
-        pages = new ArrayList<>(List.of(new TestPage(), new InterfacePage(), new SettingsPage()));
+        router = new PageRouter();
+        for (BasePage page : createRootPages()) router.addRoot(page);
+    }
+
+    /** 左侧导航的根页面，顺序与 NAV_KEYS 一一对应。 */
+    private List<BasePage> createRootPages() {
+        return List.of(new HomePage(), new ModuleCenterPage(router, this::openModuleScreen), new InterfacePage(), new SettingsPage());
+    }
+
+    /** 打开模块独立屏幕：把本界面作为返回目标交给模块页。 */
+    private void openModuleScreen(ModuleEntry entry) {
+        if (minecraft == null) return;
+        draggingInContent = false;
+        draggingScrollbar = false;
+        SettingTextBox.clearFocus();
+        minecraft.setScreen(new ModuleScreen(entry, this));
     }
 
     /** 重建当前分类的页面（重置后刷新控件状态）。 */
     public void rebuildCurrentPage() {
-        pages.set(selectedTab, switch (selectedTab) {
-            case 0 -> new TestPage();
-            case 1 -> new InterfacePage();
-            default -> new SettingsPage();
-        });
-        invalidateScrollLayout();
+        List<BasePage> roots = createRootPages();
+        router.replaceRoot(router.index(), roots.get(router.index()));
+        router.reset();
         applySearch();
     }
 
     // —— 布局 ——
 
     private float[] layout() {
-        int layoutWidth = layoutWidth();
-        int layoutHeight = layoutHeight();
-        float cardW = BASE_CARD_W;
-        float cardH = BASE_CARD_H;
-        float cardX = (layoutWidth - cardW) / 2f;
-        float cardY = (layoutHeight - cardH) / 2f;
-        float sidebarW = 190f;
+        float cardX = frame.cardX();
+        float cardY = frame.cardY();
+        float cardW = frame.cardWidth();
+        float cardH = frame.cardHeight();
+        float sidebarW = SIDEBAR_W;
         float tabStartY = cardY + 110f;
         float tabH = 38f;
         float tabGap = 2f;
@@ -160,8 +188,8 @@ public class ClickGuiScreen extends SkiaScreen {
         float closeX = cardX + 12f;
         float contentX = cardX + sidebarW + 1f;
         float contentW = cardW - sidebarW - 1f;
-        float contentY = cardY + 66f;
-        float contentH = cardH - 66f - 12f;
+        float contentY = cardY + CONTENT_TOP;
+        float contentH = cardH - CONTENT_TOP - CONTENT_BOTTOM_PAD;
         return new float[]{
                 cardX, cardY, cardW, cardH,
                 sidebarW, tabStartY, tabH, tabGap, tabW,
@@ -170,75 +198,29 @@ public class ClickGuiScreen extends SkiaScreen {
         };
     }
 
-    private float getUiScale() {
-        float fitX = Math.max(0.1f, (layoutWidth() - SCREEN_MARGIN) / BASE_CARD_W);
-        float fitY = Math.max(0.1f, (layoutHeight() - SCREEN_MARGIN) / BASE_CARD_H);
-        float fit = Math.min(1f, Math.min(fitX, fitY));
-        float guiScale = minecraft == null ? 2f : Math.max(1f, (float) minecraft.getWindow().getGuiScale());
-        float[] scales = {0.75f, 1.0f, 1.25f};
-        float targetScale = scales[Math.max(0, Math.min(AddonConfig.uiScale, scales.length - 1))];
-        if (animatedClickGuiScale < 0f) animatedClickGuiScale = targetScale;
-        animatedClickGuiScale += (targetScale - animatedClickGuiScale) * Math.min(1f, lastDelta * 12f);
-        if (Math.abs(animatedClickGuiScale - targetScale) < 0.001f) animatedClickGuiScale = targetScale;
-        return fit * 2f / guiScale * animatedClickGuiScale;
-    }
-
-    private float getVisualScale() {
-        return getUiScale() * (0.88f + 0.12f * easeOutCubic(openProgress));
-    }
-
-    private int layoutWidth() {
-        return minecraft == null ? Math.max(1, this.width) : Math.max(1, Math.round(minecraft.getWindow().getWidth() * 0.5f));
-    }
-
-    private int layoutHeight() {
-        return minecraft == null ? Math.max(1, this.height) : Math.max(1, Math.round(minecraft.getWindow().getHeight() * 0.5f));
-    }
-
     // —— 绘制 ——
+
+    @Override
+    protected void init() {
+        super.init();
+        // 先算一次几何，输入处理不必等第一帧
+        frame.update(minecraft, 0f);
+    }
 
     @Override
     protected void drawFrame(int width, int height, int mouseX, int mouseY, float delta) {
         if (minecraft == null) return;
-        renderPanelBlur();
         Canvas canvas = glBackend.begin(SkiaGlBackend.mainFramebufferId());
         if (canvas == null) return;
         try {
-            drawPanel(canvas, width, height, mouseX, mouseY, delta);
+            drawPanel(canvas, width, height, mouseX, mouseY);
         } finally {
             glBackend.end();
         }
     }
 
-    private void renderPanelBlur() {
-        if (!AddonConfig.panelBlur || minecraft == null) return;
-        float[] l = layout();
-        float visualScale = getVisualScale();
-        float panelX = this.width * 0.5f + (l[0] - layoutWidth() * 0.5f) * visualScale;
-        float panelY = this.height * 0.5f + (l[1] - layoutHeight() * 0.5f) * visualScale;
-        SkiaBlurRenderer.getInstance().render(minecraft, panelX, panelY, l[2] * visualScale, l[3] * visualScale,
-                16f * visualScale, AddonConfig.blurTintColor(), AddonConfig.blurStrength);
-    }
-
-    private float toLayoutX(double x, int width, float scale) {
-        return layoutWidth() * 0.5f + ((float) x - width * 0.5f) / scale;
-    }
-
-    private float toLayoutY(double y, int height, float scale) {
-        return layoutHeight() * 0.5f + ((float) y - height * 0.5f) / scale;
-    }
-
     private static float lerp(float a, float b, float t) {
         return a + (b - a) * Math.min(t, 1f);
-    }
-
-    private static float clamp01(float v) {
-        return Math.max(0f, Math.min(1f, v));
-    }
-
-    private static float easeOutCubic(float t) {
-        float x = 1f - clamp01(t);
-        return 1f - x * x * x;
     }
 
     private static int withAlpha(int color, float alpha) {
@@ -252,98 +234,55 @@ public class ClickGuiScreen extends SkiaScreen {
         return ((int) (ar + (br - ar) * t) << 16) | ((int) (ag + (bg - ag) * t) << 8) | (int) (ab + (bb - ab) * t);
     }
 
-    private float getContentTotalHeight(BasePage page) {
-        return 54f + page.getTotalHeight() + getVisibleModuleGapTotal(page) + 12f;
+    /** 导航项被选中指示块覆盖的程度，用于文字颜色过渡。 */
+    private float activationAt(float tabY, float itemHeight, float itemGap) {
+        float distance = Math.abs((indicatorY + itemHeight / 2f) - (tabY + itemHeight / 2f));
+        return Math.max(0f, Math.min(1f, 1f - distance / (itemHeight + itemGap)));
     }
 
-    private float getVisibleModuleGapTotal(BasePage page) {
-        int visibleCount = 0;
-        for (SettingModule m : page.getModules()) if (m.isVisible()) visibleCount++;
-        return visibleCount * 8f;
+    /** 切换页面或搜索时把滚动复位到顶部。 */
+    private void resetScroll() {
+        scroll.jumpTo(0f);
     }
 
-    private void updateScrollCache(BasePage page, float contentH) {
-        float contentTotalHeight = getContentTotalHeight(page);
-        if (cachedScrollPage == page
-                && cachedScrollContentH == contentH
-                && Math.abs(cachedContentTotalHeight - contentTotalHeight) < 0.01f) {
-            return;
-        }
-        cachedScrollPage = page;
-        cachedScrollContentH = contentH;
-        cachedContentTotalHeight = contentTotalHeight;
-        cachedScrollAreaHeight = contentH - 54f;
-        cachedScrollMax = Math.max(0f, cachedContentTotalHeight - cachedScrollAreaHeight);
-    }
-
-    private void invalidateScrollLayout() {
-        cachedScrollPage = null;
+    /** 按当前页面刷新滚动上限；内容总高与滚动条几何保持一致。 */
+    private void refreshScroll() {
+        BasePage page = activePage();
+        float contentH = layout()[17];
+        scroll.layout(CONTENT_HEADER_H + page.getTotalHeight() + page.getVisibleSpacing() + CONTENT_BOTTOM_PAD,
+                contentH - CONTENT_HEADER_H);
     }
 
     @Override
     public void removed() {
         SettingTextBox.clearFocus();
         ImeBridge.reset();
+        draggingInContent = false;
+        draggingScrollbar = false;
         glBackend.destroy();
         AddonConfig.save();
         super.removed();
     }
 
-    private int computeHoverSignature(double mouseX, double mouseY) {
-        float visualScale = getVisualScale();
-        float mx = toLayoutX(mouseX, this.width, visualScale);
-        float my = toLayoutY(mouseY, this.height, visualScale);
-        float[] l = layout();
-        float cardX = l[0];
-        float tabStartY = l[5], tabH = l[6], tabGap = l[7], tabW = l[8];
-        float closeX = l[9], closeY = l[10], closeH = l[11];
-        float resetY = l[12], resetH = l[13];
-
-        int hovered = -1;
-        for (int i = 0; i < TAB_KEYS_ZH.length; i++) {
-            float ty = tabStartY + i * (tabH + tabGap);
-            if (mx >= cardX + 12f && mx <= cardX + 12f + tabW && my >= ty && my <= ty + tabH) {
-                hovered = i;
-                break;
-            }
-        }
-
-        boolean close = mx >= closeX && mx <= closeX + tabW && my >= closeY && my <= closeY + closeH;
-        boolean reset = mx >= closeX && mx <= closeX + tabW && my >= resetY && my <= resetY + resetH;
-
-        int signature = hovered + 2;
-        if (close) signature |= 1 << 8;
-        if (reset) signature |= 1 << 9;
-        return signature;
-    }
-
-    private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY, float delta) {
+    private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY) {
         long now = System.currentTimeMillis();
-        float dt = lastRenderMs == 0 ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
+        float dt = lastRenderMs == 0L ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
         lastRenderMs = now;
-        lastDelta = dt;
 
-        if (closingRequested) {
-            openProgress = clamp01(openProgress - dt / OPEN_DURATION);
-            if (openProgress < 0.005f) {
-                super.closing();
-                return;
-            }
-        } else {
-            openProgress = clamp01(openProgress + dt / OPEN_DURATION);
+        if (frame.update(minecraft, dt)) {
+            // 关闭动画播完，交回上级界面
+            super.closing();
+            return;
         }
 
-        float animT = easeOutCubic(openProgress);
-        float animationScale = 0.88f + 0.12f * animT;
-        float visualScale = getUiScale() * animationScale;
-        float cardRadius = 16f / animationScale;
-        float layoutMouseX = toLayoutX(mouseX, width, visualScale);
-        float layoutMouseY = toLayoutY(mouseY, height, visualScale);
+        float animT = frame.animationAlpha();
+        float cardRadius = frame.cardRadius();
+        float layoutMouseX = frame.toDesignX(mouseX, width);
+        float layoutMouseY = frame.toDesignY(mouseY, height);
         float[] l = layout();
         BasePage currentPage = activePage();
-        updateScrollCache(currentPage, l[17]);
-        targetScrollOffset = Math.min(targetScrollOffset, cachedScrollMax);
-        contentScrollOffset = lerp(contentScrollOffset, targetScrollOffset, dt * 18f);
+        refreshScroll();
+        scroll.update(dt);
         float cardX = l[0], cardY = l[1], cardW = l[2], cardH = l[3];
         float sidebarW = l[4], tabStartY = l[5], tabH = l[6], tabGap = l[7], tabW = l[8];
         float closeX = l[9], closeY = l[10], closeH = l[11], resetY = l[12], resetH = l[13];
@@ -353,7 +292,7 @@ public class ClickGuiScreen extends SkiaScreen {
         hoveredTab = -1;
         closeHovered = false;
         resetHovered = false;
-        for (int i = 0; i < TAB_KEYS_ZH.length; i++) {
+        for (int i = 0; i < NAV_KEYS_ZH.length; i++) {
             float ty = tabStartY + i * (tabH + tabGap);
             if (layoutMouseX >= cardX + 12f && layoutMouseX <= cardX + 12f + tabW && layoutMouseY >= ty && layoutMouseY <= ty + tabH)
                 hoveredTab = i;
@@ -362,10 +301,9 @@ public class ClickGuiScreen extends SkiaScreen {
             closeHovered = true;
         if (layoutMouseX >= closeX && layoutMouseX <= closeX + tabW && layoutMouseY >= resetY && layoutMouseY <= resetY + resetH)
             resetHovered = true;
-        themeBackHovered = themePreviewMode && isThemeBackButton(layoutMouseX, layoutMouseY, contentX, contentY, contentW);
 
-        for (int i = 0; i < TAB_KEYS_ZH.length; i++) {
-            float target = (i == hoveredTab && i != selectedTab) ? 1f : 0f;
+        for (int i = 0; i < NAV_KEYS_ZH.length; i++) {
+            float target = (i == hoveredTab && i != router.index()) ? 1f : 0f;
             tabHoverAlpha[i] = lerp(tabHoverAlpha[i], target, dt * 12f);
         }
         closeHoverAlpha = lerp(closeHoverAlpha, closeHovered ? 1f : 0f, dt * 12f);
@@ -373,112 +311,152 @@ public class ClickGuiScreen extends SkiaScreen {
         searchFocusAlpha = lerp(searchFocusAlpha, searchFocused ? 1f : 0f, dt * 14f);
         searchCursorTime += dt;
 
-        float targetIndicatorY = tabStartY + selectedTab * (tabH + tabGap);
-        if (indicatorY < 0f) indicatorY = targetIndicatorY;
-        indicatorY = lerp(indicatorY, targetIndicatorY, dt * 12f);
+        // 选中指示块用临界阻尼弹簧滑到当前导航项，约 220ms
+        float targetIndicatorY = tabStartY + router.index() * (tabH + tabGap);
+        if (indicatorY < 0f) {
+            indicatorY = targetIndicatorY;
+            indicatorSpring.set(targetIndicatorY);
+        }
+        indicatorSpring.setTarget(targetIndicatorY);
+        indicatorSpring.update(dt);
+        indicatorY = indicatorSpring.value();
 
         currentPage.update(dt);
+        backButton.update(layoutMouseX, layoutMouseY, backButtonX(contentX, contentW),
+                backButtonY(contentY), dt, backButtonVisible());
 
         float alpha = animT;
-        float cx = width / 2f;
-        float cy = height / 2f;
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
 
+        // 面板变换、窗口裁剪、内容裁剪三层 save 与 finally 中的三次 restore 严格配对
         canvas.save();
-        canvas.translate(cx, cy);
-        canvas.scale(visualScale, visualScale);
-        canvas.translate(-layoutWidth() * 0.5f, -layoutHeight() * 0.5f);
+        frame.applyTransform(canvas, width, height);
+        try {
+            // 窗口底座：霜化玻璃 + 外投影；关闭模糊时底色加厚，避免变成一层没磨砂的透明纸
+            GlassPanel.shadow(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.shadow, alpha, 1.15f);
+            GlassPanel.frost(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.window,
+                    AddonConfig.panelBlur ? 0.62f : 0.94f, alpha);
 
-        float panelAlpha = AddonConfig.panelBlur ? alpha * 0.52f : alpha;
-        cardPaint.setColor(withAlpha(tc.window, panelAlpha));
-        canvas.drawRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), cardPaint);
+            canvas.save();
+            canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);
+            try {
+                // 整窗高光：玻璃边缘的细亮线
+                GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.20f);
 
-        // 缩放动画期间让所有子表面保持在同一个圆角卡片内
-        canvas.save();
-        canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);
+                FontRenderer.drawTextBold(canvas, "yiyiaddon", cardX + 18f, cardY + 38f, 17f, withAlpha(tc.primaryText, alpha));
+                FontRenderer.drawText(canvas, UiText.t("在下方调整设置...", "Adjust the settings below..."), cardX + 18f, cardY + 55f, 11f, withAlpha(tc.labelTertiary, alpha));
+                drawSearchBox(canvas, searchX, searchY, searchW, searchH, alpha, dt, tc);
 
-        sidebarPaint.setColor(withAlpha(tc.sidebar, AddonConfig.panelBlur ? alpha * 0.44f : alpha));
-        canvas.save();
-        canvas.clipRRect(RRect.makeXYWH(cardX, cardY, sidebarW, cardH, cardRadius), true);
-        canvas.drawRect(Rect.makeXYWH(cardX, cardY, sidebarW, cardH), sidebarPaint);
-        canvas.restore();
+                // 选中指示块滑到当前导航项，项内文字随滑块位置在普通色与反色之间过渡
+                indicatorPaint.setColor(withAlpha(tc.accent, alpha));
+                canvas.drawRRect(RRect.makeXYWH(cardX + 12f, indicatorY, tabW, tabH, NAV_RADIUS), indicatorPaint);
 
-        dividerPaint.setColor(withAlpha(tc.border, alpha));
-        canvas.drawRect(Rect.makeXYWH(cardX + sidebarW, cardY + 14f, 1f, cardH - 28f), dividerPaint);
+                for (int i = 0; i < NAV_KEYS_ZH.length; i++) {
+                    float tabY = tabStartY + i * (tabH + tabGap);
+                    boolean active = i == router.index();
+                    PressState press = navPress[i];
+                    press.update(dt);
+                    boolean pressed = press.applyAt(canvas, cardX + 12f + tabW / 2f, tabY + tabH / 2f);
+                    if (!active && tabHoverAlpha[i] > 0.01f) {
+                        hoverPaint.setColor(withAlpha(tc.hoverBackground, ClickGuiThemeColors.panelBackgroundAlpha(alpha * tabHoverAlpha[i])));
+                        canvas.drawRRect(RRect.makeXYWH(cardX + 12f, tabY, tabW, tabH, NAV_RADIUS), hoverPaint);
+                    }
+                    float activated = activationAt(tabY, tabH, tabGap);
+                    int iconColor = withAlpha(lerpColor(tc.inactiveIcon, tc.accentOn, activated), alpha);
+                    int textColor = withAlpha(lerpColor(tc.inactiveText, tc.accentOn, activated), alpha);
+                    FontRenderer.drawText(canvas, NAV_ICONS[i], cardX + 18f, tabY + tabH / 2f + 6f, 13f, iconColor, FontRenderer.MATERIAL_SYMBOLS);
+                    FontRenderer.drawText(canvas, UiText.t(NAV_KEYS_ZH[i], NAV_KEYS_EN[i]), cardX + 38f, tabY + tabH / 2f + 6f, 13f, textColor);
+                    if (pressed) canvas.restore();
+                }
 
-        FontRenderer.drawText(canvas, "yiyiaddon", cardX + 18f, cardY + 38f, 16f, withAlpha(tc.primaryText, alpha));
-        FontRenderer.drawText(canvas, UiText.t("在下方调整设置...", "Adjust the settings below..."), cardX + 18f, cardY + 54f, 10f, withAlpha(tc.secondaryText, alpha));
-        drawSearchBox(canvas, searchX, searchY, searchW, searchH, alpha, dt, tc);
+                int closeBgColor = lerpColor(tc.buttonBackground, tc.dangerHoverBackground, closeHoverAlpha);
+                int closeTextColor = lerpColor(tc.buttonText, tc.dangerHoverText, closeHoverAlpha);
+                int resetBgColor = lerpColor(tc.buttonBackground, tc.dangerHoverBackground, resetHoverAlpha);
+                int resetTextColor = lerpColor(tc.buttonText, tc.dangerHoverText, resetHoverAlpha);
+                resetPress.update(dt);
+                boolean resetPressed = resetPress.apply(canvas, closeX, resetY, tabW, resetH);
+                resetBgPaint.setColor(withAlpha(resetBgColor, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
+                canvas.drawRRect(RRect.makeXYWH(closeX, resetY, tabW, resetH, NAV_RADIUS), resetBgPaint);
+                String resetText = resetConfirm ? UiText.t("再次点击以确认", "Click Again to Confirm") : UiText.t("重置界面设置", "Reset UI Settings");
+                if (!resetText.equals(cachedResetText)) {
+                    cachedResetText = resetText;
+                    cachedResetTextWidth = FontRenderer.measureTextWidth(resetText, 12f);
+                }
+                float resetTotalW = resetIconWidth + 6f + cachedResetTextWidth;
+                float resetStartX = closeX + (tabW - resetTotalW) / 2f;
+                FontRenderer.drawText(canvas, "\uE042", resetStartX, resetY + 22f, 13f, withAlpha(resetTextColor, alpha), FontRenderer.MATERIAL_SYMBOLS);
+                FontRenderer.drawText(canvas, resetText, resetStartX + resetIconWidth + 6f, resetY + 22f, 12f, withAlpha(resetTextColor, alpha));
+                if (resetPressed) canvas.restore();
 
-        indicatorPaint.setColor(withAlpha(tc.indicator, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(cardX + 12f, indicatorY, tabW, tabH, 8f), indicatorPaint);
+                closePress.update(dt);
+                boolean closePressed = closePress.apply(canvas, closeX, closeY, tabW, closeH);
+                closeBgPaint.setColor(withAlpha(closeBgColor, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
+                canvas.drawRRect(RRect.makeXYWH(closeX, closeY, tabW, closeH, NAV_RADIUS), closeBgPaint);
+                String closeText = UiText.t("× 关闭", "× Close");
+                if (!closeText.equals(cachedCloseText)) {
+                    cachedCloseText = closeText;
+                    cachedCloseTextWidth = FontRenderer.measureTextWidth(closeText, 12f);
+                }
+                FontRenderer.drawText(canvas, closeText, closeX + (tabW - cachedCloseTextWidth) / 2f, closeY + 22f, 12f, withAlpha(closeTextColor, alpha));
+                if (closePressed) canvas.restore();
 
-        for (int i = 0; i < TAB_KEYS_ZH.length; i++) {
-            float tabY = tabStartY + i * (tabH + tabGap);
-            if (tabHoverAlpha[i] > 0.01f) {
-                hoverPaint.setColor(withAlpha(tc.hoverBackground, ClickGuiThemeColors.panelBackgroundAlpha(alpha * tabHoverAlpha[i])));
-                canvas.drawRRect(RRect.makeXYWH(cardX + 12f, tabY, tabW, tabH, 8f), hoverPaint);
+                if (themePreviewMode) {
+                    FontRenderer.drawTextBold(canvas, UiText.t("面板主题", "Panel Theme"), contentX + 18f, contentY + 27f, 19f, withAlpha(tc.primaryText, alpha));
+                    FontRenderer.drawText(canvas, UiText.t("点击缩略图切换面板配色", "Click a thumbnail to switch the panel theme"), contentX + 18f, contentY + 44f, 11f, withAlpha(tc.secondaryText, alpha));
+                } else {
+                    drawPageHeader(canvas, currentPage, contentX, contentY, contentW, alpha, tc);
+                }
+
+                backButton.draw(canvas, backButtonX(contentX, contentW), backButtonY(contentY), alpha, tc, backButtonVisible());
+
+                // 内容区：只绘制当前页面，绘制坐标就是布局坐标
+                canvas.save();
+                canvas.clipRect(Rect.makeXYWH(contentX, contentY + CONTENT_HEADER_H, contentW, contentH - CONTENT_HEADER_H));
+                try {
+                    if (themePreviewMode) {
+                        drawThemePreviewGrid(canvas, contentX, contentY, contentW, alpha, layoutMouseX, layoutMouseY);
+                    } else {
+                        currentPage.draw(canvas, contentX + PAGE_INSET_X, contentY + CONTENT_HEADER_H,
+                                contentW - PAGE_RESERVED_W, contentH - CONTENT_HEADER_H, alpha, scroll.value(),
+                                layoutMouseX, layoutMouseY);
+                    }
+                } finally {
+                    canvas.restore();
+                }
+                if (!themePreviewMode) {
+                    scroll.drawScrollbar(canvas, contentX + contentW - TRACK_INSET, contentY + TRACK_TOP,
+                            contentH - TRACK_TOP - TRACK_BOTTOM_PAD, alpha, tc);
+                }
+            } finally {
+                canvas.restore();
             }
-            boolean active = i == selectedTab;
-            int iconColor = active ? withAlpha(tc.accent, alpha) : withAlpha(tc.inactiveIcon, alpha);
-            int textColor = active ? withAlpha(tc.accent, alpha) : withAlpha(tc.inactiveText, alpha);
-            FontRenderer.drawText(canvas, TAB_ICONS[i], cardX + 18f, tabY + tabH / 2f + 6f, 13f, iconColor, TAB_ICON_FONTS[i]);
-            FontRenderer.drawText(canvas, UiText.t(TAB_KEYS_ZH[i], TAB_KEYS_EN[i]), cardX + 38f, tabY + tabH / 2f + 6f, 13f, textColor);
+        } finally {
+            canvas.restore();
         }
+    }
 
-        int closeBgColor = lerpColor(tc.buttonBackground, tc.dangerHoverBackground, closeHoverAlpha);
-        int closeTextColor = lerpColor(tc.buttonText, tc.dangerHoverText, closeHoverAlpha);
-        int resetBgColor = lerpColor(tc.buttonBackground, tc.dangerHoverBackground, resetHoverAlpha);
-        int resetTextColor = lerpColor(tc.buttonText, tc.dangerHoverText, resetHoverAlpha);
-        resetBgPaint.setColor(withAlpha(resetBgColor, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(closeX, resetY, tabW, resetH, 8f), resetBgPaint);
-        String resetText = resetConfirm ? UiText.t("再次点击以确认", "Click Again to Confirm") : UiText.t("重置界面设置", "Reset UI Settings");
-        if (!resetText.equals(cachedResetText)) {
-            cachedResetText = resetText;
-            cachedResetTextWidth = FontRenderer.measureTextWidth(resetText, 12f);
-        }
-        float resetTotalW = resetIconWidth + 6f + cachedResetTextWidth;
-        float resetStartX = closeX + (tabW - resetTotalW) / 2f;
-        FontRenderer.drawText(canvas, "\uE042", resetStartX, resetY + 22f, 13f, withAlpha(resetTextColor, alpha), FontRenderer.MATERIAL_SYMBOLS);
-        FontRenderer.drawText(canvas, resetText, resetStartX + resetIconWidth + 6f, resetY + 22f, 12f, withAlpha(resetTextColor, alpha));
+    /** 内容区头部：页面标题与副标题。 */
+    private void drawPageHeader(Canvas canvas, BasePage page, float contentX, float contentY, float contentW,
+                                float alpha, ClickGuiThemeColors tc) {
+        if (page == null || alpha <= 0.01f) return;
+        FontRenderer.drawTextBold(canvas, page.getTitle(), contentX + 18f, contentY + 27f, 19f, withAlpha(tc.primaryText, alpha));
+        FontRenderer.drawText(canvas, CardLayout.ellipsize(page.getSubtitle(), contentW - 100f, 11f),
+                contentX + 18f, contentY + 44f, 11f, withAlpha(tc.secondaryText, alpha));
+    }
 
-        closeBgPaint.setColor(withAlpha(closeBgColor, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(closeX, closeY, tabW, closeH, 8f), closeBgPaint);
-        String closeText = UiText.t("× 关闭", "× Close");
-        if (!closeText.equals(cachedCloseText)) {
-            cachedCloseText = closeText;
-            cachedCloseTextWidth = FontRenderer.measureTextWidth(closeText, 12f);
-        }
-        FontRenderer.drawText(canvas, closeText, closeX + (tabW - cachedCloseTextWidth) / 2f, closeY + 22f, 12f, withAlpha(closeTextColor, alpha));
+    // —— 返回按钮几何 ——
 
-        if (themePreviewMode) {
-            FontRenderer.drawText(canvas, UiText.t("面板主题", "Panel Theme"), contentX + 18f, contentY + 26f, 18f, withAlpha(tc.primaryText, alpha));
-            FontRenderer.drawText(canvas, UiText.t("点击缩略图切换面板配色", "Click a thumbnail to switch the panel theme"), contentX + 18f, contentY + 42f, 10f, withAlpha(tc.secondaryText, alpha));
-            float backX = themeBackX(contentX, contentW);
-            hoverPaint.setColor(withAlpha(themeBackHovered ? tc.hoverBackground : tc.subModule, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-            canvas.drawRRect(RRect.makeXYWH(backX, contentY + 12f, 28f, 28f, 6f), hoverPaint);
-            FontRenderer.drawText(canvas, "\uE5C4", backX + (28f - themeBackIconWidth) / 2f, contentY + 35f, 18f, withAlpha(tc.primaryText, alpha), FontRenderer.MATERIAL_SYMBOLS);
-        } else {
-            FontRenderer.drawText(canvas, currentPage.getTitle(), contentX + 18f, contentY + 26f, 18f, withAlpha(tc.primaryText, alpha));
-            FontRenderer.drawText(canvas, currentPage.getSubtitle(), contentX + 18f, contentY + 42f, 10f, withAlpha(tc.secondaryText, alpha));
-        }
+    /** 返回按钮是否可用：主题预览与下钻页面都需要它。 */
+    private boolean backButtonVisible() {
+        return themePreviewMode || router.canGoBack();
+    }
 
-        float clipTop = contentY + 54f;
-        float clipBottom = contentY + contentH;
-        canvas.save();
-        canvas.clipRect(Rect.makeXYWH(contentX, clipTop, contentW, clipBottom - clipTop));
+    private static float backButtonX(float contentX, float contentW) {
+        return contentX + contentW - 40f;
+    }
 
-        if (themePreviewMode) {
-            drawThemePreviewGrid(canvas, contentX, contentY, contentW, alpha, layoutMouseX, layoutMouseY);
-        } else {
-            float moduleStartY = contentY + 54f;
-            currentPage.draw(canvas, contentX + 10f, moduleStartY, contentW - 40f, contentH - 54f, alpha, contentScrollOffset, layoutMouseX, layoutMouseY);
-            drawScrollbar(canvas, currentPage, contentX, contentY, contentW, contentH, alpha, tc);
-        }
-
-        canvas.restore();
-        canvas.restore();
-        canvas.restore();
+    private static float backButtonY(float contentY) {
+        return contentY + 12f;
     }
 
     // —— 主题预览网格 ——
@@ -504,7 +482,7 @@ public class ClickGuiScreen extends SkiaScreen {
 
     private void drawThemePreviewGrid(Canvas canvas, float contentX, float contentY, float contentW, float alpha, float mouseX, float mouseY) {
         float gridX = contentX + (contentW - previewGridWidth()) / 2f;
-        float gridY = contentY + 54f + 30f;
+        float gridY = contentY + CONTENT_HEADER_H + 30f;
         themeHoveredCard = -1;
         String currentId = ClickGuiThemeManager.currentId();
         for (int i = 0; i < previewThemes.size(); i++) {
@@ -550,29 +528,11 @@ public class ClickGuiScreen extends SkiaScreen {
         FontRenderer.drawText(canvas, name, cx + (THUMB_SIZE - nw) / 2f, cy + THUMB_SIZE + 17f, 12f, withAlpha(ClickGuiThemeColors.current().primaryText, alpha));
     }
 
-    private void drawScrollbar(Canvas canvas, BasePage page, float contentX, float contentY, float contentW, float contentH, float alpha, ClickGuiThemeColors tc) {
-        updateScrollCache(page, contentH);
-        if (cachedContentTotalHeight <= cachedScrollAreaHeight) return;
-
-        float trackX = contentX + contentW - 8f;
-        float trackTop = contentY + 60f;
-        float trackH = contentH - 60f - 8f;
-        float thumbH = Math.max(20f, trackH * cachedScrollAreaHeight / cachedContentTotalHeight);
-        float maxScroll = Math.max(1f, cachedScrollMax);
-        float progress = Math.min(1f, contentScrollOffset / maxScroll);
-        float thumbTop = trackTop + (trackH - thumbH) * progress;
-        thumbTop = Math.min(thumbTop, trackTop + trackH - thumbH);
-
-        scrollbarTrackPaint.setColor(withAlpha(tc.scrollbarTrack, alpha * 0.5f));
-        canvas.drawRRect(RRect.makeXYWH(trackX, trackTop, 4f, trackH, 2f), scrollbarTrackPaint);
-        scrollbarThumbPaint.setColor(withAlpha(tc.scrollbarThumb, alpha));
-        canvas.drawRRect(RRect.makeXYWH(trackX, thumbTop, 4f, thumbH, 2f), scrollbarThumbPaint);
-    }
-
     private void drawSearchBox(Canvas canvas, float x, float y, float width, float height, float alpha, float dt, ClickGuiThemeColors tc) {
         int background = lerpColor(tc.searchBackground, tc.searchFocusedBackground, searchFocusAlpha);
         searchBgPaint.setColor(withAlpha(background, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(x, y, width, height, 7f), searchBgPaint);
+        canvas.drawRRect(RRect.makeXYWH(x, y, width, height, 10f), searchBgPaint);
+        GlassPanel.rim(canvas, x, y, width, height, 10f, tc.rim, alpha, 0.05f);
 
         FontRenderer.drawText(canvas, "\uE8B6", x + 9f, y + 19f, 12f, withAlpha(tc.searchIcon, alpha), FontRenderer.MATERIAL_SYMBOLS);
         float textX = x + 28f;
@@ -598,19 +558,22 @@ public class ClickGuiScreen extends SkiaScreen {
         float linePulse = 0.3f + 0.7f * (0.5f + 0.5f * (float) Math.sin(searchCursorTime * 6f));
         searchLinePaint.setColor(withAlpha(tc.searchCursor, alpha * searchFocusAlpha * linePulse));
         canvas.drawRect(Rect.makeXYWH(x + 8f, y + height - 2f, width - 16f, 1f), searchLinePaint);
+
+        // 搜索框获得焦点时描一圈强调色焦点环
+        GlassPanel.focusRing(canvas, x, y, width, height, 10f, tc.accent, alpha * searchFocusAlpha);
     }
 
     // —— 搜索 ——
 
     private void applySearch() {
-        for (BasePage page : pages) {
+        for (BasePage page : router.roots()) {
             page.setSearchQuery(searchText);
         }
         if (searchText.isBlank()) {
             searchResultsPage = null;
         } else {
             List<SettingModule> results = new ArrayList<>();
-            for (BasePage page : pages) {
+            for (BasePage page : router.roots()) {
                 for (SettingModule module : page.getModules()) {
                     if (module.isVisible() && module.matchesSearch(searchText)) {
                         results.add(module);
@@ -619,13 +582,11 @@ public class ClickGuiScreen extends SkiaScreen {
             }
             searchResultsPage = new SearchResultsPage(searchText, results);
         }
-        targetScrollOffset = 0f;
-        contentScrollOffset = 0f;
-        invalidateScrollLayout();
+        resetScroll();
     }
 
     private BasePage activePage() {
-        return searchResultsPage == null ? pages.get(selectedTab) : searchResultsPage;
+        return searchResultsPage == null ? router.current() : searchResultsPage;
     }
 
     private void clearSearch() {
@@ -639,26 +600,12 @@ public class ClickGuiScreen extends SkiaScreen {
     public void openThemePreview() {
         clearSearch();
         themePreviewMode = true;
-        targetScrollOffset = 0f;
-        contentScrollOffset = 0f;
-        invalidateScrollLayout();
+        resetScroll();
     }
 
     private void closeThemePreview() {
         themePreviewMode = false;
-        themeBackHovered = false;
-        targetScrollOffset = 0f;
-        contentScrollOffset = 0f;
-        invalidateScrollLayout();
-    }
-
-    private static float themeBackX(float contentX, float contentW) {
-        return contentX + contentW - 40f;
-    }
-
-    private static boolean isThemeBackButton(float mouseX, float mouseY, float contentX, float contentY, float contentW) {
-        float x = themeBackX(contentX, contentW);
-        return mouseX >= x && mouseX <= x + 28f && mouseY >= contentY + 12f && mouseY <= contentY + 40f;
+        resetScroll();
     }
 
     private void setSearchFocused(boolean focused) {
@@ -669,68 +616,14 @@ public class ClickGuiScreen extends SkiaScreen {
         ImeBridge.setTextInputActive(focused);
     }
 
-    // —— 滚动条几何 ——
-
-    private boolean hasScrollbar(BasePage page, float contentH) {
-        updateScrollCache(page, contentH);
-        return cachedContentTotalHeight > cachedScrollAreaHeight;
-    }
-
-    private float scrollbarTrackX(float contentX, float contentW) {
-        return contentX + contentW - 8f;
-    }
-
-    private float scrollbarTrackTop(float contentY) {
-        return contentY + 60f;
-    }
-
-    private float scrollbarTrackH(float contentH) {
-        return contentH - 60f - 8f;
-    }
-
-    private float scrollbarThumbH(BasePage page, float contentH) {
-        updateScrollCache(page, contentH);
-        return Math.max(20f, scrollbarTrackH(contentH) * cachedScrollAreaHeight / cachedContentTotalHeight);
-    }
-
-    private float scrollbarThumbTop(BasePage page, float contentY, float contentH) {
-        updateScrollCache(page, contentH);
-        float trackTop = scrollbarTrackTop(contentY);
-        float trackH = scrollbarTrackH(contentH);
-        float thumbH = scrollbarThumbH(page, contentH);
-        float maxScroll = Math.max(1f, cachedScrollMax);
-        float progress = Math.min(1f, targetScrollOffset / maxScroll);
-        return Math.min(trackTop + (trackH - thumbH) * progress, trackTop + trackH - thumbH);
-    }
-
-    private boolean isInScrollbar(float mx, float my, float contentX, float contentY, float contentW, float contentH) {
-        float x = scrollbarTrackX(contentX, contentW) - 6f;
-        float top = scrollbarTrackTop(contentY);
-        float h = scrollbarTrackH(contentH);
-        return mx >= x && mx <= x + 16f && my >= top && my <= top + h;
-    }
-
-    private void setScrollFromScrollbar(BasePage page, float my, float contentY, float contentH) {
-        updateScrollCache(page, contentH);
-        float maxScroll = cachedScrollMax;
-        float trackTop = scrollbarTrackTop(contentY);
-        float trackH = scrollbarTrackH(contentH);
-        float thumbH = scrollbarThumbH(page, contentH);
-        float available = Math.max(1f, trackH - thumbH);
-        float thumbTop = Math.max(trackTop, Math.min(my - scrollbarDragOffset, trackTop + available));
-        targetScrollOffset = maxScroll * ((thumbTop - trackTop) / available);
-    }
-
     // —— 输入 ——
 
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (ModuleKeybindManager.captureKey(event.key())) {
-            invalidateScrollLayout();
             return true;
         }
         if (SettingTextBox.keyPressed(event)) {
-            invalidateScrollLayout();
             return true;
         }
         if (themePreviewMode && event.isEscape()) {
@@ -747,13 +640,18 @@ public class ClickGuiScreen extends SkiaScreen {
             }
             return true;
         }
+        if (event.isEscape() && router.canGoBack()) {
+            // 返回上一级
+            router.back();
+            resetScroll();
+            return true;
+        }
         return super.keyPressed(event);
     }
 
     @Override
     public boolean charTyped(CharacterEvent event) {
         if (SettingTextBox.charTyped(event)) {
-            invalidateScrollLayout();
             return true;
         }
         if (!searchFocused) {
@@ -778,15 +676,7 @@ public class ClickGuiScreen extends SkiaScreen {
         SettingTextBox.clearFocus();
         clearSearch();
         closingRequested = true;
-    }
-
-    @Override
-    public void mouseMoved(double mouseX, double mouseY) {
-        int hoverSignature = computeHoverSignature(mouseX, mouseY);
-        if (hoverSignature != lastHoverSignature) {
-            lastHoverSignature = hoverSignature;
-            invalidateScrollLayout();
-        }
+        frame.beginClose();
     }
 
     @Override
@@ -796,16 +686,14 @@ public class ClickGuiScreen extends SkiaScreen {
         if (ModuleKeybindManager.captureMouseButton(button)) {
             draggingInContent = false;
             draggingScrollbar = false;
-            invalidateScrollLayout();
             return true;
         }
         if (button > GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
             return true;
         }
 
-        float visualScale = getVisualScale();
-        float mx = toLayoutX(event.x(), this.width, visualScale);
-        float my = toLayoutY(event.y(), this.height, visualScale);
+        float mx = frame.toDesignX(event.x(), this.width);
+        float my = frame.toDesignY(event.y(), this.height);
         float[] l = layout();
         float cardX = l[0];
         float sidebarW = l[4], tabStartY = l[5], tabH = l[6], tabGap = l[7], tabW = l[8];
@@ -820,39 +708,46 @@ public class ClickGuiScreen extends SkiaScreen {
             themePreviewMode = false;
             setSearchFocused(true);
             searchCursorTime = 0f;
-            invalidateScrollLayout();
             return true;
         }
         setSearchFocused(false);
         SettingTextBox.clearFocus();
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && themePreviewMode && isThemeBackButton(mx, my, contentX, contentY, contentW)) {
-            closeThemePreview();
+        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && backButtonVisible()
+                && backButton.hit(mx, my, backButtonX(contentX, contentW), backButtonY(contentY))) {
+            backButton.press();
+            if (themePreviewMode) {
+                closeThemePreview();
+            } else {
+                router.back();
+                resetScroll();
+            }
             return true;
         }
 
-        for (int i = 0; i < TAB_KEYS_ZH.length; i++) {
+        for (int i = 0; i < NAV_KEYS_ZH.length; i++) {
             float ty = tabStartY + i * (tabH + tabGap);
             if (mx >= cardX + 12f && mx <= cardX + 12f + tabW && my >= ty && my <= ty + tabH) {
                 if (button == 0) {
+                    navPress[i].press();
                     clearSearch();
                     themePreviewMode = false;
-                    selectedTab = i;
-                    targetScrollOffset = 0f;
-                    contentScrollOffset = 0f;
-                    invalidateScrollLayout();
+                    router.select(i);
+                    resetScroll();
                 }
                 return true;
             }
         }
 
         if (button == 0 && mx >= closeX && mx <= closeX + tabW && my >= closeY && my <= closeY + closeH) {
+            closePress.press();
             closingRequested = true;
-            invalidateScrollLayout();
+            frame.beginClose();
             return true;
         }
 
         if (button == 0 && mx >= closeX && mx <= closeX + tabW && my >= resetY && my <= resetY + resetH) {
+            resetPress.press();
             if (resetConfirm) {
                 themePreviewMode = false;
                 resetUiSettings();
@@ -861,7 +756,6 @@ public class ClickGuiScreen extends SkiaScreen {
             } else {
                 resetConfirm = true;
             }
-            invalidateScrollLayout();
             return true;
         }
 
@@ -870,7 +764,7 @@ public class ClickGuiScreen extends SkiaScreen {
         if (mx >= contentX && mx <= contentX + contentW && my >= contentY && my <= contentY + contentH) {
             if (themePreviewMode) {
                 float gridX = contentX + (contentW - previewGridWidth()) / 2f;
-                float gridY = contentY + 54f + 30f;
+                float gridY = contentY + CONTENT_HEADER_H + 30f;
                 for (int i = 0; i < previewThemes.size(); i++) {
                     float cx = previewThumbX(gridX, i);
                     float cy = previewThumbY(gridY, i);
@@ -879,27 +773,28 @@ public class ClickGuiScreen extends SkiaScreen {
                         if (!theme.id().equals(ClickGuiThemeManager.currentId())) {
                             ClickGuiThemeManager.selectAndSave(theme.id());
                         }
-                        invalidateScrollLayout();
                         return true;
                     }
                 }
                 return true;
             }
-            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && hasScrollbar(page, contentH) && isInScrollbar(mx, my, contentX, contentY, contentW, contentH)) {
+            refreshScroll();
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && scroll.hasScrollbar()
+                    && scroll.isInTrack(mx, my, contentX + contentW - TRACK_INSET, contentY + TRACK_TOP,
+                    contentH - TRACK_TOP - TRACK_BOTTOM_PAD)) {
                 draggingScrollbar = true;
-                float thumbTop = scrollbarThumbTop(page, contentY, contentH);
-                float thumbH = scrollbarThumbH(page, contentH);
-                scrollbarDragOffset = my >= thumbTop && my <= thumbTop + thumbH ? my - thumbTop : thumbH * 0.5f;
-                setScrollFromScrollbar(page, my, contentY, contentH);
-                contentScrollOffset = targetScrollOffset;
-                invalidateScrollLayout();
+                scroll.beginDrag(my, contentY + TRACK_TOP, contentH - TRACK_TOP - TRACK_BOTTOM_PAD);
                 return true;
             }
-            float moduleStartY = contentY + 54f;
-            boolean hit = page.onClick(mx, my, contentX + 10f, moduleStartY, contentW - 40f, contentScrollOffset, button);
+            float moduleStartY = contentY + CONTENT_HEADER_H;
+            boolean hit = page.onClick(mx, my, contentX + PAGE_INSET_X, moduleStartY, contentW - PAGE_RESERVED_W,
+                    scroll.value(), button);
             if (hit && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
                 draggingInContent = true;
-                invalidateScrollLayout();
+            }
+            if (hit && activePage() != page) {
+                // 下钻到新的页面：滚动复位到顶部，避免新页面沿用上一页的滚动位置
+                resetScroll();
             }
             return hit;
         }
@@ -909,23 +804,21 @@ public class ClickGuiScreen extends SkiaScreen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+        float my = frame.toDesignY(event.y(), this.height);
+        float[] l = layout();
         if (draggingScrollbar) {
-            float visualScale = getVisualScale();
-            float my = toLayoutY(event.y(), this.height, visualScale);
-            float[] l = layout();
-            setScrollFromScrollbar(activePage(), my, l[15], l[17]);
-            contentScrollOffset = targetScrollOffset;
-            invalidateScrollLayout();
+            float contentY = l[15], contentH = l[17];
+            float trackTop = contentY + TRACK_TOP;
+            float trackHeight = contentH - TRACK_TOP - TRACK_BOTTOM_PAD;
+            refreshScroll();
+            scroll.dragTo(my, trackTop, trackHeight);
             return true;
         }
         if (draggingInContent) {
-            float visualScale = getVisualScale();
-            float mx = toLayoutX(event.x(), this.width, visualScale);
-            float my = toLayoutY(event.y(), this.height, visualScale);
-            float[] l = layout();
+            float mx = frame.toDesignX(event.x(), this.width);
             float contentX = l[14], contentY = l[15], contentW = l[16];
-            activePage().onDrag(mx, my, contentX + 10f, contentY + 54f, contentW - 40f, contentScrollOffset);
-            invalidateScrollLayout();
+            activePage().onDrag(mx, my, contentX + PAGE_INSET_X, contentY + CONTENT_HEADER_H,
+                    contentW - PAGE_RESERVED_W, scroll.value());
             return true;
         }
         return false;
@@ -935,30 +828,36 @@ public class ClickGuiScreen extends SkiaScreen {
     public boolean mouseReleased(MouseButtonEvent event) {
         draggingInContent = false;
         draggingScrollbar = false;
-        activePage().releaseDrag();
-        invalidateScrollLayout();
+        // 松开鼠标：所有按压元素进入回弹
+        for (PressState press : navPress) press.release();
+        closePress.release();
+        resetPress.release();
+        backButton.release();
+        BasePage page = activePage();
+        if (page != null) {
+            page.releasePress();
+            page.releaseDrag();
+        }
         return false;
     }
 
     @Override
     public boolean mouseScrolled(double mx, double my, double hScroll, double vScroll) {
         if (themePreviewMode) return false;
-        float visualScale = getVisualScale();
-        float layoutMx = toLayoutX(mx, this.width, visualScale);
-        float layoutMy = toLayoutY(my, this.height, visualScale);
+        float layoutMx = frame.toDesignX(mx, this.width);
+        float layoutMy = frame.toDesignY(my, this.height);
         float[] l = layout();
         float contentX = l[14], contentY = l[15], contentW = l[16], contentH = l[17];
 
         if (layoutMx >= contentX && layoutMx <= contentX + contentW && layoutMy >= contentY && layoutMy <= contentY + contentH) {
-            BasePage page = activePage();
-            updateScrollCache(page, contentH);
-            targetScrollOffset = Math.max(0f, Math.min(cachedScrollMax, targetScrollOffset + (float) (-vScroll * 16f * Math.max(0.2f, AddonConfig.scrollSpeed))));
-            invalidateScrollLayout();
+            refreshScroll();
+            scroll.scrollBy(vScroll, AddonConfig.scrollSpeed);
             return true;
         }
         return false;
     }
 
+    /** 恢复界面设置的默认值。 */
     private void resetUiSettings() {
         ClickGuiThemeManager.selectAndSave(ClickGuiThemeManager.themes().iterator().next().id());
         AddonConfig.uiScale = 1;

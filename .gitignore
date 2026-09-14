@@ -35,3 +35,11 @@ Thumbs.db
 # 版本库内必须保留的构件（覆盖上方 *.jar 规则）
 !gradle/wrapper/gradle-wrapper.jar
 !maven-repo/**/*.jar
+
+# 开发参考库：本地只读参考资料（Minecraft 26.1.2 官方源码、Baritone 源码、映射索引）
+# 不参与正式编译，不进入 yiyiaddon.jar，不作为运行时依赖，不进版本库
+01-开发参考库/
+
+# 后端 API 的本地工具缓存（wrangler 账号缓存等），属机器本地状态，不进版本库
+03-后端API/.wrangler/
+

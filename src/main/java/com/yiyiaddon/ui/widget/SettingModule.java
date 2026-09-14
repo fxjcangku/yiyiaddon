@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.widget;
 
+import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
@@ -271,10 +272,11 @@ public class SettingModule {
 
     private void drawStaticContent(Canvas canvas, float x, float y, float contentW, float alpha, float viewportTop, float viewportBottom, float progress) {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
-        modulePaint.setColor(withAlpha(tc.module, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(x, y, contentW, MODULE_H - 8f, 10f), modulePaint);
-        FontRenderer.drawText(canvas, title, x + PAD_X, y + 22f, 13f, withAlpha(tc.primaryText, alpha));
-        FontRenderer.drawText(canvas, subtitle, x + PAD_X, y + 38f, 10f, withAlpha(tc.secondaryText, alpha));
+        float rowAlpha = ClickGuiThemeColors.panelBackgroundAlpha(alpha);
+        GlassPanel.frost(canvas, x, y, contentW, MODULE_H - 8f, 16f, tc.module, 0.70f, rowAlpha);
+        GlassPanel.rim(canvas, x, y, contentW, MODULE_H - 8f, 16f, tc.rim, rowAlpha, 0.10f);
+        FontRenderer.drawTextBold(canvas, title, x + PAD_X, y + 24f, 14f, withAlpha(tc.primaryText, alpha));
+        FontRenderer.drawText(canvas, subtitle, x + PAD_X, y + 43f, 11f, withAlpha(tc.labelTertiary, alpha));
         if (progress > 0.01f) {
             float sy = y + MODULE_H;
             for (SubEntry sub : subEntries) {
@@ -282,13 +284,14 @@ public class SettingModule {
                 float subBottom = sy + SUB_H - 6f;
                 if (subBottom > viewportTop && sy < viewportBottom) {
                     float subAlpha = alpha * progress;
-                    subPaint.setColor(withAlpha(tc.subModule, ClickGuiThemeColors.panelBackgroundAlpha(subAlpha)));
-                    canvas.drawRRect(RRect.makeXYWH(x + 8f, sy, contentW - 8f, SUB_H - 6f, 8f), subPaint);
+                    GlassPanel.frost(canvas, x + 8f, sy, contentW - 8f, SUB_H - 6f, 12f, tc.subModule, 0.55f,
+                            ClickGuiThemeColors.panelBackgroundAlpha(subAlpha));
+                    GlassPanel.rim(canvas, x + 8f, sy, contentW - 8f, SUB_H - 6f, 12f, tc.rim, subAlpha, 0.05f);
                     if (sub.subtitle == null || sub.subtitle.isEmpty()) {
-                        FontRenderer.drawText(canvas, sub.title, x + PAD_X + 8f, sy + (SUB_H - 6f) / 2f + 4.5f, 12f, withAlpha(tc.subModuleText, subAlpha));
+                        FontRenderer.drawText(canvas, sub.title, x + PAD_X + 8f, sy + (SUB_H - 6f) / 2f + 4.5f, 13f, withAlpha(tc.subModuleText, subAlpha));
                     } else {
-                        FontRenderer.drawText(canvas, sub.title, x + PAD_X + 8f, sy + 16f, 12f, withAlpha(tc.subModuleText, subAlpha));
-                        FontRenderer.drawText(canvas, sub.subtitle, x + PAD_X + 8f, sy + 30f, 10f, withAlpha(tc.secondaryText, subAlpha));
+                        FontRenderer.drawText(canvas, sub.title, x + PAD_X + 8f, sy + 16f, 13f, withAlpha(tc.subModuleText, subAlpha));
+                        FontRenderer.drawText(canvas, sub.subtitle, x + PAD_X + 8f, sy + 30f, 11f, withAlpha(tc.labelTertiary, subAlpha));
                     }
                     if (sub.group && sub.hasVisibleChildren()) {
                         String arrow = sub.childProgress > 0.5f ? ARROW_EXPANDED : ARROW_COLLAPSED;
@@ -303,13 +306,14 @@ public class SettingModule {
                         if (!child.isVisible()) continue;
                         float childBottom = sy + SUB_H - 6f;
                         if (childBottom > viewportTop && sy < viewportBottom) {
-                            subPaint.setColor(withAlpha(tc.subModule, ClickGuiThemeColors.panelBackgroundAlpha(subAlpha)));
-                            canvas.drawRRect(RRect.makeXYWH(x + 16f, sy, contentW - 16f, SUB_H - 6f, 8f), subPaint);
+                            GlassPanel.frost(canvas, x + 16f, sy, contentW - 16f, SUB_H - 6f, 12f, tc.subModule, 0.55f,
+                                    ClickGuiThemeColors.panelBackgroundAlpha(subAlpha));
+                            GlassPanel.rim(canvas, x + 16f, sy, contentW - 16f, SUB_H - 6f, 12f, tc.rim, subAlpha, 0.05f);
                             if (child.subtitle == null || child.subtitle.isEmpty()) {
-                                FontRenderer.drawText(canvas, child.title, x + PAD_X + 16f, sy + (SUB_H - 6f) / 2f + 4.5f, 12f, withAlpha(tc.subModuleText, subAlpha));
+                                 FontRenderer.drawText(canvas, child.title, x + PAD_X + 16f, sy + (SUB_H - 6f) / 2f + 4.5f, 13f, withAlpha(tc.subModuleText, subAlpha));
                             } else {
-                                FontRenderer.drawText(canvas, child.title, x + PAD_X + 16f, sy + 16f, 12f, withAlpha(tc.subModuleText, subAlpha));
-                                FontRenderer.drawText(canvas, child.subtitle, x + PAD_X + 16f, sy + 30f, 10f, withAlpha(tc.secondaryText, subAlpha));
+                                FontRenderer.drawText(canvas, child.title, x + PAD_X + 16f, sy + 16f, 13f, withAlpha(tc.subModuleText, subAlpha));
+                                FontRenderer.drawText(canvas, child.subtitle, x + PAD_X + 16f, sy + 30f, 11f, withAlpha(tc.labelTertiary, subAlpha));
                             }
                         }
                         sy += SUB_H;

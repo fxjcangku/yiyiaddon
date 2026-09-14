@@ -22,6 +22,16 @@ public final class ClickGuiThemeColors {
     public final int secondaryText;
     public final int border;
 
+    // —— iOS 语义层：玻璃高光、阴影、文字三级、填充 ——
+    public final int separator;        // 分隔线，比边框轻
+    public final int rim;              // 玻璃高光内描边
+    public final int shadow;           // 阴影基色，不含 alpha
+    public final int accentOn;         // 强调色之上的反色文字
+    public final int labelTertiary;    // 三级文字
+    public final int labelQuaternary;  // 四级文字
+    public final int surfaceHover;     // 卡片/行悬停填充
+    public final int field;            // 输入框等弱底填充
+
     // —— 派生色：文字 ——
     public final int mutedText;        // 箭头、调试次级文本等更弱化的文字
     public final int inactiveText;      // 未选中 Tab 文字
@@ -55,6 +65,8 @@ public final class ClickGuiThemeColors {
     private ClickGuiThemeColors(
             int window, int sidebar, int content, int module, int subModule,
             int accent, int primaryText, int secondaryText, int border,
+            int separator, int rim, int shadow, int accentOn,
+            int labelTertiary, int labelQuaternary, int surfaceHover, int field,
             int mutedText, int inactiveText, int inactiveIcon, int subModuleText,
             int indicator, int hoverBackground, int buttonBackground, int buttonText,
             int scrollbarTrack, int scrollbarThumb,
@@ -71,6 +83,14 @@ public final class ClickGuiThemeColors {
         this.primaryText = primaryText;
         this.secondaryText = secondaryText;
         this.border = border;
+        this.separator = separator;
+        this.rim = rim;
+        this.shadow = shadow;
+        this.accentOn = accentOn;
+        this.labelTertiary = labelTertiary;
+        this.labelQuaternary = labelQuaternary;
+        this.surfaceHover = surfaceHover;
+        this.field = field;
         this.mutedText = mutedText;
         this.inactiveText = inactiveText;
         this.inactiveIcon = inactiveIcon;
@@ -139,9 +159,21 @@ public final class ClickGuiThemeColors {
         int dangerHoverBackground = dark ? 0x3D2226 : 0xFFE5E5;
         int dangerHoverText = dark ? 0xFF6B6B : 0xCC2222;
 
+        // iOS 语义层：分隔线取边框的弱化版；高光恒为白，靠 alpha 控制强度；
+        // 强调色上的文字按强调色亮度取黑或白，保证对比度。
+        int separator = mix(border, dark ? 0x000000 : 0xFFFFFF, dark ? 0.35f : 0.45f);
+        int rim = 0xFFFFFF;
+        int shadow = 0x000000;
+        int accentOn = luminance(accent) > 0.62f ? 0x000000 : 0xFFFFFF;
+        int labelTertiary = mix(secondaryText, window, 0.35f);
+        int labelQuaternary = mix(secondaryText, window, 0.60f);
+        int surfaceHover = mix(rgb(p.moduleBackground()), accent, dark ? 0.14f : 0.10f);
+        int field = mix(sidebar, dark ? 0xFFFFFF : 0x000000, dark ? 0.06f : 0.04f);
+
         return new ClickGuiThemeColors(
                 window, sidebar, rgb(p.contentBackground()), rgb(p.moduleBackground()), rgb(p.subModuleBackground()),
                 accent, primaryText, secondaryText, border,
+                separator, rim, shadow, accentOn, labelTertiary, labelQuaternary, surfaceHover, field,
                 mutedText, inactiveText, inactiveIcon, subModuleText,
                 indicator, hoverBackground, buttonBackground, buttonText,
                 scrollbarTrack, scrollbarThumb,

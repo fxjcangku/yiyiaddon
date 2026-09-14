@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.widget;
 
+import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.Paint;
@@ -10,9 +11,18 @@ import java.util.function.Supplier;
 
 public class SettingToggle extends SettingWidget {
 
+    /** 滑块行程。 */
+    private static final float TRACK_W = 44f;
+    private static final float TRACK_H = 24f;
+    private static final float THUMB_SIZE = 20f;
+    private static final float THUMB_ON_X = 22f;
+    private static final float THUMB_OFF_X = 2f;
+
     private final Supplier<Boolean> getter;
     private final Consumer<Boolean> setter;
-    private float thumbX = -1f;
+    /** 滑块用欠阻尼弹簧：约 200ms 到位，过冲约 8% 后回落。 */
+    private final Spring thumbSpring = Spring.overshoot(0.20f, 0.08f);
+    private boolean initialized;
     private float colorT = -1f;
     private float lastDrawX = 0f;
     private final Paint trackPaint = new Paint().setAntiAlias(true);
@@ -27,38 +37,44 @@ public class SettingToggle extends SettingWidget {
         setter.accept(!getter.get());
     }
 
-    @Override public float getWidth() { return 44f; }
-    @Override public float getHeight() { return 24f; }
+    @Override public float getWidth() { return TRACK_W; }
+    @Override public float getHeight() { return TRACK_H; }
+
+    @Override
+    public void update(float dt) {
+        if (!initialized) return;
+        thumbSpring.setTarget(getter.get() ? lastDrawX + THUMB_ON_X : lastDrawX + THUMB_OFF_X);
+        thumbSpring.update(dt);
+    }
 
     @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
         boolean on = getter.get();
         lastDrawX = x;
 
+        if (!initialized) {
+            initialized = true;
+            thumbSpring.set(on ? x + THUMB_ON_X : x + THUMB_OFF_X);
+        }
         if (colorT < 0f) colorT = on ? 1f : 0f;
-        if (thumbX < 0f) thumbX = on ? x + 22f : x + 2f;
 
         float targetColorT = on ? 1f : 0f;
         colorT += (targetColorT - colorT) * 0.2f;
+        float thumbX = thumbSpring.value();
 
-        float targetThumbX = on ? x + 22f : x + 2f;
-        thumbX += (targetThumbX - thumbX) * 0.2f;
-
-        int trackColor = lerpColor(ClickGuiThemeColors.current().scrollbarTrack, ClickGuiThemeColors.current().accent, colorT);
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        int trackColor = lerpColor(tc.scrollbarTrack, tc.accent, colorT);
 
         trackPaint.setColor(withAlpha(trackColor, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
         thumbPaint.setColor(withAlpha(0xFFFFFF, alpha));
-        canvas.drawRRect(RRect.makeXYWH(x, y, 44f, 24f, 12f), trackPaint);
-        canvas.drawRRect(RRect.makeXYWH(thumbX, y + 2f, 20f, 20f, 10f), thumbPaint);
+        canvas.drawRRect(RRect.makeXYWH(x, y, TRACK_W, TRACK_H, TRACK_H / 2f), trackPaint);
+        canvas.drawRRect(RRect.makeXYWH(thumbX, y + 2f, THUMB_SIZE, THUMB_SIZE, THUMB_SIZE / 2f), thumbPaint);
     }
 
     @Override
     public boolean isAnimating() {
-        boolean on = getter.get();
-        if (colorT < 0f || thumbX < 0f) return false;
-        float targetColorT = on ? 1f : 0f;
-        float targetThumbX = on ? lastDrawX + 22f : lastDrawX + 2f;
-        return Math.abs(colorT - targetColorT) > 0.01f || Math.abs(thumbX - targetThumbX) > 0.01f;
+        if (!initialized) return false;
+        return !thumbSpring.isSettled() || Math.abs(colorT - (getter.get() ? 1f : 0f)) > 0.01f;
     }
 
     @Override

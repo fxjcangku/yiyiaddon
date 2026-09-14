@@ -8,29 +8,56 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyEvent;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
- * 界面快捷键管理：绑定录制、持久化与触发。
+ * 按键管理：绑定录制、持久化与触发。
  *
- * <p>只管理 UI 自身的快捷键，不持有任何业务模块。可绑定的对象有两类：</p>
+ * <p>可绑定的对象分两类，分别存放在两处配置：</p>
  * <ul>
- *     <li>具名动作（当前仅 {@link #ACTION_CLICK_GUI}）；</li>
- *     <li>可切换的模块行（主控件为 {@code SettingToggle} 的行，按 {@code bindingId} 注册）。</li>
+ *     <li><b>界面快捷键</b>：具名动作（{@link #ACTION_CLICK_GUI}）与可切换的界面设置行，
+ *         按 {@code bindingId} 注册，存在界面配置里；</li>
+ *     <li><b>模块快捷键</b>：键名以 {@link #MODULE_PREFIX} 开头，由模块运行时通过
+ *         {@link ModuleKeybindStore} 提供读写，存在模块状态配置里，界面配置重置不会清掉它们。</li>
  * </ul>
+ *
+ * <p>触发条件保持原样：需要出现「按下」这一跳变、界面已关闭且不处于录制状态。</p>
  */
 public final class ModuleKeybindManager {
+
     public static final String ACTION_CLICK_GUI = "action.clickgui";
-    /** 鼠标按键以 {@code MOUSE_KEY_OFFSET - button} 编码进同一张键位表。 */
+
+    /** 模块快捷键键名前缀，与模块状态配置共用 */
+    public static final String MODULE_PREFIX = "module.";
+
+    /** 鼠标按键以 {@code MOUSE_KEY_OFFSET - button} 编码进同一张键位表 */
     private static final int MOUSE_KEY_OFFSET = -1000;
+
     private static final Map<String, Integer> KEYBINDS = new LinkedHashMap<>();
     private static final Map<String, SettingModule> MODULES = new LinkedHashMap<>();
     private static final Map<String, Boolean> LAST_DOWN = new LinkedHashMap<>();
+
+    /** 每刻遍历用的键名快照；绑定变化时失效重建，避免逐刻分配 */
+    private static volatile String[] tickIds;
+
+    private static ModuleKeybindStore moduleStore;
+    private static Consumer<String> moduleToggle;
+
     private static String captureId = "";
     private static boolean initialized;
 
     private ModuleKeybindManager() {
+    }
+
+    /** 装配模块快捷键存储与触发回调；由模块运行时调用一次 */
+    public static void setModuleBindings(ModuleKeybindStore store, Consumer<String> toggle) {
+        moduleStore = store;
+        moduleToggle = toggle;
+        invalidateTickIds();
     }
 
     public static void initialize() {
@@ -43,9 +70,9 @@ public final class ModuleKeybindManager {
     public static void tick(Minecraft client) {
         initialize();
         if (client == null) return;
-        for (Map.Entry<String, Integer> entry : KEYBINDS.entrySet()) {
-            String id = entry.getKey();
-            int key = entry.getValue();
+        for (String id : tickIds()) {
+            Integer key = keyOf(id);
+            if (key == null) continue;
             boolean down = isKeyDown(client, key);
             boolean previous = LAST_DOWN.getOrDefault(id, false);
             LAST_DOWN.put(id, down);
@@ -66,9 +93,15 @@ public final class ModuleKeybindManager {
         String id = captureId;
         captureId = "";
         if (key == GLFW.GLFW_KEY_UNKNOWN) return true;
-        KEYBINDS.put(id, key);
+        if (isModuleBinding(id)) {
+            ModuleKeybindStore store = moduleStore;
+            if (store != null) store.bind(id, key);
+        } else {
+            KEYBINDS.put(id, key);
+            saveBindings();
+        }
         LAST_DOWN.put(id, true);
-        saveBindings();
+        invalidateTickIds();
         return true;
     }
 
@@ -79,13 +112,23 @@ public final class ModuleKeybindManager {
 
     public static boolean clearBinding(String id) {
         if (id == null || id.isBlank()) return false;
+        if (id.equals(captureId)) captureId = "";
+        if (isModuleBinding(id)) {
+            ModuleKeybindStore store = moduleStore;
+            if (store == null) return false;
+            store.unbind(id);
+            LAST_DOWN.remove(id);
+            invalidateTickIds();
+            return true;
+        }
         boolean removed = KEYBINDS.remove(id) != null;
         LAST_DOWN.remove(id);
-        if (id.equals(captureId)) captureId = "";
         if (removed) saveBindings();
+        invalidateTickIds();
         return removed;
     }
 
+    /** 清空界面快捷键并恢复默认；模块快捷键不在此范围内 */
     public static void clearAll(boolean save) {
         KEYBINDS.clear();
         LAST_DOWN.clear();
@@ -93,10 +136,11 @@ public final class ModuleKeybindManager {
         applyDefaultBindings();
         storeBindings();
         if (save) AddonConfig.save();
+        invalidateTickIds();
     }
 
     public static boolean hasBinding(String id) {
-        return KEYBINDS.containsKey(id);
+        return keyOf(id) != null;
     }
 
     public static boolean isCapturing() {
@@ -108,8 +152,40 @@ public final class ModuleKeybindManager {
     }
 
     public static String keyName(String id) {
-        Integer key = KEYBINDS.get(id);
+        Integer key = keyOf(id);
         if (key == null) return "";
+        return keyName(key);
+    }
+
+    public static void registerModule(SettingModule module) {
+        if (module != null && module.isToggleable() && !module.usesActionKeybind() && !module.getBindingId().isBlank()) {
+            MODULES.put(module.getBindingId(), module);
+        }
+    }
+
+    public static boolean isKeyDown(Minecraft client, String id) {
+        if (client == null || id == null) return false;
+        Integer key = keyOf(id);
+        return key != null && isKeyDown(client, key);
+    }
+
+    // ── 内部 ──
+
+    private static boolean isModuleBinding(String id) {
+        return id != null && id.startsWith(MODULE_PREFIX);
+    }
+
+    /** 取键名对应的按键值；界面键位与模块键位分别路由 */
+    private static Integer keyOf(String id) {
+        if (id == null || id.isBlank()) return null;
+        if (isModuleBinding(id)) {
+            ModuleKeybindStore store = moduleStore;
+            return store == null ? null : store.keyOf(id);
+        }
+        return KEYBINDS.get(id);
+    }
+
+    private static String keyName(int key) {
         if (key <= MOUSE_KEY_OFFSET) {
             int button = MOUSE_KEY_OFFSET - key;
             if (button == GLFW.GLFW_MOUSE_BUTTON_4) return "Mouse Back";
@@ -119,10 +195,25 @@ public final class ModuleKeybindManager {
         return InputConstants.getKey(new KeyEvent(key, 0, 0)).getDisplayName().getString();
     }
 
-    public static void registerModule(SettingModule module) {
-        if (module != null && module.isToggleable() && !module.usesActionKeybind() && !module.getBindingId().isBlank()) {
-            MODULES.put(module.getBindingId(), module);
+    private static boolean isKeyDown(Minecraft client, int key) {
+        if (key <= MOUSE_KEY_OFFSET) {
+            return GLFW.glfwGetMouseButton(client.getWindow().handle(), MOUSE_KEY_OFFSET - key) == GLFW.GLFW_PRESS;
         }
+        return key != GLFW.GLFW_KEY_UNKNOWN && InputConstants.isKeyDown(client.getWindow(), key);
+    }
+
+    private static void trigger(Minecraft client, String id) {
+        if (ACTION_CLICK_GUI.equals(id)) {
+            client.setScreen(new ClickGuiScreen(null));
+            return;
+        }
+        if (isModuleBinding(id)) {
+            Consumer<String> toggle = moduleToggle;
+            if (toggle != null) toggle.accept(id.substring(MODULE_PREFIX.length()));
+            return;
+        }
+        SettingModule module = MODULES.get(id);
+        if (module != null) module.toggleFromKeybind();
     }
 
     private static void readBindings() {
@@ -139,28 +230,7 @@ public final class ModuleKeybindManager {
             }
         }
         applyDefaultBindings();
-    }
-
-    public static boolean isKeyDown(Minecraft client, String id) {
-        if (client == null || id == null) return false;
-        Integer key = KEYBINDS.get(id);
-        return key != null && isKeyDown(client, key);
-    }
-
-    private static boolean isKeyDown(Minecraft client, int key) {
-        if (key <= MOUSE_KEY_OFFSET) {
-            return GLFW.glfwGetMouseButton(client.getWindow().handle(), MOUSE_KEY_OFFSET - key) == GLFW.GLFW_PRESS;
-        }
-        return key != GLFW.GLFW_KEY_UNKNOWN && InputConstants.isKeyDown(client.getWindow(), key);
-    }
-
-    private static void trigger(Minecraft client, String id) {
-        if (ACTION_CLICK_GUI.equals(id)) {
-            client.setScreen(new ClickGuiScreen(null));
-            return;
-        }
-        SettingModule module = MODULES.get(id);
-        if (module != null) module.toggleFromKeybind();
+        invalidateTickIds();
     }
 
     private static void applyDefaultBindings() {
@@ -179,5 +249,22 @@ public final class ModuleKeybindManager {
             out.append(entry.getKey()).append('=').append(entry.getValue());
         }
         AddonConfig.moduleKeybinds = out.toString();
+    }
+
+    private static void invalidateTickIds() {
+        tickIds = null;
+    }
+
+    /** 界面键位与模块键位的合并快照 */
+    private static String[] tickIds() {
+        String[] cached = tickIds;
+        if (cached != null) return cached;
+
+        List<String> ids = new ArrayList<>(KEYBINDS.keySet());
+        ModuleKeybindStore store = moduleStore;
+        if (store != null) ids.addAll(store.boundIds());
+        String[] built = ids.toArray(new String[0]);
+        tickIds = built;
+        return built;
     }
 }
