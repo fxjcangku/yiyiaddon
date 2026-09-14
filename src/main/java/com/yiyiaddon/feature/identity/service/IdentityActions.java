@@ -140,27 +140,7 @@ public final class IdentityActions {
         return IdentitySummary.ok(IdentitySummary.Kind.ENTITY, identity.displayName(), rows, fileName);
     }
 
-    // ── 身份数据统计 ──
-
-    public static int itemCount() {
-        return IdentityService.shared().itemCount();
-    }
-
-    public static int entityCount() {
-        return IdentityService.shared().entityCount();
-    }
-
-    public static int blockCount() {
-        return IdentityService.shared().blockCount();
-    }
-
-    public static int itemSnapshotCount() {
-        return IdentityService.shared().itemSnapshotCount();
-    }
-
-    public static int blockSnapshotCount() {
-        return IdentityService.shared().blockSnapshotCount();
-    }
+    // ── 身份数据维护 ──
 
     /** 清理已失效的选中目标，返回移除数量 */
     public static int pruneInvalidTargets() {

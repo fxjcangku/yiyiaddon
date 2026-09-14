@@ -391,16 +391,4 @@ public final class IdConfigModule extends Module {
         int pruned = IdentityActions.pruneInvalidTargets();
         ClientChat.send(MESSAGE_MODULE, pruned == 0 ? "§7没有失效的识别目标" : "§7已清理 " + pruned + " 项失效的识别目标");
     }
-
-    /** 身份清单汇总行（旧项目列表表头口径：共 N 条） */
-    public String countsText() {
-        return "共 " + (IdentityActions.itemCount() + IdentityActions.entityCount() + IdentityActions.blockCount()) + " 条";
-    }
-
-    public List<String> typeCounts() {
-        return List.of(
-                "物品 " + IdentityActions.itemCount(),
-                "实体 " + IdentityActions.entityCount(),
-                "方块 " + IdentityActions.blockCount());
-    }
 }

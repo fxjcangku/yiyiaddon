@@ -50,10 +50,4 @@ public record IdentitySummary(Kind kind, boolean success, String title, List<Row
     public boolean saved() {
         return fileName != null && !fileName.isBlank();
     }
-
-    /** 一行状态文案，供模块页面展示 */
-    public String statusText() {
-        if (!success) return title;
-        return title + "（" + (saved() ? "已保存 " + fileName : "未保存") + "）";
-    }
 }
