@@ -62,6 +62,16 @@ public interface StardewAdapter {
     /** 把背包槽（0-35）换到当前快捷栏选中槽 */
     boolean swapToHotbar(int invSlot);
 
+    /**
+     * 把副手物品与指定背包槽对调（原版「F 键换到副手」的同一个动作）。
+     *
+     * <p>用于收割前把副手腾空：两手都占着时模块没有空手可用，借这一个动作把副手物品暂放到
+     * 背包空格，收完再换回来。</p>
+     *
+     * @param invSlot 背包槽（9~35，且调用方需保证该槽为空或就是当初放进去的那一格）
+     */
+    boolean swapOffhandWith(int invSlot);
+
     /** 当前主手物品 */
     ItemStack heldItem();
 }

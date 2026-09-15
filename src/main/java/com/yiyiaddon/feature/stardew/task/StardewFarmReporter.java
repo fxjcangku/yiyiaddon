@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.stardew.task;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.recognition.PotState;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
@@ -18,7 +19,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 /**
- * 星露谷播报与范围：任务播报 / 库存快照统计 / 季节阻塞释放 / 农田边界校验。
+ * 星露谷播报与范围：任务播报 / 库存快照统计 / 季节阻塞释放 / 点位方块巡检。
  *
  * <p>本类由 {@link StardewCoordinator} 机械拆分而来，共享协调器的全部可变状态
  * （通过 {@code owner} 直接读写），行为与拆分前完全一致。</p>
@@ -40,15 +41,11 @@ final class StardewFarmReporter {
      * <p><b>为什么只判「方块没了」：</b>{@code validationFailure} 里还包含「所在区块尚未加载」
      * 「资源未就绪」这类与玩家操作无关的状态，拿它逐 tick 播报只会变成噪音。这里只认确定性事件
      * ——该坐标已经没有方块、或原本要求是容器而现在不是容器——报一次后记住，方块回来就自动复位。</p>
-     *
-     * <p><b>农田起点 / 终点不在此列：</b>它们已有逐 tick 的停机逻辑（{@link #farmBoundaryFailure()}），
-     * 重复报会变成两条消息说同一件事。</p>
      */
     void watchPointBlocks() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         for (StardewPointType type : StardewPointType.values()) {
-            if (type == StardewPointType.START || type == StardewPointType.END) continue;
             if (type == StardewPointType.SPRINKLER) {
                 for (StardewPointManager.StardewPoint point : owner.points.getAll(type)) {
                     watchPointBlock(mc, type, point);
@@ -97,15 +94,34 @@ final class StardewFarmReporter {
         CropDefinition crop = taskCrop();
         String cropName = crop == null ? "" : crop.chineseName();
         switch (owner.taskType) {
-            case WATER -> owner.status.state("WATER", "正在浇水", "剩余干盆：" + remainingDryPots());
-            case REFILL -> owner.status.state("REFILL", "水壶缺水", "正在前往水源");
+            // 文案按盆型分派：下界 / 末地盆用的是岩浆 / 龙息，不是水壶，
+            // 原来的固定文案会让玩家以为脚本在找水（实机反馈：「为什么是水？」）
+            case WATER -> {
+                PotGroup group = owner.executor.targetPotGroup();
+                if (group.refillItem() != null) {
+                    owner.status.state("WATER", "正在补" + group.materialName(),
+                        "剩余待补盆：" + remainingDryPots());
+                } else {
+                    owner.status.state("WATER", "正在浇水", "剩余干盆：" + remainingDryPots());
+                }
+            }
+            case REFILL -> {
+                PotGroup group = owner.executor.targetPotGroup();
+                if (group.refillItem() != null) {
+                    String box = group == PotGroup.NETHER ? "岩浆箱" : "龙息箱";
+                    owner.status.state("REFILL", "缺少" + group.materialName(), "正在前往" + box);
+                } else {
+                    owner.status.state("REFILL", "水壶缺水", "正在前往水源");
+                }
+            }
             case PLANT -> owner.status.state("PLANT:" + cropName, "正在播种", cropName);
             case RESTOCK -> owner.status.state("RESTOCK:" + cropName, "正在补货",
                 crop == null ? "目标种子" : crop.seedDisplayName());
             case HARVEST, LEARN_HARVEST -> owner.status.state("HARVEST:" + cropName, "正在收获", cropName);
             case COLLECT -> owner.status.state("COLLECT", "正在拾取", "农田掉落物");
-            case UNLOAD -> owner.status.state("UNLOAD:" + cropName, "正在卸货", cropName);
+            case UNLOAD -> owner.status.state("UNLOAD:" + cropName, "正在卸货", unloadingCrops(cropName));
             case CLEAR_DEAD -> owner.status.state("DEAD_CLEAR", "发现枯死作物", "正在清理");
+            case CLEAR_MISMATCH -> owner.status.state("MISMATCH_CLEAR", "发现错位作物", "正在清理");
             case RETURN_CENTER -> owner.status.state("RETURN", "返回农田", "正在前往农田中心");
             case FERTILIZE -> owner.status.state("FERTILIZE", "正在施肥", cropName);
             case POTION -> owner.status.state("POTION", "正在使用魔法药剂", cropName);
@@ -116,6 +132,23 @@ final class StardewFarmReporter {
             }
         }
         captureTaskInventory();
+    }
+
+    /**
+     * 本次卸货实际会送进成品箱的作物（按作物名列出，忽略品质变体）。
+     *
+     * <p>一次卸货会把背包里<b>所有已选作物</b>的成品都送走（{@code depositAnyProduceOne} 逐个作物试），
+     * 不只触发这次任务的那一种；只写触发作物会让人以为只卸了一种（实机反馈：同时卸三种，提示只写一种）。
+     * 盘点为空时退回触发作物，绝不显示空值。</p>
+     */
+    private String unloadingCrops(String fallback) {
+        StringBuilder out = new StringBuilder();
+        for (CropDefinition crop : owner.planner.targetCrops()) {
+            if (owner.inventory == null || owner.inventory.countProduce(crop) <= 0) continue;
+            if (!out.isEmpty()) out.append("、");
+            out.append(crop.chineseName());
+        }
+        return out.isEmpty() ? fallback : out.toString();
     }
 
     /** 「高级洒水器 · 19875, 64, -1630」；点位已删或类型未知时如实降级，绝不编造类型名 */
@@ -262,53 +295,5 @@ final class StardewFarmReporter {
     /** 季节播报去重键：同服务器 + 同作物 + 同季节 + 同结论 */
     String seasonKey(String kind, String cropKey, String label) {
         return "SEASON_" + kind + ':' + owner.serverKey + '\u0000' + cropKey + '\u0000' + label;
-    }
-
-    /**
-     * START / END 在运行时只验证稳定种植盆。真失效立即撤销任务和寻路并保持阻塞，
-     * 不进入“导航失败 → Replan”的循环；用户重新设置有效点位后自动恢复观察。
-     */
-    boolean farmBoundaryFailure() {
-        Minecraft mc = Minecraft.getInstance();
-        StardewPointManager.StardewPoint start = owner.points.get(StardewPointType.START);
-        StardewPointManager.StardewPoint end = owner.points.get(StardewPointType.END);
-        String failure = loadedBoundaryFailure(StardewPointType.START, start);
-        StardewPointType failedType = StardewPointType.START;
-        if (failure == null) {
-            failure = loadedBoundaryFailure(StardewPointType.END, end);
-            failedType = StardewPointType.END;
-        }
-        if (failure == null) {
-            if (owner.farmBoundaryBlocked) {
-                owner.farmBoundaryBlocked = false;
-                owner.phase = Phase.OBSERVE;
-                owner.scanner.reset();
-            }
-            return false;
-        }
-        if (!owner.farmBoundaryBlocked) {
-            owner.adapter.cancelPath();
-            ContainerAccess.closeContainer();
-            owner.broker.reset();
-            owner.scanner.reset();
-            owner.pending.clear();
-            owner.taskType = null;
-            owner.targetPot = null;
-            owner.activeCell = null;
-            owner.farmBoundaryBlocked = true;
-        }
-        owner.status.critical("BOUNDARY:" + failedType + ':' + failure, failedType.title() + "已失效",
-            "请重新设置点位，自动寻路已停止");
-        return true;
-    }
-
-    /** 远离农田造成区块暂时卸载时不误判基础被破坏；回到已加载范围后才做真实方块复检。 */
-    private String loadedBoundaryFailure(StardewPointType type, StardewPointManager.StardewPoint point) {
-        Minecraft mc = Minecraft.getInstance();
-        if (point == null) return "未绑定";
-        if (!java.util.Objects.equals(point.serverKey(), owner.serverKey)) return "点位属于其它服务器";
-        if (!point.inCurrentDimension()) return "点位属于其它维度";
-        if (mc.level == null || !mc.level.isLoaded(point.pos())) return null;
-        return owner.points.validationFailure(type, point, owner.index);
     }
 }

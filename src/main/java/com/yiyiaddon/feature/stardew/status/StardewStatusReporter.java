@@ -124,6 +124,34 @@ public final class StardewStatusReporter {
     }
 
     /**
+     * 启动提醒：自检通过、照常开机，但有必须让玩家知道的事（当前只有一类：
+     * 「区域绑的作物不在目标作物勾选里，那块地会被整块跳过」）。
+     *
+     * <p>不拦启动：取消勾选等于暂停种它、区域保留，是既有设计；但玩家看到的是「模块不管那块地」，
+     * 所以开机时用与自检同一套排版说清楚出路（勾回来，或在「管理」里删掉该区域）。</p>
+     */
+    public void startupNotices(List<String> notices) {
+        List<String> items = notices == null ? List.of() : notices.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .toList();
+        if (items.isEmpty()) return;
+
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, "§e§l启动提醒")
+            .raw(CommandMessageFormatter.line("提醒", "§e§l" + items.size() + " 项"));
+        // 提醒是一句完整的话（区域号 + 出路），不是「标签 ▸ 值」，所以照原样逐条列出，
+        // 不走自检那套按标签归并的字段排版（归并会把它们塞进「配置问题」一栏）。
+        for (String item : items) {
+            formatter.raw("§8· §f" + item);
+        }
+        formatter.status(CommandMessageFormatter.Level.SUCCESS, "照常启动，这些地块会被跳过");
+
+        publishFormatted("STARTUP_NOTICE:" + String.join("\u0000", items),
+            "启动提醒", "提醒：" + items.size() + " 项", "", false, formatter.render());
+    }
+
+    /**
      * 作物级季节阻塞：只暂停该作物的播种，其它作物与 Harvest / Collect / Water / DEAD / Unload 照常。
      *
      * <p>标题行只放事件标题，作物名必须是独立字段——绝不把作物名拼到模块前缀后面。
@@ -493,12 +521,6 @@ public final class StardewStatusReporter {
             } else if (problem.startsWith("背包缺少")) {
                 label = "背包物品";
                 value = problem.substring(4);
-            } else if (problem.startsWith("农田起点")) {
-                label = "农田起点";
-                value = suffix(problem, "农田起点");
-            } else if (problem.startsWith("农田终点")) {
-                label = "农田终点";
-                value = suffix(problem, "农田终点");
             } else if (problem.startsWith("种子箱")) {
                 label = "种子箱";
                 value = suffix(problem, "种子箱");
@@ -526,6 +548,9 @@ public final class StardewStatusReporter {
             } else if (problem.startsWith("洒水器点位")) {
                 label = "洒水器点位";
                 value = suffix(problem, "洒水器点位");
+            } else if (problem.startsWith("当前维度还没有种植区域")) {
+                label = "种植区域";
+                value = "当前维度一块都没划";
             } else if (problem.startsWith("当前环境")) {
                 label = "运行环境";
                 value = problem;

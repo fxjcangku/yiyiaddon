@@ -1,8 +1,11 @@
 package com.yiyiaddon.feature.stardew.profile;
 
+import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.service.identity.IdentityService;
+import net.minecraft.locale.Language;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -92,6 +95,57 @@ public final class StardewResourceIndex {
 
         // ── 4. 种子 → 产物 → 变种关联 ──
         buildCrops(scannedByName, identityKeyByModelName);
+
+        // ── 5. 作物 × 盆型分组（从资源包声明的维度限制读出） ──
+        installCropPotGroups();
+    }
+
+    /**
+     * 从资源包语言文件读出「这种作物只能种在哪个维度」，写进 {@link CropPotGroups}。
+     *
+     * <p><b>键在哪：</b>服务端插件把限制写成了失败原因，而不是作物 json 的字段：</p>
+     *
+     * <pre>plugin.customcrops.crops.&lt;作物键&gt;.not_met_requirement.message
+     *   = [X] 你只能在下界维度种植它 / [X] 你只能在末地维度种植它</pre>
+     *
+     * <p><b>为什么必须走这条：</b>这是服务器自己的规则，比手写攻略准；而且末地那两种作物
+     * （{@code virelia} 堇幽果 / {@code virelo} 幽碧兰）以前在攻略里查不到，选择器上一直没有
+     * 「末地」字眼（实机反馈）。整表替换，换包 / 换服不会残留旧声明。</p>
+     */
+    private void installCropPotGroups() {
+        Language language = Language.getInstance();
+        Map<String, PotGroup> declared = new LinkedHashMap<>();
+        if (language != null) {
+            for (CropDefinition crop : crops) {
+                PotGroup group = declaredGroup(language, crop.cropKey());
+                if (group != PotGroup.NORMAL) declared.put(crop.cropKey(), group);
+            }
+        }
+        CropPotGroups.installPackGroups(declared);
+    }
+
+    /** 单种作物的资源包声明；没有声明、或声明里看不出维度时按通用处理（绝不猜） */
+    private static PotGroup declaredGroup(Language language, String cropKey) {
+        String key = "plugin.customcrops.crops." + cropKey + ".not_met_requirement.message";
+        if (!language.has(key)) return PotGroup.NORMAL;
+        String message = language.getOrDefault(key);
+        if (message == null) return PotGroup.NORMAL;
+        return dimensionIn(message);
+    }
+
+    /**
+     * 从失败原因里认出维度。
+     *
+     * <p>中文包按服务器原文匹配；再留一套英文兜底——{@link Language} 装的是<b>当前语言</b>的语言文件，
+     * 客户端切成英文时拿到的是 {@code en_us} 那份，只认中文会静默失效（分组全变通用，且没有任何报错）。</p>
+     */
+    private static PotGroup dimensionIn(String message) {
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (message.contains("下界") || lower.contains("nether")) return PotGroup.NETHER;
+        if (message.contains("末地") || lower.contains("the end") || lower.contains("end dimension")) {
+            return PotGroup.END;
+        }
+        return PotGroup.NORMAL;
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -586,6 +640,33 @@ public final class StardewResourceIndex {
     /** 按稳定键查工具逻辑对象；未找到返回 null */
     public StardewToolDefinition entryByKey(String key) {
         return key == null ? null : toolDefinitions.get(key);
+    }
+
+    /**
+     * 盆型键 → 盆型组（普通 / 下界 / 末地）。
+     *
+     * <p>查不到定义时按普通盆处理：普通盆是唯一不限维度、走水壶链路的一种，
+     * 退到它不会误把未知盆当成下界盆去要求岩浆。</p>
+     */
+    public PotGroup potGroupOf(String potKey) {
+        return entryByKey(potKey) instanceof PotDefinition pot ? PotGroup.ofIndex(pot.potIndex()) : PotGroup.NORMAL;
+    }
+
+    /**
+     * 一组已选盆型键所属的盆型组（取第一个能识别的）。
+     *
+     * <p>盆型是互斥单选，正常情况下这里只会有一个；取第一个是为了兼容「玩家在互斥校验
+     * 上线之前就已经多选过」的旧存档，不让它退化成普通盆而把下界盆当普通盆处理。</p>
+     *
+     * <p>绑定校验 / 启动自检 / 选择器共用这一份实现，避免三处各写一遍而口径漂移。</p>
+     */
+    public PotGroup potGroupOfSelected(List<String> selectedPotKeys) {
+        if (selectedPotKeys != null) {
+            for (String key : selectedPotKeys) {
+                if (entryByKey(key) instanceof PotDefinition pot) return PotGroup.ofIndex(pot.potIndex());
+            }
+        }
+        return PotGroup.NORMAL;
     }
 
     /**

@@ -26,6 +26,8 @@ public final class SettingColorPicker extends SettingWidget {
 
     private final String title;
     private final EspColor color;
+    /** 关窗后的落盘通知；为空表示宿主页面自己负责落盘 */
+    private final Runnable onChange;
     private final Paint fillPaint = new Paint().setAntiAlias(true);
     private final Paint borderPaint = new Paint().setAntiAlias(true)
             .setMode(PaintMode.STROKE)
@@ -35,8 +37,17 @@ public final class SettingColorPicker extends SettingWidget {
      * @param title 调色板窗口标题，用来说明这是哪个颜色（例如「线条颜色」）
      */
     public SettingColorPicker(String title, EspColor color) {
+        this(title, color, null);
+    }
+
+    /**
+     * @param onChange 调色板关窗时通知宿主落盘（颜色是就地改的，不给这个出口就等于「改完不保存」）。
+     *                 传设置模块的 {@code persistSettings} 即可；拖动取色期间不会回调，不刷盘。
+     */
+    public SettingColorPicker(String title, EspColor color, Runnable onChange) {
         this.title = title;
         this.color = color;
+        this.onChange = onChange;
     }
 
     @Override
@@ -74,7 +85,7 @@ public final class SettingColorPicker extends SettingWidget {
     public boolean onClick(float mx, float my, float x, float y, int button) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft == null) return false;
-        minecraft.setScreen(new ColorPickerScreen(title, color, minecraft.screen));
+        minecraft.setScreen(new ColorPickerScreen(title, color, minecraft.screen, onChange));
         return true;
     }
 }

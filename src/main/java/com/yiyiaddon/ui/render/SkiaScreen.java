@@ -45,6 +45,9 @@ public abstract class SkiaScreen extends Screen {
             return;
         }
         framePending = false;
+        // 每帧重申输入法开关：原版的文本输入管理会把非输入状态的 IME 关掉，
+        // 只在聚焦那一刻设置会被它抢回去 —— 表现就是「拼音敲进去只有英文字母」。
+        ImeBridge.keepAlive();
         // 先截取图标，再画面板：截取要求隐藏格子仍是主 Framebuffer 的最上层内容。
         ItemIconCache.getInstance().capturePending();
         drawFrame(this.width, this.height, frameMouseX, frameMouseY, frameDelta);

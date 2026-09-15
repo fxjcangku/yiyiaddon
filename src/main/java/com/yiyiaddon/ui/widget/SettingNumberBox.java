@@ -24,11 +24,16 @@ import java.util.function.Supplier;
 public class SettingNumberBox extends SettingTextBox {
 
     /** 单个加减按钮宽度。 */
-    private static final float BTN_W = 22f;
-    /** 数值框宽度。 */
-    private static final float BOX_W = 82f;
+    private static final float BTN_W = 17f;
+    /**
+     * 数值框宽度。
+     *
+     * <p>从 82 收到 60：紧凑双列里控件的宽度直接吃掉标题的位置（一格只有 240），
+     * 收到 60 后「禁止破坏方块列表」这种长标题也能完整显示；60 仍放得下 {@code -1234.5678}。</p>
+     */
+    private static final float BOX_W = 60f;
     /** 按钮与数值框的间距。 */
-    private static final float GAP = 4f;
+    private static final float GAP = 3f;
     /** 圆角半径。 */
     private static final float RADIUS = 7f;
     /** 输入串长度上限，足够容纳 {@code -1234.5678}。 */

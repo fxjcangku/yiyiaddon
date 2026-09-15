@@ -11,10 +11,15 @@ import com.yiyiaddon.feature.stardew.navigation.ContainerApproachPlanner;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
+import com.yiyiaddon.feature.stardew.profile.PotDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewCropLifecycle;
 import com.yiyiaddon.feature.stardew.profile.StardewHarvestRule;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.StardewServerProfile;
+import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
+import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
+import com.yiyiaddon.feature.stardew.recognition.CropState;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
@@ -88,6 +93,14 @@ public final class StardewCoordinator {
     static final long RESTOCK_SAFETY_RECHECK_MS = 15L * 60_000L;
     static final long LOGISTICS_BLOCK_RETRY_MS = 60_000L;
     static final long NAVIGATION_BLOCK_RETRY_MS = 10_000L;
+    /**
+     * 料箱（岩浆箱 / 龙息箱）是空的之后，隔多久再去开一次。
+     *
+     * <p><b>为什么要有这个：</b>箱子里没料时，脚本唯一能做的判断就是「开箱看一眼」——不隔一段时间
+     * 重看，就会在「开箱 → 取不到 → 关箱 → 重规划 → 开箱」之间原地打转，玩家看到的就是站着不动
+     * （实机反馈：「箱子里没料了，去拿的时候就停在那」）。退避 30 秒既不再空转，补了料也能自动继续。</p>
+     */
+    static final long MATERIAL_FETCH_RETRY_MS = 30_000L;
     static final int NAVIGATION_NO_PROGRESS_TICKS = 80;
     static final int NAVIGATION_TIMEOUT_TICKS = 240;
     static final double NAVIGATION_PROGRESS_SQ = 0.04;
@@ -137,6 +150,17 @@ public final class StardewCoordinator {
     /** 「批量右击」的硬上限：再多也不会发，避免一 tick 内刷出一串交互包。 */
     static final int MAX_BATCH_ACTIONS = 8;
 
+    /**
+     * 启动自检里「分区错位」一次性扫描的总格数预算。
+     *
+     * <p>自检跑在主线程上（模块开关 / 进服那一刻），不能像运行时那样分帧；区域格子数是玩家
+     * 自己圈出来的，正常也就几百格。超预算的地块直接跳过——它只是提前拦截，运行中那轮扫描
+     * 仍会查出来。</p>
+     */
+    static final int STARTUP_MISMATCH_SCAN_LIMIT = 8192;
+    /** 一次性扫描的单次推进格数：整轮扫完即止，不需要和运行时一样小步走 */
+    static final int STARTUP_MISMATCH_SCAN_STEP = 512;
+
     final StardewFarmScanner scanner;
     final StardewAdapter adapter;
     final StardewSeasonService seasonService;
@@ -156,11 +180,9 @@ public final class StardewCoordinator {
     List<String> selectedPotionKeys = List.of();
     List<String> selectedSprinklerKeys = List.of();
 
-    /**
-     * 分区种植（实验）是否开启；关闭时 {@link #regions} 不做任何事，行为与开启前完全一致。
-     */
-    boolean regionPlanting = false;
-    /** 当前维度内的种植区域快照（模块每 tick 同步）；分区关闭时为空表 */
+    /** 自动清理错位作物：开着时错位格由 CLEAR_MISMATCH 任务逐格挖掉，关着则停机等玩家手动清 */
+    boolean autoClearMismatch = false;
+    /** 当前维度内的种植区域快照（模块每 tick 同步） */
     List<StardewRegionManager.Region> regions = List.of();
 
     String serverKey = "";
@@ -207,19 +229,25 @@ public final class StardewCoordinator {
     /** 配置页与聊天共用的唯一状态出口。 */
     StardewStatusReporter status = new StardewStatusReporter(null);
 
-    /**
-     * 「整片田都不是已选作物」时的停机回调，由模块注入。
-     *
-     * <p>协调器不自己关模块（那是框架层的事），只把冲突作物名交出去；为 null 时不做停机，
-     * 避免回调缺失时每轮 decide 都被挡在半路、连「回中心」都走不到。</p>
-     */
-    Consumer<List<String>> cropMismatchHandler = null;
-    /** 「某块种植区域内种了别的作物」的停机回调，由模块注入（分区模式专用） */
+    /** 「某块单一作物区里种了别的作物」的回调，由模块注入 */
     Consumer<List<String>> regionMismatchHandler = null;
-    /** 分区模式：已提示过「缺种子」的区域号（同一块地只报一次，不刷屏） */
+    /** 错位清理干净后的恢复回调，由模块注入 */
+    Runnable regionMismatchRecoveredHandler = null;
+    /** 「水壶不见了（快捷栏 / 背包 / 副手都没有）」的回调，由模块注入（停机） */
+    Runnable missingCanHandler = null;
+    /** 分区错位格子：只用于世界高亮，每轮决策按最新快照刷新 */
+    private final Set<BlockPos> mismatchCells = new HashSet<>();
+    /** 是否已因错位停住等玩家清理（停住期间一个任务都不派发） */
+    private boolean regionMismatchPaused = false;
+    /** 已提示过「缺种子」的区域号（同一块地只报一次，不刷屏） */
     final Set<Integer> announcedRegionSeedShortage = new HashSet<>();
-    /** 分区模式：是否已提示过「开了分区但还没有区域」 */
+    /** 是否已提示过「还没有种植区域」 */
     boolean regionEmptyAnnounced = false;
+    /**
+     * 当前作业的单一作物区序号（区域粘性）：先把这块地的活干完再去下一块，避免在地块之间来回跑。
+     * {@code 0} = 还没定（下一轮由派发决定）；混种区（农场模式）与未分区格子都不参与。
+     */
+    int stickyRegionIndex = 0;
     /** 作物数量配置只在这里换算成唯一实际个数。 */
     Function<String, StardewCropPlanStore.CropPlan> cropPlanResolver = key -> StardewCropPlanStore.CropPlan.DEFAULT;
 
@@ -239,42 +267,196 @@ public final class StardewCoordinator {
         if (listener != null) this.harvestLearningListener = listener;
     }
 
-    /** 注入「整片田都是未选作物」的停机回调（模块在构造时注入一次）。 */
-    public void setCropMismatchHandler(Consumer<List<String>> handler) {
-        this.cropMismatchHandler = handler;
-    }
-
     /**
-     * 注入「某个种植区域内种了别的作物」的停机回调（分区种植专用）。
+     * 注入「某个单一作物区内种了别的作物」的回调。
      *
-     * <p>与 {@link #cropMismatchHandler} 一样，协调器只判定与交付冲突详情，关模块由模块执行。</p>
+     * <p>协调器只判定与交付冲突详情，是否停住由模块决定；错位清干净后回调
+     * {@link #setRegionMismatchRecoveredHandler(Runnable)} 的恢复动作。</p>
      */
     public void setRegionMismatchHandler(Consumer<List<String>> handler) {
         this.regionMismatchHandler = handler;
     }
 
+    /** 注入「分区错位已清理干净」的恢复回调 */
+    public void setRegionMismatchRecoveredHandler(Runnable handler) {
+        this.regionMismatchRecoveredHandler = handler;
+    }
+
     /**
-     * 该坐标所属的种植区域；分区关闭或这一格不在任何区域内时返回 {@code null}。
+     * 注入「水壶不见了」的回调。
      *
-     * <p>「不在任何区域内」＝未分区格子，分区模式下这些格子一律不管（不种 / 不收 / 不浇 / 不画）。</p>
+     * <p>浇水、补水、洒水器维护全靠这把壶，而「读不到水量」在旧口径里等于「当作已补满」——
+     * 实机反馈就是壶被挪走后脚本照样宣布完成。协调器只判定并交付事实，是否停机由模块决定
+     * （与玩家死亡走同一条停机路径）。</p>
      */
-    StardewRegionManager.Region regionAt(BlockPos pos) {
-        if (!regionPlanting || pos == null) return null;
+    public void setMissingCanHandler(Runnable handler) {
+        this.missingCanHandler = handler;
+    }
+
+    /** 找不到水壶：交给模块停机（模块未注入回调时不做任何事，绝不在这里自行关模块） */
+    void stopForMissingCan() {
+        if (missingCanHandler != null) missingCanHandler.run();
+    }
+
+    /** 当前错位格子（世界高亮用；空 = 没有冲突） */
+    public Set<BlockPos> regionMismatchCells() {
+        return Set.copyOf(mismatchCells);
+    }
+
+    /**
+     * 启动自检用：一次性扫描当前维度的每个单一作物区，找出「地里长着别的作物」的格子。
+     *
+     * <p><b>为什么要有它：</b>运行中的判定在 {@code DECIDE} 阶段，属于「启动后跑完一轮扫描才停机」；
+     * 实机反馈是「三块区域里有一块被换成了别的作物，模块照样能开机」。开机自检必须先把这种地拦下来，
+     * 与其它启动条件一样列出来，别让玩家以为它跑得好好的。</p>
+     *
+     * <p><b>代价与边界：</b>只扫区域自己的格子（不扫区域之间的空档），并按
+     * {@link #STARTUP_MISMATCH_SCAN_LIMIT} 格设总预算——预算不够的地块直接跳过（不是漏判：
+     * 运行中那一轮扫描照样会查出来，只是那时已经开机了）。它只用于拦截，不产生任何任务、
+     * 不参与任何决策。</p>
+     *
+     * @return 给玩家看的一行结论；没有冲突返回 {@code null}
+     */
+    public String startupRegionMismatchProblem() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || profile == null || regions.isEmpty()) return null;
+
+        StardewFarmScanner oneShot = new StardewFarmScanner();
+        List<StardewTaskPlanner.RegionMismatch> found = new ArrayList<>();
+        int budget = STARTUP_MISMATCH_SCAN_LIMIT;
         for (StardewRegionManager.Region region : regions) {
-            if (region.contains(pos)) return region;
+            // 混种区种什么都算对，不必扫
+            if (region.mixed()) continue;
+            int cells = region.sizeX() * (region.maxY() - region.minY() + 1) * region.sizeZ();
+            if (cells > budget) continue;
+            budget -= cells;
+            oneShot.begin(new BlockPos(region.minX(), region.minY(), region.minZ()),
+                new BlockPos(region.maxX(), region.maxY(), region.maxZ()));
+            while (!oneShot.complete()) {
+                for (StardewFarmScanner.Cell cell : oneShot.scanTick(profile, STARTUP_MISMATCH_SCAN_STEP)) {
+                    String key = cell.crop().cropKey();
+                    if (key == null || cell.crop().state() == CropState.UNKNOWN) continue;
+                    if (!key.equals(region.cropKey())) {
+                        found.add(new StardewTaskPlanner.RegionMismatch(cell.potPos(), region, key));
+                    }
+                }
+            }
+        }
+        if (found.isEmpty()) return null;
+        return "分区错位：" + String.join("；", planner.describeMismatches(found))
+            + " ▸ 清掉那几格里的作物，或把该区域删掉重划";
+    }
+
+    /**
+     * 启动自检：当前维度的地里，一口「已选盆型」的盆都没有。
+     *
+     * <p><b>为什么必须在开机前拦：</b>盆型是互斥单选，玩家在上一个维度（或上一次测试）选过普通盆，
+     * 换到下界的地里就会一口都匹配不上；此时每一格都被静默跳过，表现是「启动后什么都没发生」——
+     * 玩家看不到任何解释，只能干等（实机反馈）。这条与其它启动条件一样列进自检，开机就摊开说清。</p>
+     *
+     * <p><b>边界：</b>与分区错位自检共用同一份一格预算；有地块因预算被跳过时**不作结论**，
+     * 避免「没扫到」被误报成「不匹配」（运行中那一轮扫描仍会照常提示）。</p>
+     *
+     * @return 给玩家看的一行结论；没有不匹配或无法确证时返回 {@code null}
+     */
+    public String startupPotMismatchProblem() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || profile == null || regions.isEmpty() || selectedPotKeys.isEmpty()) return null;
+
+        StardewFarmScanner oneShot = new StardewFarmScanner();
+        Map<String, Integer> foundGroups = new java.util.LinkedHashMap<>();
+        int matched = 0;
+        int budget = STARTUP_MISMATCH_SCAN_LIMIT;
+        for (StardewRegionManager.Region region : regions) {
+            int cells = region.sizeX() * (region.maxY() - region.minY() + 1) * region.sizeZ();
+            // 预算不够就整块跳过：宁可不说，也不能把「没扫到」说成「不匹配」
+            if (cells > budget) return null;
+            budget -= cells;
+            oneShot.begin(new BlockPos(region.minX(), region.minY(), region.minZ()),
+                new BlockPos(region.maxX(), region.maxY(), region.maxZ()));
+            while (!oneShot.complete()) {
+                for (StardewFarmScanner.Cell cell : oneShot.scanTick(profile, STARTUP_MISMATCH_SCAN_STEP)) {
+                    collectPotGroup(foundGroups, cell);
+                    if (planner.potMatchesSelection(cell)) matched++;
+                }
+            }
+        }
+        if (foundGroups.isEmpty() || matched > 0) return null;
+        return "种植盆不匹配：地里 " + formatGroups(foundGroups) + "，已选 " + selectedPotNames()
+            + " ▸ 去选择器里改「种植盆」";
+    }
+
+    /** 按「盆型中文名」聚合一口盆；识别不出盆键时如实记「(未识别)」，不冒充普通盆。 */
+    private static void collectPotGroup(Map<String, Integer> groups, StardewFarmScanner.Cell cell) {
+        String key = cell.potKey();
+        groups.merge(key == null || key.isBlank() ? "(未识别)" : PotGroup.ofPotKey(key).displayName(), 1, Integer::sum);
+    }
+
+    /** {@code 下界种植盆 ×16、普通种植盆 ×2} */
+    private static String formatGroups(Map<String, Integer> groups) {
+        StringBuilder out = new StringBuilder();
+        groups.forEach((name, count) -> {
+            if (out.length() > 0) out.append('、');
+            out.append(name).append(" ×").append(count);
+        });
+        return out.toString();
+    }
+
+    /** 已选盆型的中文名，例如 {@code 普通种植盆}；认不出的键原样列出，不编造名字 */
+    private String selectedPotNames() {
+        StringBuilder out = new StringBuilder();
+        for (String key : selectedPotKeys) {
+            StardewToolDefinition entry = index == null ? null : index.entryByKey(key);
+            if (out.length() > 0) out.append('、');
+            out.append(entry instanceof PotDefinition pot ? PotGroup.ofIndex(pot.potIndex()).displayName() : key);
+        }
+        return out.toString();
+    }
+
+    /**
+     * 换品种前的占地检查（规范 12.1 的 A 口径）：区域里还有活着的作物时不允许改绑。
+     *
+     * <p><b>为什么不许：</b>改绑会让地里现有的作物立刻变成「异种作物」，模块随后就会按新目标把它
+     * 挖掉——那是把玩家可能还要收的作物默默清掉，与 D12 / D13「不允许默默换目标」同源。
+     * 空盆、死株、识别不出的格不算占地（那几样本就要清掉重种）。</p>
+     *
+     * <p>扫描范围只限这块区域自己的格子；格数超过启动自检那份预算时直接放行（不误伤，也不把
+     * 一次点按钮变成卡顿）。</p>
+     *
+     * @return 区域内第一个「活着作物」的格；没有返回 {@code null}（可以直接改绑）
+     */
+    public RegionOccupied regionOccupied(StardewRegionManager.Region region) {
+        Minecraft mc = Minecraft.getInstance();
+        if (region == null || mc.level == null || profile == null) return null;
+        int cells = region.sizeX() * (region.maxY() - region.minY() + 1) * region.sizeZ();
+        if (cells > STARTUP_MISMATCH_SCAN_LIMIT) return null;
+        StardewFarmScanner oneShot = new StardewFarmScanner();
+        oneShot.begin(new BlockPos(region.minX(), region.minY(), region.minZ()),
+            new BlockPos(region.maxX(), region.maxY(), region.maxZ()));
+        while (!oneShot.complete()) {
+            for (StardewFarmScanner.Cell cell : oneShot.scanTick(profile, STARTUP_MISMATCH_SCAN_STEP)) {
+                if (cell.crop().cropKey() == null || !isLivingCrop(cell.crop().state())) continue;
+                return new RegionOccupied(cell.crop().cropKey(), cell.crop().state(), cell.potPos());
+            }
         }
         return null;
     }
 
-    /**
-     * 分区模式是否生效：实验开关开着就生效，与「有没有区域」无关。
-     *
-     * <p><b>为什么不是「有区域才算」：</b>一旦开关开着，整片田的口径就退出（{@code 未分区 = 不管}）。
-     * 若按「有区域才算」，玩家运行中把区域删光，模块会悄悄退回旧口径去管整片田，正好与
-     * 「删除 = 不再管这块地」相反。区域为空时正确的行为是「什么都不做」。</p>
-     */
-    boolean regionModeActive() {
-        return regionPlanting;
+    /** 占地判定结果：生长中的作物键 / 状态 / 坐标（中文名由模块用资源索引补，协调器不带索引） */
+    public record RegionOccupied(String cropKey, CropState state, BlockPos pos) {
+    }
+
+    /** 生长中 / 成熟 / 特殊变种算「地里还有作物」；空盆、死株、识别不出的不算 */
+    private static boolean isLivingCrop(CropState state) {
+        return state == CropState.GROWING || state == CropState.MATURE || state == CropState.SPECIAL;
+    }
+
+    StardewRegionManager.Region regionAt(BlockPos pos) {
+        if (pos == null) return null;
+        for (StardewRegionManager.Region region : regions) {
+            if (region.contains(pos)) return region;
+        }
+        return null;
     }
 
     /** 取某种作物自己的后勤阈值（未配置时由解析器给出默认值） */
@@ -369,6 +551,12 @@ public final class StardewCoordinator {
     final Set<String> seasonBlockedCrops = new HashSet<>();
     /** 已播报过的「作物 + 季节」阻塞组合：重算不会重复刷屏，季节变化后允许再次播报 */
     final Set<String> announcedSeasonBlocks = new HashSet<>();
+    /** 已播报过「盆型 × 维度不匹配」的盆型：下界盆 / 末地盆各只提示一次，避免每轮扫描刷屏 */
+    final Set<String> announcedDimensionBlocks = new HashSet<>();
+    /** 已播报过「下界盆缺岩浆 / 末地盆缺龙息」的盆型：备好料之前只提醒一次 */
+    final Set<String> announcedMaterialShortage = new HashSet<>();
+    /** 已播报过「下界盆 / 末地盆不能施肥」的盆型：两种特殊盆没有肥料槽，只提醒一次 */
+    final Set<String> announcedNoFertilize = new HashSet<>();
     /** 本次会话已播报过回收完成的作物：保株作物会周期性回收，避免每次收获都刷一条 */
     final Set<String> announcedSeedReturns = new HashSet<>();
     /** 已上报过「拾取不到掉落物」的坐标（每处只报一次，避免每 10 秒刷屏）。 */
@@ -404,12 +592,15 @@ public final class StardewCoordinator {
     int swappedInvSlot = -1;
 
     final List<StardewFarmScanner.Cell> pending = new ArrayList<>();
+    /** 上一轮扫描概览：内容不变就不重复打，避免每轮扫描刷屏 */
+    private String lastScanSummary;
+    /** 料箱刚验过是空的：在此时间戳之前不再去开箱（见 {@link #MATERIAL_FETCH_RETRY_MS}） */
+    long materialFetchBlockedUntil;
     Map<String, Integer> taskInventoryBefore = Map.of();
     int taskSeedBefore;
     /** 本次任务目标作物自己的种子数（回收完成量按它算，不能用全部已选作物的合计）。 */
     int taskCropSeedBefore;
     int taskProduceBefore;
-    boolean farmBoundaryBlocked;
 
     // ── 拆分后的职责协作者（只共享本类可变状态，不新增任何状态） ──
     final StardewTaskPlanner planner = new StardewTaskPlanner(this);
@@ -436,12 +627,20 @@ public final class StardewCoordinator {
                           boolean sprinklerMaintenance, int sprinklerInterval,
                           int restockTrigger, int restockTarget, int unloadTrigger, int unloadKeep,
                           int returnCenterDelaySeconds, int batchActions,
-                          boolean regionPlanting,
+                          boolean autoClearMismatch,
                           List<StardewRegionManager.Region> regions) {
         List<String> newCropKeys = selectedCropKeys == null ? List.of() : List.copyOf(selectedCropKeys);
         BlockPos newSeedBox = points == null || points.get(StardewPointType.SEED_BOX) == null
             ? null : points.get(StardewPointType.SEED_BOX).pos();
         String newFingerprint = com.yiyiaddon.service.resourcepack.ResourceExtractionService.fingerprint();
+        // 换维度后「盆型 × 维度」的结论会整个反过来（下界盆出了下界就种不了），必须允许重新播报一次；
+        // 盆型选择本身也分维度，「盆型不匹配」的结论也要按新维度重算。
+        if (!java.util.Objects.equals(this.dimension, dimension)) {
+            announcedDimensionBlocks.clear();
+            lastScanSummary = null;
+            // 料箱退避按维度 / 服务器生效：换环境后那只箱子未必还是空的，不该带着旧退避
+            materialFetchBlockedUntil = 0L;
+        }
         if (!java.util.Objects.equals(configuredServerKey, serverKey)
             || !java.util.Objects.equals(configuredFingerprint, newFingerprint)
             || !configuredCropKeys.equals(newCropKeys)
@@ -492,7 +691,7 @@ public final class StardewCoordinator {
         this.unloadKeep = unloadKeep;
         this.returnCenterDelayTicks = Math.max(1, returnCenterDelaySeconds) * 20;
         this.batchActions = Math.max(1, Math.min(MAX_BATCH_ACTIONS, batchActions));
-        this.regionPlanting = regionPlanting;
+        this.autoClearMismatch = autoClearMismatch;
         this.regions = regions == null ? List.of() : List.copyOf(regions);
         // 启动自检保证此刻背包有种子；先读取一次真实 Tooltip，后续最后一颗种子消耗完时，
         // 季节闸门仍可使用同一 ServerKey + 指纹会话中的已验证规则，绝不会先跑补货再判季节。
@@ -522,6 +721,8 @@ public final class StardewCoordinator {
         containerApproach = null;
         activeCrop = null;
         pending.clear();
+        mismatchCells.clear();
+        regionMismatchPaused = false;
         executor.restoreHandNow();
         adapter.cancelPath();
         adapter.updatePassableCarriers(Set.of());
@@ -554,6 +755,9 @@ public final class StardewCoordinator {
         reportedLearningFailures.clear();
         seasonBlockedCrops.clear();
         announcedSeasonBlocks.clear();
+        announcedDimensionBlocks.clear();
+        announcedMaterialShortage.clear();
+        announcedNoFertilize.clear();
         announcedSeedReturns.clear();
         announcedRegionSeedShortage.clear();
         regionEmptyAnnounced = false;
@@ -566,7 +770,7 @@ public final class StardewCoordinator {
         taskSeedBefore = 0;
         taskCropSeedBefore = 0;
         taskProduceBefore = 0;
-        farmBoundaryBlocked = false;
+        stickyRegionIndex = 0;
     }
 
     public TaskType currentTask() {
@@ -631,7 +835,6 @@ public final class StardewCoordinator {
             pointWatchTicks = 0;
             reporter.watchPointBlocks();
         }
-        if (reporter.farmBoundaryFailure()) return;
         if (logisticsCooldown > 0) logisticsCooldown--;
         long seasonRevision = seasonService.revision();
         if (observedSeasonRevision != seasonRevision) {
@@ -659,6 +862,13 @@ public final class StardewCoordinator {
         }
     }
 
+    private void observeCropGroups(Iterable<StardewFarmScanner.Cell> cells) {
+        for (StardewFarmScanner.Cell cell : cells) {
+            if (cell == null || cell.crop() == null) continue;
+            CropPotGroups.observe(cell.crop().cropKey(), cell.potGroup());
+        }
+    }
+
     private void observe() {
         if (!scanner.bounded()) {
             BlockPos min = planner.regionMin();
@@ -667,11 +877,47 @@ public final class StardewCoordinator {
             scanner.begin(min, max);
             pending.clear();
         }
-        pending.addAll(scanner.scanTick(profile, scanBudget));
+        var fresh = scanner.scanTick(profile, scanBudget);
+        pending.addAll(fresh);
+        observeCropGroups(fresh);
         if (scanner.complete()) {
             planner.refreshPassableFarmCarriers();
+            reportScanSummary();
             phase = Phase.DECIDE;
         }
+    }
+
+    /**
+     * 扫描概览：这一轮到底扫到了什么，并在「一口都没匹配上」时明确报出来。
+     *
+     * <p><b>为什么需要它：</b>「没扫到盆」和「扫到了但盆型没选中」在游戏里长得一模一样，
+     * 而后者会让每一格都被静默跳过，玩家看不到任何解释（实机反馈「启动后毫无反应」）。
+     * 这里在零命中时给一条可执行的结论；结论没变就不再重复播报。</p>
+     */
+    private void reportScanSummary() {
+        Map<String, Integer> foundGroups = new java.util.LinkedHashMap<>();
+        int matched = 0;
+        int scanned = 0;
+        for (StardewFarmScanner.Cell cell : pending) {
+            scanned++;
+            collectPotGroup(foundGroups, cell);
+            if (planner.potMatchesSelection(cell)) matched++;
+        }
+        String summary = selectedPotKeys + "/" + foundGroups + "/" + matched + '/' + scanned;
+        if (summary.equals(lastScanSummary)) return;
+        lastScanSummary = summary;
+        if (matched == 0 && scanned > 0) announcePotMismatch(foundGroups);
+    }
+
+    /**
+     * 地里一口「已选盆型」的盆都没有：运行中同样要报，不能只靠开机自检。
+     *
+     * <p>开机自检覆盖「开机那一刻就选错」；这条覆盖运行中换盆、换维度、玩家中途改选择这些情况。
+     * 结论每变化一次只播一条（调用方已按扫描概览去重），不会刷屏。</p>
+     */
+    private void announcePotMismatch(Map<String, Integer> foundGroups) {
+        status.critical("POT_SELECT_MISMATCH", "已选种植盆在地里一口都没匹配上",
+            "地里：" + formatGroups(foundGroups) + " · 已选：" + selectedPotNames() + " ▸ 去选择器里改「种植盆」");
     }
 
     private void decide() {
@@ -680,12 +926,38 @@ public final class StardewCoordinator {
         // 旧阻塞不会残留（播报去重由 announcedSeasonBlocks 独立承担，重算不会重复刷屏）
         seasonBlockedCrops.clear();
 
-        // 分区种植开启但一个区域都没有：什么都不做。
-        // 此时整片田口径已经退出（未分区 = 不管），绝不能悄悄退回旧口径去管整片田。
-        if (regionModeActive() && regions.isEmpty()) {
+        // 单一作物区错位（区内种了别的作物）：停住等玩家清理——既不收也不浇，清干净自动继续。
+        // 必须排在所有派发之前，否则这条判定形同虚设（玩家开批量的那次就是踩着这个缝种错的）。
+        // 停住期间照常重扫（restartObserve），所以错位清掉后下一轮就能发现并自动恢复。
+        if (regionMismatchHandler != null) {
+            List<StardewTaskPlanner.RegionMismatch> found = planner.regionMismatches();
+            mismatchCells.clear();
+            for (StardewTaskPlanner.RegionMismatch mismatch : found) mismatchCells.add(mismatch.pos());
+            if (autoClearMismatch) {
+                // 自动清理开着：不停机，交给 CLEAR_MISMATCH 任务逐格挖掉再补种（红框照旧画）
+                if (regionMismatchPaused) {
+                    regionMismatchPaused = false;
+                    if (regionMismatchRecoveredHandler != null) regionMismatchRecoveredHandler.run();
+                }
+            } else if (!found.isEmpty()) {
+                if (!regionMismatchPaused) {
+                    regionMismatchPaused = true;
+                    regionMismatchHandler.accept(planner.regionMismatchedCrops());
+                }
+                restartObserve();
+                return;
+            } else if (regionMismatchPaused) {
+                regionMismatchPaused = false;
+                if (regionMismatchRecoveredHandler != null) regionMismatchRecoveredHandler.run();
+            }
+        }
+
+        // 一块区域都没有：什么都不做。此时「未分区 = 不管」口径下整片田都不属于模块，
+        // 绝不能悄悄退回旧口径去管整片田。
+        if (regions.isEmpty()) {
             if (!regionEmptyAnnounced) {
                 regionEmptyAnnounced = true;
-                status.state("REGION_EMPTY", "分区种植已开启", "还没有种植区域 ▸ 用 .stardew 种植区域 <作物> 圈一块");
+                status.state("REGION_EMPTY", "还没有种植区域", "用 .stardew 种植区域 <作物|混种> 圈一块");
             }
             restartObserve();
             return;
@@ -711,6 +983,11 @@ public final class StardewCoordinator {
         // 成熟、枯死、缺水任务优先于补种箱：成熟作物可能自产种子，先收割才能真正自给自足。
         if (!pending.isEmpty()) {
             pending.sort(Comparator.comparingInt(planner::priority));
+            // 区域粘性：当前作业地块还有活就先做它，这块地做干净再换下一块（只认单一作物区）
+            if (planner.startStickyRegionTask()) {
+                phase = Phase.NAVIGATE;
+                return;
+            }
             if (planner.startPendingTask(false)) {
                 phase = Phase.NAVIGATE;
                 return;
@@ -751,28 +1028,6 @@ public final class StardewCoordinator {
         if (planner.tryStartSeedReturn()) {
             phase = Phase.NAVIGATE;
             return;
-        }
-
-        // 分区模式：某块区域里种了别的作物 → 同样报错停机（口径由区域决定种什么，不将就）
-        if (regionModeActive() && regionMismatchHandler != null) {
-            List<String> mismatched = planner.regionMismatchedCrops();
-            if (!mismatched.isEmpty()) {
-                regionMismatchHandler.accept(mismatched);
-                return;
-            }
-        }
-
-        // 整片田种的都是「没选进种植列表」的作物：本轮必然没有任何可执行任务。
-        // 旧项目在这里静默跳过（resolveTask 对未选作物直接返回 null），玩家看到的是
-        // 「不收也不浇，直接回中心站着」，只会以为模块卡死。这里改成报错 + 直接停机：
-        // 停机由模块执行（框架层的事），协调器只负责判定与把冲突作物名交出去。
-        // 分区模式下未分区格子不管，因此这条只对「已分区格子」之外的旧口径场景生效。
-        if (cropMismatchHandler != null && !regionModeActive()) {
-            List<String> mismatched = planner.mismatchedCrops();
-            if (!mismatched.isEmpty()) {
-                cropMismatchHandler.accept(mismatched);
-                return;
-            }
         }
 
         if (waitingForGrowth && !waitingMatureNotified) {
@@ -905,7 +1160,7 @@ public final class StardewCoordinator {
         boolean acted = switch (taskType) {
             case HARVEST -> executor.doHarvest();
             case LEARN_HARVEST -> executor.doLearnHarvest();
-            case CLEAR_DEAD -> executor.doClearDead();
+            case CLEAR_DEAD, CLEAR_MISMATCH -> executor.doBreakPlant();
             case WATER -> executor.doWater();
             case PLANT -> executor.doPlant();
             case FERTILIZE -> executor.doFertilize();

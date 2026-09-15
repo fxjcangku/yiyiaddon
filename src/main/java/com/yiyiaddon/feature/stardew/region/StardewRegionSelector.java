@@ -2,6 +2,8 @@ package com.yiyiaddon.feature.stardew.region;
 
 import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
+import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
+import com.yiyiaddon.feature.stardew.ui.StardewRegionCropScreen;
 import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
@@ -19,10 +21,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.lwjgl.glfw.GLFW;
 
 /**
- * 种植区域选区模式：空手左键点第一个角、右键点对角，WorldEdit 那种实时预览手感。
+ * 种植区域选区模式：左键点第一个角、右键点对角，WorldEdit 那种实时预览手感。
  *
  * <p><b>为什么用事件而不是每 tick 读鼠标：</b>选区必须与「原版真的做了什么」对齐。左键用
  * {@link AttackBlockCallback}，右键用 {@link UseBlockCallback}，两者返回
@@ -34,13 +35,22 @@ import org.lwjgl.glfw.GLFW;
  * {@link ClientPreAttackCallback}，模式内把 {@code startAttack} 与 {@code continueAttack}
  * 一并取消（Fabric 内部同一个开关），按住不放也挖不动。</p>
  *
- * <p><b>为什么只认物理按键：</b>本模组自己的自动交互走的是同一个
- * {@code MultiPlayerGameMode} 通道，同样会触发这两个事件。模式内若不加区分，模块自己的
- * 播种 / 收割会被拦下来。这里只在「鼠标键真的被按下」时才接管。</p>
+ * <p><b>为什么不再按物理鼠标状态判定：</b>原来这几个回调都要先问一句
+ * {@code glfwGetMouseButton(...) == PRESS}，用来把「模组自己的自动交互」排除掉。但<b>点一下</b>
+ * （按下与抬起落在同一帧）时，等原版这一 tick 走到回调，物理键早就是 RELEASE 了，判定为「不是物理点击」
+ * → 不接管 → 原版的破坏照常发出，作物被打掉（实机反馈「区域选点左键点击会破坏农作物」）。
+ * 而这套排除本来就是多余的：模组自己的交互走 {@code BlockPacketSender} 直接构造
+ * {@code ServerboundUseItemOnPacket} 发包，完全不经过 {@code MultiPlayerGameMode}，
+ * 也就不会触发这里的任何回调。所以现在模式内一律接管，不再看鼠标状态。</p>
  *
- * <p><b>手持别的东西时也拦、但不算选点：</b>模式内的一切左右键都不该落到世界里，因此拦下范围
- * 与「手上是什么」无关；只有空手（或手持已设定的选点工具）时，这一击才算「点角」。
+ * <p><b>手持别的东西时也拦、但默认同样算点角：</b>模式内的一切左右键都不该落到世界里，因此拦下范围
+ * 与「手上是什么」无关。<b>默认「不限」</b>——手持任何物品都算点角（站在地里多半正拿着锄头或种子，
+ * 不该逼人先切空手）；只有在设置里指定了选点工具时，它才变成白名单，其余物品只被拦下、不落点。
  * 该不该手持工具在进入模式时就已经检查过，所以不存在「默默拦住却不生效」的困惑。</p>
+ *
+ * <p><b>作物可以留到点完角再定：</b>从控制台「圈地」或 {@code .stardew 种植区域 选择} 进来时
+ * 不预先绑作物，第二个角点完弹窗，让玩家点一下这块地种哪种已勾选作物（见
+ * {@link StardewRegionCropScreen}）。指令里直接点名作物则照旧不弹。</p>
  *
  * <p><b>半成品不落盘：</b>只点了第一个角就切服 / 退出世界 / 关闭模块时，选区直接丢弃。</p>
  */
@@ -64,11 +74,15 @@ public final class StardewRegionSelector {
     private final Minecraft mc = Minecraft.getInstance();
     private final StardewFarmModule module;
 
-    /** 当前选区绑定的作物（null = 不在选区模式） */
+    /** 是否在选区模式（作物可以先不定，所以不能拿 cropKey 当开关） */
+    private boolean active;
+    /** 当前选区绑定的作物；{@code null} = 作物待定，点完两个角再弹窗选 */
     private String cropKey;
     private String cropName;
     /** 已记下的第一个角 */
     private BlockPos firstCorner;
+    /** 待弹窗时暂存的第二个角 */
+    private BlockPos secondCorner;
 
     public StardewRegionSelector(StardewFarmModule module) {
         this.module = module;
@@ -78,7 +92,7 @@ public final class StardewRegionSelector {
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
             StardewRegionSelector selector = instance;
-            if (selector == null || !selector.shouldTakeOver(player, hand, GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+            if (selector == null || !selector.shouldTakeOver(player, hand)) {
                 return InteractionResult.PASS;
             }
             if (selector.toolReady()) selector.markFirstCorner(pos);
@@ -86,7 +100,7 @@ public final class StardewRegionSelector {
         });
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             StardewRegionSelector selector = instance;
-            if (selector == null || !selector.shouldTakeOver(player, hand, GLFW.GLFW_MOUSE_BUTTON_RIGHT)) {
+            if (selector == null || !selector.shouldTakeOver(player, hand)) {
                 return InteractionResult.PASS;
             }
             if (selector.toolReady()) selector.markSecondCorner(hitResult);
@@ -95,18 +109,27 @@ public final class StardewRegionSelector {
         // 右键没指到方块（点到空气）走的是「使用物品」这条路，同样拦下，免得模式内把食物吃了
         UseItemCallback.EVENT.register((player, level, hand) -> {
             StardewRegionSelector selector = instance;
-            return selector != null && selector.shouldTakeOver(player, hand, GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+            return selector != null && selector.shouldTakeOver(player, hand)
                 ? InteractionResult.FAIL : InteractionResult.PASS;
         });
         // 左键指到生物时原版会攻击，模式内一并拦下
         AttackEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
             StardewRegionSelector selector = instance;
-            return selector != null && selector.shouldTakeOver(player, hand, GLFW.GLFW_MOUSE_BUTTON_LEFT)
+            return selector != null && selector.shouldTakeOver(player, hand)
                 ? InteractionResult.FAIL : InteractionResult.PASS;
         });
         ClientPreAttackCallback.EVENT.register((client, player, clickCount) -> {
             StardewRegionSelector selector = instance;
-            return selector != null && selector.isActive();
+            if (selector == null || !selector.shouldTakeOver(player, InteractionHand.MAIN_HAND)) {
+                return false;
+            }
+            // 记第一个角必须在这里做：返回 true 会取消原版 startAttack，于是 gameMode.startDestroyBlock
+            // 不执行，AttackBlockCallback 根本收不到这一次点击（实机反馈「左键点了没反应」就是这条）。
+            if (selector.toolReady()) {
+                BlockPos pos = selector.crosshairBlock();
+                if (pos != null) selector.markFirstCorner(pos);
+            }
+            return true;
         });
     }
 
@@ -115,12 +138,12 @@ public final class StardewRegionSelector {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     public boolean isActive() {
-        return cropKey != null;
+        return active;
     }
 
-    /** 当前选区绑定的作物中文名（不在模式内返回 null） */
+    /** 当前选区绑定的作物中文名（不在模式内返回 null；作物待定时返回「待选作物」） */
     public String cropName() {
-        return cropName;
+        return displayCrop();
     }
 
     /** 是否已经点下第一个角 */
@@ -128,22 +151,30 @@ public final class StardewRegionSelector {
         return firstCorner != null;
     }
 
+    /** 播报与预览统一用这个：作物待定时不能显示 null */
+    private String displayCrop() {
+        return cropName == null ? "待选作物" : cropName;
+    }
+
     /**
      * 进入选区模式。
      *
+     * @param cropKey  作物键；{@code null} = 作物待定，第二个角点完弹窗选
+     * @param cropName 作物中文名；随 {@code cropKey} 一起为 null
      * @return 失败原因；成功返回 {@code null} 并已发出进入提示
      */
     public String enter(String cropKey, String cropName) {
-        if (!module.regionPlantingOn()) return "「分区种植」还没开启：请先在设置里打开这个实验开关";
-        if (cropKey == null || cropName == null) return "请指定要绑定到这块地的作物";
+        this.active = true;
         this.cropKey = cropKey;
         this.cropName = cropName;
         this.firstCorner = null;
+        this.secondCorner = null;
         WorldOverlay.register(LAYER_ID, this::render);
-        CommandMessageFormatter.of(StardewFarmModule.MODULE_NAME, "种植区域 ▶ 作物 " + cropName)
+        CommandMessageFormatter.of(StardewFarmModule.MODULE_NAME, "种植区域 ▶ " + displayCrop())
             .field("怎么选", module.regionToolHint())
             .field("退出", ".stardew 种植区域 取消")
-            .status(CommandMessageFormatter.Level.SUCCESS, "等第一个角")
+            .status(CommandMessageFormatter.Level.SUCCESS,
+                cropKey == null ? "等第一个角（作物点完角再选）" : "等第一个角")
             .send();
         return null;
     }
@@ -151,9 +182,11 @@ public final class StardewRegionSelector {
     /** 退出选区模式；{@code silent} 为 true 时不播报（切服 / 关闭模块 / 死亡停机用） */
     public void cancel(boolean silent) {
         boolean wasActive = isActive();
+        active = false;
         cropKey = null;
         cropName = null;
         firstCorner = null;
+        secondCorner = null;
         WorldOverlay.unregister(LAYER_ID);
         if (!silent && wasActive) {
             CommandMessageFormatter.of(StardewFarmModule.MODULE_NAME, "种植区域已取消")
@@ -166,16 +199,22 @@ public final class StardewRegionSelector {
     //  选点
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    private void markFirstCorner(BlockPos pos) {
-        firstCorner = pos;
+    private void markFirstCorner(BlockPos clicked) {
+        // 盆上有作物时射线打中的是作物那一格，归一到盆那一层再记：否则区域框整体浮高一格
+        BlockPos pos = StardewFarmScanner.normalizeToPot(clicked);
+        // 鼠标这一击可能被两条路都看到（PreAttack 与 AttackBlock）：同一格只记一次，免得重复播报
+        if (pos.equals(firstCorner)) return;
+        firstCorner = pos.immutable();
         CommandMessageFormatter.of(StardewFarmModule.MODULE_NAME, "已记下第一个角")
-            .field("作物", cropName)
+            .field("这块地", displayCrop())
             .coord(pos.getX(), pos.getY(), pos.getZ())
             .status(CommandMessageFormatter.Level.SUCCESS, module.regionSecondCornerHint())
             .send();
     }
 
     private void markSecondCorner(BlockHitResult hit) {
+        // 与第一个角同一口径：先归一到盆那一层，区域框才落在地里而不是作物层上
+        BlockPos pos = StardewFarmScanner.normalizeToPot(hit.getBlockPos());
         if (firstCorner == null) {
             CommandMessageFormatter.of(StardewFarmModule.MODULE_NAME, "还没记下第一个角")
                 .field("怎么选", module.regionToolHint())
@@ -183,16 +222,39 @@ public final class StardewRegionSelector {
                 .send();
             return;
         }
-        String failure = module.createRegion(cropKey, cropName, firstCorner, hit.getBlockPos());
+        // 作物待定：先弹窗问「这块地种什么」，玩家点定之后才建区
+        if (cropKey == null) {
+            secondCorner = pos.immutable();
+            openCropChooser();
+            return;
+        }
+        createRegion(cropKey, cropName, pos);
+    }
+
+    /**
+     * 弹出「这块地种什么」窗口（作物待定模式）。
+     *
+     * <p>面板打开期间 {@code mc.screen != null}，选区接管判定自然失效，鼠标可以正常点按钮。</p>
+     */
+    private void openCropChooser() {
+        if (mc.screen != null) return;
+        mc.setScreen(new StardewRegionCropScreen(null, module, firstCorner, secondCorner,
+            (key, name) -> createRegion(key, name, secondCorner), () -> cancel(false)));
+    }
+
+    /** 建区收口：成功即退出模式；失败留在模式里，玩家可以换个角再右键试一次 */
+    private void createRegion(String cropKey, String cropName, BlockPos secondCorner) {
+        String failure = module.createRegion(cropKey, cropName, firstCorner, secondCorner);
         if (failure != null) {
+            this.secondCorner = null;
             CommandMessageFormatter.of(StardewFarmModule.MODULE_NAME, "设置种植区域失败")
-                .field("作物", cropName)
+                .field("这块地", cropName)
                 .field("原因", failure)
                 .status(CommandMessageFormatter.Level.FAILURE, "未保存")
                 .send();
             return;
         }
-        // 建区成功即退出模式：一块地对应一个作物，继续圈下一块要重新敲一次指令
+        // 建区成功即退出模式：一块地对应一套种法，继续圈下一块要重新敲一次指令
         cancel(true);
     }
 
@@ -203,27 +265,21 @@ public final class StardewRegionSelector {
     /**
      * 这一次点击要不要被选区接管（接管 = 返回 FAIL，不给服务器发包）。
      *
-     * <p>接管范围是「模式内 + 原版世界内 + 主手 + 鼠标真的按下」，与「手上是不是选点工具」无关：
+     * <p>接管范围是「模式内 + 原版世界内 + 主手 + 没有别的界面开着」，<b>不看鼠标状态</b>：
+     * 模组自己的自动交互走 {@code BlockPacketSender} 直接发包，根本不会进到这里，
+     * 而按鼠标状态判定会让「点一下」（按下与抬起同一帧）漏接管、把作物打掉（实机反馈）。
      * 手持别的东西时也拦（不挖、不放、不浇水、不开箱），只是不算选点，避免玩家在模式内误操作。</p>
      */
-    private boolean shouldTakeOver(Player player, InteractionHand hand, int glfwButton) {
+    private boolean shouldTakeOver(Player player, InteractionHand hand) {
         if (!isActive()) return false;
         if (mc.player == null || mc.level == null) return false;
         if (player != mc.player || hand != InteractionHand.MAIN_HAND) return false;
-        if (mc.screen != null) return false;
-        if (!module.regionPlantingOn()) return false;
-        return physicalMouseDown(glfwButton);
+        return mc.screen == null;
     }
 
-    /** 手上是不是允许的选点工具（空手，或手持已设定的工具） */
+    /** 手上这一击算不算点角（默认「不限」，指定选点工具后变成白名单） */
     private boolean toolReady() {
         return module.regionToolUsable();
-    }
-
-    /** 只认物理按下的鼠标键：模组自己的自动交互不按鼠标，因此不会误拦 */
-    private boolean physicalMouseDown(int glfwButton) {
-        var window = mc.getWindow();
-        return window != null && GLFW.glfwGetMouseButton(window.handle(), glfwButton) == GLFW.GLFW_PRESS;
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -233,14 +289,14 @@ public final class StardewRegionSelector {
     private void render(EspRenderer renderer) {
         if (!isActive() || firstCorner == null) return;
         if (mc.player == null || mc.level == null) return;
-        BlockPos cursor = crosshairBlock();
+        BlockPos cursor = StardewFarmScanner.normalizeToPot(crosshairBlock());
         if (cursor == null) return;
         renderer.box(rect(firstCorner, cursor), PREVIEW_SIDE, PREVIEW_LINE, ShapeMode.Lines, LINE_THICKNESS);
         renderer.blockBox(firstCorner.getX(), firstCorner.getY(), firstCorner.getZ(),
             FIRST_CORNER, FIRST_CORNER, ShapeMode.Lines, LINE_THICKNESS);
         int sizeX = Math.abs(firstCorner.getX() - cursor.getX()) + 1;
         int sizeZ = Math.abs(firstCorner.getZ() - cursor.getZ()) + 1;
-        renderer.text(sizeX + " × " + sizeZ + " · " + cropName,
+        renderer.text(sizeX + " × " + sizeZ + " · " + displayCrop(),
             (Math.min(firstCorner.getX(), cursor.getX()) + Math.max(firstCorner.getX(), cursor.getX())) / 2.0 + 0.5,
             Math.min(firstCorner.getY(), cursor.getY()) + 1.6,
             (Math.min(firstCorner.getZ(), cursor.getZ()) + Math.max(firstCorner.getZ(), cursor.getZ())) / 2.0 + 0.5,

@@ -31,7 +31,7 @@ public abstract class CardPage extends BasePage {
     private static final float HOVER_LIFT = 1f;
     private static final float EMPTY_STATE_HEIGHT = 96f;
     /** 卡片区顶部留白：页面副标题与第一行卡片之间，避免卡片顶边（含投影）贴住标题区。 */
-    private static final float TOP_INSET = 20f;
+    private static final float TOP_INSET = CardLayout.TOP_INSET;
 
     private final Spring[] hoverSpring;
     private final PressState[] pressState;

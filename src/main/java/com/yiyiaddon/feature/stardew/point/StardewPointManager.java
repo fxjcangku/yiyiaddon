@@ -6,8 +6,6 @@ import com.google.gson.JsonParser;
 import com.yiyiaddon.feature.stardew.StardewContext;
 import com.yiyiaddon.feature.stardew.profile.SprinklerDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
-import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
-import com.yiyiaddon.feature.stardew.recognition.PotState;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.model.resource.BlockSemantic;
 import com.yiyiaddon.platform.GameProbe;
@@ -191,10 +189,16 @@ public final class StardewPointManager {
         return JsonFileStore.writeAtomic(file(serverKey), obj);
     }
 
-    /** 设置单点位类型（替换旧值；洒水器请用 {@link #addSprinkler}） */
+    /**
+     * 设置单点位类型：只替换<b>同维度</b>的旧值，其它维度的同名点位保留。
+     *
+     * <p>一个箱子只存在于一个维度，但「岩浆箱」这个业务类型在主世界和下界可以各有一个。
+     * 旧实现是 {@code list.clear()} 后加入，等于「在别的维度标一次就把这里的抹掉」——
+     * 实机反馈就是「切换维度老是要重新标点」。</p>
+     */
     public synchronized void set(StardewPointType type, StardewPoint point) {
         List<StardewPoint> list = points.computeIfAbsent(type, k -> new ArrayList<>());
-        list.clear();
+        list.removeIf(p -> java.util.Objects.equals(p.dimension(), point.dimension()));
         list.add(point);
     }
 
@@ -217,9 +221,13 @@ public final class StardewPointManager {
         else list.add(point);
     }
 
-    /** 清除单个点位类型 */
+    /**
+     * 清除单个点位类型：只清<b>当前维度</b>的，其它维度保留。
+     *
+     * <p>与 {@link #set} 同一口径——删除按钮不能把别的维度辛苦标好的箱子一起删掉。</p>
+     */
     public synchronized void clear(StardewPointType type) {
-        points.computeIfAbsent(type, k -> new ArrayList<>()).clear();
+        points.computeIfAbsent(type, k -> new ArrayList<>()).removeIf(StardewPoint::inCurrentDimension);
     }
 
     /** 移除指定坐标的洒水器 */
@@ -234,10 +242,51 @@ public final class StardewPointManager {
             p.pos().equals(point.pos()) && java.util.Objects.equals(p.dimension(), point.dimension()));
     }
 
-    /** 读取单点位类型（首个），未绑定返回 null */
+    /**
+     * 读取单点位类型：<b>只返回当前维度</b>的那个，当前维度没标就是 {@code null}。
+     *
+     * <p>为什么不能回退到别的维度：调用方把这个结果当「本维度有没有可用点位」用——
+     * 绑定时会报「已绑定，请先删除」，启动自检会去校验它。一旦回退，在主世界里会拿到下界那条，
+     * 结果是「主世界想标一个却被要求先删掉下界的」（实机反馈：换个维度就得删了重标）。
+     * 同名类型在别的维度的点位只是在列表里存着，本维度看不到、也不影响本维度新标一个。</p>
+     */
     public synchronized StardewPoint get(StardewPointType type) {
         List<StardewPoint> list = points.get(type);
-        return (list == null || list.isEmpty()) ? null : list.get(0);
+        if (list == null) return null;
+        for (StardewPoint p : list) {
+            if (p.inCurrentDimension()) return p;
+        }
+        return null;
+    }
+
+    /**
+     * 读取某类型在其它维度是否已有点位（只用于界面提示「别的维度已绑过」）。
+     *
+     * <p>与 {@link #get} 分开：那个是「本维度能不能用」，这个是「别处有没有」，
+     * 混在一起就会重演上面那个「必须删掉别维度的点」的问题。</p>
+     */
+    public synchronized boolean hasOtherDimension(StardewPointType type) {
+        List<StardewPoint> list = points.get(type);
+        if (list == null) return false;
+        for (StardewPoint p : list) {
+            if (!p.inCurrentDimension()) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 读取某点位类型<b>本维度</b>的全部条目（洒水器这类多点位用）。
+     *
+     * <p>与 {@link #getAll} 分开：那个是「管理界面要看全部维度的记录」，这个是「本维度能用的有哪些」。
+     * 启动自检与运行时任务一律用这个——否则在主世界标过的洒水器会在下界被逐台校验，报出
+     * 「点位属于其它维度」并拦住启动（实机反馈：到了下界被要求把主世界的洒水器删掉重标）。</p>
+     */
+    public synchronized List<StardewPoint> getInCurrentDimension(StardewPointType type) {
+        List<StardewPoint> result = new ArrayList<>();
+        for (StardewPoint point : points.getOrDefault(type, List.of())) {
+            if (point.inCurrentDimension()) result.add(point);
+        }
+        return List.copyOf(result);
     }
 
     /** 读取某点位类型全部（洒水器多点位） */
@@ -255,39 +304,10 @@ public final class StardewPointManager {
         for (StardewPointType type : StardewPointType.values()) points.put(type, new ArrayList<>());
     }
 
-    /** 是否有农田范围（起点 + 终点都已绑定） */
-    public synchronized boolean hasRegion() {
-        return get(StardewPointType.START) != null && get(StardewPointType.END) != null;
-    }
-
     /** 会话失效立即清空视图，不写磁盘；不能把 A 的点位展示成 B 的配置。 */
     public synchronized void invalidate() {
         clearAll();
         loadedServer = null;
-    }
-
-    /**
-     * 洒水器必须落在农田范围内（起点/终点确定的 XZ 矩形）。
-     *
-     * <p><b>为什么只比 XZ：</b>洒水器常比种植盆高一格（本服是 {@code sugar_cane[age=9]} 载体挂在盆上方），
-     * 高度参与判定会把正常点位判成越界。<b>为什么范围未设时不拦：</b>还没设农田起点/终点时无法判定，
-     * 这时拦下来只会让人没法先设洒水器。</p>
-     *
-     * @return null 表示在范围内（或无法判定）；否则为可读的中文失败原因
-     */
-    public synchronized String sprinklerRegionFailure(BlockPos pos) {
-        StardewPoint start = get(StardewPointType.START);
-        StardewPoint end = get(StardewPointType.END);
-        if (start == null || end == null) return null;
-        if (!start.inCurrentDimension() || !end.inCurrentDimension()) return null;
-        int minX = Math.min(start.x(), end.x());
-        int maxX = Math.max(start.x(), end.x());
-        int minZ = Math.min(start.z(), end.z());
-        int maxZ = Math.max(start.z(), end.z());
-        if (pos.getX() < minX || pos.getX() > maxX || pos.getZ() < minZ || pos.getZ() > maxZ) {
-            return "洒水器不在农田范围内（农田 X" + minX + "~" + maxX + " Z" + minZ + "~" + maxZ + "）";
-        }
-        return null;
     }
 
     /** 设置、自检与运行交互共用的实时点位校验。 */
@@ -299,16 +319,9 @@ public final class StardewPointManager {
         if (!point.inCurrentDimension()) return "点位属于其它维度";
         var mc = Minecraft.getInstance();
         if (mc.level == null || !mc.level.isLoaded(point.pos())) return "所在区块尚未加载，无法验证";
-        if (type == StardewPointType.START || type == StardewPointType.END) {
-            PotState pot = CropRecognizer.recognizePot(mc.level.getBlockState(point.pos()));
-            return pot == PotState.DRY || pot == PotState.WET ? null : "农田基础种植盆已不存在";
-        }
         if (type == StardewPointType.WATER_SOURCE) return waterSourceFailure(point.pos());
         if (type.requiresContainer() && !(mc.level.getBlockEntity(point.pos()) instanceof Container)) return "原容器已不存在或类型已改变";
         if (type == StardewPointType.SPRINKLER) {
-            // 洒水器必须落在农田范围内：绑在范围外的洒水器不该被维护，也不该让整片田照常启动
-            String regionFailure = sprinklerRegionFailure(point.pos());
-            if (regionFailure != null) return regionFailure;
             SprinklerWorldBinding binding = point.sprinklerBinding();
             if (binding != null) {
                 if (!java.util.Objects.equals(binding.serverKey(), StardewContext.serverKey())) return "洒水器绑定属于其它服务器";

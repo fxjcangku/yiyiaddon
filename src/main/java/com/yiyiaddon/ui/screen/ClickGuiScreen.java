@@ -4,6 +4,7 @@ import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.module.CategoryRegistry;
 import com.yiyiaddon.module.ModuleCategory;
 import com.yiyiaddon.module.ModuleEntry;
+import com.yiyiaddon.platform.ClientIdentity;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.anim.Spring;
@@ -27,6 +28,7 @@ import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
 import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.SkiaScreen;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiTheme;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
@@ -73,18 +75,51 @@ public class ClickGuiScreen extends SkiaScreen {
 
     /** 侧栏宽度。 */
     private static final float SIDEBAR_W = 190f;
-    /** 内容区顶部相对面板的距离。 */
-    private static final float CONTENT_TOP = 66f;
-    /** 内容区头部高度（标题区），页面内容从其下方开始。 */
-    private static final float CONTENT_HEADER_H = 54f;
+    /** 侧栏文字 / 搜索框的左右内缩。 */
+    private static final float SIDEBAR_PAD_X = 18f;
+    /**
+     * 内容区顶部相对面板的距离，以及页头基线相对所在列顶部的偏移。
+     *
+     * <p><b>为什么是这几个数：</b>左侧「yiyiaddon」要贴近窗口顶部（基线 38），又要和右侧页面标题
+     * 落在同一条线上，于是由 {@code CONTENT_TOP + HEADER_TITLE_Y = 38}、{@code + HEADER_SUBTITLE_Y = 55}
+     * 反推出内容区上边在 16。几个数是一组合成的结果，单独改一个就会让两列页头错位。</p>
+     *
+     * <p>{@link #HEADER_SLOGAN_Y} 只给侧栏用（版本号之下还有一行标语），右栏页面只有标题 + 副标题两行，
+     * 因此它的副标题仍停在 {@link #HEADER_SUBTITLE_Y}。</p>
+     */
+    private static final float CONTENT_TOP = 16f;
+    private static final float HEADER_TITLE_Y = 22f;
+    private static final float HEADER_SUBTITLE_Y = 39f;
+    private static final float HEADER_SLOGAN_Y = 56f;
+    /** 搜索框：标语基线之下留的空隙与自身高度。 */
+    private static final float SEARCH_TOP_GAP = 11f;
+    private static final float SEARCH_H = 28f;
+    /** 搜索框到第一个导航项的距离。 */
+    private static final float NAV_TOP_GAP = 16f;
+    /**
+     * 内容区头部高度（标题区）：标题 + 副标题之下留给内容的空间。
+     *
+     * <p>取值只保证「页面副标题与第一张卡片之间留出正常间距」：副标题底部约在
+     * {@code CONTENT_TOP + HEADER_SUBTITLE_Y + 3 = 58}，加上 {@code CONTENT_HEADER_H} 与页面自身的
+     * 首卡留白（{@code CardLayout.TOP_INSET = 20}）后，首卡顶边落在 66 附近，间距 24。</p>
+     *
+     * <p>不要再按「右栏首行与左栏第一个导航项齐平」去取值：侧栏页头加了一行标语后该对齐点会被推到
+     * 127，页面顶部就会空出一大块（实机反馈「每个分组都留白太多、没撑满」）。</p>
+     */
+    private static final float CONTENT_HEADER_H = 46f;
     /** 内容底部留白，用于计算滚动上限。 */
     private static final float CONTENT_BOTTOM_PAD = 12f;
-    /** 页面内容左内缩与右侧为滚动条预留的宽度。 */
-    private static final float PAGE_INSET_X = 10f;
-    private static final float PAGE_RESERVED_W = 40f;
-    /** 滚动条相对内容区的位置。 */
+    /**
+     * 页面内容相对内容区的左右内缩：左侧让卡片不贴住侧栏分隔位置，右侧为滚动条预留宽度。
+     *
+     * <p>取 0 时卡片会直接顶到侧栏与面板圆角上（实机反馈「边边卡进去了」），
+     * 因此这两处必须留出余量，页面自己不再重复加水平内边距。</p>
+     */
+    private static final float PAGE_INSET_X = 14f;
+    private static final float PAGE_RESERVED_W = 34f;
+    /** 滚动条相对内容区的位置：贴着页头裁剪线往下一点。 */
     private static final float TRACK_INSET = 8f;
-    private static final float TRACK_TOP = 60f;
+    private static final float TRACK_TOP = CONTENT_HEADER_H + 4f;
     private static final float TRACK_BOTTOM_PAD = 8f;
 
     private static final float THUMB_SIZE = 96f;
@@ -161,7 +196,7 @@ public class ClickGuiScreen extends SkiaScreen {
 
     /** 左侧导航的根页面，顺序与 NAV_KEYS 一一对应。 */
     private List<BasePage> createRootPages() {
-        return List.of(new HomePage(), new ModuleCenterPage(router, this::openModuleScreen), new InterfacePage(), new SettingsPage());
+        return List.of(new HomePage(), new ModuleCenterPage(router, this::openModuleScreen), new InterfacePage(), new SettingsPage(router));
     }
 
     /**
@@ -225,7 +260,14 @@ public class ClickGuiScreen extends SkiaScreen {
         float cardW = frame.cardWidth();
         float cardH = frame.cardHeight();
         float sidebarW = SIDEBAR_W;
-        float tabStartY = cardY + 110f;
+        // 两列页头共用 CONTENT_TOP + HEADER_*_Y：左栏标题与右栏页面标题自然落在同一条基线
+        float headerTitleY = cardY + CONTENT_TOP + HEADER_TITLE_Y;
+        float headerSubtitleY = cardY + CONTENT_TOP + HEADER_SUBTITLE_Y;
+        float headerSloganY = cardY + CONTENT_TOP + HEADER_SLOGAN_Y;
+        float searchX = cardX + SIDEBAR_PAD_X;
+        float searchY = headerSloganY + SEARCH_TOP_GAP;
+        float searchW = sidebarW - SIDEBAR_PAD_X * 2f;
+        float tabStartY = searchY + SEARCH_H + NAV_TOP_GAP;
         float tabH = 38f;
         float tabGap = 2f;
         float tabW = sidebarW - 24f;
@@ -242,7 +284,9 @@ public class ClickGuiScreen extends SkiaScreen {
                 cardX, cardY, cardW, cardH,
                 sidebarW, tabStartY, tabH, tabGap, tabW,
                 closeX, closeY, closeH, resetY, resetH,
-                contentX, contentY, contentW, contentH
+                contentX, contentY, contentW, contentH,
+                searchX, searchY, searchW, SEARCH_H,
+                headerTitleY, headerSubtitleY, headerSloganY
         };
     }
 
@@ -297,7 +341,9 @@ public class ClickGuiScreen extends SkiaScreen {
     private void refreshScroll() {
         BasePage page = activePage();
         float contentH = layout()[17];
-        scroll.layout(CONTENT_HEADER_H + page.getTotalHeight() + page.getVisibleSpacing() + CONTENT_BOTTOM_PAD,
+        // 页面绘制原点已经在页头下方，这里不能再把 CONTENT_HEADER_H 算进内容高：
+        // 算进去等于屏幕底部凭空多出一段能滚过去的空白（实机看起来像「滚不到底」）。
+        scroll.layout(page.getTotalHeight() + page.getVisibleSpacing() + CONTENT_BOTTOM_PAD,
                 contentH - CONTENT_HEADER_H);
     }
 
@@ -317,6 +363,10 @@ public class ClickGuiScreen extends SkiaScreen {
         long now = System.currentTimeMillis();
         float dt = lastRenderMs == 0L ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
         lastRenderMs = now;
+
+        // 帧首清空悬停浮层登记：控件（设置项等）在绘制时登记，帧末统一绘制。
+        // 本屏托管的是各功能页，没有这一步页面里的说明浮层永远画不出来（与 ModuleScreen 同一套）。
+        TooltipLayer.beginFrame();
 
         if (frame.update(minecraft, dt)) {
             // 关闭动画播完，交回上级界面
@@ -347,7 +397,8 @@ public class ClickGuiScreen extends SkiaScreen {
         float sidebarW = l[4], tabStartY = l[5], tabH = l[6], tabGap = l[7], tabW = l[8];
         float closeX = l[9], closeY = l[10], closeH = l[11], resetY = l[12], resetH = l[13];
         float contentX = l[14], contentY = l[15], contentW = l[16], contentH = l[17];
-        float searchX = cardX + 18f, searchY = cardY + 66f, searchW = sidebarW - 36f, searchH = 28f;
+        float searchX = l[18], searchY = l[19], searchW = l[20], searchH = l[21];
+        float headerTitleY = l[22], headerSubtitleY = l[23], headerSloganY = l[24];
 
         drawPanelGlass(canvas, width, height, cardX, cardY, cardW, cardH, cardRadius);
 
@@ -407,26 +458,15 @@ public class ClickGuiScreen extends SkiaScreen {
             canvas.save();
             canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);
             try {
-                // 侧栏使用独立材质层；保留原布局，同时让导航区与内容区产生清晰的空间纵深。
-                GlassPanel.fill(canvas, cardX, cardY, sidebarW, cardH, 0f, tc.sidebar,
-                        AddonConfig.panelBlur ? alpha * 0.48f : alpha);
-                GlassPanel.ambientGlow(canvas, cardX, cardY, sidebarW, cardH, tc, alpha, 0.72f);
-                GlassPanel.verticalDivider(canvas, cardX + sidebarW, cardY + 18f, cardH - 36f,
-                        tc.rim, alpha * (tc.dark ? 0.10f : 0.24f));
+                // 整个窗口就是一块页面：侧栏与内容区之间不再画分隔线
 
                 // 整窗高光：玻璃边缘的细亮线
                 GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.20f);
-                // 内容玻璃浮在窗体之上，保留原有侧栏宽度、页面边距与信息密度。
-                GlassPanel.shadow(canvas, contentX, contentY, contentW, contentH, 16f,
-                        tc.shadow, alpha, 0.38f);
-                GlassPanel.frost(canvas, contentX, contentY, contentW, contentH, 16f,
-                        tc.content, AddonConfig.panelBlur ? 0.24f : 0.65f, alpha);
-                GlassPanel.ambientGlow(canvas, contentX, contentY, contentW, contentH, tc, alpha, 0.34f);
-                GlassPanel.rim(canvas, contentX, contentY, contentW, contentH, 16f,
-                        tc.rim, alpha, 0.18f);
 
-                FontRenderer.drawTextBold(canvas, "yiyiaddon", cardX + 18f, cardY + 38f, 17f, withAlpha(tc.primaryText, alpha));
-                FontRenderer.drawText(canvas, UiText.t("在下方调整设置...", "Adjust the settings below..."), cardX + 18f, cardY + 55f, 11f, withAlpha(tc.labelTertiary, alpha));
+                FontRenderer.drawTextBold(canvas, "yiyiaddon", cardX + SIDEBAR_PAD_X, headerTitleY, 17f, withAlpha(tc.primaryText, alpha));
+                FontRenderer.drawText(canvas, versionLine(), cardX + SIDEBAR_PAD_X, headerSubtitleY, 11f, withAlpha(tc.secondaryText, alpha));
+                FontRenderer.drawText(canvas, UiText.t("本扩展免费 为爱发电", "Free for all, made with love"),
+                        cardX + SIDEBAR_PAD_X, headerSloganY, 11f, withAlpha(tc.labelTertiary, alpha));
                 drawSearchBox(canvas, searchX, searchY, searchW, searchH, alpha, dt, tc);
 
                 // 选中指示块滑到当前导航项，项内文字随滑块位置在普通色与反色之间过渡
@@ -482,8 +522,8 @@ public class ClickGuiScreen extends SkiaScreen {
                 if (closePressed) canvas.restore();
 
                 if (themePreviewMode) {
-                    FontRenderer.drawTextBold(canvas, UiText.t("面板主题", "Panel Theme"), contentX + 18f, contentY + 27f, 19f, withAlpha(tc.primaryText, alpha));
-                    FontRenderer.drawText(canvas, UiText.t("点击缩略图切换面板配色", "Click a thumbnail to switch the panel theme"), contentX + 18f, contentY + 44f, 11f, withAlpha(tc.secondaryText, alpha));
+                    FontRenderer.drawTextBold(canvas, UiText.t("面板主题", "Panel Theme"), contentX + PAGE_INSET_X, contentY + HEADER_TITLE_Y, 19f, withAlpha(tc.primaryText, alpha));
+                    FontRenderer.drawText(canvas, UiText.t("点击缩略图切换面板配色", "Click a thumbnail to switch the panel theme"), contentX + PAGE_INSET_X, contentY + HEADER_SUBTITLE_Y, 11f, withAlpha(tc.secondaryText, alpha));
                 } else {
                     if (fadingPage != null) drawPageHeader(canvas, fadingPage, contentX, contentY,
                             contentW, alpha * (1f - pageFade), tc);
@@ -500,12 +540,12 @@ public class ClickGuiScreen extends SkiaScreen {
                         drawThemePreviewGrid(canvas, contentX, contentY, contentW, alpha, layoutMouseX, layoutMouseY);
                     } else {
                         if (fadingPage != null) {
-                            fadingPage.draw(canvas, contentX + PAGE_INSET_X, contentY + CONTENT_HEADER_H,
-                                    contentW - PAGE_RESERVED_W, contentH - CONTENT_HEADER_H,
+                            fadingPage.draw(canvas, pageX(contentX), contentY + CONTENT_HEADER_H,
+                                    pageW(contentW), contentH - CONTENT_HEADER_H,
                                     alpha * (1f - pageFade), fadingScroll, -Float.MAX_VALUE, -Float.MAX_VALUE);
                         }
-                        currentPage.draw(canvas, contentX + PAGE_INSET_X, contentY + CONTENT_HEADER_H,
-                                contentW - PAGE_RESERVED_W, contentH - CONTENT_HEADER_H, alpha * pageFade, scroll.value(),
+                        currentPage.draw(canvas, pageX(contentX), contentY + CONTENT_HEADER_H,
+                                pageW(contentW), contentH - CONTENT_HEADER_H, alpha * pageFade, scroll.value(),
                                 layoutMouseX, layoutMouseY);
                     }
                 } finally {
@@ -515,6 +555,9 @@ public class ClickGuiScreen extends SkiaScreen {
                     scroll.drawScrollbar(canvas, contentX + contentW - TRACK_INSET, contentY + TRACK_TOP,
                             contentH - TRACK_TOP - TRACK_BOTTOM_PAD, alpha, tc);
                 }
+                // 浮层画在内容裁剪之外：说明文字不会被动滚动截断（视口按设计空间尺寸反推，与 PanelScreen 一致）
+                TooltipLayer.draw(canvas, frame.cardX() * 2f + frame.cardWidth(),
+                        frame.cardY() * 2f + frame.cardHeight(), alpha);
             } finally {
                 canvas.restore();
             }
@@ -533,13 +576,29 @@ public class ClickGuiScreen extends SkiaScreen {
                 AddonConfig.blurTintColor(), AddonConfig.blurStrength);
     }
 
-    /** 内容区头部：页面标题与副标题。 */
+    /** 侧栏页头的版本行：取 fabric.mod.json 中声明的版本号。 */
+    private static String versionLine() {
+        return "v" + ClientIdentity.version();
+    }
+
+    /** 页面内容左边界：绘制、命中与页头标题共用同一处内缩。 */
+    private static float pageX(float contentX) {
+        return contentX + PAGE_INSET_X;
+    }
+
+    /** 页面内容宽度：两侧内缩后剩下的可用宽度。 */
+    private static float pageW(float contentW) {
+        return contentW - PAGE_INSET_X - PAGE_RESERVED_W;
+    }
+
+    /** 内容区头部：页面标题与副标题（基线偏移与侧栏页头共用，左缩进与页面卡片左缘同一处）。 */
     private void drawPageHeader(Canvas canvas, BasePage page, float contentX, float contentY, float contentW,
                                 float alpha, ClickGuiThemeColors tc) {
         if (page == null || alpha <= 0.01f) return;
-        FontRenderer.drawTextBold(canvas, page.getTitle(), contentX + 18f, contentY + 27f, 19f, withAlpha(tc.primaryText, alpha));
+        float titleX = pageX(contentX);
+        FontRenderer.drawTextBold(canvas, page.getTitle(), titleX, contentY + HEADER_TITLE_Y, 19f, withAlpha(tc.primaryText, alpha));
         FontRenderer.drawText(canvas, CardLayout.ellipsize(page.getSubtitle(), contentW - 100f, 11f),
-                contentX + 18f, contentY + 44f, 11f, withAlpha(tc.secondaryText, alpha));
+                titleX, contentY + HEADER_SUBTITLE_Y, 11f, withAlpha(tc.secondaryText, alpha));
     }
 
     // —— 返回按钮几何 ——
@@ -765,6 +824,7 @@ public class ClickGuiScreen extends SkiaScreen {
 
     @Override
     public boolean preeditUpdated(PreeditEvent event) {
+        if (event != null) ImeBridge.notePreedit();
         SettingTextBox.onPreedit(event);
         return true;
     }
@@ -798,7 +858,7 @@ public class ClickGuiScreen extends SkiaScreen {
         float closeX = l[9], closeY = l[10], closeH = l[11];
         float resetY = l[12], resetH = l[13];
         float contentX = l[14], contentY = l[15], contentW = l[16], contentH = l[17];
-        float searchX = cardX + 18f, searchY = l[1] + 66f, searchW = sidebarW - 36f, searchH = 28f;
+        float searchX = l[18], searchY = l[19], searchW = l[20], searchH = l[21];
         BasePage page = activePage();
 
         if (button == 0 && mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + searchH) {
@@ -885,7 +945,7 @@ public class ClickGuiScreen extends SkiaScreen {
                 return true;
             }
             float moduleStartY = contentY + CONTENT_HEADER_H;
-            boolean hit = page.onClick(mx, my, contentX + PAGE_INSET_X, moduleStartY, contentW - PAGE_RESERVED_W,
+            boolean hit = page.onClick(mx, my, pageX(contentX), moduleStartY, pageW(contentW),
                     scroll.value(), button);
             if (hit && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
                 draggingInContent = true;
@@ -915,8 +975,8 @@ public class ClickGuiScreen extends SkiaScreen {
         if (draggingInContent) {
             float mx = frame.toDesignX(event.x(), this.width);
             float contentX = l[14], contentY = l[15], contentW = l[16];
-            activePage().onDrag(mx, my, contentX + PAGE_INSET_X, contentY + CONTENT_HEADER_H,
-                    contentW - PAGE_RESERVED_W, scroll.value());
+            activePage().onDrag(mx, my, pageX(contentX), contentY + CONTENT_HEADER_H,
+                    pageW(contentW), scroll.value());
             return true;
         }
         return false;

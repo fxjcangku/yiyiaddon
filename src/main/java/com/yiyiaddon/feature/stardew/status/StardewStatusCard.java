@@ -86,7 +86,7 @@ public final class StardewStatusCard {
             : (module.coordinator().currentTask() == null ? "§8空闲" : highlightFunction(module.coordinator().currentTask().cn()));
         return "§7资源包 §8▸ " + res
             + " §8│ §7识别作物 §8▸ " + highlightNumber(crops + " 种")
-            + " §8│ §7浇水 §8▸ " + water
+            + " §8│ §7浇灌 §8▸ " + water
             + " §8│ §7任务 §8▸ " + task;
     }
 

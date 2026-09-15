@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.stardew.scan;
 import com.yiyiaddon.feature.stardew.profile.StardewServerProfile;
 import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
 import com.yiyiaddon.feature.stardew.recognition.CropState;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.recognition.PotState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -31,9 +32,37 @@ public final class StardewFarmScanner {
         public boolean usable() {
             return potState == PotState.DRY || potState == PotState.WET;
         }
+
+        /**
+         * 盆型组（普通 / 下界 / 末地）。
+         *
+         * <p>不额外存字段：盆型就写在 {@link #potKey} 的序号里（{@code dry_pot_2} → 下界盆），
+         * 由 {@link PotGroup#ofPotKey} 现算，扫描结果与识别层因此不会各存一份而漂移。</p>
+         */
+        public PotGroup potGroup() {
+            return PotGroup.ofPotKey(potKey);
+        }
     }
 
     private static final Minecraft mc = Minecraft.getInstance();
+
+    /**
+     * 把任意一格归一到它所属的<b>种植盆那一格</b>：下方能确认为盆（干 / 湿）就取下方，否则原样返回。
+     *
+     * <p><b>为什么需要它：</b>盆上有作物时，准星射线打中的是<b>作物那一格</b>（盆上方一格），
+     * 拿这一格当区域角点，区域框就会整体浮高一格 —— 与洒水器覆盖框共用同一个 Y 平面、互相重叠
+     * （实机反馈「有作物的盆 ESP 会往上一格，跟洒水器渲染打架」）；空盆没有作物层，射线直接打中盆，
+     * 所以只有有作物时才出问题。</p>
+     *
+     * <p><b>为什么只看下方：</b>「真盆下方永远不会是盆（盆只放在土地上）」是扫描归一用的同一条
+     * 不变量，所以「下方是盆」时当前格必然不是盆；这样也不会踩到「作物名里含 pot 被误判成盆」的坑。</p>
+     */
+    public static BlockPos normalizeToPot(BlockPos pos) {
+        if (pos == null || mc.level == null) return pos;
+        BlockPos below = pos.below();
+        CropRecognizer.PotRecognition pot = CropRecognizer.recognizePotDetailed(mc.level.getBlockState(below));
+        return pot.state() == PotState.DRY || pot.state() == PotState.WET ? below : pos;
+    }
 
     private BlockPos min;
     private BlockPos max;

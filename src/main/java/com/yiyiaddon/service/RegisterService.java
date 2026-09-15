@@ -2,16 +2,14 @@ package com.yiyiaddon.service;
 
 import com.google.gson.JsonObject;
 import com.yiyiaddon.core.BackgroundTasks;
-import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.core.HttpApi;
 import com.yiyiaddon.core.Json;
-import com.yiyiaddon.model.RegisterOutcome;
 import com.yiyiaddon.platform.ClientIdentity;
 
 import java.time.Duration;
 
 /**
- * 用户注册与欢迎播报：进服后上报身份并展示使用排名。
+ * 用户注册：进服后上报身份，并把后端返回的排名与累计用户数交给首页展示。
  *
  * <p>玩家连接完成后调用 {@link #register()}，断开连接时调用 {@link #reset()}。</p>
  */
@@ -35,17 +33,11 @@ public final class RegisterService {
             try {
                 HttpApi.Response response = HttpApi.post("/api/register", ReportPayload.register(), TIMEOUT);
                 JsonObject root = response.json();
-                if (!response.ok() || root == null) {
-                    ClientChat.send("用户统计", "§c注册上报失败（HTTP " + response.status() + "）");
-                    return;
-                }
-                showWelcome(new RegisterOutcome(
-                        Json.bool(root, "is_new_user", true),
-                        Json.integer(root, "rank", -1),
-                        Json.integer(root, "total_users", -1),
-                        Json.integer(root, "is_premium", 0) == 1));
-            } catch (Exception e) {
-                ClientChat.send("用户统计", "§c注册上报异常：" + e.getMessage());
+                if (!response.ok() || root == null) return;
+                HomeStats.acceptRegister(Json.integer(root, "rank", -1),
+                        Json.integer(root, "total_users", -1));
+            } catch (Exception ignored) {
+                // 注册失败只影响首页排名展示，不打扰玩家
             }
         });
     }
@@ -53,21 +45,6 @@ public final class RegisterService {
     /** 断开连接时重置，下次进服重新注册。 */
     public static void reset() {
         registered = false;
-    }
-
-    private static void showWelcome(RegisterOutcome outcome) {
-        String name = ClientIdentity.name();
-        String account = outcome.premium() ? "§a§l[正版]" : "§c§l[离线]";
-
-        ClientChat.raw("§3§m───────────────────────────────────");
-        if (outcome.newUser()) {
-            ClientChat.raw("§3│ " + account + " §6§l" + name);
-            ClientChat.raw("§3│ §7你是第 §e§l#" + outcome.rank() + " §7个使用者 §a§l✓");
-        } else {
-            ClientChat.raw("§3│ §7欢迎回来 " + account + " §6§l" + name);
-            ClientChat.raw("§3│ §7你是第 §e§l#" + outcome.rank() + " §7个使用者");
-        }
-        ClientChat.raw("§7当前已有 §2§l" + outcome.totalUsers() + " §f§l位玩家使用");
-        ClientChat.raw("§3§m───────────────────────────────────");
+        HomeStats.resetRank();
     }
 }

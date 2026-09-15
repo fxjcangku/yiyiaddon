@@ -71,11 +71,12 @@ public final class AddonModules {
     private static void registerCategories() {
         // 只登记「真的有模块」或「有自带页面」的分类：空分类不会出现在模块中心
         CategoryRegistry.register(new ModuleCategory("assist", "辅助", "管理辅助工具功能", "\uEF76", 20));
-        CategoryRegistry.register(new ModuleCategory("navigation", "Baritone设置",
+        // 两类「配置页面」归到左侧「设置」导航：它们是设置页，不是功能模块（实机反馈：混在模块中心里）
+        CategoryRegistry.register(ModuleCategory.settings("navigation", "Baritone设置",
                 "Baritone 全部设置：开关 / 数值 / 文本 / 颜色 / 列表，按类型分组", "\uE919", 40,
                 BaritoneSettingsPage::new));
         CategoryRegistry.register(new ModuleCategory("stardew", "星露谷", "管理农场模拟功能", "\uE8CD", 60));
-        CategoryRegistry.register(new ModuleCategory("esp", "ESP 全局设置",
+        CategoryRegistry.register(ModuleCategory.settings("esp", "ESP 全局设置",
                 "全部世界 ESP 的公共选项：线宽 / 不透明度 / 显示距离 / 字号 / 每帧最多画多少个图形",
                 "\uE8F4", 80, EspSettingsPage::new));
     }

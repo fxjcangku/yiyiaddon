@@ -106,6 +106,9 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
     /** 容器破坏对账缓存：上一轮仍见到、这一轮消失的位置视为被破坏 */
     private final Set<BlockPos> lastSeenContainers = new HashSet<>();
 
+    /** 最近一次装载存储时所处的世界上下文（{@code server@dimension}） */
+    private String storeContext;
+
     public AutoChestModule() {
         super(MODULE_ID, MESSAGE_MODULE, "assist",
                 "扫描并自动处理附近容器，取走ID配置中的目标物品。详细参考下面使用说明。");
@@ -182,8 +185,8 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
     public List<String> selfCheck() {
         if (mc.player == null || mc.level == null || mc.gameMode == null) return List.of();
 
-        // 自检依赖磁盘数据：先装载当前服务器的 ID 配置、已处理记录、标点
-        refreshStores();
+        // 自检依赖当前服务器的数据：换服 / 换存档时才重新读盘，同一上下文内复用内存快照
+        refreshStoresIfContextChanged();
 
         List<String> missing = new ArrayList<>();
 
@@ -569,6 +572,27 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
         IdentityService.shared().reload();
         recordStore.reload();
         pointStore.reload();
+        storeContext = currentStoreContext();
+    }
+
+    /**
+     * 自检用的装载：同一世界上下文内不重复读盘。
+     *
+     * <p>启动自检未通过的模块会留在等待队列里按刻重试（{@code ModuleManager}），若每次自检都重载
+     * 三个配置文件，模块一直卡在等待状态就等于磁盘一直在转。这三份数据的唯一外部变化来源是
+     * 换服务器 / 换存档：会话内增删标点、改 ID 配置都由指令与面板直接改内存对象，不需要回读磁盘。
+     * 因此以「服务器 + 维度」为界，上下文变了才重新装载。</p>
+     *
+     * <p>真正启动时走的 {@link #refreshStores()} 不节流：那一刻必须是最新数据。</p>
+     */
+    private void refreshStoresIfContextChanged() {
+        if (currentStoreContext().equals(storeContext)) return;
+        refreshStores();
+    }
+
+    /** 当前世界上下文标识：换服 / 换存档 / 换维度都会变。 */
+    private static String currentStoreContext() {
+        return WorldIdentity.server() + "@" + WorldIdentity.dimension();
     }
 
     /**

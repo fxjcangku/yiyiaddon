@@ -15,9 +15,9 @@ import java.util.List;
 /**
  * 控制台「洒水器点位」列表页：逐条删除 + 清空全部洒水器。
  *
- * <p>洒水器是唯一能绑多格的点位，只有「准星移除一格」和「清空全部点位（六类一起）」两种极端做法，
+ * <p>洒水器是唯一能绑多格的点位，只有「准星移除一格」和「清空全部点位（各点位一起）」两种极端做法，
  * 中间这段空缺由本页补上：每格一行，行尾「删除」只删这一格，底部「清空全部洒水器」只清洒水器、
- * 不动农田起点 / 终点 / 箱子 / 补水点。</p>
+ * 不动箱子 / 补水点 / 种植区域。</p>
  *
  * <p>删除后立即重建本页，列表与磁盘保持一致；每条删除都各自播报一条「已删除洒水器点位」，
  * 不存在「删了全部却只报一个坐标」。</p>
@@ -77,7 +77,7 @@ public final class StardewSprinklerListScreen extends PanelScreen {
         if (minecraft == null) return;
         minecraft.setScreen(new ConfirmPanelScreen("清空全部洒水器",
             List.of("§f将删除当前服务器已绑定的全部洒水器点位",
-                "§7农田起点 / 农田终点 / 种子箱 / 成品箱 / 补水点不受影响",
+                "§7种子箱 / 成品箱 / 补水点 / 种植区域不受影响",
                 "",
                 "§c此操作不可恢复。"),
             "§c§l确认", module::clearSprinklerPoints, minecraft.screen));

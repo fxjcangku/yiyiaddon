@@ -359,7 +359,9 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
     }
 
     private CompactRow colorRow(String name, Supplier<String> hint, EspColor color) {
-        return new CompactRow(name, hint, new SettingColorPicker(name, color));
+        // 调色板关窗时先把载体颜色写回设置项再落盘（syncColorsToSettings 有变化才会写盘）。
+        // 只传 persistSettings 是不行的：颜色还没同步进设置项，存下去的是旧值。
+        return new CompactRow(name, hint, new SettingColorPicker(name, color, module::syncColorsToSettings));
     }
 
     private SettingToggle toggle(Supplier<Boolean> getter, Consumer<Boolean> setter) {

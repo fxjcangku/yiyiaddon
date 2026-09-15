@@ -1,24 +1,34 @@
 package com.yiyiaddon.feature.stardew.task;
 
+import com.yiyiaddon.feature.stardew.navigation.ContainerApproachPlanner;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.profile.WateringCanDefinition;
+import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
 import com.yiyiaddon.feature.stardew.task.StardewCoordinator.Phase;
+import com.yiyiaddon.platform.container.ContainerAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.CONTAINER_STAND_REACH;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.MAX_RETRY;
+import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.MATERIAL_FETCH_RETRY_MS;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.REFILL_BURST_UNKNOWN;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.REFILL_MAX_PACKETS;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.REFILL_STABLE_LIMIT;
@@ -36,7 +46,27 @@ import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.learningKey;
  */
 final class StardewFarmExecutor {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/stardew");
+
+    private static final String NO_FREE_HAND_TASK = "收割需要一只空手";
+    private static final String NO_FREE_HAND_DETAIL =
+        "热键栏 9 格、副手、背包空格全都占着，腾不出一只空手：清一个热键栏或背包空格";
+
     private final StardewCoordinator owner;
+    /** 本轮「没有空手」是否已经播报过聊天（拿到手就清零，见 {@link #prepareHarvestHand()}） */
+    private boolean noFreeHandNotified;
+    /** 副手物品暂放在哪个背包槽（-1 = 没借过）；见 {@link #parkOffhand(Minecraft, String, String)} */
+    private int offhandParkedSlot = -1;
+    /** 暂放的那件东西（换回时用来核对那一格还是它） */
+    private ItemStack offhandParkedItem;
+    /**
+     * 当前工具 / 种子在哪只手上：副手放的壶 / 种子 / 肥料一律走副手动作，其余走主手。
+     *
+     * <p>由 {@link #holdEntry}/{@link #holdSeed} 设置，动作与读数（壶水量 / 容量）都读它，
+     * 任务结束时在 {@link #restoreHandNow()} 复位——这样「副手拿壶浇水」和「主手拿壶浇水」
+     * 走的是同一套状态机，不在每个动作点上各判一次手。</p>
+     */
+    private InteractionHand activeHand = InteractionHand.MAIN_HAND;
 
     StardewFarmExecutor(StardewCoordinator owner) {
         this.owner = owner;
@@ -84,9 +114,14 @@ final class StardewFarmExecutor {
     private BlockPos interactionFacingTarget() {
         if (owner.taskType == null) return null;
         return switch (owner.taskType) {
-            case HARVEST, LEARN_HARVEST, CLEAR_DEAD -> owner.targetPot == null ? null : owner.targetPot.above();
+            case HARVEST, LEARN_HARVEST, CLEAR_DEAD, CLEAR_MISMATCH -> owner.targetPot == null ? null : owner.targetPot.above();
             case WATER, PLANT, FERTILIZE, POTION -> owner.targetPot;
             case REFILL -> {
+                // 物料盆（下界 / 末地）的 REFILL 是去岩浆箱 / 龙息箱取料，视角必须对准箱子；
+                // 沿用「看向水源」会让脚本对着补水点转头，箱子那边根本没人看（取料必然失败）。
+                if (StardewPointType.materialBoxFor(targetPotGroup()) != null) {
+                    yield owner.containerApproach != null ? owner.containerApproach.interactPos() : owner.targetContainer;
+                }
                 StardewPointManager.StardewPoint p = owner.points == null
                     ? null : owner.points.get(StardewPointType.WATER_SOURCE);
                 yield p == null ? null : p.pos();
@@ -140,8 +175,16 @@ final class StardewFarmExecutor {
         if (owner.taskType != TaskType.HARVEST && owner.taskType != TaskType.WATER
             && owner.taskType != TaskType.PLANT && owner.taskType != TaskType.FERTILIZE) return;
         if (owner.targetPot == null || owner.activeCell == null) return;
+        // 物料盆（下界 / 末地）不参与批量：一次右键就把手上那一桶岩浆 / 那一个龙息消耗掉了，
+        // 第二发手上已经不是物料（变成空桶 / 玻璃瓶），服务端只会白收一个包。
+        // 水壶能连发是因为它是同一件工具、只减水量，物品本身不变。
+        if (owner.taskType == TaskType.WATER && targetPotGroup().refillItem() != null) return;
 
         String cropKey = owner.activeCell.crop().cropKey();
+        // 批量不得跨区域：空盆的作物键是 null，上面那道「同作物」判断对播种完全不起作用，
+        // 拿着同一颗种子连发就会把种子种到隔壁区域（实机反馈的 13 处错位就是这条）。
+        CropDefinition batchTarget = owner.planner.cropOf(owner.targetPot);
+        if (batchTarget == null) return;
         int remaining = owner.batchActions - 1;
         Set<BlockPos> sent = new HashSet<>();
         for (StardewFarmScanner.Cell cell : owner.pending) {
@@ -149,6 +192,10 @@ final class StardewFarmExecutor {
             BlockPos pot = cell.potPos();
             if (pot.equals(owner.targetPot) || !sent.add(pot)) continue;
             if (cropKey != null && !cropKey.equals(cell.crop().cropKey())) continue;
+            if (batchTarget != null) {
+                CropDefinition want = owner.planner.cropOf(pot);
+                if (want == null || !batchTarget.cropKey().equals(want.cropKey())) continue;
+            }
             if (owner.planner.resolveTask(cell) != owner.taskType) continue;
             if (owner.planner.isNavigationBlocked(owner.taskType, pot)) continue;
             BlockPos interactPos = batchInteractPos(pot);
@@ -168,7 +215,7 @@ final class StardewFarmExecutor {
             InteractionHand hand = prepareHarvestHand();
             return hand != null && owner.adapter.interactBlock(hand, interactPos, Direction.UP);
         }
-        return owner.adapter.useOnBlock(InteractionHand.MAIN_HAND, interactPos);
+        return owner.adapter.useOnBlock(activeHand, interactPos);
     }
 
     /**
@@ -195,8 +242,14 @@ final class StardewFarmExecutor {
         if (owner.targetPot == null) return false;
         // 普通成熟作物统一右键采摘；重复结果植株会回退生长阶段，验证层据此保留原 cropKey。
         InteractionHand hand = prepareHarvestHand();
-        return hand != null && owner.adapter.face(owner.targetPot.above())
+        if (hand == null) return false;
+        boolean sent = owner.adapter.face(owner.targetPot.above())
             && owner.adapter.interactBlock(hand, owner.targetPot.above(), Direction.UP);
+        if (!sent) {
+            LOGGER.info("[星露谷] 收割发包未发出：手={} 目标={}",
+                hand == InteractionHand.OFF_HAND ? "副手" : "主手", owner.targetPot.above());
+        }
+        return sent;
     }
 
     /**
@@ -231,18 +284,221 @@ final class StardewFarmExecutor {
         return owner.learningInteractionSent;
     }
 
-    /** 死亡作物才允许左键清除，禁止与普通成熟采摘共用破坏动作。 */
-    boolean doClearDead() {
+    /** 左键破坏盆上方那株作物本体（清枯苗 / 清错位共用；破坏动作绝不进批量、绝不打盆本体）。 */
+    boolean doBreakPlant() {
         return owner.targetPot != null && owner.adapter.breakBlock(owner.targetPot.above(), Direction.UP);
     }
 
+    /**
+     * 不自动切换物品（关掉「自动切换水壶」）时也要认副手：壶在副手就用副手动手，其余照旧用主手。
+     *
+     * <p>本方法<b>不移动任何物品</b>，只决定这个交互包用哪只手（服务端按包里的手取物品）。
+     * 少了这一步，{@code activeHand} 会留着上一个动作的手，副手拿壶时浇水会静默失效。</p>
+     */
+    private void resolveHandFor(StardewToolDefinition entry) {
+        boolean offhand = owner.inventory.findSlotEntry(entry, true) < 0
+            && owner.inventory.findSlotEntry(entry, false) == StardewInventoryService.OFFHAND_SLOT;
+        activeHand = offhand ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+    }
+
+    /**
+     * 补水：按<b>盆型</b>分派物料，三种盆型互斥。
+     *
+     * <ul>
+     *   <li>{@link PotGroup#NORMAL} 普通盆 → 走水壶链路（原有行为，未动）；</li>
+     *   <li>{@link PotGroup#NETHER} 下界盆 → 手持<b>熔岩桶</b>右键盆；</li>
+     *   <li>{@link PotGroup#END} 末地盆 → 手持<b>龙息</b>右键盆。</li>
+     * </ul>
+     *
+     * <p>下界 / 末地盆不用水壶：它们的「水」是岩浆与龙息，水壶倒进去没有意义。</p>
+     */
     boolean doWater() {
         if (owner.targetPot == null) return false;
+        PotGroup group = targetPotGroup();
+        if (group.refillItem() != null) return useMaterialOnPot(group);
+        if (blockedByMissingCan()) return false;
         StardewToolDefinition can = preferredWateringCan();
         if (can == null) return false;
-        if (owner.switchCan && !holdEntry(can)) return false;
+        if (owner.switchCan) {
+            if (!holdEntry(can)) return false;
+        } else {
+            resolveHandFor(can);
+        }
         return owner.adapter.face(owner.targetPot)
-            && owner.adapter.useOnBlock(InteractionHand.MAIN_HAND, owner.targetPot);
+            && owner.adapter.useOnBlock(activeHand, owner.targetPot);
+    }
+
+    /**
+     * 当前目标盆的盆型组；认不出目标盆（坐标丢失 / 世界未加载）时按普通盆处理。
+     *
+     * <p>现读方块状态而不是沿用扫描快照：扫描结果可能已经过期（盆被换掉 / 玩家换了维度），
+     * 而补水正是一次会消耗背包物料的动作，宁可多读一次方块状态。</p>
+     */
+    PotGroup targetPotGroup() {
+        Minecraft mc = Minecraft.getInstance();
+        if (owner.targetPot == null || mc.level == null) return PotGroup.NORMAL;
+        return PotGroup.ofPotKey(CropRecognizer.recognizePotDetailed(mc.level.getBlockState(owner.targetPot)).potKey());
+    }
+
+    /** 下界盆 / 末地盆补水：手持对应物料直接右键盆（熔岩桶 +3 返空桶，龙息 +1 返玻璃瓶，返还是服务端行为）。 */
+    private boolean useMaterialOnPot(PotGroup group) {
+        if (!holdItem(group.refillItem())) {
+            owner.phase = Phase.REPLAN;
+            owner.status.critical("POT_MATERIAL:" + group.name(),
+                group.displayName() + "缺少" + group.materialName(),
+                "背包里没有" + group.materialName() + "，已停止当前补水任务");
+            return false;
+        }
+        return owner.adapter.face(owner.targetPot)
+            && owner.adapter.useOnBlock(activeHand, owner.targetPot);
+    }
+
+    /**
+     * 下界盆 / 末地盆的补料事务：去岩浆箱 / 龙息箱取一批料，顺手把用完的空容器放回去。
+     *
+     * <p>与水壶补水的根本区别：水壶要「灌满」，需要读水量、算差额、反复试探；料是<b>成品物品</b>，
+     * 取到目标数量就结束，所以这里只有一个搬运循环，没有水量试探。</p>
+     *
+     * <p>取的量按盆型定（岩浆 3 桶、龙息 10 个），用完再来一趟——一趟多取只会占背包，
+     * 这两种料都不堆叠。</p>
+     */
+    private void interactMaterialRefill() {
+        PotGroup group = targetPotGroup();
+        StardewPointType boxType = StardewPointType.materialBoxFor(group);
+        if (boxType == null || group.refillItem() == null) {
+            owner.phase = Phase.REPLAN;
+            return;
+        }
+        String failure = owner.points.validationFailure(boxType, owner.points.get(boxType), owner.index);
+        if (failure != null) {
+            owner.status.critical("MATERIAL_BOX:" + boxType + ':' + failure,
+                boxType.title() + "点位失效", "已暂停当前补料任务");
+            owner.phase = Phase.REPLAN;
+            return;
+        }
+        switch (owner.taskStep) {
+            case 0 -> {
+                if (owner.containerApproach == null || !ContainerApproachPlanner.readyToInteract(
+                    owner.containerApproach, CONTAINER_STAND_REACH, owner.reach)) {
+                    // 「已到达站位」但「够不到箱子」时，这里与 NAVIGATE 之间会原地弹跳、永不报错。
+                    // 给它一个上限：站定 5 秒还够不到，就换一个外围站位重规划，并说清是站位问题。
+                    if (++owner.taskTicks > 100) {
+                        owner.taskTicks = 0;
+                        BlockPos stand = owner.containerApproach == null
+                            ? null : owner.containerApproach.standPos();
+                        String key = "MATERIAL_STAND:" + boxType.name();
+                        if (owner.reportedContainerFailures.add(key)) {
+                            owner.status.critical(key, boxType.title() + "站位够不到箱子",
+                                "已换一个外围站位重试");
+                        }
+                        owner.planner.blockNavigationTarget(TaskType.REFILL, stand);
+                        owner.phase = Phase.REPLAN;
+                        return;
+                    }
+                    owner.phase = Phase.NAVIGATE;
+                    return;
+                }
+                owner.broker.reset();
+                BlockPos interactPos = owner.containerApproach.interactPos();
+                if (!owner.adapter.face(interactPos)
+                    || !owner.adapter.interactBlock(InteractionHand.MAIN_HAND, interactPos, Direction.UP)) {
+                    owner.retryCount++;
+                    if (owner.retryCount >= MAX_RETRY) {
+                        owner.status.critical("MATERIAL_BOX_OPEN:" + boxType,
+                            boxType.title() + "打开失败", "已暂停当前补料任务");
+                        owner.phase = Phase.REPLAN;
+                    }
+                    return;
+                }
+                owner.taskTicks = 0;
+                owner.taskStep = 1;
+            }
+            case 1 -> {
+                owner.broker.tick();
+                owner.taskTicks++;
+                if (owner.broker.isReady()) {
+                    owner.taskStep = 2;
+                    owner.taskTicks = 0;
+                } else if (owner.taskTicks > 40) {
+                    // 菜单迟迟没同步：关掉重来，连续失败才停机（与后勤同一套退避）
+                    ContainerAccess.closeContainer();
+                    owner.broker.reset();
+                    owner.retryCount++;
+                    if (owner.retryCount >= MAX_RETRY) {
+                        owner.status.critical("MATERIAL_BOX_SYNC:" + boxType,
+                            boxType.title() + "菜单未同步", "已暂停当前补料任务");
+                        owner.phase = Phase.REPLAN;
+                    } else {
+                        owner.taskStep = 0;
+                        owner.taskTicks = 0;
+                    }
+                }
+            }
+            case 2 -> {
+                // 先取够一批；取够后把空桶 / 玻璃瓶存回同一个箱子（一步一格，tick 之间推进）
+                int remaining = group.refillBatch() - owner.inventory.countItem(group.refillItem());
+                boolean moved = remaining > 0 && owner.logistics.withdrawItemOne(group.refillItem(), remaining);
+                if (!moved && group.emptyItem() != null && owner.inventory.countItem(group.emptyItem()) > 0) {
+                    moved = owner.logistics.depositItemOne(group.emptyItem());
+                }
+                if (moved) {
+                    owner.taskTicks = 0;
+                    // 这趟确实取到料了：清掉「箱空」记录，下次再空还能再报一次
+                    owner.reportedContainerFailures.remove("MATERIAL_EMPTY:" + boxType.name());
+                } else if (remaining > 0 && owner.inventory.countItem(group.refillItem()) <= 0) {
+                    // 手里一个料都没有、箱子也给不出来 = 箱子空了。这里必须退避：箱子里没料时脚本
+                    // 唯一的判断手段就是「开箱看一眼」，不退避就会在「开箱 → 取不到 → 关箱 → 重规划
+                    // → 开箱」之间原地空转，玩家看到的是站着不动。退避期内安静待命，补了料自动继续。
+                    ContainerAccess.closeContainer();
+                    owner.broker.reset();
+                    String key = "MATERIAL_EMPTY:" + boxType.name();
+                    if (owner.reportedContainerFailures.add(key)) {
+                        owner.status.critical(key, boxType.title() + "里没有" + group.materialName(),
+                            "往箱子里补" + group.materialName() + "后会自动继续");
+                    }
+                    owner.materialFetchBlockedUntil = System.currentTimeMillis() + MATERIAL_FETCH_RETRY_MS;
+                    owner.phase = Phase.REPLAN;
+                    owner.stepTick = 0;
+                } else {
+                    owner.taskStep = 3;
+                    owner.taskTicks = 0;
+                }
+            }
+            case 3 -> {
+                ContainerAccess.closeContainer();
+                owner.broker.reset();
+                // 取完立刻回到规划：下一轮手里有料，就会对那口盆发出 WATER
+                owner.phase = Phase.REPLAN;
+                owner.stepTick = 0;
+            }
+            default -> owner.phase = Phase.REPLAN;
+        }
+    }
+
+    /**
+     * 水壶不见了（快捷栏 / 背包 / 副手都没有）→ 播报并停机，返回 true 表示本次动作已被拦下。
+     *
+     * <p><b>为什么必须拦</b>（实机反馈：壶放副手或挪走后「脚本以为补满了水，就以为完成了」）：
+     * 旧口径里「读不到水量」= 水位未知 = 允许继续，于是找不到壶时补水直接判定收工、浇水静默失败，
+     * 玩家只看到「已完成」。这里把「壶在不在」先判掉：不在就停机报错，让玩家知道是壶的问题。
+     * 壶在、只是这个资源包没写 water 字段的情况完全不受影响（仍然允许试一次）。</p>
+     */
+    private boolean blockedByMissingCan() {
+        if (owner.selectedCanKeys.isEmpty() || hasWateringCan()) return false;
+        owner.phase = Phase.REPLAN;
+        owner.stopForMissingCan();
+        return true;
+    }
+
+    /** 已选水壶是否存在（快捷栏 / 背包 / 副手任意一处） */
+    boolean hasWateringCan() {
+        for (String key : owner.selectedCanKeys) {
+            StardewToolDefinition entry = owner.index.entryByKey(key);
+            if (entry instanceof WateringCanDefinition can && owner.inventory.findSlotEntry(can, false) >= 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     boolean doPlant() {
@@ -251,7 +507,7 @@ final class StardewFarmExecutor {
         if (crop == null) return false;
         if (!holdSeed(crop)) return false;
         return owner.adapter.face(owner.targetPot)
-            && owner.adapter.useOnBlock(InteractionHand.MAIN_HAND, owner.targetPot);
+            && owner.adapter.useOnBlock(activeHand, owner.targetPot);
     }
 
     boolean doFertilize() {
@@ -260,7 +516,7 @@ final class StardewFarmExecutor {
         if (fertilizer == null) return false;
         if (!holdEntry(fertilizer)) return false;
         return owner.adapter.face(owner.targetPot)
-            && owner.adapter.useOnBlock(InteractionHand.MAIN_HAND, owner.targetPot);
+            && owner.adapter.useOnBlock(activeHand, owner.targetPot);
     }
 
     boolean doPotion() {
@@ -272,6 +528,12 @@ final class StardewFarmExecutor {
     }
 
     void interactRefill() {
+        // 下界盆 / 末地盆的「补水」是去物料箱取岩浆 / 龙息，与水壶灌水是两条完全不同的链路
+        if (targetPotGroup().refillItem() != null) {
+            interactMaterialRefill();
+            return;
+        }
+        if (blockedByMissingCan()) return;
         StardewPointManager.StardewPoint water = owner.points.get(StardewPointType.WATER_SOURCE);
         String failure = owner.points.validationFailure(StardewPointType.WATER_SOURCE, water, owner.index);
         if (failure != null) {
@@ -285,9 +547,13 @@ final class StardewFarmExecutor {
                 owner.phase = Phase.REPLAN;
                 return;
             }
-            if (owner.switchCan && !holdEntry(can)) {
-                owner.phase = Phase.REPLAN;
-                return;
+            if (owner.switchCan) {
+                if (!holdEntry(can)) {
+                    owner.phase = Phase.REPLAN;
+                    return;
+                }
+            } else {
+                resolveHandFor(can);
             }
             owner.refillLastWater = currentHeldWater();
             owner.refillCapacity = currentHeldCanCapacity();
@@ -324,7 +590,7 @@ final class StardewFarmExecutor {
             batch = Math.min(budget, REFILL_BURST_UNKNOWN);
         }
         for (int i = 0; i < batch; i++) {
-            owner.adapter.interactBlock(InteractionHand.MAIN_HAND, water.pos(), Direction.UP);
+            owner.adapter.interactBlock(activeHand, water.pos(), Direction.UP);
         }
         owner.refillBurstSent = batch;
         owner.refillAttempts += batch;
@@ -337,7 +603,7 @@ final class StardewFarmExecutor {
     private Integer currentHeldCanCapacity() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return null;
-        return StardewInventoryService.readWaterCapacity(mc.player.getMainHandItem());
+        return StardewInventoryService.readWaterCapacity(mc.player.getItemInHand(activeHand));
     }
 
     /**
@@ -351,7 +617,9 @@ final class StardewFarmExecutor {
     void verifyRefill() {
         Integer after = currentHeldWater();
         if (after == null) {
-            // 水量仍读不到：没有任何可判定的证据，按原口径收工
+            // 壶没了：不能按「水量未知」收工，否则就是实机那个「以为补满了」
+            if (blockedByMissingCan()) return;
+            // 水量仍读不到（壶在，只是这套资源包没写 water 字段）：没有任何可判定的证据，按原口径收工
             finishRefillSuccess();
             return;
         }
@@ -411,6 +679,7 @@ final class StardewFarmExecutor {
     }
 
     void interactSprinkler() {
+        if (blockedByMissingCan()) return;
         BlockPos pos = owner.planner.sprinklerTarget();
         if (pos == null) {
             owner.phase = Phase.REPLAN;
@@ -426,7 +695,10 @@ final class StardewFarmExecutor {
         }
         if (owner.taskStep == 0) {
             StardewToolDefinition can = preferredWateringCan();
-            if (can != null && owner.switchCan) holdEntry(can);
+            if (can != null) {
+                if (owner.switchCan) holdEntry(can);
+                else resolveHandFor(can);
+            }
             owner.taskStep = 1;
         }
         // 壶已经空了：先去补水点补满，回来继续灌这一台（光标不动，不会跳过它）。
@@ -443,7 +715,7 @@ final class StardewFarmExecutor {
         // 一次灌一批：同一 tick 连发多包。多发的包对已满的洒水器是空操作，不会浪费壶里的水；
         // 下一 tick 读壶水差额就知道还差多少，没满再补一批（判满仍然靠「壶水还掉不掉」）。
         for (int i = 0; i < SPRINKLER_BURST_PACKETS; i++) {
-            owner.adapter.interactBlock(InteractionHand.MAIN_HAND, pos, Direction.UP);
+            owner.adapter.interactBlock(activeHand, pos, Direction.UP);
         }
         owner.sprinklerBursts = pos.equals(owner.sprinklerPourTarget) ? owner.sprinklerBursts + 1 : 1;
         owner.sprinklerPourTarget = pos;
@@ -461,17 +733,18 @@ final class StardewFarmExecutor {
         int hotbar = owner.inventory.findSlotSeed(crop, true);
         if (hotbar >= 0) {
             saveHand();
+            activeHand = InteractionHand.MAIN_HAND;
             owner.adapter.selectHotbar(hotbar);
             return true;
         }
         int any = owner.inventory.findSlotSeed(crop, false);
-        if (any >= 0) {
-            saveHand();
-            owner.swappedInvSlot = any;
-            owner.adapter.swapToHotbar(any);
-            return true;
-        }
-        return false;
+        if (any < 0) return false;
+        if (any == StardewInventoryService.OFFHAND_SLOT) return holdOffhand();
+        saveHand();
+        activeHand = InteractionHand.MAIN_HAND;
+        owner.swappedInvSlot = any;
+        owner.adapter.swapToHotbar(any);
+        return true;
     }
 
     private boolean holdEntry(StardewToolDefinition entry) {
@@ -480,30 +753,178 @@ final class StardewFarmExecutor {
         int hotbar = owner.inventory.findSlotEntry(entry, true);
         if (hotbar >= 0) {
             saveHand();
+            activeHand = InteractionHand.MAIN_HAND;
             owner.adapter.selectHotbar(hotbar);
             return true;
         }
         int any = owner.inventory.findSlotEntry(entry, false);
-        if (any >= 0) {
-            saveHand();
-            owner.swappedInvSlot = any;
-            owner.adapter.swapToHotbar(any);
-            return true;
-        }
-        return false;
+        if (any < 0) return false;
+        if (any == StardewInventoryService.OFFHAND_SLOT) return holdOffhand();
+        saveHand();
+        activeHand = InteractionHand.MAIN_HAND;
+        owner.swappedInvSlot = any;
+        owner.adapter.swapToHotbar(any);
+        return true;
     }
 
-    /** 右键采摘优先使用空手，避免水壶或其它工具改变服务器对交互动作的解释。 */
+    /**
+     * 切到指定<b>原版物品</b>（熔岩桶 / 龙息）：与 {@link #holdEntry} 同一套换手流程。
+     *
+     * <p>之所以另开一条路：这两种物料既没有 {@code item_model} 组件、也没有 ID 配置身份，
+     * 用 {@code StardewToolDefinition} 表达不出来，只能按物品本体找槽位。</p>
+     */
+    private boolean holdItem(Item item) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || item == null) return false;
+        int hotbar = owner.inventory.findSlotItem(item, true);
+        if (hotbar >= 0) {
+            saveHand();
+            activeHand = InteractionHand.MAIN_HAND;
+            owner.adapter.selectHotbar(hotbar);
+            return true;
+        }
+        int any = owner.inventory.findSlotItem(item, false);
+        if (any < 0) return false;
+        if (any == StardewInventoryService.OFFHAND_SLOT) return holdOffhand();
+        saveHand();
+        activeHand = InteractionHand.MAIN_HAND;
+        owner.swappedInvSlot = any;
+        owner.adapter.swapToHotbar(any);
+        return true;
+    }
+
+    /**
+     * 工具 / 种子本来就在副手：什么都不用挪，直接用副手动作。
+     *
+     * <p>与「切快捷栏」和「背包换到主手」两条路不同，这条路既不切槽也不换格子，所以
+     * <b>不登记 handSwapped</b>（没有东西要还原）。服务端按包里的手取物品，副手那件照常生效
+     * ——与收割用副手是同一条机制。</p>
+     */
+    private boolean holdOffhand() {
+        activeHand = InteractionHand.OFF_HAND;
+        return true;
+    }
+
+    /**
+     * 收割要「一只手空着」（空手右键：拿工具 / 食物会改变服务端对这次交互的解释）：主手空 → 直接用主手；
+     * 主手有东西 → 切到一个空热键栏槽；9 格全满 → 退到副手；副手也占着 → 把副手物品暂放到背包空格，
+     * 用副手收割，收完由 {@link #restoreHandNow()} 放回。
+     *
+     * <p><b>最后那一步是本项目对旧实现唯一的改动</b>（实机反馈：「我要副手也不影响收菜」）。旧实现
+     * （{@code StardewCoordinator.prepareHarvestHand()}）到「副手也占着」就直接返回 {@code null}——
+     * 热键栏 9 格全满时拿着东西站田里，就永远收不了菜，而且一声不响。现在改成借用原版「F 键换副手」
+     * 的同一个动作，把副手物品暂放到背包空格（优先靠后的空格，尽量不占用模块自己要放的格子），
+     * 腾出一只空手照常收割；物品在本次任务结束（{@code replan}）或模块停机时放回。</p>
+     *
+     * <p><b>为什么只借副手、不动主手</b>：主手那件东西正在被模块用（种子 / 水壶 / 工具），动它等于
+     * 打乱播种与补水节奏；副手对模块没用，借它最便宜，一次任务最多两次点击包。背包也一个空格都
+     * 没有时才真正放弃（那时连卸货都做不了）。</p>
+     *
+     * <p><b>为什么要记日志</b>（实机反馈：一直显示「正在收获」，地里却一点动静都没有）：
+     * 取手这条链路原本一声不响，玩家根本无从知道是「没手可用」。日志只在<strong>非平凡情形</strong>
+     * 下打——副手占着东西、借用副手、或干脆没有空手——正常「主手本来就空」的情况不打，免得刷屏。</p>
+     */
     private InteractionHand prepareHarvestHand() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.player.getMainHandItem().isEmpty()) return InteractionHand.MAIN_HAND;
+        if (mc.player == null) return InteractionHand.MAIN_HAND;
+        if (mc.player.getMainHandItem().isEmpty()) {
+            noFreeHandNotified = false;
+            return InteractionHand.MAIN_HAND;
+        }
+        String main = itemLabel(mc.player.getMainHandItem());
+        String off = itemLabel(mc.player.getOffhandItem());
         for (int slot = 0; slot < 9; slot++) {
             if (!mc.player.getInventory().getItem(slot).isEmpty()) continue;
             saveHand();
             owner.adapter.selectHotbar(slot);
+            noFreeHandNotified = false;
+            if (offhandBusy(mc)) {
+                LOGGER.info("[星露谷] 收割取手：切到空热键栏槽 {}（主手={} 副手={}）", slot + 1, main, off);
+            }
             return InteractionHand.MAIN_HAND;
         }
-        return mc.player.getOffhandItem().isEmpty() ? InteractionHand.OFF_HAND : null;
+        // 已经借过副手（本任务内）：服务站点的副手此刻是空的，直接用它。
+        // 客户端那一格要等服务器回包才更新，所以不能只靠「副手是不是空的」来判。
+        if (mc.player.getOffhandItem().isEmpty() || offhandParkedSlot >= 0) {
+            noFreeHandNotified = false;
+            return InteractionHand.OFF_HAND;
+        }
+        if (parkOffhand(mc, main, off)) return InteractionHand.OFF_HAND;
+        LOGGER.info("[星露谷] 收割取手：没有空手 —— 热键栏 9 格全满、副手有物品且背包没有空格"
+            + "（主手={} 副手={}），本次放弃", main, off);
+        // 每次尝试都真的没有手，但聊天只播一次：状态键会被别的播报顶掉，靠去重键压不住，会按秒刷屏。
+        // 状态行照旧每轮更新（silent），玩家随时能在配置页看到当前结论。
+        if (noFreeHandNotified) {
+            owner.status.silent("NO_FREE_HAND", NO_FREE_HAND_TASK, NO_FREE_HAND_DETAIL, "");
+        } else {
+            noFreeHandNotified = true;
+            owner.status.state("NO_FREE_HAND", NO_FREE_HAND_TASK, NO_FREE_HAND_DETAIL);
+        }
+        return null;
+    }
+
+    /**
+     * 把副手物品暂放到背包空格，腾出一只空手（原版「F 键换副手」的同一个动作）。
+     *
+     * <p>槽位从后往前找：模块自己的播种 / 卸货运货都往靠前的空格堆，借靠后的格子最不容易打架。
+     * 目标格在放回前不允许再被借用（{@code offhandParkedSlot} 非负即视为「这台机器已经腾过手了」）。</p>
+     *
+     * @return true 表示副手已腾空（可以用副手收割）
+     */
+    private boolean parkOffhand(Minecraft mc, String main, String off) {
+        int free = lastFreeBackpackSlot(mc);
+        if (free < 0) return false;
+        ItemStack parked = mc.player.getOffhandItem().copy();
+        if (!owner.adapter.swapOffhandWith(free)) return false;
+        offhandParkedSlot = free;
+        offhandParkedItem = parked;
+        noFreeHandNotified = false;
+        LOGGER.info("[星露谷] 收割取手：副手物品 {} 暂放到物品栏槽 {}（背包区），改用副手收割（收完放回；主手={}）",
+            off, free + 1, main);
+        return true;
+    }
+
+    /** 靠后的空闲背包槽（9~35）；没有则 -1 */
+    private int lastFreeBackpackSlot(Minecraft mc) {
+        if (mc.player == null) return -1;
+        for (int slot = 35; slot >= 9; slot--) {
+            if (mc.player.getInventory().getItem(slot).isEmpty()) return slot;
+        }
+        return -1;
+    }
+
+    /**
+     * 把暂放的副手物品换回副手（本次任务结束 / 模块停机时调用）。
+     *
+     * <p>只在那一格确实还放着当初挪过去的那件东西时才换回：玩家中途把别的东西放进去了，
+     * 就不要动它，否则会把不相干的东西换到副手上。放不回时记一条日志，东西留在背包里不丢。</p>
+     */
+    private void restoreParkedOffhand() {
+        if (offhandParkedSlot < 0) return;
+        int slot = offhandParkedSlot;
+        ItemStack parked = offhandParkedItem;
+        offhandParkedSlot = -1;
+        offhandParkedItem = null;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || parked == null) return;
+        ItemStack now = mc.player.getInventory().getItem(slot);
+        if (now.isEmpty() || !ItemStack.isSameItemSameComponents(now, parked)) {
+            LOGGER.info("[星露谷] 副手物品未换回：物品栏槽 {} 已不是当初暂放的东西，留在背包里", slot + 1);
+            return;
+        }
+        if (owner.adapter.swapOffhandWith(slot)) {
+            LOGGER.info("[星露谷] 副手物品已换回（原暂放在物品栏槽 {}）", slot + 1);
+        }
+    }
+
+    /** 副手是否占着东西（只有它非空时才值得记日志：那正是实机反馈里收不了菜的场景） */
+    private static boolean offhandBusy(Minecraft mc) {
+        return mc.player != null && !mc.player.getOffhandItem().isEmpty();
+    }
+
+    /** 物品名（日志用）；空栈回「空」 */
+    private static String itemLabel(ItemStack stack) {
+        return stack.isEmpty() ? "空" : stack.getHoverName().getString();
     }
 
     private void saveHand() {
@@ -517,6 +938,9 @@ final class StardewFarmExecutor {
     void restoreHandNow() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
+        // 借来的副手物品一定要还，与「是否恢复主手」这个开关无关；副手取用状态也一起复位。
+        restoreParkedOffhand();
+        activeHand = InteractionHand.MAIN_HAND;
         if (!owner.restoreHand) {
             owner.handSwapped = false;
             owner.savedSelectedSlot = -1;
@@ -555,13 +979,13 @@ final class StardewFarmExecutor {
         if (can == null) return null;
         int slot = owner.inventory.findSlotEntry(can, false);
         if (slot < 0) return null;
-        return StardewInventoryService.readWater(mc.player.getInventory().getItem(slot));
+        return StardewInventoryService.readWater(StardewInventoryService.stackAt(slot));
     }
 
     Integer currentHeldWater() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return null;
-        return StardewInventoryService.readWater(mc.player.getMainHandItem());
+        return StardewInventoryService.readWater(mc.player.getItemInHand(activeHand));
     }
 
     private StardewToolDefinition firstSelectedEntry(List<String> keys) {

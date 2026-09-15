@@ -7,6 +7,7 @@ import com.yiyiaddon.ui.render.world.ShapeMode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 星露谷农场全部设置项的数据载体。
@@ -68,17 +69,12 @@ public final class StardewSettings {
     /** 状态提示，默认 true */
     public boolean statusHints = true;
 
-    // ━━━ 运行参数：分区种植（实验） ━━━
+    // ━━━ 运行参数：分区种植 ━━━
 
-    /**
-     * 分区种植（实验），默认 false。
-     *
-     * <p>开启后「整片农田一个目标」不再参与，改由种植区域逐块决定种什么；关闭时行为与开启前
-     * 完全一致，已经划好的区域留在盘上但不读、不拦、不画。</p>
-     */
-    public boolean regionPlanting = false;
+    /** 分区错位自动清理（挖掉种错的作物再补种），默认开启 */
+    public boolean autoClearMismatch = true;
 
-    /** 选点工具的物品键；{@code null} = 空手（默认）。指定后「空手或手持该物品」都算选点。 */
+    /** 选点工具的物品键；{@code null} = 不限（默认，手持任何物品都算选点）。指定后只有空手或手持该物品才算选点。 */
     public String regionToolKey = null;
 
     /** 选点工具的显示名（只用于回执与界面显示；键才是判据） */
@@ -91,27 +87,33 @@ public final class StardewSettings {
 
     // ━━━ 渲染：点位渲染（每类独立） ━━━
 
-    /** 农田边界：起点与终点围成的立方体 */
-    public final RenderObject renderFarmBorder = new RenderObject("农田边界",
-        "渲染起点与终点围成的农田范围", 0xFFFFFF, 50, ShapeMode.Lines);
-    /** 洒水器本体方块 */
+    /** 种植区域：每块已划分的地一个框；淡白线框，提亮到约 35% 才看得清 */
+    public final RenderObject renderRegions = new RenderObject("种植区域",
+        "渲染已划分的种植区域范围（每块地一个框，字牌写区域号与作物）", 0xFFFFFF, 90, ShapeMode.Lines);
+    /** 洒水器本体方块：深蓝，与浅青的覆盖范围分层 */
     public final RenderObject renderSprinklerBody = new RenderObject("洒水器本体",
-        "高亮已绑定的洒水器本体方块（与覆盖范围互不影响）", 0x00B4FF, 60, ShapeMode.Both);
-    /** 洒水器覆盖范围 */
+        "高亮已绑定的洒水器本体方块（与覆盖范围互不影响）", 0x1B3FBF, 160, ShapeMode.Both);
+    /** 洒水器覆盖范围：浅青蓝，压在本体上面也能看清 */
     public final RenderObject renderSprinklerCoverage = new RenderObject("洒水器覆盖范围",
-        "高亮洒水器覆盖范围（半径按洒水器等级 1~4 推导，仅用于观察，不参与决策）", 0x00C8FF, 40, ShapeMode.Lines);
-    /** 洒水器点位标记 */
+        "高亮洒水器覆盖范围（半径按洒水器等级 1~4 推导，仅用于观察，不参与决策）", 0x66D9FF, 70, ShapeMode.Lines);
+    /** 洒水器点位标记：亮青，压在深蓝本体上做点位标记 */
     public final RenderObject renderSprinklerPoint = new RenderObject("洒水器点位",
-        "在每个已绑定洒水器中心显示点位标记（用于确认点位已绑定）", 0x00FFB4, 150, ShapeMode.Lines);
-    /** 种子箱 */
+        "在每个已绑定洒水器中心显示点位标记（用于确认点位已绑定）", 0x00E5FF, 200, ShapeMode.Lines);
+    /** 种子箱：绿（种子） */
     public final RenderObject renderSeedBox = new RenderObject("种子箱",
-        "高亮种子箱方块", 0x00C8FF, 120, ShapeMode.Lines);
-    /** 成品箱 */
+        "高亮种子箱方块", 0x35C759, 160, ShapeMode.Lines);
+    /** 成品箱：金（收成） */
     public final RenderObject renderOutputBox = new RenderObject("成品箱",
-        "高亮成品箱方块", 0xFFAA00, 120, ShapeMode.Lines);
-    /** 补水点 */
+        "高亮成品箱方块", 0xFFB300, 160, ShapeMode.Lines);
+    /** 补水点：蓝（水） */
     public final RenderObject renderWaterSource = new RenderObject("补水点",
-        "高亮补水点方块", 0xFF00FF, 120, ShapeMode.Lines);
+        "高亮补水点方块", 0x1E6FFF, 180, ShapeMode.Lines);
+    /** 岩浆箱：橙红（岩浆），下界盆取岩浆、存空桶 */
+    public final RenderObject renderLavaBox = new RenderObject("岩浆箱",
+        "高亮岩浆箱方块（下界种植盆取岩浆、存回空桶）", 0xFF6A00, 180, ShapeMode.Lines);
+    /** 龙息箱：紫（龙息），末地盆取龙息、存玻璃瓶 */
+    public final RenderObject renderBreathBox = new RenderObject("龙息箱",
+        "高亮龙息箱方块（末地种植盆取龙息、存回玻璃瓶）", 0xB44FFF, 180, ShapeMode.Lines);
     /** 点位字牌：只有显示开关（颜色跟随对应点位方框），没有渲染模式、没有单独颜色 */
     public final RenderObject renderLabels = new RenderObject("点位字牌",
         "各绑定点位头顶的文字标签（颜色跟随对应点位的方框颜色，只有显示开关，没有单独颜色与渲染模式）",
@@ -125,11 +127,33 @@ public final class StardewSettings {
      */
     public int labelSize = 12;
 
-    /** 全部渲染对象，顺序即界面顺序（旧项目构造顺序，去掉农田起点 / 终点两类） */
+    /** 全部渲染对象，顺序即界面顺序 */
     private final List<RenderObject> renderObjects = List.of(
-        renderFarmBorder,
+        renderRegions,
         renderSprinklerBody, renderSprinklerCoverage, renderSprinklerPoint,
-        renderSeedBox, renderOutputBox, renderWaterSource, renderLabels);
+        renderSeedBox, renderOutputBox, renderWaterSource, renderLavaBox, renderBreathBox, renderLabels);
+
+    /** 调色板版本：小于它的旧存档会被 {@link #migratePalette()} 升级一次 */
+    private static final int PALETTE_REVISION = 2;
+
+    /**
+     * 改过名的渲染对象：当前名 → 旧名。
+     *
+     * <p><b>为什么必须有：</b>设置键是 {@code render.<对象名>.show}，对象改名等于换键，老存档里的
+     * 开关 / 颜色 / 渲染模式全部读不回来，实机表现就是「改完重启就回默认」。这里在「新键不存在」时
+     * 接着读旧键（{@code save} 只写新键），旧值因此能原样接上，不必让玩家重设一遍。</p>
+     */
+    private static final Map<String, String> LEGACY_RENDER_NAME = Map.of(
+        "种植区域", "农田边界");
+
+    /** 上一版出厂默认色（按渲染对象名），只用来判断「这个颜色玩家有没有动过」 */
+    private static final Map<String, int[]> LEGACY_PALETTE = Map.of(
+        "洒水器本体", new int[]{0x00B4FF, 60},
+        "洒水器覆盖范围", new int[]{0x00C8FF, 40},
+        "洒水器点位", new int[]{0x00FFB4, 150},
+        "种子箱", new int[]{0x00C8FF, 120},
+        "成品箱", new int[]{0xFFAA00, 120},
+        "补水点", new int[]{0xFF00FF, 120});
 
     // ━━━ 六类选择（内存镜像，按 ServerKey 落盘见 StardewSelectionStore） ━━━
 
@@ -174,8 +198,10 @@ public final class StardewSettings {
         + "清理枯苗这类破坏动作永远单目标。默认 4，上限 8；填得越高越快——同 tick 多个交互包"
         + "更容易被服务器丢掉或反作弊注意到";
 
-    public static final String NAME_AUTO_WATER = "自动浇水";
-    public static final String DESC_AUTO_WATER = "发现干燥花盆时自动用水壶浇水";
+    public static final String NAME_AUTO_WATER = "自动浇灌";
+    public static final String DESC_AUTO_WATER = "盆干了就自动浇灌：普通盆浇水（水壶 / 补水点），"
+        + "下界盆浇岩浆，末地盆浇龙息；岩浆 / 龙息会自动去对应的料箱取。关掉 = 浇灌我自己来，"
+        + "脚本只保留播种 / 收割 / 清理";
 
     public static final String NAME_SWITCH_CAN = "自动切换水壶";
     public static final String DESC_SWITCH_CAN = "浇水 / 补水前自动把已选水壶切到主手（默认开启）";
@@ -199,13 +225,15 @@ public final class StardewSettings {
     public static final String DESC_STATUS_HINTS = "在聊天栏显示农场运行状态（正在浇水 / 收获 / 播种 / 补货 / 卸货 / 种子回收等）。"
         + "默认开启；启动自检结论、季节限制与解除、错误与失效提示不受本开关影响";
 
-    public static final String NAME_REGION_PLANTING = "分区种植（实验）";
-    public static final String DESC_REGION_PLANTING = "把农田切成几块，每块只种一种作物，各收各的（默认关闭）。"
-        + "关着的时候跟以前一模一样，已经划好的区域会留着但不生效；打开后用「.stardew 种植区域 <作物>」圈地";
-
     public static final String NAME_REGION_TOOL = "选点工具";
-    public static final String DESC_REGION_TOOL = "圈地时拿什么当「笔」：默认空手；指定一个物品后，空手或手持它都能圈地。"
-        + "注意：手持它以后就不会挖方块了";
+    public static final String DESC_REGION_TOOL = "圈地时拿什么当「笔」：默认「不限」——手持任何物品都能点角"
+        + "（选区模式内左右键一律不落到世界里，不会挖到作物）。指定一个物品后它变成白名单："
+        + "只有空手或手持它才算点角，其余物品只被拦下、不落点";
+
+    public static final String NAME_AUTO_CLEAR_MISMATCH = "自动清理错位作物";
+    public static final String DESC_AUTO_CLEAR_MISMATCH = "某块单一作物区里种了别的作物时，自动走过去把它挖掉，"
+        + "空出的盆按这块地绑定的作物补种（默认开启）；关掉则只把错位格用红框标出并停住，等你手动清理。"
+        + "混种区域种什么都算对，不参与这条；破坏动作永远单目标，不会连发";
 
     public static final String NAME_LOGISTICS_SIMPLE = "简化后勤";
     public static final String DESC_LOGISTICS_SIMPLE = "开启时不用设置补货 / 卸货：种子少于 2 去补、补到 8；成品攒到 8 去卸、不留底。"
@@ -228,6 +256,9 @@ public final class StardewSettings {
         public boolean show = true;
         /** 颜色（含透明度与彩虹开关） */
         public final EspColor color;
+        /** 出厂默认色，用于调色板升级时只替换「没被玩家动过」的对象 */
+        private final int defaultRgb;
+        private final int defaultAlpha;
         /** 渲染模式；{@code null} 表示该类只有显示与颜色 */
         public ShapeMode mode;
         /**
@@ -248,8 +279,20 @@ public final class StardewSettings {
             this.name = name;
             this.description = description;
             this.color = new EspColor(rgb, alpha);
+            this.defaultRgb = rgb;
+            this.defaultAlpha = alpha;
             this.mode = mode;
             this.colorEditable = colorEditable;
+        }
+
+        /** 出厂默认色（迁移用） */
+        public int defaultRgb() {
+            return defaultRgb;
+        }
+
+        /** 出厂默认透明度（迁移用） */
+        public int defaultAlpha() {
+            return defaultAlpha;
         }
 
         public String name() {
@@ -294,11 +337,12 @@ public final class StardewSettings {
         json.addProperty("sprinklerMaintenance", sprinklerMaintenance);
         json.addProperty("sprinklerInterval", sprinklerInterval);
         json.addProperty("statusHints", statusHints);
-        json.addProperty("regionPlanting", regionPlanting);
+        json.addProperty("autoClearMismatch", autoClearMismatch);
         if (regionToolKey != null) json.addProperty("regionToolKey", regionToolKey);
         if (regionToolName != null) json.addProperty("regionToolName", regionToolName);
         json.addProperty("logisticsSimple", logisticsSimple);
         json.addProperty("labelSize", labelSize);
+        json.addProperty("paletteRevision", PALETTE_REVISION);
         for (RenderObject object : renderObjects) {
             String prefix = "render." + object.name() + ".";
             json.addProperty(prefix + "show", object.show);
@@ -325,16 +369,45 @@ public final class StardewSettings {
         sprinklerInterval = clamp(intOf(json, "sprinklerInterval", sprinklerInterval),
             SPRINKLER_INTERVAL_MIN, SPRINKLER_INTERVAL_MAX);
         statusHints = boolOf(json, "statusHints", statusHints);
-        regionPlanting = boolOf(json, "regionPlanting", regionPlanting);
+        autoClearMismatch = boolOf(json, "autoClearMismatch", autoClearMismatch);
         regionToolKey = stringOf(json, "regionToolKey");
         regionToolName = stringOf(json, "regionToolName");
         logisticsSimple = boolOf(json, "logisticsSimple", logisticsSimple);
         labelSize = clamp(intOf(json, "labelSize", labelSize), LABEL_SIZE_MIN, LABEL_SIZE_MAX);
         for (RenderObject object : renderObjects) {
-            String prefix = "render." + object.name() + ".";
+            String prefix = renderPrefix(json, object);
             object.show = boolOf(json, prefix + "show", object.show);
             if (object.mode != null) object.mode = shapeModeOf(json, prefix + "mode", object.mode);
             object.color.load(json, prefix + "color");
+        }
+        if (intOf(json, "paletteRevision", 1) < PALETTE_REVISION) migratePalette();
+    }
+
+    /**
+     * 该对象当前该读哪个前缀：优先新键；新键一个都没有、而这个对象改过名时，改读旧键。
+     *
+     * <p>判据取 {@code show} 与 {@code colorRgb} 两个键——它们是每个对象必然写出的项，
+     * 只要有一个在，就说明这份存档用的是这个对象名。</p>
+     */
+    private static String renderPrefix(JsonObject json, RenderObject object) {
+        String prefix = "render." + object.name() + ".";
+        if (json.has(prefix + "show") || json.has(prefix + "colorRgb")) return prefix;
+        String legacyName = LEGACY_RENDER_NAME.get(object.name());
+        return legacyName == null ? prefix : "render." + legacyName + ".";
+    }
+
+    /**
+     * 调色板升级（旧存档一次性）：把「还等于上一版默认色」的对象换成新默认色。
+     *
+     * <p>玩家自己调过的颜色一律保留，所以升级不会抹掉手工配置；颜色本来就已经是别的值的也不动。
+     * 旧默认色是上一版出厂值（补水点原为洋红、洒水器本体原为亮蓝等），与新默认色互相不冲突。</p>
+     */
+    private void migratePalette() {
+        for (RenderObject object : renderObjects) {
+            int[] legacy = LEGACY_PALETTE.get(object.name());
+            if (legacy == null) continue;
+            if (object.color.rgb() != legacy[0] || object.color.alpha() != legacy[1]) continue;
+            object.color.rgb(object.defaultRgb()).alpha(object.defaultAlpha());
         }
     }
 
@@ -350,7 +423,7 @@ public final class StardewSettings {
         }
     }
 
-    /** 读取字符串字段；缺失 / null / 空白一律返回 null（默认「空手」） */
+    /** 读取字符串字段；缺失 / null / 空白一律返回 null（默认「不限」） */
     private static String stringOf(JsonObject json, String key) {
         try {
             JsonElement element = json.get(key);

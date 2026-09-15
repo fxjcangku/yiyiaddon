@@ -16,6 +16,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -190,19 +191,73 @@ final class StardewContainerLogistics {
      * <p>整叠数量不超过 limit 时用 shift 整叠移出；否则拾起整叠、在同一次交互内连发右键逐个放入，
      * 余量再放回源格——一次把需要移出的量搬完，不再每 tick 只挪一个。
      * 连发上限 {@link #MAX_TRANSFER_BURST} 个/次，避免单 tick 发送过多点击。</p>
+     *
+     * <p><b>放哪里：</b>先找同类还没满的槽，同类放不下了才用空槽——这样成品箱里每种产物只有一堆，
+     * 看着整齐；挑槽只是一次本地遍历，不发包，卸货速度与之前完全一致。</p>
+     */
+    /**
+     * 从已打开的箱子里取一批指定原版物品（熔岩桶 / 龙息）给玩家。
+     *
+     * <p>取料走「原版物品本体匹配」，不能用 ID 配置身份——熔岩桶与龙息没有
+     * {@code item_model} 组件，表达不成 {@code StardewToolDefinition}。</p>
+     *
+     * @param limit 这一趟最多取几个
+     * @return 是否真的搬动了一次（搬动中返回 true，调用方下一 tick 继续）
+     */
+    boolean withdrawItemOne(Item item, int limit) {
+        var mc = Minecraft.getInstance();
+        if (mc.player == null || item == null || limit <= 0) return false;
+        AbstractContainerMenu menu = mc.player.containerMenu;
+        for (Slot slot : menu.slots) {
+            if (slot.container == mc.player.getInventory()) continue;
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty() || !stack.is(item)) continue;
+            return transferUpTo(menu, slot, Math.min(limit, stack.getCount()), true);
+        }
+        return false;
+    }
+
+    /** 把背包里的指定原版物品（用完的空桶 / 玻璃瓶）全部存回已打开的箱子。 */
+    boolean depositItemOne(Item item) {
+        var mc = Minecraft.getInstance();
+        if (mc.player == null || item == null) return false;
+        AbstractContainerMenu menu = mc.player.containerMenu;
+        for (Slot slot : menu.slots) {
+            if (slot.container != mc.player.getInventory()) continue;
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty() || !stack.is(item)) continue;
+            return transferUpTo(menu, slot, stack.getCount(), false);
+        }
+        return false;
+    }
+
+    /**
+     * 把一格物品整体 / 部分搬到对侧（{@code toPlayer=true} 表示箱→人）。
+     *
+     * <p>整格搬得完就发一次 {@code QUICK_MOVE}；搬不完只能「拿起 → 逐个放到目标格 → 余数放回原格」，
+     * 中间任何一步都不能让光标上留东西，否则后续操作会串味。</p>
      */
     private boolean transferUpTo(AbstractContainerMenu menu, Slot source, int limit, boolean toPlayer) {
         var mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null || !menu.getCarried().isEmpty()) return false;
         ItemStack moving = source.getItem();
         if (moving.isEmpty() || limit <= 0) return false;
-        Slot target = null;
+        Slot mergeTarget = null;
+        Slot emptySlot = null;
         for (Slot candidate : menu.slots) {
             if ((candidate.container == mc.player.getInventory()) != toPlayer || !candidate.mayPlace(moving)) continue;
             ItemStack existing = candidate.getItem();
-            if (existing.isEmpty() || (ItemStack.isSameItemSameComponents(existing, moving)
-                && existing.getCount() < candidate.getMaxStackSize(moving))) { target = candidate; break; }
+            if (existing.isEmpty()) {
+                if (emptySlot == null) emptySlot = candidate;
+                continue;
+            }
+            if (ItemStack.isSameItemSameComponents(existing, moving)
+                && existing.getCount() < candidate.getMaxStackSize(moving)) {
+                mergeTarget = candidate;
+                break;
+            }
         }
+        Slot target = mergeTarget != null ? mergeTarget : emptySlot;
         if (target == null) return false;
         if (limit >= moving.getCount()) {
             mc.gameMode.handleContainerInput(menu.containerId, source.index, 0, ContainerInput.QUICK_MOVE, mc.player);

@@ -60,6 +60,13 @@ public final class SelectorScreen extends PanelScreen {
     private static final float GROUP_TITLE_SIZE = 11f;
     private static final float EMPTY_HEIGHT = 20f;
     private static final float SEARCH_MAX_LENGTH = 64f;
+    /**
+     * 左栏最多铺这么多行。
+     *
+     * <p>方块 / 物品注册表各有一千多项，全铺出来既没人看得到底、也要每帧绘制上千个行控件。
+     * 超过就截断，剩下一律靠搜索收窄（截断处会写明还有多少没列）。</p>
+     */
+    private static final int MAX_ROWS = 200;
 
     /** Material Symbols：add / remove。 */
     private static final String GLYPH_ADD = "\uE145";
@@ -73,6 +80,8 @@ public final class SelectorScreen extends PanelScreen {
     private final Supplier<List<String>> selectedKeys;
     private final Consumer<String> onAdd;
     private final Consumer<String> onRemove;
+    /** 单选模式的选中回调；{@code null} = 常规多选（左加右减） */
+    private final Consumer<String> onPick;
 
     private final SplitPanels split = new SplitPanels(SPLIT_MIN_HEIGHT, SPLIT_ROW_GAP);
     private String filter = "";
@@ -80,6 +89,13 @@ public final class SelectorScreen extends PanelScreen {
     public SelectorScreen(String windowTitle, Screen parent, List<Entry> entries,
                           Supplier<List<String>> selectedKeys,
                           Consumer<String> onAdd, Consumer<String> onRemove) {
+        this(windowTitle, parent, entries, selectedKeys, onAdd, onRemove, null);
+    }
+
+    private SelectorScreen(String windowTitle, Screen parent, List<Entry> entries,
+                           Supplier<List<String>> selectedKeys,
+                           Consumer<String> onAdd, Consumer<String> onRemove,
+                           Consumer<String> onPick) {
         super(windowTitle, parent);
         // 聊天回执用窗口标题作前缀：本窗口是通用选择器，没有所属模块名可借
         this.windowTitle = windowTitle;
@@ -87,7 +103,20 @@ public final class SelectorScreen extends PanelScreen {
         this.selectedKeys = selectedKeys;
         this.onAdd = onAdd;
         this.onRemove = onRemove;
+        this.onPick = onPick;
         build();
+    }
+
+    /**
+     * 单选模式：左栏点一行即选中并关窗，右栏只给一句怎么用的说明。
+     *
+     * <p>给「挑一个方块当映射键 / 当替代方块」这类场景用：那里要的是「选哪一个」而不是
+     * 「维护一张名单」，因此不显示加减按钮，点行即定。</p>
+     */
+    public static SelectorScreen pick(String windowTitle, Screen parent, List<Entry> entries,
+                                      Consumer<String> onPick) {
+        return new SelectorScreen(windowTitle, parent, entries, () -> List.of(),
+            key -> { }, key -> { }, onPick);
     }
 
     private void build() {
@@ -121,9 +150,12 @@ public final class SelectorScreen extends PanelScreen {
         for (Entry entry : entries) {
             groups.computeIfAbsent(entry.group() == null ? "" : entry.group(), key -> new ArrayList<>());
         }
+        int shown = 0;
         for (Entry entry : entries) {
+            if (shown >= MAX_ROWS) break;
             if (keys.contains(entry.key()) || !matches(entry)) continue;
             groups.get(entry.group() == null ? "" : entry.group()).add(entry);
+            shown++;
         }
 
         if (groups.isEmpty()) {
@@ -145,9 +177,17 @@ public final class SelectorScreen extends PanelScreen {
             }
             for (Entry entry : group.getValue()) left.add(row(entry, true));
         }
+        if (shown >= MAX_ROWS) {
+            left.add(new TextLine("  §8只列前 " + MAX_ROWS + " 个，再输入几个字缩小范围").height(EMPTY_HEIGHT));
+        }
     }
 
     private void buildSelected(CompactStack right, List<String> keys) {
+        // 单选模式没有「已选名单」这个概念，右栏只说明怎么操作
+        if (onPick != null) {
+            right.add(new TextLine("  §8点左栏任意一行即可选中").height(EMPTY_HEIGHT));
+            return;
+        }
         // 顺序以选中集合为准，不按候选顺序重排，避免用户看到的次序跳变
         List<Entry> chosen = new ArrayList<>();
         for (String key : keys) {
@@ -190,6 +230,15 @@ public final class SelectorScreen extends PanelScreen {
     }
 
     private ListRow row(Entry entry, boolean adding) {
+        // 单选模式：整行点一下即选中并关窗，不出现加减按钮
+        if (onPick != null) {
+            return new ListRow(entry.title())
+                    .icon(entry::drawIcon)
+                    .onActivate(() -> {
+                        onPick.accept(entry.key());
+                        requestClose();
+                    });
+        }
         IconButton action = new IconButton(adding ? GLYPH_ADD : GLYPH_REMOVE, () -> {
             if (adding) {
                 onAdd.accept(entry.key());

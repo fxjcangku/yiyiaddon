@@ -71,10 +71,21 @@ public final class StardewSelectionStore {
 
     /** 写入某服务器某一类别的选择（读取-合并-原子写） */
     public static boolean save(String serverKey, StardewSelectorCategory category, List<String> keys) {
-        if (serverKey == null || serverKey.isBlank() || category == null) return false;
+        if (category == null) return false;
+        return save(serverKey, category.name(), keys);
+    }
+
+    /**
+     * 写入某服务器某一存储键的选择（读取-合并-原子写）。
+     *
+     * <p>存储键不限于类别名：盆型按维度分档，键形如 {@code POT@minecraft:the_nether}，
+     * 让「主世界用普通盆、下界用下界盆」各记一份，换维度不必重新勾。</p>
+     */
+    public static boolean save(String serverKey, String storeKey, List<String> keys) {
+        if (serverKey == null || serverKey.isBlank() || storeKey == null || storeKey.isBlank()) return false;
 
         Map<String, List<String>> all = load(serverKey);
-        all.put(category.name(), keys == null ? new ArrayList<>() : new ArrayList<>(keys));
+        all.put(storeKey, keys == null ? new ArrayList<>() : new ArrayList<>(keys));
 
         JsonObject selection = new JsonObject();
         for (Map.Entry<String, List<String>> entry : all.entrySet()) {

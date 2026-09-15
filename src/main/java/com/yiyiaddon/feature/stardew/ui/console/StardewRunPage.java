@@ -18,10 +18,11 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /**
- * 星露谷控制台「运行」页：全部运行参数（顺序 = 旧项目 sgRun 构造顺序）。
+ * 星露谷控制台「运行」页：全部运行参数。
  *
- * <p>逐字搬运自 {@code StardewConsoleScreen.buildRun} 与配套的 {@code boolRow} / {@code intRow}；
- * 方法体、文案与 tooltip 一字未改。</p>
+ * <p>每一行的设置名 / 描述 / 默认值 / 取值域仍逐字来自旧项目（禁止改写），但<b>页面顺序</b>按用途
+ * 重排为五组并加了分组小标题：启停与作业 / 自动化 / 洒水器维护 / 分区种植 / 播报。
+ * 分组只动「先看到什么」，不改任何设置项本身。</p>
  */
 public final class StardewRunPage {
 
@@ -37,6 +38,9 @@ public final class StardewRunPage {
     public void build(CompactStack stack) {
         StardewSettings s = module.settings();
 
+        // 顺序按用途分成五组（设置项本身、文案与默认值一字未改，只是重排 + 就近放说明）：
+        // 启停与作业 / 自动化 / 洒水器维护 / 分区种植 / 播报
+        stack.add(section("启停与作业"));
         stack.add(boolRow(StardewSettings.NAME_AUTO_START, StardewSettings.DESC_AUTO_START,
             () -> s.autoStart, value -> s.autoStart = value));
         stack.add(intRow(StardewSettings.NAME_REACH, StardewSettings.DESC_REACH,
@@ -50,6 +54,10 @@ public final class StardewRunPage {
         stack.add(intRow(StardewSettings.NAME_BATCH_ACTIONS, StardewSettings.DESC_BATCH_ACTIONS,
             StardewSettings.BATCH_ACTIONS_MIN, StardewSettings.BATCH_ACTIONS_MAX,
             () -> s.batchActions, value -> s.batchActions = value));
+        stack.add(new Note(owner, "§8批量右击 = 同一 tick 最多对几个格子发右键（只做收割 / 浇水 / 播种 / 施肥）。"
+            + "调高更快，也更容易被服务器反作弊注意到"));
+
+        stack.add(section("自动化"));
         stack.add(boolRow(StardewSettings.NAME_AUTO_WATER, StardewSettings.DESC_AUTO_WATER,
             () -> s.autoWater, value -> s.autoWater = value));
         stack.add(boolRow(StardewSettings.NAME_SWITCH_CAN, StardewSettings.DESC_SWITCH_CAN,
@@ -60,24 +68,32 @@ public final class StardewRunPage {
             () -> s.autoFertilize, value -> s.autoFertilize = value));
         stack.add(boolRow(StardewSettings.NAME_AUTO_POTION, StardewSettings.DESC_AUTO_POTION,
             () -> s.autoPotion, value -> s.autoPotion = value));
+
+        stack.add(section("洒水器维护"));
         stack.add(boolRow(StardewSettings.NAME_SPRINKLER_MAINTENANCE, StardewSettings.DESC_SPRINKLER_MAINTENANCE,
             () -> s.sprinklerMaintenance, value -> s.sprinklerMaintenance = value));
         stack.add(intRow(StardewSettings.NAME_SPRINKLER_INTERVAL, StardewSettings.DESC_SPRINKLER_INTERVAL,
             StardewSettings.SPRINKLER_INTERVAL_MIN, StardewSettings.SPRINKLER_INTERVAL_MAX,
             () -> s.sprinklerInterval, value -> s.sprinklerInterval = value));
+
+        // 分区种植：错位自动清理 + 选点工具
+        stack.add(section("分区种植"));
+        stack.add(boolRow(StardewSettings.NAME_AUTO_CLEAR_MISMATCH, StardewSettings.DESC_AUTO_CLEAR_MISMATCH,
+            () -> s.autoClearMismatch, value -> s.autoClearMismatch = value));
+        stack.add(toolRow());
+        stack.add(new Note(owner, "§8每块地只种它绑定的那种作物（混种地除外），"
+            + "没圈到的地一律不管；圈地用 .stardew 种植区域 <作物|混种>"));
+
+        stack.add(section("播报"));
         stack.add(boolRow(StardewSettings.NAME_STATUS_HINTS, StardewSettings.DESC_STATUS_HINTS,
             () -> s.statusHints, value -> s.statusHints = value));
-
-        // 分区种植（实验）：开关 + 选点工具。默认全关 / 空手，行为与开启前完全一致
-        stack.add(boolRow(StardewSettings.NAME_REGION_PLANTING, StardewSettings.DESC_REGION_PLANTING,
-            () -> s.regionPlanting, value -> s.regionPlanting = value));
-        stack.add(toolRow());
-
         stack.add(new Note(owner, "§8状态提示默认开启：关闭后聊天栏不再播报任务状态，结论类消息不受影响"));
-        stack.add(new Note(owner, "§8批量右击 = 同一 tick 最多对几个格子发右键（只做收割 / 浇水 / 播种 / 施肥）。"
-            + "调高更快，也更容易被服务器反作弊注意到"));
-        stack.add(new Note(owner, "§8分区种植默认关闭：打开后每块地只种它绑定的那种作物，"
-            + "未分区的地不管；关着的时候一切照旧，已经划好的区域会留到下次打开"));
+    }
+
+    /** 分组小标题（与点位页 / 概览页同一套样式） */
+    private Note section(String title) {
+        return new Note(owner, "§7§l" + title, null,
+            StardewConsoleScreen.SECTION_HEIGHT, StardewConsoleScreen.SECTION_SIZE);
     }
 
     private CompactElement boolRow(String name, String description, Supplier<Boolean> getter,
@@ -101,9 +117,10 @@ public final class StardewRunPage {
     }
 
     /**
-     * 选点工具行：一键把主手物品设为圈地工具，或清除回空手。
+     * 选点工具行：一键把主手物品设为圈地白名单，或清除回「不限」。
      *
-     * <p>行尾注释实时显示当前工具（默认「空手」）；按钮文案与回执都写清代价——手持它不再挖方块。</p>
+     * <p>行尾注释实时显示当前工具（默认「不限（任何物品）」）；默认手持什么都能点角，
+     * 设成白名单后只有空手或手持它才算点角。</p>
      */
     private CompactElement toolRow() {
         Button set = new Button("§e一键设定", module::setRegionToolFromHand);

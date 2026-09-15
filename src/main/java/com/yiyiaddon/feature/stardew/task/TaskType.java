@@ -14,6 +14,8 @@ public enum TaskType {
     LEARN_HARVEST("学习收割"),
     /** 清除死亡作物 */
     CLEAR_DEAD("清理死亡"),
+    /** 分区模式下清除种错区域的作物（左键破坏，永远单目标） */
+    CLEAR_MISMATCH("清理错位"),
     /** 给干燥的盆浇水 */
     WATER("浇水"),
     /** 播种 */

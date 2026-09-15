@@ -29,4 +29,14 @@ public interface CompactElement {
     /** 松开鼠标；默认无拖动状态。 */
     default void releaseDrag() {
     }
+
+    /**
+     * 宿主把本元素的可见区（屏幕坐标，自上而下）传下来。
+     *
+     * <p>普通元素不需要关心——宽高由宿主裁剪就够。但「自己内部还要再排一层」的容器
+     * （如 {@link SplitPanels} 的两栏）必须拿到它，否则容器里的每一行都会无条件绘制：
+     * 候选表动辄一千多行，逐帧全画会把帧时间吃光。</p>
+     */
+    default void viewport(float top, float bottom) {
+    }
 }

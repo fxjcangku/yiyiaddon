@@ -24,9 +24,12 @@ public final class GlassPanel {
     private static final Paint FILL = new Paint().setAntiAlias(true);
     private static final Paint STROKE = new Paint().setAntiAlias(true).setMode(PaintMode.STROKE);
 
-    /** 投影层数：层数越多越柔和，开销随层数线性增长。 */
-    private static final int SHADOW_LAYERS = 4;
-    private static final float SHADOW_SPREAD = 1.7f;
+    /** 投影圈数：笔宽 = 扩散距离 / 圈数，圈数越多过渡越平滑、开销随圈数线性增长。 */
+    private static final int SHADOW_LAYERS = 10;
+    /** 投影最大扩散距离。 */
+    private static final float SHADOW_REACH = 10f;
+    /** 投影向下偏移占扩散距离的比例：让投影呈「向下」而非四周均匀。 */
+    private static final float SHADOW_DROP_RATIO = 0.35f;
 
     /** 霜化渐变：顶部白色约 9% 不透明度，底部约 3%，这是「玻璃」而非「色块」的关键。 */
     private static final float FROST_TOP_ALPHA = 0.15f;
@@ -258,17 +261,30 @@ public final class GlassPanel {
         stroke(canvas, x + inset, y + inset, w - width, h - width, Math.max(0f, radius - inset), color, alpha, width);
     }
 
-    /** 向下的柔和投影，由多层渐弱的圆角描边近似。 */
+    /**
+     * 向下的柔和投影，由多圈互不重叠的圆角描边拼成。
+     *
+     * <p><b>为什么必须互不重叠：</b>早期写法用「层数 × 较大笔宽」，环带彼此压在一起，
+     * 同一像素被 3~4 圈重复叠加，且外缘是最后一圈的硬边——实机看起来就是一圈发黑的
+     * 重影（用户反馈「很多黑色的重影」）。这里改成：把扩散距离等分成 {@link #SHADOW_LAYERS}
+     * 圈，每圈笔宽正好等于圈距，于是每个像素只被一圈覆盖；透明度沿半径按平方从贴边处
+     * 向外衰减到 0，得到单调、无硬边的过渡。</p>
+     *
+     * @param strength 相对强度；贴边处最深处约为 {@code strength * 0.35}
+     */
     public static void shadow(Canvas canvas, float x, float y, float w, float h, float radius, int shadowColor, float alpha, float strength) {
         if (strength <= 0.001f || alpha <= 0.01f) return;
-        for (int layer = SHADOW_LAYERS; layer >= 1; layer--) {
-            float spread = layer * SHADOW_SPREAD;
-            float layerAlpha = alpha * strength * 0.20f / layer;
+        float step = SHADOW_REACH / SHADOW_LAYERS;
+        float edgeAlpha = alpha * strength * 0.35f;
+        for (int layer = 0; layer < SHADOW_LAYERS; layer++) {
+            // u：0 = 最外圈，1 = 贴边圈；平方衰减让投影只贴着形状存在
+            float u = (layer + 0.5f) / SHADOW_LAYERS;
+            float spread = SHADOW_REACH * (1f - u);
             stroke(canvas,
-                    x - spread, y - spread + layer * 0.9f,
+                    x - spread, y - spread + spread * SHADOW_DROP_RATIO,
                     w + spread * 2f, h + spread * 2f,
                     radius + spread,
-                    shadowColor, layerAlpha, spread * 1.15f);
+                    shadowColor, edgeAlpha * u * u, step);
         }
     }
 
@@ -276,12 +292,6 @@ public final class GlassPanel {
     public static void divider(Canvas canvas, float x, float y, float w, int color, float alpha) {
         FILL.setColor(withAlpha(color, alpha));
         canvas.drawRect(io.github.humbleui.types.Rect.makeXYWH(x, y, w, 1f), FILL);
-    }
-
-    /** 1px 纵向分隔线。 */
-    public static void verticalDivider(Canvas canvas, float x, float y, float h, int color, float alpha) {
-        FILL.setColor(withAlpha(color, alpha));
-        canvas.drawRect(io.github.humbleui.types.Rect.makeXYWH(x, y, 1f, h), FILL);
     }
 
     /**

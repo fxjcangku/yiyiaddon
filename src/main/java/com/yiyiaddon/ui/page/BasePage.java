@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.page;
 
+import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.widget.SettingModule;
 import io.github.humbleui.skija.Canvas;
 
@@ -11,6 +12,14 @@ public abstract class BasePage {
 
     /** 模块之间的垂直间距（像素）。滚动上限与绘制都按此值计算。 */
     public static final float MODULE_GAP = 8f;
+
+    /**
+     * 卡片区顶部留白：页面副标题与第一张卡片之间。
+     *
+     * <p>取卡片页的同一份值：不留给白时首卡紧贴内容裁剪线，和其它页面的首卡差出一截
+     * （实机反馈「有的地方贴住、有的地方空一块」）。</p>
+     */
+    private static final float TOP_INSET = CardLayout.TOP_INSET;
 
     protected final List<SettingModule> modules = new ArrayList<>();
     private final List<SettingModule> visibleModules = new ArrayList<>();
@@ -36,7 +45,7 @@ public abstract class BasePage {
 
     public float getTotalHeight() {
         ensureLayoutCache();
-        return cachedTotalHeight;
+        return TOP_INSET + cachedTotalHeight;
     }
 
     /** 可见模块之间的间距总量，供内容区计算滚动上限。 */
@@ -66,7 +75,7 @@ public abstract class BasePage {
 
     public void draw(Canvas canvas, float x, float y, float contentW, float contentH, float alpha, float scrollOffset, float mouseX, float mouseY) {
         ensureLayoutCache();
-        float cy = y - scrollOffset;
+        float cy = y + TOP_INSET - scrollOffset;
         float viewportTop = y;
         float viewportBottom = y + contentH;
         for (int i = 0; i < visibleModules.size(); i++) {
@@ -81,7 +90,7 @@ public abstract class BasePage {
 
     public boolean onClick(float mx, float my, float contentX, float contentY, float contentW, float scrollOffset, int button) {
         ensureLayoutCache();
-        float cy = contentY - scrollOffset;
+        float cy = contentY + TOP_INSET - scrollOffset;
         for (int i = 0; i < visibleModules.size(); i++) {
             SettingModule m = visibleModules.get(i);
             float mh = visibleModuleHeights.get(i);
@@ -95,7 +104,7 @@ public abstract class BasePage {
 
     public boolean onDrag(float mx, float my, float contentX, float contentY, float contentW, float scrollOffset) {
         ensureLayoutCache();
-        float cy = contentY - scrollOffset;
+        float cy = contentY + TOP_INSET - scrollOffset;
         for (int i = 0; i < visibleModules.size(); i++) {
             SettingModule m = visibleModules.get(i);
             float mh = visibleModuleHeights.get(i);

@@ -28,6 +28,8 @@ import java.util.Set;
 public final class DefaultStardewAdapter implements StardewAdapter {
 
     private static final Minecraft mc = Minecraft.getInstance();
+    /** 副手在 {@code Inventory} 里的索引（0~8 快捷栏 / 9~35 背包 / 36~39 护甲 / 40 副手） */
+    private static final int OFFHAND_INV_INDEX = 40;
     private final Set<Block> passableCarriers = new HashSet<>();
 
     @Override
@@ -119,6 +121,17 @@ public final class DefaultStardewAdapter implements StardewAdapter {
         if (invSlot < 0 || invSlot >= 36) return false;
         int selected = mc.player.getInventory().getSelectedSlot();
         mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, invSlot, selected, ContainerInput.SWAP, mc.player);
+        return true;
+    }
+
+    @Override
+    public boolean swapOffhandWith(int invSlot) {
+        if (mc.player == null || mc.gameMode == null) return false;
+        // 背包槽 9~35：玩家物品栏菜单里这一段与 Inventory 索引一一对应（快捷栏是 36~44，别混用）。
+        if (invSlot < 9 || invSlot >= 36) return false;
+        // 按钮 40 = 副手在 Inventory 里的索引（0~8 快捷栏 / 9~35 背包 / 36~39 护甲 / 40 副手）。
+        mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, invSlot, OFFHAND_INV_INDEX,
+            ContainerInput.SWAP, mc.player);
         return true;
     }
 

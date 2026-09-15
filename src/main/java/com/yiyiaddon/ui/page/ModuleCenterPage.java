@@ -5,36 +5,53 @@ import com.yiyiaddon.module.ModuleCategory;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.module.ModuleRegistry;
 import com.yiyiaddon.ui.UiText;
-import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CategoryCard;
+import com.yiyiaddon.ui.component.ModuleCard;
 import com.yiyiaddon.ui.navigation.PageRouter;
 import com.yiyiaddon.ui.navigation.UiNavigationMemory;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * 模块中心：展示全部功能分类。
+ * 模块中心：一列到底的全部模块清单，不再按分类分层。
  *
- * <p>分类清单只来自 {@link CategoryRegistry}，页面内不存在任何分类硬编码；
- * 新增分类只需在启动注册处登记一条数据。</p>
+ * <p>分类只是模块的归属字段，不再是导航层级：全部模块按「分类权重 → 模块权重」排成一条纵向列表
+ * （排序来自 {@link ModuleRegistry#all()}），点哪一行就进哪个模块的设置页，少一层点击。</p>
  *
- * <p>分类下的模块列表仍在同一个面板内切换；点击模块卡片时由 {@code moduleOpener}
- * 打开模块自己的独立屏幕。</p>
+ * <p>自带设置页的分类（{@code category.page() != null}，例如 Baritone设置）本身不是模块清单，
+ * 但又必须可达，因此排在同一列的最前面，文案为「点击进入」。</p>
+ *
+ * <p>行高由 {@link CategoryCard#HEIGHT} 统一给出：卡片网格的几何计算（命中、滚动、悬停动画）
+ * 全部复用 {@link CardPage}，本页只负责「第 index 行画什么」。</p>
  */
 public final class ModuleCenterPage extends CardPage {
 
     private final PageRouter router;
     private final Consumer<ModuleEntry> moduleOpener;
-    private final List<ModuleCategory> categories;
+    /** 自带设置页的分类入口，排在模块之前。 */
+    private final List<ModuleCategory> pageEntries;
+    /** 全部功能模块。 */
+    private final List<ModuleEntry> modules;
 
     public ModuleCenterPage(PageRouter router, Consumer<ModuleEntry> moduleOpener) {
-        super(CategoryRegistry.count());
+        super(pageEntries().size() + ModuleRegistry.count());
         this.router = router;
         this.moduleOpener = moduleOpener;
-        this.categories = CategoryRegistry.all();
+        this.pageEntries = pageEntries();
+        this.modules = ModuleRegistry.all();
+    }
+
+    /** 自带设置页的分类；它们是入口而不是模块清单。归到「设置」导航的那些不算在内。 */
+    private static List<ModuleCategory> pageEntries() {
+        List<ModuleCategory> entries = new ArrayList<>();
+        for (ModuleCategory category : CategoryRegistry.all()) {
+            if (category.page() != null && !category.settingsEntry()) entries.add(category);
+        }
+        return List.copyOf(entries);
     }
 
     @Override
@@ -44,12 +61,13 @@ public final class ModuleCenterPage extends CardPage {
 
     @Override
     public String getSubtitle() {
-        return UiText.t("管理和配置客户端功能模块", "Browse and configure client modules");
+        return UiText.t("全部功能模块，点击进入各自的设置", "All modules — click one to open its settings");
     }
 
     @Override
     protected int columns() {
-        return CardLayout.CATEGORY_COLUMNS;
+        // 单列纵向清单：模块名与说明都能整行铺开，不再被网格列宽截断
+        return 1;
     }
 
     @Override
@@ -60,29 +78,26 @@ public final class ModuleCenterPage extends CardPage {
     @Override
     protected void drawCard(Canvas canvas, int index, float x, float y, float w, float alpha, float hover,
                             ClickGuiThemeColors tc) {
-        ModuleCategory category = categories.get(index);
-        // 自带页面的分类本身就是入口（不是模块清单），显示「点击进入」而不是「暂无模块」
-        String countText = category.page() != null
-                ? UiText.t("点击进入", "Open")
-                : ModuleRegistry.countIn(category.id()) + " " + UiText.t("个模块", "modules");
-        CategoryCard.draw(canvas, category, countText, x, y, w, alpha, hover, tc);
+        if (index < pageEntries.size()) {
+            CategoryCard.draw(canvas, pageEntries.get(index), UiText.t("点击进入", "Open"), x, y, w, alpha, hover, tc);
+            return;
+        }
+        ModuleCard.draw(canvas, modules.get(index - pageEntries.size()), x, y, w, alpha, hover, tc);
     }
 
     @Override
     protected void onCardActivated(int index) {
-        ModuleCategory category = categories.get(index);
-        // 自带页面的分类（例如 Baritone设置）直接进它自己的页面，不走模块列表。
-        // 两级页面都登记可重建标识，面板重开时能回到这里而不是回首页。
-        if (category.page() != null) {
+        if (index < pageEntries.size()) {
+            // 自带页面的分类（例如 Baritone设置）直接进它自己的页面，不走模块列表
+            ModuleCategory category = pageEntries.get(index);
             router.open(category.page().get(), UiNavigationMemory.token(UiNavigationMemory.TOKEN_PAGE, category.id()));
             return;
         }
-        router.open(new ModuleListPage(category, moduleOpener),
-            UiNavigationMemory.token(UiNavigationMemory.TOKEN_LIST, category.id()));
+        moduleOpener.accept(modules.get(index - pageEntries.size()));
     }
 
     @Override
     protected String emptyStateText() {
-        return UiText.t("还没有注册任何功能分类", "No categories registered yet");
+        return UiText.t("还没有注册任何功能模块", "No modules registered yet");
     }
 }

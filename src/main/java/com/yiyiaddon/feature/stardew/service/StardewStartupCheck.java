@@ -1,12 +1,19 @@
 package com.yiyiaddon.feature.stardew.service;
 
+import com.yiyiaddon.core.module.ModuleEntries;
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.stardew.StardewContext;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
+import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
+import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
+import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
+import com.yiyiaddon.ui.screen.ModuleScreen;
 import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
@@ -41,8 +48,11 @@ public final class StardewStartupCheck {
             else {
                 module.profileAssembler().reload(ResourceExtractionService.serverKey());
                 module.pointManager().load(ResourceExtractionService.serverKey());
-                module.pointActions().normalizeStoredFarmBoundaries(ResourceExtractionService.serverKey());
+                module.regionManager().load(ResourceExtractionService.serverKey());
             }
+            // 「分区错位」要现场扫世界，必须先按当前服务器 / 维度把协调器装配好（档案 + 区域快照）。
+            // 与下面成功路径那次是同一个入口，重复调用幂等；失败停机时由 onDisable 统一 reset。
+            module.configureCoordinator(ResourceExtractionService.serverKey(), StardewContext.dimension());
         }
         List<String> missing = collectStartupProblems();
         if (!missing.isEmpty()) {
@@ -56,12 +66,22 @@ public final class StardewStartupCheck {
             module.setSuppressEnableAnnounce(true);
             mc.execute(() -> { if (module.isEnabled()) ModuleManager.setEnabledSilently(StardewFarmModule.MODULE_ID, false); });
             module.statusReporter().startupCheckFailed(missing);
+            showNotice("星露谷农场 · 启动自检未通过",
+                "§7共 §e" + missing.size() + " §7项问题，已禁止启动：", missing);
             return;
         }
         module.configureCoordinator(ResourceExtractionService.serverKey(), StardewContext.dimension());
         // 统一启动播报已经给出完整自检结论，屏蔽基类紧随其后的重复「已开启」。
         module.setSuppressEnableAnnounce(true);
         reportStartup();
+        // 提醒类（不拦启动）：区域绑的作物不在目标作物勾选里 → 那块地会被整块跳过。
+        // 聊天与屏幕中间的面板各一份，样式与自检失败同一个窗口，只是标题与结语写「提醒 / 照常启动」。
+        List<String> notices = collectStartupNotices();
+        if (!notices.isEmpty()) {
+            module.statusReporter().startupNotices(notices);
+            showNotice("星露谷农场 · 启动提醒",
+                "§7共 §e" + notices.size() + " §7项提醒，这些地块会被跳过：", notices);
+        }
     }
 
     /** 一次收集所有当前功能所需配置，不把 JSON 存在误当成世界目标仍合法。 */
@@ -81,35 +101,67 @@ public final class StardewStartupCheck {
         }
         if (module.selections().crop().selectedCropKeys().isEmpty()) missing.add("未选择目标作物");
         if (module.selections().pot().selectedKeys().isEmpty()) missing.add("未选择种植盆");
-        for (String cropKey : module.selections().crop().selectedCropKeys()) {
+        for (String cropKey : module.cropsPlantableInDimension()) {
             CropDefinition crop = module.index().cropByKey(cropKey);
             if (crop == null || module.inventory().countSeed(crop) > 0) continue;
             missing.add("背包缺少" + crop.seedDisplayName());
         }
-        // 农田范围来源：分区种植开启时由种植区域决定（起止点完全不参与，没绑也不拦启动）；
-        // 关闭时与旧口径逐字一致——起止点必绑。
-        if (module.regionPlantingOn()) {
-            if (module.regionsInDimension().isEmpty()) {
-                missing.add("分区种植已开启但当前维度还没有种植区域（用 .stardew 种植区域 <作物> 圈地）");
-            }
+        // 农田范围来源就是种植区域：当前维度一块都没有时无从下手，直接不启动
+        if (module.regionsInDimension().isEmpty()) {
+            missing.add("当前维度还没有种植区域（用 .stardew 种植区域 <作物|混种> 圈地）");
         } else {
-            startupPoint(missing, StardewPointType.START, true);
-            startupPoint(missing, StardewPointType.END, true);
+            // 盆型不匹配排在最前：地里一口已选盆型的盆都没有时，下面那些作物级判据只会给出噪音
+            // （每格都会被静默跳过），先把「你选的盆型和地里对不上」说清楚。
+            String potMismatch = module.coordinator().startupPotMismatchProblem();
+            if (potMismatch != null) missing.add(potMismatch);
+            // 分区错位（单一作物区里已经长着别的作物）：开机就说清楚，别让模块先启动、跑完一轮扫描
+            // 才停机（实机反馈：三块区域里有一块被换成了别的作物，照样能开机）。
+            // 这条与「自动清理错位作物」无关：那条只管开机之后才出现的错位；开机时就存在的错位
+            // 一律先拦住，由玩家决定挖掉还是删区域。
+            String mismatch = module.coordinator().startupRegionMismatchProblem();
+            if (mismatch != null) missing.add(mismatch);
         }
         startupPoint(missing, StardewPointType.SEED_BOX, module.anyCropNeedsRestock());
         startupPoint(missing, StardewPointType.OUTPUT_BOX, module.anyCropNeedsUnload());
+        // 盆型决定补水物料：普通盆要水壶 + 补水点，下界盆要岩浆箱、末地盆要龙息箱，三者互斥。
+        PotGroup potGroup = module.index().potGroupOfSelected(module.selections().pot().selectedKeys());
+        boolean materialPot = potGroup.refillItem() != null;
+        if (potGroup.dimensionRestricted() && !potGroup.allowsDimension(WorldIdentity.dimension())) {
+            missing.add(potGroup.displayName() + "只能种在"
+                + (potGroup == PotGroup.NETHER ? "下界" : "末地")
+                + "，当前维度是" + WorldIdentity.dimensionDisplayName(WorldIdentity.dimension()));
+        }
+        // 「自动浇灌」是三种盆型共用的总开关：普通盆浇水壶 / 补水点，下界盆浇岩浆、末地盆浇龙息。
+        // 开着才需要料源；关掉它就没有任何补给任务，这些配置一律不必绑。
         if (module.settings().autoWater || module.settings().sprinklerMaintenance) {
-            if (module.selections().can().selectedKeys().isEmpty()) missing.add("未选择水壶");
-            if (!module.selections().can().selectedKeys().isEmpty() && module.pointActions().preferredAvailableCan() == null) missing.add("背包缺少已选水壶");
-            // 自动浇水运行中水壶迟早会耗尽，补水点属于启动必需配置，不能等空壶后才发现未绑定。
-            startupPoint(missing, StardewPointType.WATER_SOURCE, true);
+            // 洒水器维护始终要水壶；纯补水时，下界 / 末地盆不用水壶，就不该拦「未选择水壶」
+            if (!materialPot || module.settings().sprinklerMaintenance) {
+                if (module.selections().can().selectedKeys().isEmpty()) missing.add("未选择水壶");
+                if (!module.selections().can().selectedKeys().isEmpty() && module.pointActions().preferredAvailableCan() == null) missing.add("背包缺少已选水壶");
+                // 补水运行中水壶迟早会耗尽，补水点属于启动必需配置，不能等空壶后才发现未绑定。
+                startupPoint(missing, StardewPointType.WATER_SOURCE, true);
+            }
+            // 下界 / 末地盆的料从专属箱里取；只有开着「自动浇灌」时才需要这条来源
+            if (module.settings().autoWater && materialPot) {
+                StardewPointType box = StardewPointType.materialBoxFor(potGroup);
+                startupPoint(missing, box, true);
+            }
         }
         if (module.settings().autoFertilize && module.selections().fertilizer().selectedKeys().isEmpty()) missing.add("已开启自动施肥，但未选择肥料");
         if (module.settings().autoPotion && module.selections().potion().selectedKeys().isEmpty()) missing.add("已开启自动用药剂，但未选择药剂");
         if (module.settings().sprinklerMaintenance) {
             if (module.selections().sprinkler().selectedKeys().isEmpty()) missing.add("已开启洒水器维护，但未选择洒水器");
-            if (module.pointManager().getAll(StardewPointType.SPRINKLER).isEmpty()) missing.add("洒水器点位未绑定");
-            for (var point : module.pointManager().getAll(StardewPointType.SPRINKLER)) {
+            // 只校验<b>本维度</b>的洒水器：点位按维度分档，主世界标过的那几台在下界既不该拦启动、
+            // 也不该报「属于其它维度」（实机反馈：到了下界被要求把主世界的洒水器点位删掉重标）。
+            List<StardewPointManager.StardewPoint> sprinklers =
+                module.pointManager().getInCurrentDimension(StardewPointType.SPRINKLER);
+            if (sprinklers.isEmpty()) {
+                int elsewhere = module.pointManager().getAll(StardewPointType.SPRINKLER).size();
+                missing.add(elsewhere > 0
+                    ? "本维度洒水器点位未绑定（其它维度已绑 " + elsewhere + " 台，切回那个维度即可用）"
+                    : "洒水器点位未绑定");
+            }
+            for (StardewPointManager.StardewPoint point : sprinklers) {
                 String failure = module.pointManager().validationFailure(StardewPointType.SPRINKLER, point, module.index());
                 if (failure != null) missing.add("洒水器 " + point.x() + ", " + point.y() + ", " + point.z() + "：" + failure);
             }
@@ -123,6 +175,51 @@ public final class StardewStartupCheck {
         if (point == null) { if (required) missing.add(type.title() + "未绑定"); return; }
         String failure = module.pointManager().validationFailure(type, point, module.index());
         if (failure != null) missing.add(type.title() + "：" + failure);
+    }
+
+    /**
+     * 启动提醒（不拦启动）：绑定的作物已经不在「目标作物」勾选里的单一作物区。
+     *
+     * <p><b>为什么要提醒：</b>这类地块会被整块跳过（不种也不收），玩家看到的是「模块不管这块地」，
+     * 却没有任何解释——实机反馈就是「区域里换了一种作物，模块照常开机，什么都不说」。</p>
+     *
+     * <p><b>为什么不拦：</b>「取消勾选 = 暂停种它、区域保留，重新勾选自动恢复」是既有设计，
+     * 不是故障；所以照常开机，只把出路写清楚（勾回来，或在「管理」里删掉该区域）。</p>
+     */
+    private List<String> collectStartupNotices() {
+        List<String> notices = new ArrayList<>();
+        List<String> selected = module.selections().crop().selectedCropKeys();
+        for (StardewRegionManager.Region region : module.regionsInDimension()) {
+            // 混种区不绑品种：勾选里的任一作物都能种，不存在「绑的作物没勾选」
+            if (region.mixed()) continue;
+            String cropKey = region.cropKey();
+            if (cropKey == null || selected.contains(cropKey)) continue;
+            CropDefinition crop = module.index() == null ? null : module.index().cropByKey(cropKey);
+            String name = crop != null ? crop.chineseName()
+                : (region.cropName() != null ? region.cropName() : cropKey);
+            notices.add("区域 " + region.index() + "（" + name + "）绑的作物不在目标作物里，这块地会被跳过"
+                + " ▸ 把它勾回来，或在「管理」里删掉该区域");
+        }
+        return notices;
+    }
+
+    /**
+     * 屏幕中间弹一块只读面板（自检失败用「启动自检未通过」，提醒用「启动提醒」）。
+     *
+     * <p><b>为什么还要弹面板：</b>聊天里那份容易被后面的状态播报刷走，实机反馈是「点了没反应、
+     * 不知道哪里不对」。面板走项目现成的面板窗与按钮（{@link ConfirmPanelScreen#notice}），
+     * 排版与配色（提示项红色加粗、带「▸」的拆两行）都在那里做，不在这里也不在各模块各写一份；
+     * 点「知道了」即回游戏，聊天记录照旧留档。</p>
+     *
+     * <p><b>「打开设置」直达本模块设置页</b>：出路都在设置页里（资源、点位、作物勾选），
+     * 不用先关面板再自己进模块中心找一遍。</p>
+     */
+    private void showNotice(String title, String headline, List<String> items) {
+        mc.execute(() -> {
+            if (mc.screen instanceof ConfirmPanelScreen) return;
+            mc.setScreen(ConfirmPanelScreen.notice(title, headline, items, mc.screen,
+                () -> new ModuleScreen(ModuleEntries.of(module), null)));
+        });
     }
 
     /** 资源未就绪时给玩家的可执行提示：按真实阶段区分，绝不误导成「稍后自动就好」 */

@@ -57,7 +57,7 @@ final class StardewTaskVerifier {
                     && rule.afterHarvestStage().equals(crop.stageName());
             }
             case LEARN_HARVEST -> false; // 学习走独立证据聚合，禁止落入普通布尔验证。
-            case CLEAR_DEAD -> {
+            case CLEAR_DEAD, CLEAR_MISMATCH -> {
                 if (owner.targetPot == null) yield true;
                 CropRecognizer.CropRecognition crop = CropRecognizer.recognize(mc.level.getBlockState(owner.targetPot.above()), owner.profile);
                 yield crop.state() == CropState.EMPTY && potStillPresent(owner.targetPot);
@@ -277,6 +277,8 @@ final class StardewTaskVerifier {
                 after == null ? "继续浇水" : "当前水量 " + after + "，继续浇水");
         } else if (owner.taskType == TaskType.CLEAR_DEAD) {
             owner.status.state("DEAD_DONE:" + owner.targetPot, "枯死作物已清除", "已重新检查农田");
+        } else if (owner.taskType == TaskType.CLEAR_MISMATCH) {
+            owner.status.state("MISMATCH_DONE:" + owner.targetPot, "错位作物已清除", "空出的盆按本区域作物补种");
         } else if (owner.taskType == TaskType.PLANT && owner.activeCrop != null) {
             owner.status.silent("PLANT_DONE:" + owner.activeCrop.cropKey(), "播种完成", owner.activeCrop.chineseName() + " ×1", "");
         } else if (owner.taskType == TaskType.HARVEST && owner.activeCrop != null) {

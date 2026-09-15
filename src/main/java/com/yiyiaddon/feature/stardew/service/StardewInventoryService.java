@@ -38,6 +38,28 @@ public final class StardewInventoryService {
 
     private static final Minecraft mc = Minecraft.getInstance();
 
+    /**
+     * 按槽位取真实物品：槽位是 {@link #OFFHAND_SLOT} 时取副手。
+     *
+     * <p>副手一律走 {@code getOffhandItem()}，不依赖 {@code Inventory} 的下标约定——
+     * 读数（水量 / 容量）只要拿到的是空栈就会退回「水位未知」，那种情况下空壶会被当成
+     * 「可以浇」，最后表现成「明明没补水，脚本却说已经满了」。</p>
+     */
+    public static ItemStack stackAt(int slot) {
+        if (mc.player == null || slot < 0) return ItemStack.EMPTY;
+        return slot == OFFHAND_SLOT ? mc.player.getOffhandItem() : mc.player.getInventory().getItem(slot);
+    }
+
+    /**
+     * 副手在 {@code Inventory} 里的索引。
+     *
+     * <p><b>为什么物品种类 / 数量都要算副手</b>（用户点名改的行为，旧项目只认快捷栏 + 背包）：
+     * 副手同样是玩家的一只手，站在田里把水壶或种子放副手是完全正常的玩法；不认副手时表现为
+     * 「水壶放副手 → 自检说背包缺少已选水壶」「种子放副手 → 模块以为没有种子去补货」。
+     * 按槽位取物品请走 {@link #stackAt(int)}，不要直接 {@code getInventory().getItem(40)}。</p>
+     */
+    public static final int OFFHAND_SLOT = 40;
+
     /** 「当前/上限」水量对，兼容半角与全角斜杠 */
     private static final Pattern WATER_PAIR = Pattern.compile("(\\d{1,6})\\s*[/／]\\s*(\\d{1,6})");
 
@@ -55,7 +77,7 @@ public final class StardewInventoryService {
         this.identityService = identityService;
     }
 
-    /** 背包中某物品身份的总数量（0-35 全部槽位） */
+    /** 背包中某物品身份的总数量（0-35 全部槽位 + 副手） */
     public int count(ItemIdentity identity) {
         if (identity == null || mc.player == null) return 0;
         int total = 0;
@@ -63,6 +85,8 @@ public final class StardewInventoryService {
             ItemStack stack = mc.player.getInventory().getItem(i);
             if (ItemIdentityMatcher.matches(stack, identity)) total += stack.getCount();
         }
+        ItemStack offhand = mc.player.getOffhandItem();
+        if (ItemIdentityMatcher.matches(offhand, identity)) total += offhand.getCount();
         return total;
     }
 
@@ -83,7 +107,7 @@ public final class StardewInventoryService {
         return total;
     }
 
-    /** 某作物对应种子的库存数量（真实身份 + item_model 双源） */
+    /** 某作物对应种子的库存数量（真实身份 + item_model 双源；含副手） */
     public int countSeed(CropDefinition crop) {
         if (crop == null || mc.player == null) return 0;
         int total = 0;
@@ -92,20 +116,23 @@ public final class StardewInventoryService {
                 total += mc.player.getInventory().getItem(i).getCount();
             }
         }
+        ItemStack offhand = mc.player.getOffhandItem();
+        if (matchesSeed(offhand, crop)) total += offhand.getCount();
         return total;
     }
 
-    /** 返回背包中第一份真实目标种子，供 Tooltip/Data Components 等只读规则解析。 */
+    /** 返回背包中第一份真实目标种子，供 Tooltip/Data Components 等只读规则解析（含副手）。 */
     public ItemStack findSeedStack(CropDefinition crop) {
         if (crop == null || mc.player == null) return ItemStack.EMPTY;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
             if (matchesSeed(stack, crop)) return stack;
         }
-        return ItemStack.EMPTY;
+        ItemStack offhand = mc.player.getOffhandItem();
+        return matchesSeed(offhand, crop) ? offhand : ItemStack.EMPTY;
     }
 
-    /** 某作物全部成熟产物（普通 + 品质 + 特殊变种）的库存数量（真实身份 + item_model 双源） */
+    /** 某作物全部成熟产物（普通 + 品质 + 特殊变种）的库存数量（真实身份 + item_model 双源；含副手） */
     public int countProduce(CropDefinition crop) {
         if (crop == null || mc.player == null) return 0;
         int total = 0;
@@ -114,6 +141,8 @@ public final class StardewInventoryService {
                 total += mc.player.getInventory().getItem(i).getCount();
             }
         }
+        ItemStack offhand = mc.player.getOffhandItem();
+        if (matchesProduce(offhand, crop)) total += offhand.getCount();
         return total;
     }
 
@@ -178,17 +207,22 @@ public final class StardewInventoryService {
         return StardewItemRole.OTHER;
     }
 
-    /** 背包真实槽位按玩家看到的物品名聚合；用于事务前后 delta 播报。 */
+    /** 背包真实槽位按玩家看到的物品名聚合；用于事务前后 delta 播报（含副手，与计数的口径一致）。 */
     public Map<String, Integer> countByDisplay(CropDefinition crop, boolean seeds, boolean unloadable) {
         Map<String, Integer> result = new LinkedHashMap<>();
         if (crop == null || mc.player == null) return result;
         for (int i = 0; i < 36; i++) {
-            ItemStack stack = mc.player.getInventory().getItem(i);
-            StardewItemRole role = roleOf(stack, crop);
-            if (!(seeds && role == StardewItemRole.SEED) && !(unloadable && role.unloadable())) continue;
-            result.merge(stack.getHoverName().getString(), stack.getCount(), Integer::sum);
+            addByDisplay(result, mc.player.getInventory().getItem(i), crop, seeds, unloadable);
         }
+        addByDisplay(result, mc.player.getOffhandItem(), crop, seeds, unloadable);
         return result;
+    }
+
+    private void addByDisplay(Map<String, Integer> result, ItemStack stack, CropDefinition crop,
+                              boolean seeds, boolean unloadable) {
+        StardewItemRole role = roleOf(stack, crop);
+        if (!(seeds && role == StardewItemRole.SEED) && !(unloadable && role.unloadable())) return;
+        result.merge(stack.getHoverName().getString(), stack.getCount(), Integer::sum);
     }
 
     private boolean matchesAnyKey(ItemStack stack, List<String> keys) {
@@ -222,24 +256,60 @@ public final class StardewInventoryService {
         return model.equals(actual);
     }
 
-    /** 在背包 / 快捷栏里找第一个命中工具候选的槽位；hotbarOnly 时只扫 0-8，否则扫 0-35 */
+    /**
+     * 找第一个命中工具候选的槽位；hotbarOnly 时只扫快捷栏（0-8）。
+     *
+     * <p>非 hotbarOnly 时扫快捷栏 + 背包（0-35）后，<b>再查副手</b>并返回 {@link #OFFHAND_SLOT}：
+     * 水壶 / 洒水器 / 肥料放在副手同样可用，调用方拿到 40 就按副手动作（见
+     * {@code StardewFarmExecutor.holdEntry}）。</p>
+     */
     public int findSlotEntry(StardewToolDefinition entry, boolean hotbarOnly) {
         if (entry == null || mc.player == null) return -1;
         int end = hotbarOnly ? 9 : 36;
         for (int i = 0; i < end; i++) {
             if (matchesEntry(mc.player.getInventory().getItem(i), entry)) return i;
         }
-        return -1;
+        return !hotbarOnly && matchesEntry(mc.player.getOffhandItem(), entry) ? OFFHAND_SLOT : -1;
     }
 
-    /** 在背包 / 快捷栏里找第一个命中作物种子的槽位 */
+    /** 找第一个命中作物种子的槽位；非 hotbarOnly 时同样把副手算在内（返回 {@link #OFFHAND_SLOT}）。 */
     public int findSlotSeed(CropDefinition crop, boolean hotbarOnly) {
         if (crop == null || mc.player == null) return -1;
         int end = hotbarOnly ? 9 : 36;
         for (int i = 0; i < end; i++) {
             if (matchesSeed(mc.player.getInventory().getItem(i), crop)) return i;
         }
-        return -1;
+        return !hotbarOnly && matchesSeed(mc.player.getOffhandItem(), crop) ? OFFHAND_SLOT : -1;
+    }
+
+    /**
+     * 找第一个指定原版物品的槽位；非 hotbarOnly 时同样把副手算在内（返回 {@link #OFFHAND_SLOT}）。
+     *
+     * <p>给下界盆 / 末地盆的补水物料用：熔岩桶与龙息是原版物品，没有 {@code item_model} 组件、
+     * 也没有 ID 配置身份，因此不能走 {@link #findSlotEntry}，只能按物品本体匹配。</p>
+     */
+    public int findSlotItem(Item item, boolean hotbarOnly) {
+        if (item == null || mc.player == null) return -1;
+        int end = hotbarOnly ? 9 : 36;
+        for (int i = 0; i < end; i++) {
+            ItemStack stack = mc.player.getInventory().getItem(i);
+            if (stack != null && !stack.isEmpty() && stack.is(item)) return i;
+        }
+        ItemStack offhand = mc.player.getOffhandItem();
+        return !hotbarOnly && offhand != null && !offhand.isEmpty() && offhand.is(item) ? OFFHAND_SLOT : -1;
+    }
+
+    /** 背包里指定原版物品的总数（含副手），用于判断「料还够不够」。 */
+    public int countItem(Item item) {
+        if (item == null || mc.player == null) return 0;
+        int total = 0;
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = mc.player.getInventory().getItem(i);
+            if (stack != null && !stack.isEmpty() && stack.is(item)) total += stack.getCount();
+        }
+        ItemStack offhand = mc.player.getOffhandItem();
+        if (offhand != null && !offhand.isEmpty() && offhand.is(item)) total += offhand.getCount();
+        return total;
     }
 
     /**

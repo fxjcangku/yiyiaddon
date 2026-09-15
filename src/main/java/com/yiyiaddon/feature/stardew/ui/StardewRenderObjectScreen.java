@@ -73,7 +73,7 @@ public final class StardewRenderObjectScreen extends PanelScreen {
         // 点位字牌没有这一项：它的颜色跟随对应点位方框，摆一个点了没反应的色块只会误导。
         if (object.colorEditable()) {
             content().add(new Row("§7颜色 §8▶", () -> HINT_OPEN_PICKER,
-                new SettingColorPicker(object.name() + "颜色", object.color)));
+                new SettingColorPicker(object.name() + "颜色", object.color, module::persistSettings)));
             content().add(new Row("§7彩虹 §8▶", () -> HINT_RAINBOW,
                 new SettingToggle(() -> object.color.rainbow(), value -> {
                     object.color.rainbow(value);

@@ -7,19 +7,22 @@ import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
 import io.github.humbleui.skija.Canvas;
 
 /**
- * 分类卡片：图标、分类名、描述与模块数量。
+ * 分类入口卡片：图标、分类名、描述与模块数量。
  *
  * <p>内容层不使用玻璃：卡片是实心表面，靠表面色阶、1px 分隔线与柔和投影分出层次，
  * 悬停时提亮一档并加强投影。外观全部由主题色与主题圆角决定。</p>
  *
- * <p>紧凑规格（旧值 → 新值）：卡片高度 96 → 68，图标块 36 → 26，图标码位 20 → 17，
- * 标题 15 → 13，说明与模块数 11 → 10。图标与分类名同行，说明与模块数各占一行整宽，
- * 因此三列下描述仍能完整显示，只有超长时才按 {@link CardLayout#ellipsize} 截断。</p>
+ * <p>高度与 {@link ModuleCard#HEIGHT} 保持一致：模块中心是一条不分分类的纵向清单，
+ * 入口行与模块行同高，清单的网格几何才能共用一套计算。</p>
  */
 public final class CategoryCard {
 
-    /** 卡片高度。 */
-    public static final float HEIGHT = 68f;
+    /**
+     * 卡片高度。
+     *
+     * <p>直接取模块行高：两者必须严格相等（同一条清单里混排），写成引用就不会各自漂移。</p>
+     */
+    public static final float HEIGHT = ModuleCard.HEIGHT;
 
     private static final float PAD_X = 12f;
     private static final float PAD_TOP = 8f;
@@ -34,8 +37,8 @@ public final class CategoryCard {
     /** 标题右侧为箭头预留的宽度。 */
     private static final float ARROW_RESERVE = ARROW_INSET + ARROW_GLYPH * 0.5f + 6f;
     /** 描述行与模块数行的基线（相对卡片顶部）。 */
-    private static final float DESC_BASELINE = 46f;
-    private static final float COUNT_BASELINE = 60f;
+    private static final float DESC_BASELINE = 48f;
+    private static final float COUNT_BASELINE = 66f;
     private static final String ARROW = "\uE5CC";
 
     private CategoryCard() {

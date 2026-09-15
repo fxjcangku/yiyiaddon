@@ -4,8 +4,11 @@ import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.RuleEvidence;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
+import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.selector.StardewPreview;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
+import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactRow;
@@ -25,8 +28,12 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * 星露谷单类物品多选界面（六类共用；左侧「可添加」、右侧「已选择」）。
@@ -119,6 +126,10 @@ public final class StardewTargetSelectScreen extends PanelScreen {
 
     private final StardewFarmModule module;
     private final StardewSelectorCategory category;
+    /** 单选模式（区域换作物）的写回；null = 多选模式（模块的目标选择集合） */
+    private final Consumer<CropDefinition> pickHandler;
+    /** 单选模式下「右栏已选择」显示什么：这块地当前绑的作物键 */
+    private final String pickCurrentKey;
     private final Columns columns = new Columns();
 
     private String filter = "";
@@ -136,6 +147,28 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         super("选择" + category.title(), parent);
         this.module = module;
         this.category = category;
+        this.pickHandler = null;
+        this.pickCurrentKey = null;
+        build();
+    }
+
+    /**
+     * 单选模式：点一下某个作物就把键交回调用方（区域列表「换作物」用）。
+     *
+     * <p>与多选模式<strong>共用同一套界面</strong>（搜索框、两栏、行外观、图标与 tooltip 全部照旧），
+     * 只差三处：右栏「已选择」显示的是这块地当前绑的作物、点击不经目标选择集合、写完由调用方决定
+     * 下一屏（这里不自行关窗，避免和调用方的重建互相覆盖）。</p>
+     *
+     * @param currentKey 这块地当前绑的作物键；用来把当前项放进右栏做对照，可为 null
+     * @param onPick     选中一个作物时的写回
+     */
+    public StardewTargetSelectScreen(Screen parent, StardewFarmModule module, StardewSelectorCategory category,
+                                     String currentKey, Consumer<CropDefinition> onPick) {
+        super("选择" + category.title(), parent);
+        this.module = module;
+        this.category = category;
+        this.pickHandler = Objects.requireNonNull(onPick, "onPick");
+        this.pickCurrentKey = currentKey;
         build();
     }
 
@@ -188,15 +221,21 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         columns.reset();
         CompactStack left = columns.left();
         CompactStack right = columns.right();
-        left.add(new TextLine(LEFT_TITLE_PREFIX + category.title())
+        // 盆型按维度分档保存，标题必须写出当前维度，否则「我明明选了普通盆」和
+        // 「现在显示的是下界那份」两种状态在界面上分不出来
+        String dimensionSuffix = category == StardewSelectorCategory.POT
+            ? "§8 · " + WorldContextFormatter.dimensionDisplayName() : "";
+        left.add(new TextLine(LEFT_TITLE_PREFIX + category.title() + dimensionSuffix)
             .height(TITLE_HEIGHT).size(TITLE_SIZE).bold(true));
-        right.add(new TextLine(RIGHT_TITLE).height(TITLE_HEIGHT).size(TITLE_SIZE).bold(true));
+        right.add(new TextLine(RIGHT_TITLE + dimensionSuffix).height(TITLE_HEIGHT).size(TITLE_SIZE).bold(true));
 
         List<String> keys = selectedKeys();
         boolean leftEmpty = true;
         boolean rightEmpty = true;
         if (category == StardewSelectorCategory.CROP) {
-            for (CropDefinition crop : module.index().crops()) {
+            // 按盆型分组排列：主世界（通用）→ 下界 → 末地，同一组的作物挨在一起。
+            // 原来按资源包发现顺序排，三种盆型的作物混在一起，看不出哪些要配下界 / 末地盆。
+            for (CropDefinition crop : cropsInGroupOrder()) {
                 if (!matches(crop)) continue;
                 if (keys.contains(crop.cropKey())) {
                     right.add(cropRow(crop, true));
@@ -247,11 +286,48 @@ public final class StardewTargetSelectScreen extends PanelScreen {
 
     // ── 行构建（文案与 tooltip 逐字照旧） ──
 
+    /**
+     * 作物按盆型分组排序：主世界（通用）→ 下界 → 末地。
+     *
+     * <p>组内保持资源包原有顺序（{@code sort} 稳定），同一组的作物始终挨在一起，
+     * 玩家能一眼看出「哪些是通用、哪些要配下界盆、哪些要配末地盆」。</p>
+     */
+    private List<CropDefinition> cropsInGroupOrder() {
+        List<CropDefinition> ordered = new ArrayList<>(module.index().crops());
+        ordered.sort(Comparator.comparingInt(crop -> groupOrder(CropPotGroups.of(crop.cropKey()))));
+        return ordered;
+    }
+
+    private static int groupOrder(PotGroup group) {
+        return switch (group) {
+            case NORMAL -> 0;
+            case NETHER -> 1;
+            case END -> 2;
+        };
+    }
+
     private CompactElement cropRow(CropDefinition crop, boolean selected) {
         String produce = cropProduceModel(crop);
-        return new Row(produce, safe(crop.chineseName()), cropNameTooltip(crop, produce),
+        return new Row(produce, cropNameWithGroup(crop), cropNameTooltip(crop, produce),
             crop.seedModel(), safe(crop.seedDisplayName()), seedTooltip(crop),
             crop.cropKey(), selected);
+    }
+
+    /**
+     * 作物名带上盆型分组标签。
+     *
+     * <p>分组来自资源包声明的维度限制（见 {@code CropPotGroups}），不是手写名单，所以下界与
+     * 末地两种作物都会被标出来。标在名字前面，玩家一眼能看出哪些是通用作物、哪些要配下界 /
+     * 末地盆，不用去猜为什么某个作物种下去不长。</p>
+     */
+    private String cropNameWithGroup(CropDefinition crop) {
+        String name = safe(crop.chineseName());
+        PotGroup group = CropPotGroups.of(crop.cropKey());
+        if (group == PotGroup.NORMAL) return name;
+        String tag = group == PotGroup.NETHER ? "§c[下界]" : "§5[末地]";
+        // 实测得来的分组标一个记号，与资源包声明的分开，便于玩家核实
+        String mark = CropPotGroups.isLearned(crop.cropKey()) ? "§7•" : "";
+        return tag + mark + "§r " + name;
     }
 
     private CompactElement toolRow(StardewToolDefinition entry, boolean selected) {
@@ -326,8 +402,9 @@ public final class StardewTargetSelectScreen extends PanelScreen {
 
     // ── 选择写回（旧 setSelected 语义：加入或移除键 → 落盘 → 重建界面） ──
 
-    /** 本类别当前选择的内存镜像（与模块运行时使用的是同一个 List 实例） */
+    /** 本类别当前选择的内存镜像（与模块运行时使用的是同一个 List 实例）；单选模式即这块地当前绑的作物 */
     private List<String> selectedKeys() {
+        if (pickHandler != null) return pickCurrentKey == null ? List.of() : List.of(pickCurrentKey);
         return switch (category) {
             case CROP -> module.settings().selectedCropKeys;
             case POT -> module.settings().selectedPotKeys;
@@ -339,14 +416,40 @@ public final class StardewTargetSelectScreen extends PanelScreen {
     }
 
     private void setSelected(String key, boolean selected) {
+        // 单选模式（区域换作物）：把点中的作物交回调用方即可，不碰模块的目标选择集合、也不自行关窗
+        if (pickHandler != null) {
+            CropDefinition picked = cropByKey(key);
+            if (picked != null) pickHandler.accept(picked);
+            return;
+        }
         List<String> keys = selectedKeys();
         if (selected) {
+            // 盆型互斥：三种盆对应三套互不相通的物料（水 / 岩浆 / 龙息），同时管两种盆会让同一趟
+            // 任务里既要浇水又要倒岩浆。这里在选中新盆型时把别的盆型组踢掉，同组盆型不受影响。
+            if (category == StardewSelectorCategory.POT) keys.removeIf(other -> !samePotGroup(other, key));
             if (!keys.contains(key)) keys.add(key);
         } else {
             keys.remove(key);
         }
         persist();
         rebuild();
+    }
+
+    /** 两个盆型键是否属于同一盆型组；索引里查不到定义时按普通盆处理（与识图层同一口径） */
+    private boolean samePotGroup(String a, String b) {
+        return potGroupOf(a) == potGroupOf(b);
+    }
+
+    private PotGroup potGroupOf(String key) {
+        return module.index() == null ? PotGroup.NORMAL : module.index().potGroupOf(key);
+    }
+
+    private CropDefinition cropByKey(String cropKey) {
+        if (cropKey == null || module.index() == null) return null;
+        for (CropDefinition crop : module.index().crops()) {
+            if (cropKey.equals(crop.cropKey())) return crop;
+        }
+        return null;
     }
 
     /**
@@ -483,7 +586,9 @@ public final class StardewTargetSelectScreen extends PanelScreen {
             this.seedTip = seedTip;
             this.key = key;
             this.selected = selected;
-            this.action = new IconButton(selected ? GLYPH_REMOVE : GLYPH_ADD,
+            // 单选模式下每行都是「选它」（当前那一行也是同一个动作：选中即关闭），
+            // 所以不显示多选才有的减号——否则看起来像「取消绑定这块地」
+            this.action = new IconButton(pickHandler != null || !selected ? GLYPH_ADD : GLYPH_REMOVE,
                 () -> setSelected(key, !selected));
         }
 

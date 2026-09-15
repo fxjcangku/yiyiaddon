@@ -224,6 +224,7 @@ public class SettingTextBox extends SettingWidget {
      * 由界面在 {@code preeditUpdated} 中调用。
      */
     public static void onPreedit(PreeditEvent event) {
+        if (event != null) ImeBridge.notePreedit();
         if (focused == null) return;
         focused.preedit = event;
     }

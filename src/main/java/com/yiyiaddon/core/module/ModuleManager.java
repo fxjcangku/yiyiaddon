@@ -9,7 +9,10 @@ import com.yiyiaddon.core.event.ClientEventBus;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.event.EventDispatcher;
 import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.service.ActivityLog;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
+import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
+import com.yiyiaddon.ui.screen.ModuleScreen;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -239,6 +242,15 @@ public final class ModuleManager {
                 for (int i = 0; i < problems.size(); i++) {
                     ClientChat.send(module.displayName(), "§6  " + (i + 1) + ". §f" + problems.get(i));
                 }
+                // 再给一份屏幕中间的只读面板：聊天会被后面的消息刷走，实机反馈是「点了没反应、
+                // 不知道哪里不对」。所有模块共用这一条路径，模块自己不用再造弹窗
+                // （见开发习惯「启动自检提示」铁律：聊天 + 弹窗两份，弹窗提示项红色加粗）。
+                //
+                // 只在玩家主动开启时弹：模块会留在等待队列里按刻重试（见 retryPending），
+                // 重试再弹一次就变成「关了又自己开」的死循环。后台重试静默跳过。
+                showSelfCheckNotice(module, problems);
+                // 只在玩家主动开启时记流水：后台重试每 20 刻都会走到这里，记了就成刷屏
+                ActivityLog.record(module.displayName() + " 启动未通过自检（" + problems.size() + " 项）");
             }
             return EnableResult.BLOCKED;
         }
@@ -258,6 +270,7 @@ public final class ModuleManager {
         }
         persistEnabled(module, true);
         if (announce && !module.suppressEnableAnnounce()) ClientChat.send(module.displayName(), "§a§l已开启");
+        ActivityLog.record(module.displayName() + " 已开启");
         return EnableResult.SUCCESS;
     }
 
@@ -265,6 +278,7 @@ public final class ModuleManager {
         if (!module.isEnabled()) return true;
         forceDisable(module);
         if (announce) ClientChat.send(module.displayName(), "§c§l已关闭");
+        ActivityLog.record(module.displayName() + " 已关闭");
         return true;
     }
 
@@ -298,6 +312,27 @@ public final class ModuleManager {
         }
     }
 
+    /**
+     * 自检缺项的屏幕提示：项目统一的面板窗 + 「打开设置」+「知道了」，提示项红色加粗。
+     *
+     * <p>所有模块共用这一条路径（模块自己的启动自检另有流程时，也用同一个
+     * {@link ConfirmPanelScreen#notice}），排版与配色只在组件里做一份。</p>
+     *
+     * <p>「打开设置」直接落到出错模块的设置页：实机反馈是「点完知道了还得自己再进模块中心
+     * 找那个模块」，少两层点击。</p>
+     */
+    private static void showSelfCheckNotice(Module module, List<String> problems) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null) return;
+        client.execute(() -> {
+            // 已经在看这类结论时不叠窗：多个模块同时缺项时聊天里有全部，面板不重复弹
+            if (client.screen instanceof ConfirmPanelScreen) return;
+            client.setScreen(ConfirmPanelScreen.notice(module.displayName() + " · 启动自检未通过",
+                "§7共 §e" + problems.size() + " §7项问题，已禁止启动：", problems, client.screen,
+                () -> new ModuleScreen(ModuleEntries.of(module), null)));
+        });
+    }
+
     // ── 每刻与事件 ──
 
     private static void tickAll(Minecraft client) {
@@ -308,6 +343,7 @@ public final class ModuleManager {
             if (!runSafely(module, "运行", () -> module.onTick(client))) {
                 forceDisable(module);
                 ClientChat.send(module.displayName(), "§c运行异常，已自动关闭");
+                ActivityLog.record(module.displayName() + " 运行异常，已自动关闭");
             }
         }
     }

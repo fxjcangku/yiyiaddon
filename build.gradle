@@ -16,6 +16,8 @@ loom {
         client {
             // 固定玩家名：离线 UUID 由名字派生，随机名会导致每次启动都是"新玩家"
             programArgs '--username', 'yiyijia'
+            // 开发期窗口尺寸：面板按「窗口像素的一半」做设计空间，窗口太小会让面板整体缩得很难看清
+            programArgs '--width', '1920', '--height', '1080'
         }
     }
 }

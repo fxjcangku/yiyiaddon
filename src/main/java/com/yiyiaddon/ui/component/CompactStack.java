@@ -52,6 +52,16 @@ public final class CompactStack {
         return this;
     }
 
+    /**
+     * 清空全部元素（搜索 / 过滤后重建内容用）。
+     *
+     * <p>不动入场动画进度：重建发生在每次键入，若把进度归零，整个列表会在每敲一个字之后
+     * 重新淡入一遍。</p>
+     */
+    public void clear() {
+        elements.clear();
+    }
+
     public boolean isEmpty() {
         return elements.isEmpty();
     }
@@ -82,6 +92,8 @@ public final class CompactStack {
         for (int i = 0; i < elements.size(); i++) {
             CompactElement element = elements.get(i);
             float h = element.height();
+            // 可见区先传给元素：容器内部还要再排一层的（双栏）靠它裁剪自己的行
+            element.viewport(viewportTop, viewportBottom);
             if (cy + h > viewportTop && cy < viewportBottom) {
                 element.draw(canvas, x, cy, width, alpha * enterAlpha(i), mouseX, mouseY);
             }

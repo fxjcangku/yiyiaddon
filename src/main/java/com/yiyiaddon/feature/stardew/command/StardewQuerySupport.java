@@ -2,10 +2,7 @@ package com.yiyiaddon.feature.stardew.command;
 
 import com.yiyiaddon.feature.stardew.StardewContext;
 import com.yiyiaddon.feature.stardew.config.StardewSettings;
-import com.yiyiaddon.feature.stardew.memory.FarmCellMemory;
 import com.yiyiaddon.feature.stardew.memory.FarmMemoryStore;
-import com.yiyiaddon.feature.stardew.point.StardewPointManager;
-import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.RuleEvidence;
 import com.yiyiaddon.feature.stardew.profile.StardewCropLifecycle;
@@ -24,27 +21,24 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 星露谷指令查询与补全支撑：作物名解析、补全候选项、种植意图、人工标记成熟，以及
+ * 星露谷指令查询与补全支撑：作物名解析、补全候选项、人工标记成熟，以及
  * 真实作物状态数据源 {@link CropRuntimeSource}。
  *
  * <p>逐字搬运自旧项目 {@code stardew/StardewFarmModule.java:1449-1828}。旧模块字段
- * {@code index / activeHarvestRules / activeCropSignatures / pointManager / memory / 六类选择}
+ * {@code index / activeHarvestRules / activeCropSignatures / memory / 六类选择}
  * 由本类持有或经构造器注入；档案写盘统一走 {@link StardewProfileAssembler}。</p>
  */
 public final class StardewQuerySupport {
 
     private final StardewResourceIndex index;
     private final StardewProfileAssembler assembler;
-    private final StardewPointManager pointManager;
     private final FarmMemoryStore memory;
     private final StardewSettings settings;
 
     public StardewQuerySupport(StardewResourceIndex index, StardewProfileAssembler assembler,
-                               StardewPointManager pointManager, FarmMemoryStore memory,
-                               StardewSettings settings) {
+                               FarmMemoryStore memory, StardewSettings settings) {
         this.index = index;
         this.assembler = assembler;
-        this.pointManager = pointManager;
         this.memory = memory;
         this.settings = settings;
     }
@@ -265,30 +259,6 @@ public final class StardewQuerySupport {
     /** 供模块安装到唯一判定组件（旧模块 {@code new CropRuntimeSource()} 的落点） */
     public CropRuntimeStateResolver.CropRuntimeSource runtimeSource() {
         return new CropRuntimeSource();
-    }
-
-    /** 给整个农田范围设置种植目标（写入长期记忆） */
-    public boolean setRegionPlantIntent(String cropKey) {
-        if (!GameProbe.isMultiplayer() || !ResourceExtractionService.isReady() || !settings.selectedCropKeys.contains(cropKey)) return false;
-        if (index.cropByKey(cropKey) == null) return false;
-        StardewPointManager.StardewPoint start = pointManager.get(StardewPointType.START);
-        StardewPointManager.StardewPoint end = pointManager.get(StardewPointType.END);
-        if (start == null || end == null) return false;
-        int minX = Math.min(start.x(), end.x());
-        int maxX = Math.max(start.x(), end.x());
-        int minZ = Math.min(start.z(), end.z());
-        int maxZ = Math.max(start.z(), end.z());
-        int y = start.y();
-        String serverKey = StardewContext.serverKey();
-        String dimension = StardewContext.dimension();
-        boolean saved = true;
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                FarmCellMemory cell = new FarmCellMemory(x, y, z, cropKey, true);
-                if (!memory.upsert(serverKey, dimension, cell)) saved = false;
-            }
-        }
-        return saved;
     }
 
     /**

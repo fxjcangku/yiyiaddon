@@ -7,12 +7,8 @@ import com.yiyiaddon.feature.stardew.profile.SprinklerDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.profile.WateringCanDefinition;
-import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
-import com.yiyiaddon.feature.stardew.recognition.CropState;
-import com.yiyiaddon.feature.stardew.recognition.PotState;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
-import com.yiyiaddon.feature.stardew.service.StardewProfileAssembler;
 import com.yiyiaddon.feature.stardew.task.StardewCoordinator;
 import com.yiyiaddon.model.resource.BlockSemantic;
 import com.yiyiaddon.platform.GameProbe;
@@ -46,25 +42,23 @@ public final class StardewPointActions {
     private final Minecraft mc = Minecraft.getInstance();
     private final StardewPointManager pointManager;
     private final StardewResourceIndex index;
-    private final StardewProfileAssembler assembler;
     private final StardewCoordinator coordinator;
     private final StardewInventoryService inventory;
     private final StardewSettings settings;
 
     /**
-     * 洒水器新绑定的「分区」闸门（分区种植实验功能），由模块注入。
+     * 洒水器新绑定的「分区」闸门，由模块注入。
      *
      * <p>为什么放在这里而不是点位校验里：已经绑好的洒水器一律不回溯（玩家会突然发现一半洒水器
-     * 失效）；只有「新绑定」才按新口径要求落在某个种植区域内。未注入时一律放行。</p>
+     * 失效）；只有「新绑定」才要求落在某个种植区域内。未注入时一律放行。</p>
      */
     private java.util.function.Function<BlockPos, String> sprinklerRegionGate = pos -> null;
 
     public StardewPointActions(StardewPointManager pointManager, StardewResourceIndex index,
-                               StardewProfileAssembler assembler, StardewCoordinator coordinator,
+                               StardewCoordinator coordinator,
                                StardewInventoryService inventory, StardewSettings settings) {
         this.pointManager = pointManager;
         this.index = index;
-        this.assembler = assembler;
         this.coordinator = coordinator;
         this.inventory = inventory;
         this.settings = settings;
@@ -83,6 +77,13 @@ public final class StardewPointActions {
      */
     public boolean setPointFromCrosshair(StardewPointType type) {
         if (!pointEnvironmentAllowed()) return false;
+        // 盆型互斥：选了什么盆就决定了哪些点位有意义。绑错不会让脚本做错事（脚本按盆型自己挑物料），
+        // 但玩家会以为配好了、那条链路其实永远用不上，所以在这一刻就拒绝并说明原因。
+        String conflict = type.conflictWith(index.potGroupOfSelected(settings.selectedPotKeys));
+        if (conflict != null) {
+            pointFailure(type.title(), conflict);
+            return false;
+        }
         StardewPointManager.StardewPoint existing = pointManager.get(type);
         if (existing != null) {
             pointFailure(type.title(), "已绑定在 X:" + existing.x() + " Y:" + existing.y() + " Z:" + existing.z()
@@ -93,13 +94,6 @@ public final class StardewPointActions {
         if (pos == null) {
             pointFailure(type.title(), "准星没有对准任何方块");
             return false;
-        }
-        if (type == StardewPointType.START || type == StardewPointType.END) {
-            pos = normalizeFarmBoundary(pos);
-            if (pos == null) {
-                pointFailure(type.title(), "请对准种植盆，或对准其上方已识别的作物");
-                return false;
-            }
         }
         if (type.requiresContainer() && !(mc.level.getBlockEntity(pos) instanceof Container)) {
             pointFailure(type.title(), "准星目标不是容器（箱子 / 木桶 / 潜影盒）");
@@ -150,12 +144,6 @@ public final class StardewPointActions {
             pointFailure(StardewPointType.SPRINKLER.title(), "准星没有对准任何方块");
             return false;
         }
-        String regionFailure = pointManager.sprinklerRegionFailure(pos);
-        if (regionFailure != null) {
-            pointFailure(StardewPointType.SPRINKLER.title(), regionFailure);
-            return false;
-        }
-        // 分区种植开启时，新绑定的洒水器还必须落在某个种植区域内
         String plantingRegionFailure = sprinklerRegionGate.apply(pos);
         if (plantingRegionFailure != null) {
             pointFailure(StardewPointType.SPRINKLER.title(), plantingRegionFailure);
@@ -344,47 +332,6 @@ public final class StardewPointActions {
         String name = semantic.name() != null ? semantic.name()
             : semantic.identity() != null ? semantic.identity() : semantic.model();
         return "准星这个方块是「" + name + "」，不是洒水器；请对准洒水器实物";
-    }
-
-    /**
-     * START / END 只保存稳定种植盆坐标。准星命中动态作物载体时，必须用真实世界状态
-     * 证明下方是干/湿种植盆后才下移一格；普通方块绝不无条件 below。
-     */
-    private BlockPos normalizeFarmBoundary(BlockPos hit) {
-        if (mc.level == null || hit == null) return null;
-        PotState direct = CropRecognizer.recognizePot(mc.level.getBlockState(hit));
-        if (direct == PotState.DRY || direct == PotState.WET) return hit;
-        CropRecognizer.CropRecognition crop = CropRecognizer.recognize(mc.level.getBlockState(hit), assembler.profile());
-        if (crop.state() == CropState.EMPTY || crop.state() == CropState.UNKNOWN) return null;
-        BlockPos below = hit.below();
-        PotState pot = CropRecognizer.recognizePot(mc.level.getBlockState(below));
-        return pot == PotState.DRY || pot == PotState.WET ? below : null;
-    }
-
-    /**
-     * 一次性兼容旧版把 START / END 存在作物层的记录。只在当前位置或正下方真实识别为盆时迁移，
-     * 即使作物层已经因收获变成空气，也能恢复到稳定盆坐标；其它坐标原样保留并显示失效。
-     */
-    public void normalizeStoredFarmBoundaries(String serverKey) {
-        if (mc.level == null || serverKey == null) return;
-        boolean changed = false;
-        for (StardewPointType type : List.of(StardewPointType.START, StardewPointType.END)) {
-            StardewPointManager.StardewPoint point = pointManager.get(type);
-            if (point == null || !point.inCurrentDimension() || !mc.level.isLoaded(point.pos())) continue;
-            PotState direct = CropRecognizer.recognizePot(mc.level.getBlockState(point.pos()));
-            if (direct == PotState.DRY || direct == PotState.WET) continue;
-            BlockPos below = point.pos().below();
-            PotState belowPot = CropRecognizer.recognizePot(mc.level.getBlockState(below));
-            if (belowPot != PotState.DRY && belowPot != PotState.WET) continue;
-            CropRecognizer.CropRecognition crop = CropRecognizer.recognize(mc.level.getBlockState(point.pos()), assembler.profile());
-            if (!mc.level.getBlockState(point.pos()).isAir()
-                && (crop.state() == CropState.EMPTY || crop.state() == CropState.UNKNOWN)) continue;
-            pointManager.set(type, new StardewPointManager.StardewPoint(
-                below.getX(), below.getY(), below.getZ(), point.dimension(), "稳定种植盆边界",
-                null, type.title(), null));
-            changed = true;
-        }
-        if (changed) pointManager.save(serverKey);
     }
 
     /** 准星移除洒水器点位（GUI「移除」按钮与 {@code .stardew 移除洒水器} 共用） */
