@@ -30,6 +30,8 @@ public abstract class CardPage extends BasePage {
     /** 悬停上抬距离（像素）。 */
     private static final float HOVER_LIFT = 1f;
     private static final float EMPTY_STATE_HEIGHT = 96f;
+    /** 卡片区顶部留白：页面副标题与第一行卡片之间，避免卡片顶边（含投影）贴住标题区。 */
+    private static final float TOP_INSET = 20f;
 
     private final Spring[] hoverSpring;
     private final PressState[] pressState;
@@ -75,8 +77,8 @@ public abstract class CardPage extends BasePage {
 
     @Override
     public float getTotalHeight() {
-        if (cardCount == 0) return EMPTY_STATE_HEIGHT;
-        return CardLayout.totalHeight(cardCount, cardHeight(), columns());
+        if (cardCount == 0) return TOP_INSET + EMPTY_STATE_HEIGHT;
+        return TOP_INSET + CardLayout.totalHeight(cardCount, cardHeight(), columns());
     }
 
     @Override
@@ -97,13 +99,13 @@ public abstract class CardPage extends BasePage {
     public void draw(Canvas canvas, float x, float y, float contentW, float contentH, float alpha, float scrollOffset,
                      float mouseX, float mouseY) {
         lastOriginX = x;
-        lastOriginY = y - scrollOffset;
+        lastOriginY = y + TOP_INSET - scrollOffset;
         lastContentW = contentW;
         lastMouseX = mouseX;
         lastMouseY = mouseY;
 
         if (cardCount == 0) {
-            drawEmptyState(canvas, x, y - scrollOffset, contentW, alpha);
+            drawEmptyState(canvas, x, y + TOP_INSET - scrollOffset, contentW, alpha);
             return;
         }
 
@@ -134,8 +136,8 @@ public abstract class CardPage extends BasePage {
     public boolean onClick(float mx, float my, float contentX, float contentY, float contentW, float scrollOffset,
                            int button) {
         if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT || cardCount == 0) return false;
-        int index = CardLayout.indexAt(mx, my, contentX, contentY - scrollOffset, contentW, cardHeight(), columns(),
-                cardCount);
+        int index = CardLayout.indexAt(mx, my, contentX, contentY + TOP_INSET - scrollOffset, contentW, cardHeight(),
+                columns(), cardCount);
         if (index < 0) return false;
         pressState[index].press();
         onCardActivated(index);

@@ -8,9 +8,11 @@ import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
+import com.yiyiaddon.integration.baritone.BaritoneSettingsPage;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.service.resourcepack.ResourceIndexProbe;
+import com.yiyiaddon.ui.page.EspSettingsPage;
 
 import java.util.List;
 
@@ -67,11 +69,14 @@ public final class AddonModules {
     }
 
     private static void registerCategories() {
-        CategoryRegistry.register(new ModuleCategory("automation", "自动化", "管理自动执行类功能", "\uEBBC", 10));
+        // 只登记「真的有模块」或「有自带页面」的分类：空分类不会出现在模块中心
         CategoryRegistry.register(new ModuleCategory("assist", "辅助", "管理辅助工具功能", "\uEF76", 20));
-        CategoryRegistry.register(new ModuleCategory("tools", "工具", "管理工具类功能", "\uF06A", 30));
-        CategoryRegistry.register(new ModuleCategory("navigation", "导航", "管理路径与移动功能", "\uE919", 40));
-        CategoryRegistry.register(new ModuleCategory("enchant", "附魔", "管理装备强化功能", "\uE659", 50));
+        CategoryRegistry.register(new ModuleCategory("navigation", "Baritone设置",
+                "Baritone 全部设置：开关 / 数值 / 文本 / 颜色 / 列表，按类型分组", "\uE919", 40,
+                BaritoneSettingsPage::new));
         CategoryRegistry.register(new ModuleCategory("stardew", "星露谷", "管理农场模拟功能", "\uE8CD", 60));
+        CategoryRegistry.register(new ModuleCategory("esp", "ESP 全局设置",
+                "全部世界 ESP 的公共选项：线宽 / 不透明度 / 显示距离 / 字号 / 每帧最多画多少个图形",
+                "\uE8F4", 80, EspSettingsPage::new));
     }
 }

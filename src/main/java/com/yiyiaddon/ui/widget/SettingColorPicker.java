@@ -22,7 +22,6 @@ public final class SettingColorPicker extends SettingWidget {
     private static final float WIDTH = 100f;
     private static final float HEIGHT = 24f;
     private static final float RADIUS = 8f;
-    private static final float CHECKER_SIZE = 6f;
     private static final float MARKER_SIZE = 4f;
 
     private final String title;
@@ -55,27 +54,8 @@ public final class SettingColorPicker extends SettingWidget {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         RRect rect = RRect.makeXYWH(x, y, WIDTH, HEIGHT, RADIUS);
 
-        canvas.save();
-        canvas.clipRRect(rect);
-
-        int columns = Math.max(1, (int) Math.ceil(WIDTH / CHECKER_SIZE));
-        int rows = Math.max(1, (int) Math.ceil(HEIGHT / CHECKER_SIZE));
-        for (int row = 0; row < rows; row++) {
-            for (int column = 0; column < columns; column++) {
-                boolean light = ((row + column) & 1) == 0;
-                fillPaint.setColor(withAlpha(light ? tc.checkerLight : tc.checkerDark, alpha));
-                canvas.drawRect(Rect.makeLTRB(
-                        x + column * CHECKER_SIZE,
-                        y + row * CHECKER_SIZE,
-                        Math.min(x + WIDTH, x + (column + 1) * CHECKER_SIZE),
-                        Math.min(y + HEIGHT, y + (row + 1) * CHECKER_SIZE)), fillPaint);
-            }
-        }
-
         fillPaint.setColor(ClickGuiThemeColors.scaleAlpha(color.argb(), alpha));
-        canvas.drawRect(Rect.makeLTRB(x, y, x + WIDTH, y + HEIGHT), fillPaint);
-
-        canvas.restore();
+        canvas.drawRRect(rect, fillPaint);
 
         borderPaint.setColor(withAlpha(tc.border, alpha * 0.24f));
         canvas.drawRRect(rect, borderPaint);

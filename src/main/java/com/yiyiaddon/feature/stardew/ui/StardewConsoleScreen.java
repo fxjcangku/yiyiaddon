@@ -29,7 +29,9 @@ import net.minecraft.client.input.PreeditEvent;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 星露谷农场控制台：把原来平铺在设置页里的内容按用途拆成页签。
@@ -81,8 +83,10 @@ public final class StardewConsoleScreen extends PanelScreen {
     private static final float TIP_MAX_WIDTH = 320f;
     public static final float TIP_OFFSET_X = 14f;
     public static final float TIP_OFFSET_Y = 16f;
-    /** tooltip 文字基准色（旧项目 tooltip 正文为白字，行内颜色码自行覆盖） */
-    private static final int TIP_COLOR = 0xFFFFFF;
+    /** tooltip 文字基准色：深色主题白字；浅色主题用主文字色，否则白字压在白玻璃上等于看不见 */
+    private static int tipColor(ClickGuiThemeColors tc) {
+        return tc != null && !tc.dark ? tc.primaryText : 0xFFFFFF;
+    }
 
     /** 页签：一屏只显示一类内容。 */
     private enum Tab {
@@ -107,14 +111,22 @@ public final class StardewConsoleScreen extends PanelScreen {
     private final StardewFarmModule module;
     private final Body body = new Body();
 
+    /**
+     * 已收起的折叠块键集合（本窗口生命周期内有效）。
+     *
+     * <p>整页重建（刷新 / 切页签）会丢弃全部控件实例，折叠状态必须存在窗口侧才不会
+     * 每次重建都回到默认展开。</p>
+     */
+    private final Set<String> collapsedSections = new HashSet<>();
+
     /** 当前页签 */
     private Tab tab = Tab.OVERVIEW;
-    /** 概览页自动刷新计数 */
+    /** 自动刷新计数 */
     private int autoRefreshTicks;
-    /** 本窗口关闭后是否直接回到游戏（旧项目 {@code mc.setScreen(null)}） */
-    private boolean exitToGame;
     /** 本帧重建时取的只读快照（与旧项目 initWidgets 的取数节奏一致） */
     private StardewConsoleData data = StardewConsoleData.empty();
+    /** 顶部状态条专用的实时快照：每秒单独刷新，与正文快照解耦（正文只在重排时更新） */
+    private StardewConsoleData status = data;
 
     /**
      * @param parent 上级屏幕（模块页）——ESC / 返回键回到它，与旧项目 {@code parent = mc.screen} 一致
@@ -135,6 +147,9 @@ public final class StardewConsoleScreen extends PanelScreen {
         // 旧项目由 WidgetScreen.init() 自动订阅 TickEvent.Post；本项目在 init 里订阅，
         // 同一所有者重复订阅会覆盖，因此回到本窗口时不会残留多个监听。
         ClientEventBus.subscribe(TICK_OWNER, ClientEventType.TICK, event -> onTick());
+        // 从子界面（洒水器点位列表 / 二次确认）返回时重建正文：卡片上的坐标与数量、开关状态都是
+        // 构建时取的快照，不重建就会看到「清空了还显示已绑定 6 个」这种旧值。
+        if (minecraft != null) minecraft.execute(this::reload);
     }
 
     @Override
@@ -144,20 +159,36 @@ public final class StardewConsoleScreen extends PanelScreen {
     }
 
     /**
-     * 自动刷新（只刷「概览」）。
+     * 每秒取一次新快照。
      *
-     * <p><b>为什么只有概览：</b>概览是纯读数，重画无副作用。而其余页都带可交互控件——
-     * 每秒重建会把正在编辑的输入框（光标与未提交内容）、正在点的开关、正在滚动看的长列表
-     * 一起抹掉，属于帮倒忙。需要最新值时按左下角「刷新」。</p>
+     * <p><b>概览页：</b>整页重画（纯读数，重画无副作用）。</p>
+     *
+     * <p><b>其余页：</b>只换顶部状态条的快照，<b>不重建正文</b>——正文带可交互控件，每秒重建会把正在
+     * 编辑的输入框（光标与未提交内容）、正在点的开关、正在滚动看的长列表一起抹掉。所以「资源包 /
+     * 季节 / 作物 / 任务」这四项在所有页都是准的，正文内容要最新值就按左下角「刷新」。</p>
      */
     private void onTick() {
-        if (tab != Tab.OVERVIEW) return;
         if (++autoRefreshTicks < AUTO_REFRESH_TICKS) return;
         autoRefreshTicks = 0;
         // 鼠标按住时不重建：正在按的那个按钮会被摘掉，抬起事件落到空处，表现为按钮「卡住」
         if (minecraft == null || minecraft.screen != this) return;
         if (mousePressed(GLFW.GLFW_MOUSE_BUTTON_LEFT) || mousePressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) return;
-        reload();
+
+        StardewConsoleData next = module.consoleData();
+        if (tab == Tab.OVERVIEW) {
+            data = next;
+            status = next;
+            body.rebuild();
+            return;
+        }
+        // 状态条四项有变化才换：没变化就不动，避免无谓的引用替换
+        if (!statusSignature(next).equals(statusSignature(status))) status = next;
+    }
+
+    /** 状态条四项的内容指纹（只有它变了才需要换状态条快照） */
+    private static String statusSignature(StardewConsoleData snapshot) {
+        return snapshot.resource() + '\u0000' + snapshot.season() + '\u0000'
+            + snapshot.cropsSummary() + '\u0000' + snapshot.task();
     }
 
     private static boolean mousePressed(int button) {
@@ -188,20 +219,15 @@ public final class StardewConsoleScreen extends PanelScreen {
 
     // ── 关闭 ──
 
-    /** 关闭本窗口并直接回到游戏（旧项目点位按钮与「关闭」按钮的 {@code mc.setScreen(null)}） */
+    /**
+     * 关闭本窗口并直接回到游戏。
+     *
+     * <p>旧项目点位卡片的「设置 / 删除」与底部「关闭」按钮在动作成功后就是当场
+     * {@code mc.setScreen(null)}，没有任何过渡动画。这里照旧立即切屏：走关闭动画要等整段动画
+     * 播完才真正关窗，观感上就是「点了没反应、界面还开着」。</p>
+     */
     public void closeToGame() {
-        exitToGame = true;
-        requestClose();
-    }
-
-    @Override
-    protected void closing() {
-        if (exitToGame) {
-            exitToGame = false;
-            if (minecraft != null) minecraft.setScreen(null);
-            return;
-        }
-        super.closing();
+        if (minecraft != null) minecraft.setScreen(null);
     }
 
     // ── 重建 ──
@@ -209,6 +235,7 @@ public final class StardewConsoleScreen extends PanelScreen {
     /** 重建整页内容（旧项目 {@code reload()} 的等价物：取新快照 + 重排当前页） */
     public void reload() {
         data = module.consoleData();
+        status = data;
         body.rebuild();
     }
 
@@ -225,6 +252,11 @@ public final class StardewConsoleScreen extends PanelScreen {
     /** 本帧的只读快照（各页排版读取；快照只在 {@link #reload()} 时更新） */
     public StardewConsoleData data() {
         return data;
+    }
+
+    /** 已收起的折叠块键集合；页内折叠块用它记住展开 / 收起状态（重建后不丢失） */
+    public Set<String> collapsedSections() {
+        return collapsedSections;
     }
 
     /** 登记本帧要显示的 tooltip（页内构件悬停时调用，实现在 {@link Body}） */
@@ -274,7 +306,7 @@ public final class StardewConsoleScreen extends PanelScreen {
         @Override
         public void draw(Canvas canvas, float x, float y, float width, float alpha,
                          float mouseX, float mouseY) {
-            StardewConsoleData snapshot = data;
+            StardewConsoleData snapshot = status;
             String resource = "§7资源包 §8▸ " + (snapshot.resourceReady() ? "§a" : "§e") + snapshot.resource();
             String season = "§7季节 §8▸ " + seasonColor(snapshot.season()) + snapshot.season();
             String crops = "§7作物 §8▸ §d" + snapshot.cropsSummary();
@@ -336,7 +368,7 @@ public final class StardewConsoleScreen extends PanelScreen {
     private void buildFooter(CompactStack stack) {
         stack.add(new ButtonStrip(this, List.of(
             new Ctl(new Button("§7刷新", this::reload),
-                "概览页每秒自动刷新；其余页手动刷新（避免打断输入与阅读）"),
+                "顶部状态条每秒自动刷新；概览页整页每秒重画，其余页按这个按钮重排最新数据"),
             new Ctl(new Button("§7关闭", this::closeToGame))), ButtonStrip.BUTTON_HEIGHT));
     }
 
@@ -427,8 +459,9 @@ public final class StardewConsoleScreen extends PanelScreen {
             GlassPanel.rim(canvas, drawX, drawY, tipWidth, tipHeight, TIP_RADIUS, tc.rim, alpha, 0.22f);
 
             float cursorY = drawY + TIP_PAD;
+            int base = tipColor(tc);
             for (String line : lines) {
-                MinecraftText.draw(canvas, line, drawX + TIP_PAD, cursorY + TIP_SIZE, TIP_SIZE, TIP_COLOR, alpha);
+                MinecraftText.draw(canvas, line, drawX + TIP_PAD, cursorY + TIP_SIZE, TIP_SIZE, base, alpha);
                 cursorY += TIP_LINE;
             }
         }

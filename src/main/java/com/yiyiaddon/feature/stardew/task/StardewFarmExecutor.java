@@ -18,10 +18,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.MAX_BATCH_ACTIONS;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.MAX_RETRY;
-import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.REFILL_BURST_HARD_CAP;
+import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.REFILL_BURST_UNKNOWN;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.REFILL_MAX_PACKETS;
+import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.REFILL_STABLE_LIMIT;
+import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.SPRINKLER_BURST_PACKETS;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.VIEW_ALIGN_TOLERANCE;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.VIEW_ALIGN_WAIT_TICKS;
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.VIEW_TURN_STEP;
@@ -298,43 +299,38 @@ final class StardewFarmExecutor {
             owner.taskTicks = 0;
         }
         owner.adapter.face(water.pos());
+        // 容量读不到的常见原因是「壶刚切到主手，Tooltip / LORE 还没跟着更新」——每轮再试一次，
+        // 一旦读出来就能按差额一次发完，不必再靠批量档位试探。
+        if (owner.refillCapacity == null) owner.refillCapacity = currentHeldCanCapacity();
         Integer current = currentHeldWater();
         if (refillFull(current)) {
             // 已经满壶（读 Tooltip 就能确认）就别再发无意义的包
             finishRefillSuccess();
             return;
         }
-        int burst = Math.min(plannedRefillBurst(current), REFILL_MAX_PACKETS - owner.refillAttempts);
-        if (burst <= 0) {
+        int budget = REFILL_MAX_PACKETS - owner.refillAttempts;
+        if (budget <= 0) {
+            // 补到总量上限仍未满：按「已尽力」收工，避免卡在补水环节
             finishRefillSuccess();
             return;
         }
-        // 同一 tick 连发：单包补多少由服务端决定，包多了只是被忽略，不会溢出，也不会误伤别的方块
-        for (int i = 0; i < burst; i++) {
+        // 一次性补满：容量与当前水量都读得到时，按「差多少发多少」在同一 tick 里一次打出去。
+        // 服务端会吞掉同 tick 里的个别交互（容量 10 时实测最多丢 1 包），验证阶段发现没满会自动补齐，
+        // 所以不会漏；读不到容量时退回保守批量，靠验证阶段一点点逼近。
+        int batch;
+        if (owner.refillCapacity != null && owner.refillCapacity > 0 && current != null) {
+            batch = Math.max(1, Math.min(budget, owner.refillCapacity - current));
+        } else {
+            batch = Math.min(budget, REFILL_BURST_UNKNOWN);
+        }
+        for (int i = 0; i < batch; i++) {
             owner.adapter.interactBlock(InteractionHand.MAIN_HAND, water.pos(), Direction.UP);
         }
-        owner.refillBurstSent = burst;
-        owner.refillAttempts += burst;
+        owner.refillBurstSent = batch;
+        owner.refillAttempts += batch;
         owner.taskTicks = 0;
         owner.stepTick = 0;
         owner.phase = Phase.VERIFY;
-    }
-
-    /**
-     * 本轮该连发几个包。
-     *
-     * <p>容量与单包增量都已知时，直接算「还差几包」一轮发完（瞬间补满）；缺一项时用
-     * 「每包至少 +1」的保守估算填满差值，仍是一轮；两项都读不到才退回「批量右击」档位试探，
-     * 并在第一次验证后立刻学到单包增量，后续补水就是一轮的事。</p>
-     */
-    private int plannedRefillBurst(Integer current) {
-        int fallback = Math.max(1, Math.min(owner.batchActions, MAX_BATCH_ACTIONS));
-        if (owner.refillCapacity == null || current == null) return fallback;
-        int need = owner.refillCapacity - current;
-        if (need <= 0) return fallback;
-        int perPacket = owner.refillPerPacket == null ? 1 : Math.max(1, owner.refillPerPacket);
-        int packets = (int) Math.ceil(need / (double) perPacket);
-        return Math.max(fallback, Math.min(packets, REFILL_BURST_HARD_CAP));
     }
 
     /** 当前手持水壶的容量上限；Tooltip / LORE / custom_data 都读不到返回 null。 */
@@ -347,17 +343,23 @@ final class StardewFarmExecutor {
     /**
      * 补水验证。
      *
-     * <p>水量继续增长 → 再发一轮（已知容量时一轮就够）；水量停止增长且已达标 → 直接收工；
-     * 读不到容量时才用「连续两次不增长」兜底，避免一次服务端同步延迟导致提前离开。</p>
+     * <p>水量继续增长 → 继续发包；读到的水量追平容量 → 收工。服务端偶尔会吞掉某一 tick 的
+     * 交互（见 {@link StardewCoordinator#REFILL_ROUND_PACKETS}），所以「已经有过增量、但这几轮没涨」
+     * 不能立刻收工，要连续 {@link StardewCoordinator#REFILL_STABLE_LIMIT} 轮无增量才认定推不动；
+     * 而「从头到尾一点没涨」仍按 {@link StardewCoordinator#MAX_RETRY} 快速止损并报错。</p>
      */
     void verifyRefill() {
         Integer after = currentHeldWater();
-        if (after == null || owner.refillLastWater == null) {
+        if (after == null) {
+            // 水量仍读不到：没有任何可判定的证据，按原口径收工
             finishRefillSuccess();
             return;
         }
-        if (after > owner.refillLastWater) {
-            learnRefillRates(after);
+        // 起手读不到水量（空壶服务端可能不带 water 字段）时基线按 0 算。
+        // 原来这种情况会在第一轮验证就「无证据地宣布已补满」，壶只补了几格就回报「水壶已补满」。
+        int before = owner.refillLastWater == null ? 0 : owner.refillLastWater;
+        if (after > before) {
+            learnRefillRates(before, after);
             owner.refillMadeProgress = true;
             owner.refillLastWater = after;
             owner.refillStableChecks = 0;
@@ -365,7 +367,7 @@ final class StardewFarmExecutor {
                 finishRefillSuccess();
                 return;
             }
-        } else if (refillFull(after) || owner.refillMadeProgress && ++owner.refillStableChecks >= 2) {
+        } else if (refillFull(after)) {
             finishRefillSuccess();
             return;
         } else if (!owner.refillMadeProgress && owner.refillAttempts >= MAX_RETRY) {
@@ -373,18 +375,24 @@ final class StardewFarmExecutor {
             owner.status.critical("REFILL_NO_PROGRESS", "水壶补水失败", "连续交互无水量变化，已停止本次任务");
             owner.phase = Phase.REPLAN;
             return;
+        } else if (owner.refillMadeProgress && ++owner.refillStableChecks >= REFILL_STABLE_LIMIT) {
+            // 已经有进展、但连续若干轮读不到增量：服务端在节流或这壶补不动了，停止无谓发包
+            finishRefillSuccess();
+            return;
         }
         if (owner.refillAttempts >= REFILL_MAX_PACKETS) {
             finishRefillSuccess();
             return;
         }
+        // 开新的一轮：包数从 0 起算，学单包增量时分母才是本轮真实包数
+        owner.refillBurstSent = 0;
         owner.stepTick = 0;
         owner.phase = Phase.INTERACT;
     }
 
     /** 用「本轮增量 ÷ 本轮包数」向上取整学到单包增量；容量只用实测值向上校正，不凭空捏造。 */
-    private void learnRefillRates(int after) {
-        int delta = after - owner.refillLastWater;
+    private void learnRefillRates(int before, int after) {
+        int delta = after - before;
         if (delta > 0 && owner.refillBurstSent > 0) {
             owner.refillPerPacket = Math.max(1, (int) Math.ceil(delta / (double) owner.refillBurstSent));
         }
@@ -421,8 +429,24 @@ final class StardewFarmExecutor {
             if (can != null && owner.switchCan) holdEntry(can);
             owner.taskStep = 1;
         }
+        // 壶已经空了：先去补水点补满，回来继续灌这一台（光标不动，不会跳过它）。
+        // 必须先判空再点击：空壶右键洒水器什么都不会发生，会被验证阶段误判成「已经满了」。
+        if (canWaterIsEmpty()) {
+            owner.taskType = TaskType.REFILL;
+            owner.stepTick = 0;
+            owner.phase = Phase.NAVIGATE;
+            return;
+        }
         owner.adapter.face(pos);
-        owner.adapter.interactBlock(InteractionHand.MAIN_HAND, pos, Direction.UP);
+        // 先记下这一批之前的水量，再连发（服务端下一 tick 才会把新水量同步回来）
+        owner.sprinklerWaterBefore = currentHeldWater();
+        // 一次灌一批：同一 tick 连发多包。多发的包对已满的洒水器是空操作，不会浪费壶里的水；
+        // 下一 tick 读壶水差额就知道还差多少，没满再补一批（判满仍然靠「壶水还掉不掉」）。
+        for (int i = 0; i < SPRINKLER_BURST_PACKETS; i++) {
+            owner.adapter.interactBlock(InteractionHand.MAIN_HAND, pos, Direction.UP);
+        }
+        owner.sprinklerBursts = pos.equals(owner.sprinklerPourTarget) ? owner.sprinklerBursts + 1 : 1;
+        owner.sprinklerPourTarget = pos;
         owner.stepTick = 0;
         owner.phase = Phase.VERIFY;
     }

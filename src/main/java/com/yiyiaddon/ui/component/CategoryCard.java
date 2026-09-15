@@ -41,7 +41,7 @@ public final class CategoryCard {
     private CategoryCard() {
     }
 
-    public static void draw(Canvas canvas, ModuleCategory category, int moduleCount, float x, float y, float w,
+    public static void draw(Canvas canvas, ModuleCategory category, String countText, float x, float y, float w,
                             float alpha, float hover, ClickGuiThemeColors tc) {
         float radius = ClickGuiThemeManager.current().metrics().moduleRadius();
         int background = GlassPanel.mix(tc.module, tc.surfaceHover, hover);
@@ -69,7 +69,7 @@ public final class CategoryCard {
         FontRenderer.drawText(canvas, CardLayout.ellipsize(category.description(), textMax, CAPTION_SIZE), x + PAD_X,
                 y + DESC_BASELINE, CAPTION_SIZE, GlassPanel.withAlpha(tc.secondaryText, alpha));
 
-        String count = moduleCount > 0 ? moduleCount + " 个模块" : "暂无模块";
+        String count = countText == null || countText.isBlank() ? "暂无模块" : countText;
         FontRenderer.drawText(canvas, count, x + PAD_X, y + COUNT_BASELINE, CAPTION_SIZE,
                 GlassPanel.withAlpha(tc.labelTertiary, alpha));
 

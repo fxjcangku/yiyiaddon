@@ -40,6 +40,8 @@ public final class CompactRow implements CompactElement {
 
     private boolean hovered;
     private float hover;
+    /** 控件在行内水平居中（不带标签的整行按钮用；默认左对齐整行）。 */
+    private boolean centeredControl;
 
     /**
      * @param label   左侧标签，留空表示控件左对齐整行
@@ -60,6 +62,17 @@ public final class CompactRow implements CompactElement {
     /** 登记浮层说明（多行、不截断，悬停时显示；与行内 hint 并存）。 */
     public CompactRow tooltip(Supplier<String> text) {
         this.tooltip = text;
+        return this;
+    }
+
+    /**
+     * 控件在行内水平居中。
+     *
+     * <p>用于「一行一个按钮」的整行按钮：按钮宽度仍跟随文字，只是在行内居中，而不是贴左。
+     * 未调用时行为不变（有标签靠右、无标签贴左）。</p>
+     */
+    public CompactRow centeredControl() {
+        this.centeredControl = true;
         return this;
     }
 
@@ -122,6 +135,8 @@ public final class CompactRow implements CompactElement {
 
     /** 控件左边界；绘制与命中共用。 */
     private float controlX(float x, float width) {
+        if (control == null) return x + PAD_X;
+        if (centeredControl) return x + (width - control.getWidth()) / 2f;
         return label.isEmpty() ? x + PAD_X : x + width - PAD_X - control.getWidth();
     }
 
@@ -138,7 +153,11 @@ public final class CompactRow implements CompactElement {
 
         float startX;
         float endX;
-        if (label.isEmpty()) {
+        if (centeredControl) {
+            // 控件居中时提示落在左侧空隙里（右侧同样有空间，但左侧与标签列口径一致）
+            startX = x + PAD_X;
+            endX = control == null ? x + width - PAD_X : controlX(x, width) - HINT_GAP;
+        } else if (label.isEmpty()) {
             // 无标签时控件左对齐，提示放在控件右侧的空隙里
             startX = control == null ? x + PAD_X : controlX(x, width) + control.getWidth() + HINT_GAP;
             endX = x + width - PAD_X;
@@ -149,7 +168,7 @@ public final class CompactRow implements CompactElement {
         float available = endX - startX;
         if (available < HINT_MIN_WIDTH) return;
 
-        FontRenderer.drawText(canvas, CardLayout.ellipsize(text, available, HINT_SIZE), startX,
+        FontRenderer.drawText(canvas, CardLayout.ellipsize(MinecraftText.strip(text), available, HINT_SIZE), startX,
                 CardLayout.baseline(y + HEIGHT / 2f, HINT_SIZE), HINT_SIZE,
                 GlassPanel.withAlpha(tc.labelTertiary, alpha * hover));
     }

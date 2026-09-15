@@ -39,6 +39,9 @@ public final class AutoChestCommand extends ClientCommand {
     /** 回执前缀：旧项目 {@code AutoChestCommand.MODULE_NAME} 原文 */
     private static final String MODULE_NAME = AutoChestModule.MESSAGE_MODULE;
 
+    /** 子命令：旧项目用 Brigadier literal 注册，literal 本身即候选 */
+    private static final List<String> SUBCOMMANDS = List.of("添加", "移除", "清空", "状态");
+
     private final Minecraft mc = Minecraft.getInstance();
 
     @Override
@@ -75,10 +78,16 @@ public final class AutoChestCommand extends ClientCommand {
         }
     }
 
-    /** 旧项目全树无 TAB 补全（仅 literal + executes） */
+    /**
+     * 子命令补全。
+     *
+     * <p>旧项目这四个子命令是 Brigadier literal，literal 自身就是候选（旧项目 {@code .autochest }
+     * 按 Tab 同样列出这四个词）；旧项目只是没给参数挂 {@code .suggests}，所以除这四个词外没有别的
+     * 候选。本方法即该事实的对应实现。</p>
+     */
     @Override
     public List<String> complete(CommandContext context) {
-        return List.of();
+        return context.isEmpty() ? SUBCOMMANDS : List.of();
     }
 
     // ── 子命令实现 ──

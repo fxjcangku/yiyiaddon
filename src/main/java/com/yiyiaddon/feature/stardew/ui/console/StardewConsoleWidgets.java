@@ -16,6 +16,7 @@ import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.types.Rect;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen.LABEL_SIZE;
@@ -84,6 +85,22 @@ public final class StardewConsoleWidgets {
             this.controls = List.copyOf(controls);
         }
 
+        /**
+         * 行尾注释可实时变化的一行（例如「当前：空手 / 木棍」这类随点击变化的说明）。
+         *
+         * <p>用静态工厂而不是重载构造器：构造器的注释参数是 {@code String}，再重载一个
+         * {@code Supplier<String>} 会让现有传 {@code null} 的调用点变成二义调用。</p>
+         */
+        public static ConsoleRow liveComment(StardewConsoleScreen owner, Supplier<String> label, String labelHint,
+                                            Supplier<String> comment, List<Ctl> controls) {
+            ConsoleRow row = new ConsoleRow(owner, label, labelHint, (String) null, controls);
+            row.commentLive = comment;
+            return row;
+        }
+
+        /** 实时注释（null = 用构造时给的那句固定注释） */
+        private Supplier<String> commentLive;
+
         @Override
         public float height() {
             return HEIGHT;
@@ -119,7 +136,7 @@ public final class StardewConsoleWidgets {
             }
 
             float controlsX = controlsStartX(x, width);
-            String commentText = comment == null ? null : comment.get();
+            String commentText = commentLive != null ? commentLive.get() : (comment == null ? null : comment.get());
             if (commentText != null && !commentText.isEmpty()) {
                 float available = Math.max(0f, controlsX - cursor - HINT_GAP);
                 if (available >= HINT_MIN_WIDTH) {
@@ -177,12 +194,20 @@ public final class StardewConsoleWidgets {
         @Override
         public boolean onClick(float mx, float my, float x, float y, float width, int button) {
             if (button != 0 || my < y || my > y + HEIGHT) return false;
+            // 单控件行沿用「点整行都算」；多控件行必须先落在控件自身的横向范围内再转发。
+            // 否则行内第一个控件会把整行的点击全吃掉：SettingToggle 只看按键不看坐标，
+            // 一旦先问它，右侧的「设置」按钮永远点不到（实机表现为按钮是死的）。
+            boolean single = controls.size() == 1;
             float controlX = controlsStartX(x, width);
             for (Ctl ctl : controls) {
                 SettingWidget widget = ctl.widget();
                 float widgetY = y + (HEIGHT - widget.getHeight()) / 2f;
-                if (widget.onClick(mx, my, controlX, widgetY, button)) return true;
-                controlX += widget.getWidth() + CONTROL_GAP;
+                float widgetWidth = widget.getWidth();
+                if ((single || (mx >= controlX && mx <= controlX + widgetWidth))
+                    && widget.onClick(mx, my, controlX, widgetY, button)) {
+                    return true;
+                }
+                controlX += widgetWidth + CONTROL_GAP;
             }
             return false;
         }
@@ -364,6 +389,9 @@ public final class StardewConsoleWidgets {
         private final CompactStack content = new CompactStack(CONTENT_GAP);
         private final Spring expand = Spring.critical(0.24f);
         private final PressState press = new PressState();
+        /** 折叠状态的归属容器与键；为 null 表示不记忆（始终默认展开） */
+        private final Set<String> collapsedKeys;
+        private final String stateKey;
 
         /** 默认展开：玩家点进来就要看到「种多少」（旧项目 LeftAlignedSection 传 true） */
         private boolean expanded = true;
@@ -371,7 +399,20 @@ public final class StardewConsoleWidgets {
         private float hover;
 
         public FoldSection(String title) {
+            this(title, null, null);
+        }
+
+        /**
+         * 带折叠记忆的折叠块：{@code stateKey} 落在 {@code collapsedKeys} 里表示当前是收起的。
+         *
+         * <p>窗口整页重建（刷新 / 切页签）会丢弃全部控件实例，若不把折叠状态存在窗口侧，
+         * 每次重建都会回到默认展开。</p>
+         */
+        public FoldSection(String title, String stateKey, Set<String> collapsedKeys) {
             this.title = title == null ? "" : title;
+            this.stateKey = stateKey;
+            this.collapsedKeys = collapsedKeys;
+            this.expanded = stateKey == null || collapsedKeys == null || !collapsedKeys.contains(stateKey);
         }
 
         public CompactStack content() {
@@ -444,6 +485,10 @@ public final class StardewConsoleWidgets {
             if (button != 0) return false;
             if (mx >= x && mx <= x + width && my >= y && my <= y + HEADER_HEIGHT) {
                 expanded = !expanded;
+                if (stateKey != null && collapsedKeys != null) {
+                    if (expanded) collapsedKeys.remove(stateKey);
+                    else collapsedKeys.add(stateKey);
+                }
                 press.pulse();
                 return true;
             }

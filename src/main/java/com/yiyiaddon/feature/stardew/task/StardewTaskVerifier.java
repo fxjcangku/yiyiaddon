@@ -79,11 +79,31 @@ final class StardewTaskVerifier {
                 yield false;
             }
             case SPRINKLER_CHECK -> {
-                // 检查完成：推进到下一个洒水器或结束本轮
+                // 「点一下读壶水」判据（本服实测得出）：
+                //   壶水掉了 = 服务端收下了水，说明这台还没灌满 → 继续灌；
+                //   壶水没掉 = 已经灌满（满的洒水器再点不扣水）→ 换下一台。
+                // 读不到水量（没识别水壶 / 服务端不暴露水量）时退回旧口径：点一次就算完成。
+                Integer before = owner.sprinklerWaterBefore;
+                Integer now = owner.executor.currentHeldWater();
+                boolean measured = before != null && now != null;
+                if (measured && now < before
+                    && owner.sprinklerBursts < StardewCoordinator.SPRINKLER_MAX_BURSTS) {
+                    // 还在吃水：取消「已满」跳过窗口，恢复正常检查节奏
+                    owner.markSprinklerConsuming(owner.planner.sprinklerTarget());
+                    yield false;
+                }
+                // 这台到此为止：报一条状态提示，再推进到下一个洒水器
+                // 「已灌满」只在读得到水量、且这一下确实没再减少时才说；点满兜底上限不冒充灌满。
+                BlockPos finished = owner.planner.sprinklerTarget();
+                boolean filledFull = measured && !(now < before);
+                owner.reporter.announceSprinklerDone(finished, filledFull);
+                if (filledFull) owner.markSprinklerFull(finished);
                 owner.sprinklerCursor++;
                 if (owner.sprinklerCursor >= owner.planner.sprinklerPointsInDimension().size()) {
                     owner.sprinklerCursor = 0;
                     owner.nextSprinklerCheckTick = System.currentTimeMillis() + owner.sprinklerInterval * 50L;
+                    owner.sprinklerPourTarget = null;
+                    owner.reporter.announceSprinklerRoundDone(owner.planner.sprinklerPointsInDimension().size());
                 }
                 yield true;
             }

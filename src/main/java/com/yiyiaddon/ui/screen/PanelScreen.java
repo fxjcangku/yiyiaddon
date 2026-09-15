@@ -24,7 +24,10 @@ import io.github.humbleui.types.RRect;
 import io.github.humbleui.types.Rect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
@@ -285,6 +288,32 @@ public abstract class PanelScreen extends SkiaScreen {
     }
 
     // ── 输入 ──
+
+    /**
+     * 键盘 / 输入法转发。
+     *
+     * <p>{@code SettingTextBox} 的焦点、光标与输入法状态都是静态的，界面只负责把事件转交给它；
+     * 少了这几个转发，本骨架下的输入框点得到焦点也打不进字——{@code ModuleScreen} 与
+     * {@code ClickGuiScreen} 各自都写了同样的转发，这里补齐，避免 PanelScreen 系窗口
+     * （双栏选择器、调色盘、更多管理页等）的输入框全部失灵。</p>
+     */
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (SettingTextBox.keyPressed(event)) return true;
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        if (SettingTextBox.charTyped(event)) return true;
+        return super.charTyped(event);
+    }
+
+    @Override
+    public boolean preeditUpdated(PreeditEvent event) {
+        SettingTextBox.onPreedit(event);
+        return true;
+    }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean consumed) {

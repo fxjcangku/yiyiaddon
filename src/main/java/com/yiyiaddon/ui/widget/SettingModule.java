@@ -336,7 +336,10 @@ public class SettingModule {
     public boolean onClick(float mx, float my, float x, float y, float contentW, int button) {
         float moduleBottom = y + MODULE_H - 8f;
         if (my >= y && my <= moduleBottom) {
-            if (button == 1 && hasVisibleSubEntries()) {
+            // 右键展开；没有主控件也没有快捷键的「纯标题分组」左键同样可以展开，
+            // 否则用户左键点标题毫无反应（例如 Baritone设置 的七个分组）。
+            boolean headerOnly = mainWidget == null && !isKeybindable();
+            if ((button == 1 || (button == 0 && headerOnly)) && hasVisibleSubEntries()) {
                 expanded = !expanded;
                 return true;
             }

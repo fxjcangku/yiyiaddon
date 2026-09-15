@@ -39,15 +39,22 @@ public final class BlockIdentifier {
      * 识别当前准星命中的方块；未命中方块或不可识别返回 {@code null}。
      *
      * <p>准星可能命中实体而非方块，此时不误判，返回 {@code null} 由调用方提示「未指向方块」。</p>
+     *
+     * <p><b>两道必拦的假命中：</b>准星朝天空 / 朝空气时 {@code mc.hitResult} 同样是
+     * {@link BlockHitResult}，只是类型为 {@link HitResult.Type#MISS}，其坐标是射线端点附近的
+     * 空气方块——只判 {@code instanceof} 会把空气当成命中方块写进记录（写出 {@code minecraft:air}）。
+     * 因此这里显式要求类型为 {@code BLOCK}，并再判一次 {@link BlockState#isAir()}。</p>
      */
     public static BlockIdentity identify() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return null;
         HitResult hit = mc.hitResult;
         if (!(hit instanceof BlockHitResult blockHit)) return null;
+        if (hit.getType() != HitResult.Type.BLOCK) return null;
 
         var pos = blockHit.getBlockPos();
         BlockState state = mc.level.getBlockState(pos);
+        if (state.isAir()) return null;
         Identifier blockKey = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         String blockId = blockKey.toString();
 

@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.render;
 
+import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 
 /**
@@ -15,6 +16,10 @@ import io.github.humbleui.skija.Canvas;
  *   <li>其余格式码（{@code §o} 斜体、{@code §n} 下划线、{@code §m} 删除线、{@code §k} 随机）暂不渲染，
  *       仅从文本中剔除，避免颜色码字符漏到界面上。</li>
  * </ul>
+ *
+ * <p><b>颜色码跟随主题明暗：</b>16 色在原版是固定 RGB，深色面板上没问题；浅色主题下
+ * {@code §f} / {@code §7} / {@code §8} 会糊在白底上，因此浅色主题走
+ * {@link #LIGHT_COLORS}（同色相的深色版），深色主题仍用原版调色板。</p>
  */
 public final class MinecraftText {
 
@@ -26,6 +31,24 @@ public final class MinecraftText {
             0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, 0xAA0000, 0xAA00AA, 0xFFAA00, 0xAAAAAA,
             0x555555, 0x5555FF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF
     };
+
+    /**
+     * 浅色主题下的同一套 16 色（保持色相，压暗以提高白底对比度）。
+     *
+     * <p>界面文案逐字保留旧项目的 {@code §} 颜色码，而旧项目面板是深色的；换到浅色主题后
+     * {@code §f} 白、{@code §7} 灰、{@code §e} 亮黄在白底上会直接糊掉。这里只做「同一语义的
+     * 深色版」映射，深色主题一个像素都不改。</p>
+     */
+    private static final int[] LIGHT_COLORS = {
+            0x1C1C1E, 0x0000AA, 0x1E7A1E, 0x0B6E78, 0xB00000, 0x8A0A8A, 0xA86A00, 0x6B6B70,
+            0x8A8A90, 0x2A4BD7, 0x1E8E3E, 0x0B7C8C, 0xC62828, 0xB33BB3, 0x9A6E00, 0x1C1C1E
+    };
+
+    /** 取当前主题下该颜色码实际使用的 RGB。 */
+    private static int palette(int index) {
+        ClickGuiThemeColors colors = ClickGuiThemeColors.current();
+        return colors != null && !colors.dark ? LIGHT_COLORS[index] : COLORS[index];
+    }
 
     private MinecraftText() {
     }
@@ -59,7 +82,7 @@ public final class MinecraftText {
                 } else {
                     int index = Character.digit(code, 16);
                     if (index >= 0) {
-                        color = COLORS[index];
+                        color = palette(index);
                         currentBold = false;
                     }
                 }

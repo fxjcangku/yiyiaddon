@@ -88,6 +88,15 @@ public final class StardewTargetSelectScreen extends PanelScreen {
     private static final float HINT_LINE_HEIGHT = 20f;
     private static final float HINT_SIZE = 10f;
 
+    /** 用户状态列在「可添加 / 已选择」实测宽度之外额外占用的像素 */
+    private static final float STATUS_PAD = 10f;
+    /** 名称列自然宽度之外额外占用的像素（旧项目 recomputeColumns 的 {@code +12}） */
+    private static final float NAME_PAD = 12f;
+    /** 名称列压缩下限：再挤也不会低于这个宽度，否则文字全成省略号（旧项目 COL_NAME_MIN） */
+    private static final float NAME_MIN = 56f;
+    /** 种子名称列压缩下限（旧项目 COL_SEED_NAME_MIN） */
+    private static final float SEED_NAME_MIN = 48f;
+
     private static final float TIP_SIZE = 10f;
     private static final float TIP_LINE = 12f;
     private static final float TIP_PAD = 6f;
@@ -95,8 +104,16 @@ public final class StardewTargetSelectScreen extends PanelScreen {
     private static final float TIP_OFFSET_X = 14f;
     private static final float TIP_OFFSET_Y = 16f;
 
-    /** 名称基准色：旧项目作物名 {@code §f} */
-    private static final int NAME_COLOR = 0xFFFFFF;
+    /**
+     * 名称 / tooltip 基准色：旧项目作物名是 {@code §f}，那是深色底。
+     *
+     * <p>浅色主题下面板与浮层底色都是白的，白字压白底等于看不见，因此浅色主题改用主文字色；
+     * 深色主题一个像素不改；文案自带 {@code §} 颜色码时照旧覆盖基准色。</p>
+     */
+    private static int nameColor() {
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        return tc != null && !tc.dark ? tc.primaryText : 0xFFFFFF;
+    }
     /** 种子名基准色：旧项目 {@code §7} */
     private static final int SEED_NAME_COLOR = 0xAAAAAA;
 
@@ -105,6 +122,10 @@ public final class StardewTargetSelectScreen extends PanelScreen {
     private final Columns columns = new Columns();
 
     private String filter = "";
+
+    /** 本类别全部候选里最长的真实名称宽度（名称列）与最长种子名宽度（种子名称列） */
+    private float nameNatural;
+    private float seedNatural;
 
     /** 本帧待绘制的 tooltip 文本与锚点；两栏画完后由 {@link Columns} 统一绘制并清空 */
     private String tipText;
@@ -163,6 +184,7 @@ public final class StardewTargetSelectScreen extends PanelScreen {
 
     /** 按当前选择集合与过滤词重建两栏（旧 {@code rebuild()} 同口径） */
     private void rebuild() {
+        recomputeColumns();
         columns.reset();
         CompactStack left = columns.left();
         CompactStack right = columns.right();
@@ -198,6 +220,29 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         }
         if (leftEmpty) left.add(new TextLine(EMPTY_TEXT).height(TITLE_HEIGHT));
         if (rightEmpty) right.add(new TextLine(EMPTY_TEXT).height(TITLE_HEIGHT));
+    }
+
+    /**
+     * 按「真实字体像素」量出名称两列的自然宽度（旧项目 {@code recomputeColumns()} 的等价物）。
+     *
+     * <p>只依赖本类别的完整候选集，不依赖搜索词——输入关键字时列宽不会跳动。工具类的种子列
+     * 自然宽度为 0，仍按 {@link #SEED_NAME_MIN} 占位，保证与作物行同列对齐。</p>
+     */
+    private void recomputeColumns() {
+        float name = 0f;
+        float seed = 0f;
+        if (category == StardewSelectorCategory.CROP) {
+            for (CropDefinition crop : module.index().crops()) {
+                name = Math.max(name, MinecraftText.measure(safe(crop.chineseName()), NAME_SIZE, false));
+                seed = Math.max(seed, MinecraftText.measure(safe(crop.seedDisplayName()), NAME_SIZE, false));
+            }
+        } else {
+            for (StardewToolDefinition entry : module.index().entriesFor(category)) {
+                name = Math.max(name, MinecraftText.measure(safe(entry.displayName()), NAME_SIZE, false));
+            }
+        }
+        nameNatural = name;
+        seedNatural = seed;
     }
 
     // ── 行构建（文案与 tooltip 逐字照旧） ──
@@ -340,8 +385,9 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         GlassPanel.rim(canvas, tipX, tipY, width, height, TIP_RADIUS, tc.rim, alpha, 0.22f);
 
         float cursorY = tipY + TIP_PAD;
+        int base = nameColor();
         for (String line : lines) {
-            MinecraftText.draw(canvas, line, tipX + TIP_PAD, cursorY + TIP_SIZE, TIP_SIZE, NAME_COLOR, alpha);
+            MinecraftText.draw(canvas, line, tipX + TIP_PAD, cursorY + TIP_SIZE, TIP_SIZE, base, alpha);
             cursorY += TIP_LINE;
         }
     }
@@ -466,30 +512,31 @@ public final class StardewTargetSelectScreen extends PanelScreen {
             }
 
             float centerY = y + ROW_HEIGHT / 2f;
-            float[] geometry = geometry(width);
-            float nameX = geometry[0];
-            float nameWidth = geometry[1];
-            float seedIconX = geometry[2];
-            float seedX = geometry[3];
-            float seedWidth = geometry[4];
-            float statusX = geometry[5];
-            float actionX = geometry[6];
+            float[] geometry = geometry(x, width);
+            float iconX = geometry[0];
+            float nameX = geometry[1];
+            float nameWidth = geometry[2];
+            float seedIconX = geometry[3];
+            float seedX = geometry[4];
+            float seedWidth = geometry[5];
+            float statusX = geometry[6];
+            float actionX = geometry[7];
 
             if (iconModel != null) {
-                drawIconCell(canvas, iconModel, x + PAD_X, centerY, alpha, mouseX, mouseY, y);
+                drawIconCell(canvas, iconModel, iconX, centerY, alpha, mouseX, mouseY, y);
             }
-            drawTextCell(canvas, nameText, NAME_COLOR, nameX, nameWidth, centerY, alpha,
+            drawTextCell(canvas, nameText, "§f", nameColor(), nameX, nameWidth, centerY, alpha,
                 mouseX, mouseY, y, nameTip);
             if (seedModel != null) {
                 drawIconCell(canvas, seedModel, seedIconX, centerY, alpha, mouseX, mouseY, y);
             }
             if (seedText != null) {
-                drawTextCell(canvas, seedText, SEED_NAME_COLOR, seedX, seedWidth, centerY, alpha,
+                drawTextCell(canvas, seedText, "§7", SEED_NAME_COLOR, seedX, seedWidth, centerY, alpha,
                     mouseX, mouseY, y, seedTip);
             }
 
             MinecraftText.draw(canvas, selected ? "§b已选择" : "§a可添加", statusX,
-                CardLayout.baseline(centerY, STATUS_SIZE), STATUS_SIZE, NAME_COLOR, alpha);
+                CardLayout.baseline(centerY, STATUS_SIZE), STATUS_SIZE, nameColor(), alpha);
 
             float actionY = centerY - ACTION / 2f;
             action.hover(mouseX, mouseY, actionX, actionY, ACTION);
@@ -499,8 +546,8 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         @Override
         public boolean onClick(float mx, float my, float x, float y, float width, int button) {
             if (button != 0 || my < y || my > y + ROW_HEIGHT) return false;
-            float[] geometry = geometry(width);
-            float actionX = geometry[6];
+            float[] geometry = geometry(x, width);
+            float actionX = geometry[7];
             return action.onClick(mx, my, actionX, y + (ROW_HEIGHT - ACTION) / 2f, button);
         }
 
@@ -510,27 +557,40 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         }
 
         /**
-         * 列几何（相对本行左边界）：{@code [0]} 名称列 X、{@code [1]} 名称列宽、
-         * {@code [2]} 种子图标 X、{@code [3]} 种子名称 X、{@code [4]} 种子名称宽、
-         * {@code [5]} 状态列 X、{@code [6]} 操作列 X。
+         * 列几何（**绝对坐标**，已含行左边界 {@code x}）：{@code [0]} 产物图标 X、{@code [1]} 名称列 X、
+         * {@code [2]} 名称列宽、{@code [3]} 种子图标 X、{@code [4]} 种子名称 X、{@code [5]} 种子名称宽、
+         * {@code [6]} 状态列 X、{@code [7]} 操作列 X。
          *
-         * <p>名称两列平分扣除固定列后的剩余宽度（旧项目按真实字体像素分配列宽，本项目按可用宽度
-         * 平分并在超宽时省略号截断，完整名称与全部技术信息保留在逐行 tooltip 里）。</p>
+         * <p>依次为：产物图标 → 名称 → 种子图标 → 种子名 → 状态 → 加减号。绘制与点击共用同一份结果，
+         * 因此点得到的一定是画出来的那个位置。</p>
+         *
+         * <p>与旧项目 {@code recomputeColumns()} 同口径：名称两列按本类别「最长真实名称 + 呼吸量」
+         * 给足（各有压缩下限），两列合计超出可用宽度时按比例压缩；状态列按「可添加 / 已选择」的
+         * 实测宽度给足，永不出现省略号。工具类没有种子名称，仍按种子列占位，因此六类列表的
+         * 状态列与加减号永远同一 X。</p>
          */
-        private float[] geometry(float width) {
+        private float[] geometry(float x, float width) {
             float statusWidth = Math.max(MinecraftText.measure("可添加", STATUS_SIZE, false),
-                MinecraftText.measure("已选择", STATUS_SIZE, false)) + 10f;
+                MinecraftText.measure("已选择", STATUS_SIZE, false)) + STATUS_PAD;
             float reserved = PAD_X * 2f + ICON * 2f + GAP * 5f + statusWidth + ACTION;
             float free = Math.max(0f, width - reserved);
-            float nameWidth = free * 0.5f;
-            float seedWidth = free - nameWidth;
 
-            float nameX = PAD_X + ICON + GAP;
+            float nameWidth = Math.max(NAME_MIN, nameNatural + NAME_PAD);
+            float seedWidth = Math.max(SEED_NAME_MIN, seedNatural + NAME_PAD);
+            float sum = nameWidth + seedWidth;
+            if (sum > free && sum > 0f) {
+                float fit = free / sum;
+                nameWidth *= fit;
+                seedWidth *= fit;
+            }
+
+            float iconX = x + PAD_X;
+            float nameX = iconX + ICON + GAP;
             float seedIconX = nameX + nameWidth + GAP;
             float seedX = seedIconX + ICON + GAP;
             float statusX = seedX + seedWidth + GAP;
-            float actionX = width - PAD_X - ACTION;
-            return new float[]{nameX, nameWidth, seedIconX, seedX, seedWidth, statusX, actionX};
+            float actionX = x + width - PAD_X - ACTION;
+            return new float[]{iconX, nameX, nameWidth, seedIconX, seedX, seedWidth, statusX, actionX};
         }
 
         /** 图标列：资源包确实提供 items/ 定义才画真实物品，缺失时给可读的 {@code §8[?]} 与完整诊断 */
@@ -539,7 +599,7 @@ public final class StardewTargetSelectScreen extends PanelScreen {
             ItemStack stack = StardewPreview.of(model);
             if (stack.isEmpty()) {
                 MinecraftText.draw(canvas, "§8[?]", x, CardLayout.baseline(centerY, ICON_TEXT_SIZE),
-                    ICON_TEXT_SIZE, NAME_COLOR, alpha);
+                    ICON_TEXT_SIZE, nameColor(), alpha);
                 if (inCell(mouseX, mouseY, x, ICON, rowY)) {
                     setTip("§c缺失图标\n§7" + StardewPreview.diagnose(model),
                         mouseX + TIP_OFFSET_X, mouseY + TIP_OFFSET_Y);
@@ -550,11 +610,13 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         }
 
         /** 文本列：超宽按可用宽度加省略号，完整原文在 tooltip 里 */
-        private void drawTextCell(Canvas canvas, String text, int baseColor, float x, float width,
+        private void drawTextCell(Canvas canvas, String text, String prefix, int baseColor, float x, float width,
                                   float centerY, float alpha, float mouseX, float mouseY, float rowY,
                                   String tip) {
+            // 前缀是旧项目该列的颜色代码（名称 §f、种子名 §7）：走 MinecraftText 既能在深色主题保持
+            // 原样，也能在浅色主题映射成可读的深色，不会出现「白字画在白底上」。
             String shown = CardLayout.ellipsize(text, Math.max(0f, width), NAME_SIZE);
-            MinecraftText.draw(canvas, shown, x, CardLayout.baseline(centerY, NAME_SIZE), NAME_SIZE,
+            MinecraftText.draw(canvas, prefix + shown, x, CardLayout.baseline(centerY, NAME_SIZE), NAME_SIZE,
                 baseColor, alpha);
             if (tip != null && inCell(mouseX, mouseY, x, width, rowY)) {
                 setTip(tip, mouseX + TIP_OFFSET_X, mouseY + TIP_OFFSET_Y);
@@ -590,7 +652,7 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         @Override
         public void draw(Canvas canvas, float x, float y, float width, float alpha, float mouseX, float mouseY) {
             MinecraftText.draw(canvas, text, x + TIP_PAD, CardLayout.baseline(y + HINT_LINE_HEIGHT / 2f, HINT_SIZE),
-                HINT_SIZE, NAME_COLOR, alpha);
+                HINT_SIZE, nameColor(), alpha);
             if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + HINT_LINE_HEIGHT) {
                 setTip(detail, mouseX + TIP_OFFSET_X, mouseY + TIP_OFFSET_Y);
             }

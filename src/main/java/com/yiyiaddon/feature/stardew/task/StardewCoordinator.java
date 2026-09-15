@@ -15,6 +15,7 @@ import com.yiyiaddon.feature.stardew.profile.StardewCropLifecycle;
 import com.yiyiaddon.feature.stardew.profile.StardewHarvestRule;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.StardewServerProfile;
+import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
 import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
@@ -62,6 +63,26 @@ public final class StardewCoordinator {
 
     static final int MAX_RETRY = 3;
     static final int DEFAULT_VERIFY_TICKS = 8;
+    /** 点位方块巡检间隔（tick）：绑定的箱子 / 水源 / 洒水器被挖掉时及时发现并报错 */
+    static final int POINT_WATCH_INTERVAL = 20;
+    /**
+     * 给洒水器灌水时，同一 tick 连发几包（1 包 = 灌 1 点水）。
+     *
+     * <p><b>为什么要连发：</b>一包包按 tick 摊开、每包还等一次验证，灌满一台高级洒水器要两三秒，
+     * 观感就是「一下一下太慢」。同一 tick 连发时服务端最多吞掉个别包（水源实测 10 包生效 9 包），
+     * 多发的包对已满的洒水器是空操作、不浪费壶里的水，验证阶段读一次壶水差额就能发现还差多少并补齐。</p>
+     */
+    static final int SPRINKLER_BURST_PACKETS = 8;
+    /** 单台洒水器最多灌几批（每批 {@link #SPRINKLER_BURST_PACKETS} 包），服务端行为异常时的硬兜底 */
+    static final int SPRINKLER_MAX_BURSTS = 3;
+    /**
+     * 判定「满」的洒水器要跳过几轮普通检查。
+     *
+     * <p><b>为什么要有这个：</b>一台洒水器灌满后，下一轮维护又要走过去点一下才发现「还是满的」，
+     * 白白跑腿。这里把刚验过是满的台记住 4 个检查间隔，期间不再挑它当目标；到点后照常重新检查
+     * （洒水器灌溉会消耗水量，所以只推迟、不永久跳过）。</p>
+     */
+    static final int SPRINKLER_FULL_SKIP_ROUNDS = 4;
     static final int LOGISTICS_COOLDOWN = 200;
     /** 关闭箱无法监听外部玩家改动时的保险重查；正常解锁优先由背包/掉落/配置事件驱动。 */
     static final long RESTOCK_SAFETY_RECHECK_MS = 15L * 60_000L;
@@ -72,12 +93,20 @@ public final class StardewCoordinator {
     static final double NAVIGATION_PROGRESS_SQ = 0.04;
     static final int REFILL_MAX_PACKETS = 32;
     /**
-     * 补水单 tick 连发硬上限。
+     * 读不到水壶容量时，一轮补水保守发多少包。
      *
-     * <p>已知水壶容量时，一轮就能把差值一次发完（瞬间补满）；这个上限保证即便容量很大，
-     * 也不会在一 tick 内刷出几十个交互包。</p>
+     * <p>容量读得到时按「差多少发多少」一次打满；只有 Tooltip / LORE / custom_data 全读不出容量，
+     * 才退回这个固定批量，靠验证阶段一点点逼近。</p>
      */
-    static final int REFILL_BURST_HARD_CAP = 16;
+    static final int REFILL_BURST_UNKNOWN = 8;
+    /**
+     * 补水时「连续几轮验证都读不到增量」才判定推不动。
+     *
+     * <p>服务端偶尔会吞掉同一 tick 里的某几个交互，所以不能一次没涨就收工：
+     * 一轮已经把缺的水全发出去了，连续 {@code REFILL_STABLE_LIMIT} 轮没涨才认为补不动
+     * （已经补进去的水照常使用）。</p>
+     */
+    static final int REFILL_STABLE_LIMIT = 2;
     /**
      * 拾取判定半径（格），量的是「玩家到掉落物真实坐标」的距离。
      *
@@ -106,7 +135,7 @@ public final class StardewCoordinator {
     /** 精确移动（非整叠）时单次交互最多连发的点击次数，超出部分下一轮继续。 */
     static final int MAX_TRANSFER_BURST = 16;
     /** 「批量右击」的硬上限：再多也不会发，避免一 tick 内刷出一串交互包。 */
-    static final int MAX_BATCH_ACTIONS = 4;
+    static final int MAX_BATCH_ACTIONS = 8;
 
     final StardewFarmScanner scanner;
     final StardewAdapter adapter;
@@ -126,6 +155,13 @@ public final class StardewCoordinator {
     List<String> selectedFertilizerKeys = List.of();
     List<String> selectedPotionKeys = List.of();
     List<String> selectedSprinklerKeys = List.of();
+
+    /**
+     * 分区种植（实验）是否开启；关闭时 {@link #regions} 不做任何事，行为与开启前完全一致。
+     */
+    boolean regionPlanting = false;
+    /** 当前维度内的种植区域快照（模块每 tick 同步）；分区关闭时为空表 */
+    List<StardewRegionManager.Region> regions = List.of();
 
     String serverKey = "";
     String dimension = "";
@@ -170,6 +206,20 @@ public final class StardewCoordinator {
     Consumer<LearnedHarvest> harvestLearningListener = learned -> { };
     /** 配置页与聊天共用的唯一状态出口。 */
     StardewStatusReporter status = new StardewStatusReporter(null);
+
+    /**
+     * 「整片田都不是已选作物」时的停机回调，由模块注入。
+     *
+     * <p>协调器不自己关模块（那是框架层的事），只把冲突作物名交出去；为 null 时不做停机，
+     * 避免回调缺失时每轮 decide 都被挡在半路、连「回中心」都走不到。</p>
+     */
+    Consumer<List<String>> cropMismatchHandler = null;
+    /** 「某块种植区域内种了别的作物」的停机回调，由模块注入（分区模式专用） */
+    Consumer<List<String>> regionMismatchHandler = null;
+    /** 分区模式：已提示过「缺种子」的区域号（同一块地只报一次，不刷屏） */
+    final Set<Integer> announcedRegionSeedShortage = new HashSet<>();
+    /** 分区模式：是否已提示过「开了分区但还没有区域」 */
+    boolean regionEmptyAnnounced = false;
     /** 作物数量配置只在这里换算成唯一实际个数。 */
     Function<String, StardewCropPlanStore.CropPlan> cropPlanResolver = key -> StardewCropPlanStore.CropPlan.DEFAULT;
 
@@ -189,6 +239,44 @@ public final class StardewCoordinator {
         if (listener != null) this.harvestLearningListener = listener;
     }
 
+    /** 注入「整片田都是未选作物」的停机回调（模块在构造时注入一次）。 */
+    public void setCropMismatchHandler(Consumer<List<String>> handler) {
+        this.cropMismatchHandler = handler;
+    }
+
+    /**
+     * 注入「某个种植区域内种了别的作物」的停机回调（分区种植专用）。
+     *
+     * <p>与 {@link #cropMismatchHandler} 一样，协调器只判定与交付冲突详情，关模块由模块执行。</p>
+     */
+    public void setRegionMismatchHandler(Consumer<List<String>> handler) {
+        this.regionMismatchHandler = handler;
+    }
+
+    /**
+     * 该坐标所属的种植区域；分区关闭或这一格不在任何区域内时返回 {@code null}。
+     *
+     * <p>「不在任何区域内」＝未分区格子，分区模式下这些格子一律不管（不种 / 不收 / 不浇 / 不画）。</p>
+     */
+    StardewRegionManager.Region regionAt(BlockPos pos) {
+        if (!regionPlanting || pos == null) return null;
+        for (StardewRegionManager.Region region : regions) {
+            if (region.contains(pos)) return region;
+        }
+        return null;
+    }
+
+    /**
+     * 分区模式是否生效：实验开关开着就生效，与「有没有区域」无关。
+     *
+     * <p><b>为什么不是「有区域才算」：</b>一旦开关开着，整片田的口径就退出（{@code 未分区 = 不管}）。
+     * 若按「有区域才算」，玩家运行中把区域删光，模块会悄悄退回旧口径去管整片田，正好与
+     * 「删除 = 不再管这块地」相反。区域为空时正确的行为是「什么都不做」。</p>
+     */
+    boolean regionModeActive() {
+        return regionPlanting;
+    }
+
     /** 取某种作物自己的后勤阈值（未配置时由解析器给出默认值） */
     StardewLogisticsStore.CropLogistics logisticsOf(String cropKey) {
         StardewLogisticsStore.CropLogistics value = logisticsResolver.apply(cropKey);
@@ -204,6 +292,16 @@ public final class StardewCoordinator {
     int retryCount;
     /** 视角同步：本轮「动手前等视线转正」已等待的 tick 数 */
     int viewAlignWait;
+    /** 点位方块巡检的 tick 计数（见 {@link #POINT_WATCH_INTERVAL}） */
+    int pointWatchTicks;
+    /** 洒水器灌注：点击前的壶水量（验证阶段比对用），读不到为 null */
+    Integer sprinklerWaterBefore;
+    /** 当前这台洒水器已灌了几批（换台或新一轮归零，见 {@link #SPRINKLER_MAX_BURSTS}） */
+    int sprinklerBursts;
+    /** 当前正在灌注的洒水器坐标：与它不同即视为换台，次数重新计 */
+    BlockPos sprinklerPourTarget;
+    /** 「刚验过是满的」洒水器：坐标 → 到期时间（毫秒），见 {@link #SPRINKLER_FULL_SKIP_ROUNDS} */
+    private final java.util.Map<BlockPos, Long> sprinklerFullUntil = new java.util.HashMap<>();
 
     // ── 多步任务子状态（后勤 / 补水 / 施肥 / 洒水器） ──
     final ContainerService broker = new ContainerService();
@@ -337,7 +435,9 @@ public final class StardewCoordinator {
                           boolean autoFertilize, boolean autoPotion,
                           boolean sprinklerMaintenance, int sprinklerInterval,
                           int restockTrigger, int restockTarget, int unloadTrigger, int unloadKeep,
-                          int returnCenterDelaySeconds, int batchActions) {
+                          int returnCenterDelaySeconds, int batchActions,
+                          boolean regionPlanting,
+                          List<StardewRegionManager.Region> regions) {
         List<String> newCropKeys = selectedCropKeys == null ? List.of() : List.copyOf(selectedCropKeys);
         BlockPos newSeedBox = points == null || points.get(StardewPointType.SEED_BOX) == null
             ? null : points.get(StardewPointType.SEED_BOX).pos();
@@ -392,6 +492,8 @@ public final class StardewCoordinator {
         this.unloadKeep = unloadKeep;
         this.returnCenterDelayTicks = Math.max(1, returnCenterDelaySeconds) * 20;
         this.batchActions = Math.max(1, Math.min(MAX_BATCH_ACTIONS, batchActions));
+        this.regionPlanting = regionPlanting;
+        this.regions = regions == null ? List.of() : List.copyOf(regions);
         // 启动自检保证此刻背包有种子；先读取一次真实 Tooltip，后续最后一颗种子消耗完时，
         // 季节闸门仍可使用同一 ServerKey + 指纹会话中的已验证规则，绝不会先跑补货再判季节。
         if (index != null && inventory != null) {
@@ -412,6 +514,8 @@ public final class StardewCoordinator {
         stepTick = 0;
         retryCount = 0;
         viewAlignWait = 0;
+        pointWatchTicks = 0;
+        reporter.forgetLostPoints();
         taskStep = 0;
         taskTicks = 0;
         targetContainer = null;
@@ -439,6 +543,7 @@ public final class StardewCoordinator {
         unloadBlockedUntil.clear();
         seedReturnBlockedUntil.clear();
         navigationBlockedUntil.clear();
+        sprinklerFullUntil.clear();
         planner.resetNavigationWatchdog();
         playerPositionKnown = false;
         stationaryTicks = 0;
@@ -450,6 +555,8 @@ public final class StardewCoordinator {
         seasonBlockedCrops.clear();
         announcedSeasonBlocks.clear();
         announcedSeedReturns.clear();
+        announcedRegionSeedShortage.clear();
+        regionEmptyAnnounced = false;
         waitingSeasonAnnouncedLabel = null;
         reportedContainerFailures.clear();
         reportedCollectFailures.clear();
@@ -464,6 +571,28 @@ public final class StardewCoordinator {
 
     public TaskType currentTask() {
         return taskType;
+    }
+
+    /** 这台洒水器是否在「刚验过是满的」窗口内（窗口到点后自动失效，不会永久跳过） */
+    boolean isSprinklerRecentlyFull(BlockPos pos) {
+        if (pos == null) return false;
+        Long until = sprinklerFullUntil.get(pos);
+        if (until == null) return false;
+        if (System.currentTimeMillis() < until) return true;
+        sprinklerFullUntil.remove(pos);
+        return false;
+    }
+
+    /** 刚验证这台是满的：记下跳过窗口，下一轮不再为它白跑 */
+    void markSprinklerFull(BlockPos pos) {
+        if (pos == null) return;
+        sprinklerFullUntil.put(pos, System.currentTimeMillis()
+            + sprinklerInterval * 50L * SPRINKLER_FULL_SKIP_ROUNDS);
+    }
+
+    /** 这台又在吃水了（灌进去过）：立刻取消跳过，恢复正常检查节奏 */
+    void markSprinklerConsuming(BlockPos pos) {
+        if (pos != null) sprinklerFullUntil.remove(pos);
     }
 
     public BlockPos currentTarget() {
@@ -497,6 +626,11 @@ public final class StardewCoordinator {
     public void tick() {
         if (profile == null || index == null || idManager == null || memory == null || inventory == null) return;
         if (points == null) return;
+        // 点位方块巡检：绑定的箱子 / 水源 / 洒水器被挖掉时立即报警，不必等下一次真正用到才发现
+        if (++pointWatchTicks >= POINT_WATCH_INTERVAL) {
+            pointWatchTicks = 0;
+            reporter.watchPointBlocks();
+        }
         if (reporter.farmBoundaryFailure()) return;
         if (logisticsCooldown > 0) logisticsCooldown--;
         long seasonRevision = seasonService.revision();
@@ -545,6 +679,17 @@ public final class StardewCoordinator {
         // 季节阻塞每轮重算：只有「本轮真实需要播种却被季节拒绝」的作物才算阻塞，
         // 旧阻塞不会残留（播报去重由 announcedSeasonBlocks 独立承担，重算不会重复刷屏）
         seasonBlockedCrops.clear();
+
+        // 分区种植开启但一个区域都没有：什么都不做。
+        // 此时整片田口径已经退出（未分区 = 不管），绝不能悄悄退回旧口径去管整片田。
+        if (regionModeActive() && regions.isEmpty()) {
+            if (!regionEmptyAnnounced) {
+                regionEmptyAnnounced = true;
+                status.state("REGION_EMPTY", "分区种植已开启", "还没有种植区域 ▸ 用 .stardew 种植区域 <作物> 圈一块");
+            }
+            restartObserve();
+            return;
+        }
 
         // 资源保护：背包快满且能卸货时，优先卸货避免掉落损失
         if (planner.tryStartUnloadForProtection()) {
@@ -606,6 +751,28 @@ public final class StardewCoordinator {
         if (planner.tryStartSeedReturn()) {
             phase = Phase.NAVIGATE;
             return;
+        }
+
+        // 分区模式：某块区域里种了别的作物 → 同样报错停机（口径由区域决定种什么，不将就）
+        if (regionModeActive() && regionMismatchHandler != null) {
+            List<String> mismatched = planner.regionMismatchedCrops();
+            if (!mismatched.isEmpty()) {
+                regionMismatchHandler.accept(mismatched);
+                return;
+            }
+        }
+
+        // 整片田种的都是「没选进种植列表」的作物：本轮必然没有任何可执行任务。
+        // 旧项目在这里静默跳过（resolveTask 对未选作物直接返回 null），玩家看到的是
+        // 「不收也不浇，直接回中心站着」，只会以为模块卡死。这里改成报错 + 直接停机：
+        // 停机由模块执行（框架层的事），协调器只负责判定与把冲突作物名交出去。
+        // 分区模式下未分区格子不管，因此这条只对「已分区格子」之外的旧口径场景生效。
+        if (cropMismatchHandler != null && !regionModeActive()) {
+            List<String> mismatched = planner.mismatchedCrops();
+            if (!mismatched.isEmpty()) {
+                cropMismatchHandler.accept(mismatched);
+                return;
+            }
         }
 
         if (waitingForGrowth && !waitingMatureNotified) {
@@ -770,6 +937,11 @@ public final class StardewCoordinator {
         if (success) {
             verifier.notifyTaskSuccess();
             phase = Phase.REPLAN;
+        } else if (taskType == TaskType.SPRINKLER_CHECK) {
+            // 洒水器灌注循环：不受普通重试上限（MAX_RETRY=3）约束，
+            // 上限由 SPRINKLER_MAX_POURS 兜底，否则高级洒水器永远灌不满。
+            stepTick = 0;
+            phase = Phase.NAVIGATE;
         } else if (taskType == TaskType.WATER && (executor.canWaterIsEmpty() || retryCount >= MAX_RETRY)) {
             // 水量字段缺失时以连续浇水失败兜底判断空壶，下一轮必须先去补水点。
             forceRefill = true;

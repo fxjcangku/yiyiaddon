@@ -264,12 +264,12 @@ public final class BaritoneChatTranslations {
      */
     private static final Map<String, String> EXPECTED_TYPE_NAMES = Map.ofEntries(
         Map.entry("Integer", "整数"),
-        Map.entry("Boolean", "布尔值"),
+        Map.entry("Boolean", "开 / 关"),
         Map.entry("Double", "小数"),
         Map.entry("Float", "小数"),
-        Map.entry("Long", "长整数"),
-        Map.entry("String", "字符串"),
-        Map.entry("Vec3i", "整数坐标"),
+        Map.entry("Long", "整数"),
+        Map.entry("String", "文字"),
+        Map.entry("Vec3i", "三个整数"),
         Map.entry("Goal", "目标"),
         Map.entry("Axis", "坐标轴"),
         Map.entry("Direction", "方向"),

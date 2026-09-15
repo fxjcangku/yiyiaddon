@@ -2,10 +2,13 @@ package com.yiyiaddon.feature.identity;
 
 import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.core.module.Module;
+import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.identity.service.IdentityActions;
 import com.yiyiaddon.feature.identity.ui.IdConfigPage;
+import com.yiyiaddon.feature.identity.ui.IdScreens;
 import com.yiyiaddon.model.identity.BlockIdentity;
 import com.yiyiaddon.model.identity.EntityIdentity;
+import com.yiyiaddon.model.identity.IdentifyMode;
 import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.platform.identity.BlockIdentifier;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
@@ -42,6 +45,9 @@ public final class IdConfigModule extends Module {
     /** 回执前缀使用的模块名：旧项目模块显示名原文 */
     public static final String MESSAGE_MODULE = "ID配置管理";
 
+    /** 图标字形：齿轮（Material Symbols settings，已确认存在于所引字体） */
+    private static final String ICON = "\uE8B8";
+
     public IdConfigModule() {
         super(MODULE_ID, MESSAGE_MODULE, "assist",
                 "管理已识别的物品/实体/方块ID：搜索、筛选、分页、删除、清空、打开目录。点击按钮查看说明。");
@@ -50,6 +56,11 @@ public final class IdConfigModule extends Module {
     @Override
     public String name() {
         return "IdConfig";
+    }
+
+    @Override
+    public String icon() {
+        return ICON;
     }
 
     @Override
@@ -90,7 +101,8 @@ public final class IdConfigModule extends Module {
     /**
      * 识别手持物品并写入身份库（旧项目面板按钮原文：识别物品（主手→副手））。
      *
-     * <p>主手优先，主手为空读副手；播报文案逐字沿用旧项目面板。</p>
+     * <p>主手优先，主手为空读副手；播报文案逐字沿用旧项目面板。识别模式跟随「ID识别」模块，
+     * 详见 {@link #identifyMode()}。</p>
      */
     public void identifyItem() {
         Minecraft client = Minecraft.getInstance();
@@ -109,6 +121,11 @@ public final class IdConfigModule extends Module {
             ClientChat.send(MESSAGE_MODULE, "§c§l✗ 识别失败");
             return;
         }
+        // 与「ID识别」模块保持同一模式口径：非「自动保存」时只弹结果窗口，识别本身不写盘
+        if (identifyMode() != IdentifyMode.AUTO_SAVE) {
+            client.execute(() -> IdScreens.openItemResult(identity, client.screen));
+            return;
+        }
         if (IdentityService.shared().addItem(identity) != null) {
             ClientChat.send(MESSAGE_MODULE, "§a§l✓ 已识别物品 §8▸ §a§l" + identity.displayName());
         } else {
@@ -119,7 +136,8 @@ public final class IdConfigModule extends Module {
     /**
      * 识别准星命中的方块并保存稳定记录与状态快照（旧项目面板按钮原文：识别准星方块）。
      *
-     * <p>两条播报与旧项目一致：稳定记录一条、状态快照一条，各自区分「已保存 / 已存在」。</p>
+     * <p>两条播报与旧项目一致：稳定记录一条、状态快照一条，各自区分「已保存 / 已存在」。
+     * 识别模式跟随「ID识别」模块，详见 {@link #identifyMode()}。</p>
      */
     public void identifyBlock() {
         Minecraft client = Minecraft.getInstance();
@@ -130,6 +148,11 @@ public final class IdConfigModule extends Module {
         BlockIdentity identity = BlockIdentifier.identify();
         if (identity == null) {
             ClientChat.send(MESSAGE_MODULE, "§c§l✗ 自动识别失败：准星当前没有指向有效方块");
+            return;
+        }
+        // 与「ID识别」模块保持同一模式口径：非「自动保存」时只弹结果窗口，识别本身不写盘
+        if (identifyMode() != IdentifyMode.AUTO_SAVE) {
+            client.execute(() -> IdScreens.openBlockResult(identity, client.screen));
             return;
         }
         IdentityService service = IdentityService.shared();
@@ -145,6 +168,19 @@ public final class IdConfigModule extends Module {
         } else {
             ClientChat.send(MESSAGE_MODULE, "§7该方块状态快照已存在，未重复保存");
         }
+    }
+
+    /**
+     * 「ID识别」模块当前的识别模式：本面板的「识别物品」与「识别准星方块」与它保持同一口径。
+     *
+     * <p>面板不再无条件落盘——「聊天复制/显示」与「准星方块识别」下改为弹对应结果窗口，与
+     * {@code .id 物品} / {@code .id 方块} 完全一致。取不到该模块时按默认值「自动保存」处理，
+     * 绝不静默改成别的模式。</p>
+     */
+    private static IdentifyMode identifyMode() {
+        return ModuleManager.byId(IdIdentifyModule.MODULE_ID) instanceof IdIdentifyModule identify
+            ? identify.config().mode()
+            : IdentifyMode.AUTO_SAVE;
     }
 
     // ── 逐条删除（旧项目面板每行行尾减号） ──

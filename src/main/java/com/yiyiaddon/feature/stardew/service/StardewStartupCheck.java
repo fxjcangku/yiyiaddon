@@ -86,8 +86,16 @@ public final class StardewStartupCheck {
             if (crop == null || module.inventory().countSeed(crop) > 0) continue;
             missing.add("背包缺少" + crop.seedDisplayName());
         }
-        startupPoint(missing, StardewPointType.START, true);
-        startupPoint(missing, StardewPointType.END, true);
+        // 农田范围来源：分区种植开启时由种植区域决定（起止点完全不参与，没绑也不拦启动）；
+        // 关闭时与旧口径逐字一致——起止点必绑。
+        if (module.regionPlantingOn()) {
+            if (module.regionsInDimension().isEmpty()) {
+                missing.add("分区种植已开启但当前维度还没有种植区域（用 .stardew 种植区域 <作物> 圈地）");
+            }
+        } else {
+            startupPoint(missing, StardewPointType.START, true);
+            startupPoint(missing, StardewPointType.END, true);
+        }
         startupPoint(missing, StardewPointType.SEED_BOX, module.anyCropNeedsRestock());
         startupPoint(missing, StardewPointType.OUTPUT_BOX, module.anyCropNeedsUnload());
         if (module.settings().autoWater || module.settings().sprinklerMaintenance) {

@@ -369,7 +369,9 @@ public final class ResourcePackCache {
             boolean copied = false;
             for (File d : downloadDirs) {
                 if (!d.isDirectory()) continue;
-                File packDir = new File(d, packId.toString());
+                // 原版实际结构是「downloads/<包id>/<sha1>」（目录名就是包 UUID）；
+                // 这里同时兼容「downloads/<随机id>/<包id>/<sha1>」这种多一层目录的形态。
+                File packDir = d.getName().equals(packId.toString()) ? d : new File(d, packId.toString());
                 if (!packDir.isDirectory()) continue;
 
                 File[] files = packDir.listFiles();

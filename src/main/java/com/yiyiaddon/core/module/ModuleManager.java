@@ -249,6 +249,13 @@ public final class ModuleManager {
             forceDisable(module);
             return EnableResult.FAILED;
         }
+        // onEnable 内部可能已经把自己关掉（旧项目「点击开启即识别」这类一次性模块，激活后立刻
+        // closeQuietly）。此时内存状态已是关闭，配置必须跟着落成关闭、也不能再播报「已开启」，
+        // 否则会出现「配置说开着、内存是关的」这种自相矛盾，下次启动还会把它恢复成启用。
+        if (!module.isEnabled()) {
+            persistEnabled(module, false);
+            return EnableResult.SUCCESS;
+        }
         persistEnabled(module, true);
         if (announce && !module.suppressEnableAnnounce()) ClientChat.send(module.displayName(), "§a§l已开启");
         return EnableResult.SUCCESS;

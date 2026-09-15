@@ -2,7 +2,6 @@ package com.yiyiaddon.feature.identity;
 
 import com.google.gson.JsonObject;
 import com.yiyiaddon.command.ClientCommand;
-import com.yiyiaddon.command.CommandManager;
 import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.core.event.ClientEvent;
@@ -58,7 +57,13 @@ public final class IdIdentifyModule extends Module {
     /** 图标字形，与界面搜索图标同一字形（已确认存在于所引字体） */
     private static final String ICON = "\uE8B6";
 
+    /** 「点击开启即识别」后等待自关的刻数：约 0.4 秒，足够开关滑块滑到位再回弹 */
+    private static final int SELF_CLOSE_DELAY_TICKS = 8;
+
     private final IdentityModuleConfig config = new IdentityModuleConfig();
+
+    /** 自关倒计时（刻）；归零即关闭自身。0 表示没有待执行的自关 */
+    private int pendingSelfCloseTicks;
 
     public IdIdentifyModule() {
         super(MODULE_ID, MESSAGE_MODULE, "assist", "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
@@ -102,6 +107,25 @@ public final class IdIdentifyModule extends Module {
     protected void onEnable() {
         IdentityService.shared().load();
         pruneSilently();
+        // 旧项目「点击开启即识别」：本模块是一次性工具，开启即按当前模式识别一次，随后静默关闭自身。
+        // 与旧项目 closeQuietly 同款——识别结果已经播报过，关闭时不再叠加一条「已关闭」。
+        identifyByMode();
+        // 自关延后几刻执行：识别是同步完成的，但开关滑块需要时间滑到「开」的位置；同一帧内立刻反向
+        // 关闭会让弹簧两次目标相互抵消，开关看起来像没动。这里只拉开时序，行为仍是「识别一次后必定
+        // 自关」，不额外播报任何东西。
+        pendingSelfCloseTicks = SELF_CLOSE_DELAY_TICKS;
+    }
+
+    @Override
+    public void onTick(Minecraft client) {
+        if (pendingSelfCloseTicks <= 0) return;
+        if (--pendingSelfCloseTicks == 0) closeQuietly();
+    }
+
+    @Override
+    protected void onDisable() {
+        // 延后期内被手动关闭：撤销待执行的自关，避免重复关闭
+        pendingSelfCloseTicks = 0;
     }
 
     /**
@@ -155,11 +179,19 @@ public final class IdIdentifyModule extends Module {
         return config.mode() == IdentifyMode.CROSSHAIR_BLOCK ? identifyBlock() : identifyItem();
     }
 
-    /** 识别手持物品；「聊天复制/显示」模式下改为弹出识别结果窗口（旧项目行为）。 */
+    /**
+     * 识别手持物品。
+     *
+     * <p><b>分流口径与旧项目逐字一致：</b>只有「自动保存」写盘；「聊天复制/显示」与
+     * 「准星方块识别」一律弹识别结果窗口、识别本身不写盘。</p>
+     *
+     * <p><b>不看模块开关：</b>旧项目 {@code IdCommand} 里没有任何启用状态判断，{@code .id} 指令随
+     * 时可用；本模块是「点击开启即识别」的一次性工具，开启后立刻自关，若给指令入口加启用闸门，
+     * 指令就会被永久挡住。</p>
+     */
     public IdentitySummary identifyItem() {
-        if (!requireEnabled()) return null;
-        if (config.mode() == IdentifyMode.CHAT_COPY) return openItemResultScreen();
-        return finish(IdentityActions.identifyItem(config.savesToLibrary()));
+        if (config.mode() != IdentifyMode.AUTO_SAVE) return openItemResultScreen();
+        return finish(IdentityActions.identifyItem(true));
     }
 
     /**
@@ -185,21 +217,24 @@ public final class IdIdentifyModule extends Module {
             return null;
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ITEM,
-                identity.displayName(), List.of(), null);
+                identity.displayName(), List.of(), null, null);
         client.execute(() -> IdScreens.openItemResult(identity, client.screen));
         return summary;
     }
 
-    /** 识别准星方块；「准星方块识别」模式下弹出方块结果窗口（旧项目行为）。 */
+    /**
+     * 识别准星方块。
+     *
+     * <p><b>分流口径与旧项目逐字一致：</b>只有「自动保存」写盘；「聊天复制/显示」与
+     * 「准星方块识别」一律弹方块结果窗口、识别本身不写盘。</p>
+     */
     public IdentitySummary identifyBlock() {
-        if (!requireEnabled()) return null;
-        if (config.mode() == IdentifyMode.CROSSHAIR_BLOCK) return openBlockResultScreen();
-        return finish(IdentityActions.identifyBlock(config.savesToLibrary()));
+        if (config.mode() != IdentifyMode.AUTO_SAVE) return openBlockResultScreen();
+        return finish(IdentityActions.identifyBlock(true));
     }
 
     /** 识别准星实体并弹出实体结果窗口（旧项目 {@code .id 实体} 的行为）。 */
     public IdentitySummary identifyEntity() {
-        if (!requireEnabled()) return null;
         return openEntityResultScreen();
     }
 
@@ -218,7 +253,7 @@ public final class IdIdentifyModule extends Module {
             return null;
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.BLOCK,
-                identity.displayName(), List.of(), null);
+                identity.displayName(), List.of(), null, null);
         client.execute(() -> IdScreens.openBlockResult(identity, client.screen));
         return summary;
     }
@@ -242,15 +277,9 @@ public final class IdIdentifyModule extends Module {
             return null;
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ENTITY,
-                identity.displayName(), List.of(), null);
+                identity.displayName(), List.of(), null, null);
         client.execute(() -> IdScreens.openEntityResult(identity, client.screen));
         return summary;
-    }
-
-    /** 清理失效的识别目标 */
-    public void pruneTargets() {
-        int pruned = IdentityActions.pruneInvalidTargets();
-        ClientChat.send(MESSAGE_MODULE, pruned == 0 ? "§7没有失效的识别目标" : "§7已清理 " + pruned + " 项失效的识别目标");
     }
 
     public IdentityModuleConfig config() {
@@ -294,12 +323,6 @@ public final class IdIdentifyModule extends Module {
         if (pruned > 0) ClientChat.send(MESSAGE_MODULE, "§7已清理 " + pruned + " 项失效的识别目标");
     }
 
-    private boolean requireEnabled() {
-        if (isEnabled()) return true;
-        ClientChat.send(MESSAGE_MODULE, "§6§l模块未启用（" + CommandManager.prefix() + "module on " + id() + " 可开启）");
-        return false;
-    }
-
     private IdentitySummary finish(IdentitySummary summary) {
         report(summary);
         return summary;
@@ -322,9 +345,22 @@ public final class IdIdentifyModule extends Module {
         if (summary.saved()) {
             ClientChat.send(MESSAGE_MODULE,
                     CommandMessageFormatter.line("保存文件", "§f" + summary.fileName()));
-        } else if (config.savesToLibrary()) {
+        } else {
             ClientChat.send(MESSAGE_MODULE, alreadyText(kind));
         }
+        // 方块识别在自动保存下是两次落盘：稳定记录一条、状态快照一条（旧项目同一张卡里的两个字段）
+        if (summary.snapshotSaved()) {
+            ClientChat.send(MESSAGE_MODULE,
+                    CommandMessageFormatter.line("状态快照", "§f" + summary.snapshotName()));
+        }
+    }
+
+    /** 静默关闭自身（旧项目 {@code closeQuietly}）：不播报开关状态，避免与识别结果重复刷屏 */
+    private void closeQuietly() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null) return;
+        // 延后一帧：本方法在 onEnable 回调内被调用，同步关闭会打断正在进行的启用流程
+        client.execute(() -> ModuleManager.setEnabledSilently(MODULE_ID, false));
     }
 
     /** 「已在配置中」文案：沿用旧项目原文 */

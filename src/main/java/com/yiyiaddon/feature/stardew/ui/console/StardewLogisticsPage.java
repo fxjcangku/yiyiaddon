@@ -117,7 +117,8 @@ public final class StardewLogisticsPage {
     private CompactElement cropBlock(CropDefinition crop) {
         String cropKey = crop.cropKey();
         FoldSection section = new FoldSection(
-            "§b§l" + crop.chineseName() + " §8· §7独立配置  §8(点标题可收起)");
+            "§b§l" + crop.chineseName() + " §8· §7独立配置  §8(点标题可收起)",
+            "logistics:" + cropKey, owner.collapsedSections());
         CompactStack content = section.content();
 
         String modeTooltip = "决定右边那个数字怎么算：\n"

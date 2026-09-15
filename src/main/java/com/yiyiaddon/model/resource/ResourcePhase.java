@@ -29,8 +29,8 @@ public enum ResourcePhase {
     /** 资源就绪，可安全使用 */
     READY("就绪"),
 
-    /** 资源已加载，但里面没有目标内容 */
-    NO_CONTENT("未发现目标资源"),
+    /** 资源已加载，但里面没有可识别的星露谷资源（旧项目 {@code NOT_STARDEW} 口径） */
+    NO_CONTENT("非星露谷资源"),
 
     /** 失败 */
     FAILED("失败");

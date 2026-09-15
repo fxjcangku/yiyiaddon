@@ -143,11 +143,15 @@ public final class ItemIdentity {
      *
      * <p>证据包括：非 minecraft 命名空间的 itemId、自定义逻辑 ID、服务器显示名组件、原版改名。
      * 仅存在附魔 / 描述 / 组件补丁等原版合法数据不构成自定义身份。</p>
+     *
+     * <p>服务器显示名组件（item_name）只有在<b>与注册表默认名不同</b>时才构成证据：大量服务器会给
+     * 物品挂上与默认中文名完全相同的 {@code item_name}（如 {@code minecraft:sand} →「沙子」），
+     * 只看「非空」会把整片原版物品误判成自定义。</p>
      */
     public boolean isCustom() {
         return !itemId.startsWith("minecraft:")
             || (customLogicId != null && !customLogicId.isBlank())
-            || (itemName != null && !itemName.isBlank())
+            || (itemName != null && !itemName.isBlank() && !itemName.equals(baseName))
             || isRenamed();
     }
 

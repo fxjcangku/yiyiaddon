@@ -14,12 +14,15 @@ import java.util.Locale;
 /**
  * 内置指令：功能模块的查看与开关。
  *
- * <p>子命令：{@code list} 查看、{@code on} 开启、{@code off} 关闭、{@code toggle} 切换、
- * {@code status} 状态。模块可用模块 ID 或中文名指定。</p>
+ * <p>子命令：{@code 列表} 查看、{@code 开} 开启、{@code 关} 关闭、{@code 切换} 切换、
+ * {@code 状态} 状态。模块可用中文名或模块 ID 指定。</p>
+ *
+ * <p>候选与用法一律用中文（用户可见文字除指令前缀与指令名外不出现英文）；英文写法仍可输入，
+ * 只是不再作为候选出现。</p>
  */
 public final class ModuleCommand extends ClientCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("list", "on", "off", "toggle", "status");
+    private static final List<String> SUBCOMMANDS = List.of("列表", "开", "关", "切换", "状态");
 
     @Override
     public String name() {
@@ -43,7 +46,7 @@ public final class ModuleCommand extends ClientCommand {
 
     @Override
     public String usage() {
-        return CommandManager.prefix() + "module <list|on|off|toggle|status> [模块]";
+        return CommandManager.prefix() + "module <列表|开|关|切换|状态> [模块]";
     }
 
     @Override
@@ -66,26 +69,29 @@ public final class ModuleCommand extends ClientCommand {
         }
     }
 
+    /**
+     * 子命令与参数补全。
+     *
+     * <p>旧项目这两个参数是 Brigadier 命令树上的两级节点，第二级是叶子：给出模块/分类之后按 Tab
+     * 不会再出任何候选。这里按同一口径收口——本指令最多两个参数，第二个已给出即无候选，
+     * 否则补完模块名再打一个空格就会继续往外冒模块名，越补越长。</p>
+     */
     @Override
     public List<String> complete(CommandContext context) {
         if (context.isEmpty()) return SUBCOMMANDS;
+        if (context.size() > 1) return List.of();
         String action = context.arg(0) == null ? "" : context.arg(0).toLowerCase(Locale.ROOT);
-        if (context.size() == 1) return SUBCOMMANDS;
-        if (action.equals("on") || action.equals("off") || action.equals("toggle")
-                || action.equals("status") || action.equals("开") || action.equals("关")
-                || action.equals("切换") || action.equals("状态")) {
-            return moduleTokens();
-        }
-        if (action.equals("list") || action.equals("列表")) {
-            List<String> categories = new ArrayList<>();
-            for (ModuleCategory category : CategoryRegistry.all()) {
-                categories.add(category.id());
-                categories.add(category.displayName());
-            }
-            categories.add("全部");
-            return categories;
-        }
+        if (isSwitchAction(action)) return moduleNames();
+        if (action.equals("列表") || action.equals("list")) return categoryNames();
         return List.of();
+    }
+
+    /** 需要跟一个模块名/ID 的子命令（中英文写法都接受，候选只出中文） */
+    private static boolean isSwitchAction(String action) {
+        return switch (action) {
+            case "开", "on", "关", "off", "切换", "toggle", "状态", "status" -> true;
+            default -> false;
+        };
     }
 
     // ── 子命令实现 ──
@@ -161,7 +167,7 @@ public final class ModuleCommand extends ClientCommand {
         }
         Module module = find(token);
         if (module == null) {
-            context.error("未找到模块：" + token + "（可用： " + String.join("、", moduleIds()) + "）");
+            context.error("未找到模块：" + token + "（可用： " + String.join("、", moduleNames()) + "）");
         }
         return module;
     }
@@ -181,19 +187,19 @@ public final class ModuleCommand extends ClientCommand {
         return null;
     }
 
-    private static List<String> moduleIds() {
-        List<String> ids = new ArrayList<>();
-        for (Module module : ModuleManager.all()) ids.add(module.id());
-        return ids;
+    /** 全部模块的中文名（候选与提示都用它；ID 仍可输入，只是不出现在候选里） */
+    private static List<String> moduleNames() {
+        List<String> names = new ArrayList<>();
+        for (Module module : ModuleManager.all()) names.add(module.displayName());
+        return names;
     }
 
-    private static List<String> moduleTokens() {
-        List<String> tokens = new ArrayList<>();
-        for (Module module : ModuleManager.all()) {
-            tokens.add(module.id());
-            tokens.add(module.displayName());
-        }
-        return tokens;
+    /** 全部模块分类的中文名 + 全部 */
+    private static List<String> categoryNames() {
+        List<String> names = new ArrayList<>();
+        for (ModuleCategory category : CategoryRegistry.all()) names.add(category.displayName());
+        names.add("全部");
+        return names;
     }
 
     private static String resolveCategoryId(String token) {

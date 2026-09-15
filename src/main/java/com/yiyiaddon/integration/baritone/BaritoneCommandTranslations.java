@@ -75,7 +75,7 @@ public final class BaritoneCommandTranslations {
 
     private static final Map<String, List<String>> LONG_DESCRIPTIONS = Map.ofEntries(
         entry("help", "使用此命令可查看 Baritone 命令的详细帮助。", "", "用法：", "> help - 列出所有命令及其简短说明。", "> help <command> - 显示指定命令的帮助信息。"),
-        entry("set", "使用 set 命令管理 Baritone 的全部设置。Baritone 几乎所有行为均由这些设置控制。", "", "用法：", "> set - 等同于 `set list`", "> set list [page] - 查看全部设置", "> set modified [page] - 查看已修改的设置", "> set <setting> - 查看设置的当前值", "> set <setting> <value> - 修改设置值", "> set reset all - 将全部设置恢复默认值", "> set reset <setting> - 将指定设置恢复默认值", "> set toggle <setting> - 切换布尔设置", "> set save - 保存全部设置（通常会自动保存）", "> set load - 从 settings.txt 加载设置", "> set load [filename] - 从 minecraft/baritone 目录中的其他文件加载设置"),
+        entry("set", "使用 set 命令管理 Baritone 的全部设置。Baritone 几乎所有行为均由这些设置控制。", "", "用法：", "> set - 等同于 `set list`", "> set list [page] - 查看全部设置", "> set modified [page] - 查看已修改的设置", "> set <setting> - 查看设置的当前值", "> set <setting> <value> - 修改设置值", "> set reset all - 将全部设置恢复默认值", "> set reset <setting> - 将指定设置恢复默认值", "> set toggle <setting> - 切换开 / 关设置", "> set save - 保存全部设置（通常会自动保存）", "> set load - 从 settings.txt 加载设置", "> set load [filename] - 从 minecraft/baritone 目录中的其他文件加载设置"),
         entry("modified", "此命令是以下命令的别名：", "> set modified"),
         entry("reset", "此命令是以下命令的别名：", "> set reset"),
         entry("goal", "goal 命令用于设置或清除 Baritone 的目标。", "", "需要坐标时，可以像原版 Minecraft 命令一样使用 ~，也可以直接使用普通数字。", "", "用法：", "> goal - 将当前位置设为目标", "> goal <reset/clear/none> - 清除目标", "> goal <y> - 将目标设为指定 Y 高度", "> goal <x> <z> - 将目标设为指定 X、Z 坐标", "> goal <x> <y> <z> - 将目标设为指定 X、Y、Z 坐标"),

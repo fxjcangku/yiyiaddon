@@ -15,6 +15,8 @@ public final class PageRouter {
 
     private final List<BasePage> roots = new ArrayList<>();
     private final List<BasePage> stack = new ArrayList<>();
+    /** 与 {@link #stack} 一一对应的可重建标识（见 {@link UiNavigationMemory}），用于恢复上次停留位置。 */
+    private final List<String> tokens = new ArrayList<>();
     private int index;
 
     public void addRoot(BasePage page) {
@@ -39,6 +41,7 @@ public final class PageRouter {
         if (target < 0 || target >= roots.size()) return;
         index = target;
         stack.clear();
+        tokens.clear();
     }
 
     /** 当前展示的页面：进入栈非空时取栈顶，否则取当前导航项的根页面。 */
@@ -53,19 +56,37 @@ public final class PageRouter {
 
     /** 进入下一级页面。 */
     public void open(BasePage page) {
-        if (page != null) stack.add(page);
+        open(page, "");
+    }
+
+    /**
+     * 进入下一级页面，并登记可重建标识。
+     *
+     * @param token 形如 {@code list:<分类 id>}；空串表示该页不参与位置恢复
+     */
+    public void open(BasePage page, String token) {
+        if (page == null) return;
+        stack.add(page);
+        tokens.add(token == null ? "" : token);
+    }
+
+    /** 进入栈的可重建标识（自底向上），与 {@link #back()} / {@link #select(int)} 同步增删。 */
+    public List<String> tokens() {
+        return List.copyOf(tokens);
     }
 
     /** 返回上一级；已在根页面时返回 false。 */
     public boolean back() {
         if (stack.isEmpty()) return false;
         stack.remove(stack.size() - 1);
+        if (!tokens.isEmpty()) tokens.remove(tokens.size() - 1);
         return true;
     }
 
     /** 回到底部并清空进入栈。 */
     public void reset() {
         stack.clear();
+        tokens.clear();
     }
 
     /** 替换指定导航项的根页面，用于界面重置后的页面重建。 */

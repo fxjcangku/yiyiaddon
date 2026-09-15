@@ -8,6 +8,7 @@ import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CategoryCard;
 import com.yiyiaddon.ui.navigation.PageRouter;
+import com.yiyiaddon.ui.navigation.UiNavigationMemory;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 
@@ -60,12 +61,24 @@ public final class ModuleCenterPage extends CardPage {
     protected void drawCard(Canvas canvas, int index, float x, float y, float w, float alpha, float hover,
                             ClickGuiThemeColors tc) {
         ModuleCategory category = categories.get(index);
-        CategoryCard.draw(canvas, category, ModuleRegistry.countIn(category.id()), x, y, w, alpha, hover, tc);
+        // 自带页面的分类本身就是入口（不是模块清单），显示「点击进入」而不是「暂无模块」
+        String countText = category.page() != null
+                ? UiText.t("点击进入", "Open")
+                : ModuleRegistry.countIn(category.id()) + " " + UiText.t("个模块", "modules");
+        CategoryCard.draw(canvas, category, countText, x, y, w, alpha, hover, tc);
     }
 
     @Override
     protected void onCardActivated(int index) {
-        router.open(new ModuleListPage(categories.get(index), moduleOpener));
+        ModuleCategory category = categories.get(index);
+        // 自带页面的分类（例如 Baritone设置）直接进它自己的页面，不走模块列表。
+        // 两级页面都登记可重建标识，面板重开时能回到这里而不是回首页。
+        if (category.page() != null) {
+            router.open(category.page().get(), UiNavigationMemory.token(UiNavigationMemory.TOKEN_PAGE, category.id()));
+            return;
+        }
+        router.open(new ModuleListPage(category, moduleOpener),
+            UiNavigationMemory.token(UiNavigationMemory.TOKEN_LIST, category.id()));
     }
 
     @Override

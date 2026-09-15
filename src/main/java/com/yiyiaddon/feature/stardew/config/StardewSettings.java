@@ -37,7 +37,7 @@ public final class StardewSettings {
     public int scanBudget = 16;
     /** 回中心等待时间，默认 10，取值域 1~300 */
     public int returnCenterDelay = 10;
-    /** 批量右击，默认 4，取值域 1~4 */
+    /** 批量右击，默认 4，取值域 1~8 */
     public int batchActions = 4;
 
     // ━━━ 运行参数：浇水 ━━━
@@ -65,8 +65,24 @@ public final class StardewSettings {
 
     // ━━━ 运行参数：播报 ━━━
 
-    /** 状态提示，默认 false */
-    public boolean statusHints = false;
+    /** 状态提示，默认 true */
+    public boolean statusHints = true;
+
+    // ━━━ 运行参数：分区种植（实验） ━━━
+
+    /**
+     * 分区种植（实验），默认 false。
+     *
+     * <p>开启后「整片农田一个目标」不再参与，改由种植区域逐块决定种什么；关闭时行为与开启前
+     * 完全一致，已经划好的区域留在盘上但不读、不拦、不画。</p>
+     */
+    public boolean regionPlanting = false;
+
+    /** 选点工具的物品键；{@code null} = 空手（默认）。指定后「空手或手持该物品」都算选点。 */
+    public String regionToolKey = null;
+
+    /** 选点工具的显示名（只用于回执与界面显示；键才是判据） */
+    public String regionToolName = null;
 
     // ━━━ 后勤参数 ━━━
 
@@ -78,12 +94,6 @@ public final class StardewSettings {
     /** 农田边界：起点与终点围成的立方体 */
     public final RenderObject renderFarmBorder = new RenderObject("农田边界",
         "渲染起点与终点围成的农田范围", 0xFFFFFF, 50, ShapeMode.Lines);
-    /** 农田起点 */
-    public final RenderObject renderFarmStart = new RenderObject("农田起点",
-        "高亮农田起点方块", 0x00FF00, 120, ShapeMode.Lines);
-    /** 农田终点 */
-    public final RenderObject renderFarmEnd = new RenderObject("农田终点",
-        "高亮农田终点方块", 0xFFFF00, 120, ShapeMode.Lines);
     /** 洒水器本体方块 */
     public final RenderObject renderSprinklerBody = new RenderObject("洒水器本体",
         "高亮已绑定的洒水器本体方块（与覆盖范围互不影响）", 0x00B4FF, 60, ShapeMode.Both);
@@ -102,13 +112,22 @@ public final class StardewSettings {
     /** 补水点 */
     public final RenderObject renderWaterSource = new RenderObject("补水点",
         "高亮补水点方块", 0xFF00FF, 120, ShapeMode.Lines);
-    /** 点位字牌：只有显示 + 文字颜色，没有渲染模式（{@code mode()} 返回 null） */
+    /** 点位字牌：只有显示开关（颜色跟随对应点位方框），没有渲染模式、没有单独颜色 */
     public final RenderObject renderLabels = new RenderObject("点位字牌",
-        "各绑定点位头顶的文字标签（只有显示与文字颜色，没有渲染模式）", 0xFFFFFF, 255, null);
+        "各绑定点位头顶的文字标签（颜色跟随对应点位的方框颜色，只有显示开关，没有单独颜色与渲染模式）",
+        0xFFFFFF, 255, null, false);
 
-    /** 全部渲染对象，顺序即界面顺序（旧项目构造顺序） */
+    /**
+     * 点位字牌字号（GUI 缩放坐标），默认 12。
+     *
+     * <p>字牌大小与显示开关 / 颜色分开：字号是「一类排版参数」，不随单个点位类别变化，
+     * 因此单独一个字段，不塞进 {@link RenderObject}。</p>
+     */
+    public int labelSize = 12;
+
+    /** 全部渲染对象，顺序即界面顺序（旧项目构造顺序，去掉农田起点 / 终点两类） */
     private final List<RenderObject> renderObjects = List.of(
-        renderFarmBorder, renderFarmStart, renderFarmEnd,
+        renderFarmBorder,
         renderSprinklerBody, renderSprinklerCoverage, renderSprinklerPoint,
         renderSeedBox, renderOutputBox, renderWaterSource, renderLabels);
 
@@ -130,9 +149,11 @@ public final class StardewSettings {
     public static final int RETURN_CENTER_DELAY_MIN = 1;
     public static final int RETURN_CENTER_DELAY_MAX = 300;
     public static final int BATCH_ACTIONS_MIN = 1;
-    public static final int BATCH_ACTIONS_MAX = 4;
+    public static final int BATCH_ACTIONS_MAX = 8;
     public static final int SPRINKLER_INTERVAL_MIN = 200;
     public static final int SPRINKLER_INTERVAL_MAX = 12000;
+    public static final int LABEL_SIZE_MIN = 6;
+    public static final int LABEL_SIZE_MAX = 32;
 
     // ━━━ 界面文案：设置名与描述（逐字，禁止改写） ━━━
 
@@ -150,8 +171,8 @@ public final class StardewSettings {
 
     public static final String NAME_BATCH_ACTIONS = "批量右击";
     public static final String DESC_BATCH_ACTIONS = "同一 tick 最多对几个格子发右键（1 = 关闭）。只做右键：收割 / 浇水 / 播种 / 施肥；"
-        + "清理枯苗这类破坏动作永远单目标。默认 4（上限）；调低更保守——同 tick 多个交互包"
-        + "更容易被服务器反作弊注意到";
+        + "清理枯苗这类破坏动作永远单目标。默认 4，上限 8；填得越高越快——同 tick 多个交互包"
+        + "更容易被服务器丢掉或反作弊注意到";
 
     public static final String NAME_AUTO_WATER = "自动浇水";
     public static final String DESC_AUTO_WATER = "发现干燥花盆时自动用水壶浇水";
@@ -176,11 +197,23 @@ public final class StardewSettings {
 
     public static final String NAME_STATUS_HINTS = "状态提示";
     public static final String DESC_STATUS_HINTS = "在聊天栏显示农场运行状态（正在浇水 / 收获 / 播种 / 补货 / 卸货 / 种子回收等）。"
-        + "默认关闭；启动自检结论、季节限制与解除、错误与失效提示不受本开关影响";
+        + "默认开启；启动自检结论、季节限制与解除、错误与失效提示不受本开关影响";
+
+    public static final String NAME_REGION_PLANTING = "分区种植（实验）";
+    public static final String DESC_REGION_PLANTING = "把农田切成几块，每块只种一种作物，各收各的（默认关闭）。"
+        + "关着的时候跟以前一模一样，已经划好的区域会留着但不生效；打开后用「.stardew 种植区域 <作物>」圈地";
+
+    public static final String NAME_REGION_TOOL = "选点工具";
+    public static final String DESC_REGION_TOOL = "圈地时拿什么当「笔」：默认空手；指定一个物品后，空手或手持它都能圈地。"
+        + "注意：手持它以后就不会挖方块了";
 
     public static final String NAME_LOGISTICS_SIMPLE = "简化后勤";
     public static final String DESC_LOGISTICS_SIMPLE = "开启时不用设置补货 / 卸货：种子少于 2 去补、补到 8；成品攒到 8 去卸、不留底。"
         + "关闭后才会逐作物显示那四个后勤阈值";
+
+    public static final String NAME_LABEL_SIZE = "字牌大小";
+    public static final String DESC_LABEL_SIZE = "各绑定点位头顶文字的字号（取值域 6~32，默认 12）；"
+        + "字越大越远也看得清，越容易挡住视线";
 
     // ━━━ 渲染对象 ━━━
 
@@ -197,12 +230,26 @@ public final class StardewSettings {
         public final EspColor color;
         /** 渲染模式；{@code null} 表示该类只有显示与颜色 */
         public ShapeMode mode;
+        /**
+         * 颜色是否可单独设置。
+         *
+         * <p>点位字牌为 {@code false}：它的颜色跟随对应点位方框的颜色。原来字牌文本里写死了
+         * {@code §b/§6/§d} 颜色码，把颜色设置整个盖掉，界面上那个色块点了根本没反应——既然
+         * 只有一个「跟随方框」的正确口径，就别再摆一个假的颜色设置。</p>
+         */
+        private final boolean colorEditable;
 
         private RenderObject(String name, String description, int rgb, int alpha, ShapeMode mode) {
+            this(name, description, rgb, alpha, mode, true);
+        }
+
+        private RenderObject(String name, String description, int rgb, int alpha, ShapeMode mode,
+                             boolean colorEditable) {
             this.name = name;
             this.description = description;
             this.color = new EspColor(rgb, alpha);
             this.mode = mode;
+            this.colorEditable = colorEditable;
         }
 
         public String name() {
@@ -216,6 +263,11 @@ public final class StardewSettings {
         /** 是否有渲染模式（点位字牌为 false） */
         public boolean hasMode() {
             return mode != null;
+        }
+
+        /** 颜色是否可单独设置（点位字牌为 false：颜色跟随对应点位的方框） */
+        public boolean colorEditable() {
+            return colorEditable;
         }
     }
 
@@ -242,7 +294,11 @@ public final class StardewSettings {
         json.addProperty("sprinklerMaintenance", sprinklerMaintenance);
         json.addProperty("sprinklerInterval", sprinklerInterval);
         json.addProperty("statusHints", statusHints);
+        json.addProperty("regionPlanting", regionPlanting);
+        if (regionToolKey != null) json.addProperty("regionToolKey", regionToolKey);
+        if (regionToolName != null) json.addProperty("regionToolName", regionToolName);
         json.addProperty("logisticsSimple", logisticsSimple);
+        json.addProperty("labelSize", labelSize);
         for (RenderObject object : renderObjects) {
             String prefix = "render." + object.name() + ".";
             json.addProperty(prefix + "show", object.show);
@@ -269,7 +325,11 @@ public final class StardewSettings {
         sprinklerInterval = clamp(intOf(json, "sprinklerInterval", sprinklerInterval),
             SPRINKLER_INTERVAL_MIN, SPRINKLER_INTERVAL_MAX);
         statusHints = boolOf(json, "statusHints", statusHints);
+        regionPlanting = boolOf(json, "regionPlanting", regionPlanting);
+        regionToolKey = stringOf(json, "regionToolKey");
+        regionToolName = stringOf(json, "regionToolName");
         logisticsSimple = boolOf(json, "logisticsSimple", logisticsSimple);
+        labelSize = clamp(intOf(json, "labelSize", labelSize), LABEL_SIZE_MIN, LABEL_SIZE_MAX);
         for (RenderObject object : renderObjects) {
             String prefix = "render." + object.name() + ".";
             object.show = boolOf(json, prefix + "show", object.show);
@@ -287,6 +347,18 @@ public final class StardewSettings {
             return json.has(key) && json.get(key).isJsonPrimitive() ? json.get(key).getAsInt() : fallback;
         } catch (Exception ignored) {
             return fallback;
+        }
+    }
+
+    /** 读取字符串字段；缺失 / null / 空白一律返回 null（默认「空手」） */
+    private static String stringOf(JsonObject json, String key) {
+        try {
+            JsonElement element = json.get(key);
+            if (element == null || !element.isJsonPrimitive()) return null;
+            String value = element.getAsString();
+            return value == null || value.isBlank() ? null : value;
+        } catch (Exception ignored) {
+            return null;
         }
     }
 

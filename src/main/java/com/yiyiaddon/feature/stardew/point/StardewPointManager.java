@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -227,6 +228,12 @@ public final class StardewPointManager {
         list.removeIf(p -> p.inCurrentDimension() && p.pos().equals(pos));
     }
 
+    /** 按坐标 + 维度移除一个洒水器点位（点位列表逐条删除用，不限于当前维度） */
+    public synchronized void removeSprinkler(StardewPoint point) {
+        points.getOrDefault(StardewPointType.SPRINKLER, List.of()).removeIf(p ->
+            p.pos().equals(point.pos()) && java.util.Objects.equals(p.dimension(), point.dimension()));
+    }
+
     /** 读取单点位类型（首个），未绑定返回 null */
     public synchronized StardewPoint get(StardewPointType type) {
         List<StardewPoint> list = points.get(type);
@@ -259,6 +266,30 @@ public final class StardewPointManager {
         loadedServer = null;
     }
 
+    /**
+     * 洒水器必须落在农田范围内（起点/终点确定的 XZ 矩形）。
+     *
+     * <p><b>为什么只比 XZ：</b>洒水器常比种植盆高一格（本服是 {@code sugar_cane[age=9]} 载体挂在盆上方），
+     * 高度参与判定会把正常点位判成越界。<b>为什么范围未设时不拦：</b>还没设农田起点/终点时无法判定，
+     * 这时拦下来只会让人没法先设洒水器。</p>
+     *
+     * @return null 表示在范围内（或无法判定）；否则为可读的中文失败原因
+     */
+    public synchronized String sprinklerRegionFailure(BlockPos pos) {
+        StardewPoint start = get(StardewPointType.START);
+        StardewPoint end = get(StardewPointType.END);
+        if (start == null || end == null) return null;
+        if (!start.inCurrentDimension() || !end.inCurrentDimension()) return null;
+        int minX = Math.min(start.x(), end.x());
+        int maxX = Math.max(start.x(), end.x());
+        int minZ = Math.min(start.z(), end.z());
+        int maxZ = Math.max(start.z(), end.z());
+        if (pos.getX() < minX || pos.getX() > maxX || pos.getZ() < minZ || pos.getZ() > maxZ) {
+            return "洒水器不在农田范围内（农田 X" + minX + "~" + maxX + " Z" + minZ + "~" + maxZ + "）";
+        }
+        return null;
+    }
+
     /** 设置、自检与运行交互共用的实时点位校验。 */
     public String validationFailure(StardewPointType type, StardewPoint point, StardewResourceIndex index) {
         if (point == null) return "未绑定";
@@ -275,6 +306,9 @@ public final class StardewPointManager {
         if (type == StardewPointType.WATER_SOURCE) return waterSourceFailure(point.pos());
         if (type.requiresContainer() && !(mc.level.getBlockEntity(point.pos()) instanceof Container)) return "原容器已不存在或类型已改变";
         if (type == StardewPointType.SPRINKLER) {
+            // 洒水器必须落在农田范围内：绑在范围外的洒水器不该被维护，也不该让整片田照常启动
+            String regionFailure = sprinklerRegionFailure(point.pos());
+            if (regionFailure != null) return regionFailure;
             SprinklerWorldBinding binding = point.sprinklerBinding();
             if (binding != null) {
                 if (!java.util.Objects.equals(binding.serverKey(), StardewContext.serverKey())) return "洒水器绑定属于其它服务器";
@@ -315,6 +349,39 @@ public final class StardewPointManager {
                 if (match != null && !match.key().equals(sprinkler.key())) return null;
                 match = sprinkler;
             }
+        }
+        return match;
+    }
+
+    /**
+     * 在「用户已选的洒水器类型」范围内按世界方块语义匹配。
+     *
+     * <p>与 {@link #matchSprinkler} 的差别只有两点：只比对已选类型；不要求语义确定性为「已确认」。
+     * 很多服务器的洒水器方块 blockstates 会命中多个候选（含水 / 朝向等属性各指向一份模型），语义只能
+     * 判成「候选」，但候选串里已经含真实模型路径，足以在已选类型中唯一确定是哪一种。</p>
+     *
+     * @return 唯一命中的已选洒水器；未命中或命中多个（有歧义）返回 null
+     */
+    public static SprinklerDefinition matchSelectedSprinkler(BlockPos pos, StardewResourceIndex index,
+                                                             Collection<String> selectedKeys) {
+        var level = Minecraft.getInstance().level;
+        if (level == null || !ResourceExtractionService.isReady() || !GameProbe.isMultiplayer()
+            || !level.isLoaded(pos) || index == null || selectedKeys == null || selectedKeys.isEmpty()) return null;
+        BlockSemantic semantic = BlockStateModelResolver.resolve(level.getBlockState(pos));
+        List<String> models = new ArrayList<>();
+        if (semantic.model() != null) {
+            for (String candidate : semantic.model().split("\\|")) {
+                models.add(candidate.trim());
+            }
+        }
+        SprinklerDefinition match = null;
+        for (String key : selectedKeys) {
+            if (!(index.entryByKey(key) instanceof SprinklerDefinition sprinkler)) continue;
+            boolean hit = (semantic.identity() != null && semantic.identity().equals(sprinkler.identityKey()))
+                || (sprinkler.blockModel() != null && models.contains(sprinkler.blockModel()));
+            if (!hit) continue;
+            if (match != null && !match.key().equals(sprinkler.key())) return null;
+            match = sprinkler;
         }
         return match;
     }

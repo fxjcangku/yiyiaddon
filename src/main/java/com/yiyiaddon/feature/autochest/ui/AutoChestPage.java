@@ -188,7 +188,7 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
     }
 
     /**
-     * 头部动作区（旧项目面板头部）：标点管理仅「标点模式」出现，记录清除三模式通用。
+     * 头部动作区（旧项目面板头部）：标点管理（含处理记录清除）仅「标点模式」出现。
      *
      * <p>点位卡片与空态按页面构建时的当前维度点位生成，整体挂在标点模式的可见性条件下，
      * 运行模式在页面内切换时与旧项目 {@code screen.reload()} 等效。</p>
@@ -215,11 +215,11 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
         addCore(visible(markerMode, new ButtonRow(new Button("清空全部点位", () ->
                 confirm("清空点位", "确定要清空全部标点吗？此操作不可恢复。", module::clearAllPoints)))));
 
-        // 处理记录清除（三模式通用：ESP 显示处理状态，与运行模式无关）
-        addCore(new ButtonRow(new Button("清除当前维度处理记录", () ->
-                confirm("清除记录", "确定清除当前维度的已处理记录吗？", module::clearCurrentDimensionRecords))));
-        addCore(new ButtonRow(new Button("清除全部处理记录", () ->
-                confirm("清除记录", "确定清除全部服务器的已处理记录吗？", module::clearAllRecords))));
+        // 处理记录清除：与标点管理同属标点模式专属动作，非标点模式不出现
+        addCore(visible(markerMode, new ButtonRow(new Button("清除当前维度处理记录", () ->
+                confirm("清除记录", "确定清除当前维度的已处理记录吗？", module::clearCurrentDimensionRecords)))));
+        addCore(visible(markerMode, new ButtonRow(new Button("清除全部处理记录", () ->
+                confirm("清除记录", "确定清除全部服务器的已处理记录吗？", module::clearAllRecords)))));
     }
 
     /** 单个箱子点位卡片行：容器类型 + 坐标 + 维度 + 处理状态 + 删除按钮 */
@@ -273,7 +273,7 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
         addCore(group("容器"));
         addCore(new CompactRow("容器类型", () -> DESC_CONTAINER_TYPES,
                 new Button("选择容器类型", () -> openScreen(new ContainerTypePage(currentScreen(), module)))));
-        addCore(new ButtonRow(new SettingText(this::containerTypeCountText, COUNT_WIDTH),
+        addCore(ButtonRow.split(new SettingText(this::containerTypeCountText, COUNT_WIDTH).alignLeft(),
                 resetButton(() -> {
                     settings.resetContainerTypes();
                     module.persistSettings();
@@ -305,7 +305,7 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
                 new CompactRow("目标物品", () -> DESC_TARGET_ITEMS,
                         new Button("选择目标物品", this::openTargetSelector))));
         addCore(visible(this::needsTargetItems,
-                new ButtonRow(new SettingText(this::targetItemsCountText, COUNT_WIDTH),
+                ButtonRow.split(new SettingText(this::targetItemsCountText, COUNT_WIDTH).alignLeft(),
                         resetButton(IdentityTargetConfig::reset))));
 
         // ── 取物 ──
@@ -317,7 +317,7 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
                 new CompactRow("每种物品数量", () -> DESC_QUANTITY,
                         new Button("配置每种物品数量", () -> openScreen(new ItemQuantityPage(currentScreen(), module))))));
         addCore(visible(() -> settings.withdrawMode == WithdrawMode.TARGET_COUNT,
-                new ButtonRow(new SettingText(this::quantityCountText, COUNT_WIDTH),
+                ButtonRow.split(new SettingText(this::quantityCountText, COUNT_WIDTH).alignLeft(),
                         resetButton(() -> {
                             settings.resetQuantities();
                             module.persistSettings();
@@ -569,7 +569,8 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
 
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
-            if (!vanilla) return false;
+            // 原版 / 自定义都按「真实载体物品」取贴图：自定义物品的底层仍是某个注册表物品
+            // （如沙子、纸），取不到才回退纯文字，不再按原版/自定义一刀切不画。
             Item item = itemById(identity.itemId());
             return item != null && ItemIconCache.getInstance().draw(canvas, item.getDefaultInstance(), x, y, size);
         }

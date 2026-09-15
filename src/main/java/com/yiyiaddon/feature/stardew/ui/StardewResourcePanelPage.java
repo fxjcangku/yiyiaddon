@@ -1,6 +1,7 @@
 package com.yiyiaddon.feature.stardew.ui;
 
 import com.yiyiaddon.core.CommandMessageFormatter;
+import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.platform.GameProbe;
@@ -8,12 +9,16 @@ import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.service.resourcepack.ResourcePackCache;
 import com.yiyiaddon.ui.component.CompactRow;
+import com.yiyiaddon.ui.component.KeybindBadge;
+import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.TextLine;
+import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
+import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
 import java.io.File;
@@ -37,6 +42,9 @@ import java.util.function.Supplier;
  * <p><b>LIVE 刷新等价物</b>：旧类靠常驻 tick 订阅把资源服务真实状态刷到已打开的面板上；
  * 本项目页面每帧 {@code draw} 都重新读取 {@link TextLine} 的取值来源，因此不需要任何订阅，
  * 状态天然实时。</p>
+ *
+ * <p><b>顶部信息块</b>：与其它模块页同一套壳——状态圆点 / 状态文字 + 快捷键徽章 + 模块开关
+ * （旧项目该开关由 Meteor 的 {@code ModuleScreen} 统一画在面板顶部，迁移后由各页注入）。</p>
  */
 public final class StardewResourcePanelPage extends CompactModulePage implements ModulePage {
 
@@ -49,6 +57,28 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
     private static final float GROUP_HEIGHT = 26f;
     private static final float GROUP_SIZE = 12f;
     private static final float FIELD_HEIGHT = 22f;
+
+    /**
+     * 字段字号：显式设定，保证与 {@link MinecraftText#measure} 的测量完全一致。
+     * <p>与 {@code TextLine} 默认字号（11f）相同，因此不改变现有观感。</p>
+     */
+    private static final float FIELD_SIZE = 11f;
+
+    /**
+     * 标签列的固定像素宽度：由 {@link #addField} 构建时按最宽标签量出。
+     *
+     * <p>旧项目用两个固定宽度单元格（{@code WFixedCell(标签) + WFixedCell("§8▶")}）保证值列对齐；
+     * 本页是单行文本，因此按最宽标签补空格来复刻同样的对齐效果。以 -1 表示尚未测量。</p>
+     */
+    private float labelColumnWidth = -1f;
+
+    /** 一个半角空格的像素宽度（首次使用时才测量，避免类加载期触碰字体） */
+    private static float spaceWidth = -1f;
+
+    private static float spaceWidth() {
+        if (spaceWidth < 0f) spaceWidth = MinecraftText.measure(" ", FIELD_SIZE, false);
+        return spaceWidth;
+    }
 
     /** 磁盘缓存探测节流：每 1 秒最多查一次目录，避免每帧都列目录（旧类同口径） */
     private static final long CACHE_PROBE_INTERVAL_MS = 1000L;
@@ -82,6 +112,14 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
     // ── 构建 ──
 
     private void build() {
+        // 顶部信息块：状态圆点 + 快捷键徽章 + 模块开关（与其它模块页同一套壳）
+        setHeader(new ModuleStatusBar(
+            () -> module.isEnabled() ? "运行中" : "未启用",
+            module::isEnabled,
+            new KeybindBadge(module.keybindId()),
+            new SettingToggle(module::isEnabled,
+                value -> ModuleManager.setEnabled(module.id(), value))));
+
         addCore(new TextLine(GROUP_TITLE).height(GROUP_HEIGHT).size(GROUP_SIZE).bold(true));
 
         // 六行字段：顺序与标签逐字照旧项目 FIELD_LABELS
@@ -99,20 +137,21 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
         addCore(new CompactRow("", this::detectHint, new Button(this::detectText, () -> {
             if (!allowed() || ResourceExtractionService.isBusy()) return;
             ResourceExtractionService.requestExtract();
-        })));
+        })).centeredControl());
 
         // ② 打开控制台：整屏页面（概览 / 种植 / 运行 / 后勤 / 点位 / 日志），一屏只显示一类内容
         addCore(new CompactRow("",
             () -> "按用途分页看状态与改参数：概览只看数据，种植 / 运行 / 后勤 / 点位各自一页，还有最近播报",
-            new Button("§b打开控制台", this::openConsole)));
+            new Button("§b打开控制台", this::openConsole)).centeredControl());
 
         // ③ 查看资源包：只用当前完整 ServerKey 取真实缓存文件，禁止打开其它服务器的包
-        addCore(new CompactRow("", this::packHint, new Button(this::packText, this::openCachedPack)));
+        addCore(new CompactRow("", this::packHint, new Button(this::packText, this::openCachedPack)).centeredControl());
 
         // ④ 查看使用说明
         addCore(new CompactRow("", () -> "打开星露谷农场的完整使用说明",
             new Button("§e查看使用说明",
-                () -> mc.setScreen(new HelpPanelScreen(MODULE_NAME, module.helpContent(), mc.screen)))));
+                () -> mc.setScreen(new HelpPanelScreen(MODULE_NAME, module.helpContent(), mc.screen))))
+            .centeredControl());
     }
 
     /**
@@ -126,7 +165,24 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
      * // 需要给新壳补一个「可换行只读文本」元素。
      */
     private void addField(String label, Supplier<String> value) {
-        addCore(new TextLine(() -> "§7" + label + " §8▶ " + value.get()).height(FIELD_HEIGHT));
+        // 构建期量出最宽标签，作为整页共用的固定标签列宽（旧 WFixedCell 的等价物）
+        labelColumnWidth = Math.max(labelColumnWidth, MinecraftText.measure(label, FIELD_SIZE, false));
+        addCore(new TextLine(() -> "§7" + padLabel(label) + " §8▶ " + value.get())
+            .height(FIELD_HEIGHT).size(FIELD_SIZE));
+    }
+
+    /**
+     * 把标签补齐到固定列宽（用半角空格按实测宽度补足）。
+     *
+     * <p>值列的起点因此只由列宽决定，与标签是 4 字还是 5 字无关——旧项目两个固定宽度单元格
+     * 的对齐效果。</p>
+     */
+    private String padLabel(String label) {
+        float space = spaceWidth();
+        if (labelColumnWidth <= 0f || space <= 0f) return label;
+        float width = MinecraftText.measure(label, FIELD_SIZE, false);
+        int spaces = Math.max(0, Math.round((labelColumnWidth - width) / space));
+        return spaces == 0 ? label : label + " ".repeat(spaces);
     }
 
     // ── 状态取值（逐字照旧 StardewResourceSetting.refresh / stateText） ──

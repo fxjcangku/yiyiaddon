@@ -11,6 +11,7 @@ import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
 import com.yiyiaddon.feature.stardew.recognition.CropState;
 import com.yiyiaddon.feature.stardew.recognition.PotState;
+import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
 import net.minecraft.client.Minecraft;
@@ -79,8 +80,90 @@ final class StardewTaskPlanner {
     /** 只把已选盆上的已选生长作物计入“等待成熟”，避免空盆或未知资源误报。 */
     boolean isManagedGrowingCell(StardewFarmScanner.Cell cell) {
         return cell != null && cell.crop().state() == CropState.GROWING
-            && cell.crop().cropKey() != null && owner.selectedCropKeys.contains(cell.crop().cropKey())
+            && cell.crop().cropKey() != null && cropIsManaged(cell.potPos(), cell.crop().cropKey())
             && potMatchesSelection(cell);
+    }
+
+    /**
+     * 这一格上的作物是不是「本格该维护的作物」。
+     *
+     * <p><b>分区模式（实验）：</b>必须是本格所属区域的绑定作物；未分区格子一律不管。
+     * 区域绑定的作物一旦被取消勾选，该区域整体失效跳过，重新勾选自动恢复（数据不删）。</p>
+     *
+     * <p><b>非分区模式：</b>与旧口径逐字一致——只要在全局已勾选列表里就算。</p>
+     */
+    boolean cropIsManaged(BlockPos potPos, String cropKey) {
+        if (cropKey == null || !owner.selectedCropKeys.contains(cropKey)) return false;
+        if (!owner.regionModeActive()) return true;
+        StardewRegionManager.Region region = owner.regionAt(potPos);
+        return region != null && cropKey.equals(region.cropKey());
+    }
+
+    /**
+     * 分区模式下这一格该种什么：区域绑定的作物。
+     *
+     * <p>区域必须仍被勾选、且该作物在当前资源索引里存在，否则这一格视为「无目标」（跳过，不播种）。
+     * 非分区模式返回 {@code null}，调用方走旧的记忆 / 全局勾选口径。</p>
+     */
+    private String regionCropFor(BlockPos potPos) {
+        if (!owner.regionModeActive()) return null;
+        StardewRegionManager.Region region = owner.regionAt(potPos);
+        if (region == null) return null;
+        if (!owner.selectedCropKeys.contains(region.cropKey())) return null;
+        return owner.index != null && owner.index.cropByKey(region.cropKey()) != null ? region.cropKey() : null;
+    }
+
+    /**
+     * 分区模式下「某块区域里种了别的作物」的冲突详情。
+     *
+     * <p>逐条给出玩家能直接走过去处理的证据：区域号、该区绑定作物、实际作物、坐标。
+     * 未分区格子不参与判定（那些格子不管，种什么都不拦）。最多列三处，其余折叠成「等 N 处」。</p>
+     */
+    List<String> regionMismatchedCrops() {
+        List<String> details = new ArrayList<>();
+        int total = 0;
+        for (StardewFarmScanner.Cell cell : owner.pending) {
+            String key = cell.crop().cropKey();
+            if (key == null || cell.crop().state() == CropState.UNKNOWN) continue;
+            StardewRegionManager.Region region = owner.regionAt(cell.potPos());
+            if (region == null || key.equals(region.cropKey())) continue;
+            total++;
+            if (details.size() >= 3) continue;
+            CropDefinition crop = owner.index == null ? null : owner.index.cropByKey(key);
+            String actual = crop == null ? key : crop.chineseName();
+            BlockPos pos = cell.potPos();
+            details.add("区域 " + region.index() + "（" + region.cropName() + "）实际 " + actual
+                + " · X" + pos.getX() + " Y" + pos.getY() + " Z" + pos.getZ());
+        }
+        if (total > details.size()) details.add("等 " + total + " 处");
+        return details;
+    }
+
+    /**
+     * 田里是否「整片都不是已选作物」。
+     *
+     * <p><b>为什么需要它：</b>{@link #resolveTask} 对「作物不在已选列表」的格子一律返回 null
+     * （旧项目同一口径），于是整片田都种着别的作物时，模块既不收也不浇，直接回中心站着，
+     * 玩家只会以为模块卡死。这里把这种情况认出来，交给协调器报错停机。</p>
+     *
+     * <p><b>判据（玩家口径）：</b>本轮快照里种着东西的格子非空，且没有一格的作物在已选列表里。
+     * 只要有一格是已选作物就不算冲突——田里混着自己要种的作物时模块还有活干，绝不能停机。</p>
+     *
+     * @return 冲突作物的中文名（去重、按扫描顺序）；无冲突返回空表
+     */
+    List<String> mismatchedCrops() {
+        List<String> plantedKeys = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        for (StardewFarmScanner.Cell cell : owner.pending) {
+            String key = cell.crop().cropKey();
+            if (key == null || cell.crop().state() == CropState.UNKNOWN) continue;
+            if (owner.selectedCropKeys.contains(key)) return List.of();
+            if (plantedKeys.contains(key)) continue;
+            plantedKeys.add(key);
+            CropDefinition crop = owner.index == null ? null : owner.index.cropByKey(key);
+            names.add(crop == null ? key : crop.chineseName());
+        }
+        return names;
     }
 
     /** 导航必须持续缩短距离；Baritone 有路径线但原地闪烁同样属于无进展。 */
@@ -150,7 +233,13 @@ final class StardewTaskPlanner {
 
     TaskType resolveTask(StardewFarmScanner.Cell cell) {
         if (!potMatchesSelection(cell)) return null;
-        if (cell.crop().cropKey() != null && !owner.selectedCropKeys.contains(cell.crop().cropKey())) return null;
+        // 分区模式：未分区格子一律不管（不种 / 不收 / 不浇 / 不画），也不参与任何报错
+        if (owner.regionModeActive() && owner.regionAt(cell.potPos()) == null) return null;
+        if (cell.crop().cropKey() != null && !cropIsManaged(cell.potPos(), cell.crop().cropKey())) {
+            // 没选中的作物：旧口径只放行「给干盆浇水 / 补水」，收割 / 清理 / 播种 / 施肥 / 学习一律不做。
+            // 分区模式不替别人浇：本区种了别的作物交给停机报错，未分区的格子上一步已经跳过。
+            return owner.regionModeActive() ? null : resolveUnselectedWatering(cell);
+        }
         CropState state = cell.crop().state();
         return switch (state) {
             // 普通成熟作物执行右键采摘；特殊变种必须等独立工具规则确认后再处理。
@@ -177,6 +266,23 @@ final class StardewTaskPlanner {
         }
         if (shouldProbeLearning(cell)) return TaskType.LEARN_HARVEST;
         return null;
+    }
+
+    /**
+     * 未选作物的格子：只放行「浇水 / 补水」。
+     *
+     * <p><b>为什么要放行浇水：</b>浇水是纯增益动作——浇到没选中的作物上没有任何副作用，而盆一干作物就
+     * 枯死。实机反馈：田里混种两种作物、只选了一种时，另一种的干盆一直不浇水。其余动作仍要求先选中
+     * 该作物，避免误收、误清、误施肥。</p>
+     *
+     * <p>注意「整片田都不是已选作物」不走这里：那种情况由 {@link #mismatchedCrops()} 报错停机，
+     * 玩家口径是「先收获或先把它选进列表」，不是替他把别人的作物浇上。</p>
+     */
+    private TaskType resolveUnselectedWatering(StardewFarmScanner.Cell cell) {
+        if (!owner.wateringEnabled || cell.potState() != PotState.DRY) return null;
+        // 与已选作物同一口径：水壶明确为空先补水，未知 / 有水直接浇
+        if (owner.forceRefill || owner.executor.canWaterIsEmpty()) return TaskType.REFILL;
+        return owner.executor.canUsable() ? TaskType.WATER : null;
     }
 
     /** 有成熟阶段但生命周期未验证，或完全没有规则时，都需要低风险学习。 */
@@ -208,6 +314,20 @@ final class StardewTaskPlanner {
         owner.status.state("SPECIAL:" + key, "发现特殊作物", "收割动作尚未确认，已安全跳过");
     }
 
+    /**
+     * 分区模式：这一格所属区域缺对应种子时，只提示一次并跳过该区。
+     *
+     * <p>口径来自定稿规格：缺种子不拦模块启动、不停机、更不会用别的种子顶替；
+     * 同一条（同一区域）只报一次，避免每轮扫描都刷屏。</p>
+     */
+    private void announceRegionSeedShortage(BlockPos potPos, CropDefinition crop) {
+        if (crop == null || !owner.regionModeActive()) return;
+        StardewRegionManager.Region region = owner.regionAt(potPos);
+        if (region == null || !owner.announcedRegionSeedShortage.add(region.index())) return;
+        owner.status.state("REGION_SEED:" + region.index(),
+            "区域 " + region.index() + "（" + crop.chineseName() + "）缺种子", "本轮跳过该区域");
+    }
+
     private TaskType resolveEmptyPot(StardewFarmScanner.Cell cell) {
         if (!hasPlantTarget(cell.potPos())) return null;
         CropDefinition crop = cropOf(cell.potPos());
@@ -229,7 +349,11 @@ final class StardewTaskPlanner {
             if (owner.forceRefill || owner.executor.canWaterIsEmpty()) return TaskType.REFILL;
             if (owner.executor.canUsable()) return TaskType.WATER;
         }
-        if (owner.inventory.countSeed(crop) <= 0) return null;
+        if (owner.inventory.countSeed(crop) <= 0) {
+            // 分区模式：缺种子只跳过这一块地并提示一次，不拦其它区域、也不停机（绝不用别的种子顶替）
+            announceRegionSeedShortage(cell.potPos(), crop);
+            return null;
+        }
         // 自动施肥开启且有肥料可选，且该盆被选中类型允许施肥时，先施肥后播种
         if (owner.autoFertilize && owner.executor.hasSelectedFertilizer() && potMatchesSelection(cell)) return TaskType.FERTILIZE;
         return TaskType.PLANT;
@@ -248,12 +372,14 @@ final class StardewTaskPlanner {
     }
 
     private boolean hasPlantTarget(BlockPos potPos) {
+        if (owner.regionModeActive()) return regionCropFor(potPos) != null;
         var cell = owner.memory.get(owner.serverKey, owner.dimension, potPos);
         if (cell.hasTarget()) return owner.selectedCropKeys.contains(cell.cropKey()) && owner.index.cropByKey(cell.cropKey()) != null;
         return !owner.selectedCropKeys.isEmpty();
     }
 
     private String plantCropKey(BlockPos potPos) {
+        if (owner.regionModeActive()) return regionCropFor(potPos);
         var cell = owner.memory.get(owner.serverKey, owner.dimension, potPos);
         if (cell.hasTarget()) return owner.selectedCropKeys.contains(cell.cropKey()) && owner.index.cropByKey(cell.cropKey()) != null ? cell.cropKey() : null;
         for (String key : owner.selectedCropKeys) {
@@ -359,6 +485,22 @@ final class StardewTaskPlanner {
         List<StardewPointManager.StardewPoint> list = sprinklerPointsInDimension();
         if (list.isEmpty()) return false;
         if (owner.sprinklerCursor >= list.size()) owner.sprinklerCursor = 0;
+        // 跳过「刚验过是满的」台：满了的洒水器不必每轮都走过去点一下才发现它还是满的。
+        // 只推迟不永久跳过——窗口到点后照样重新检查（灌溉会消耗水量）。
+        int skipped = 0;
+        while (skipped < list.size()) {
+            StardewPointManager.StardewPoint candidate = list.get(owner.sprinklerCursor);
+            if (!owner.isSprinklerRecentlyFull(candidate.pos())) break;
+            owner.reporter.announceSprinklerSkipped(candidate.pos());
+            owner.sprinklerCursor = (owner.sprinklerCursor + 1) % list.size();
+            skipped++;
+        }
+        if (skipped >= list.size()) {
+            // 这一轮全是刚验过满的：本轮不跑腿，等下一个检查间隔
+            owner.nextSprinklerCheckTick = System.currentTimeMillis() + owner.sprinklerInterval * 50L;
+            owner.reporter.announceSprinklerAllSkipped(list.size());
+            return false;
+        }
         if (isNavigationBlocked(TaskType.SPRINKLER_CHECK, list.get(owner.sprinklerCursor).pos())) return false;
         owner.taskType = TaskType.SPRINKLER_CHECK;
         owner.targetPot = null;
@@ -622,13 +764,37 @@ final class StardewTaskPlanner {
     }
 
     BlockPos regionCenter() {
+        if (owner.regionModeActive()) return nearestRegionCenter();
         StardewPointManager.StardewPoint start = owner.points.get(StardewPointType.START);
         StardewPointManager.StardewPoint end = owner.points.get(StardewPointType.END);
         if (start == null || end == null) return null;
         return new BlockPos((start.x() + end.x()) / 2, Math.max(start.y(), end.y()) + 1, (start.z() + end.z()) / 2);
     }
 
+    /**
+     * 分区模式的回中心点：离玩家最近的区域中心。
+     *
+     * <p>区域并集的几何中心可能落在走道、田外甚至另一块地里，那儿站着不产生任何任务；
+     * 「最近的那块地」才是玩家眼里自然的待命位置。</p>
+     */
+    private BlockPos nearestRegionCenter() {
+        BlockPos player = Minecraft.getInstance().player == null
+            ? null : Minecraft.getInstance().player.blockPosition();
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (StardewRegionManager.Region region : owner.regions) {
+            BlockPos center = region.center();
+            double distance = player == null ? 0 : center.distSqr(player);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = center;
+            }
+        }
+        return best;
+    }
+
     BlockPos regionMin() {
+        if (owner.regionModeActive()) return regionBounds(true);
         StardewPointManager.StardewPoint start = owner.points.get(StardewPointType.START);
         StardewPointManager.StardewPoint end = owner.points.get(StardewPointType.END);
         if (start == null || end == null) return null;
@@ -636,9 +802,30 @@ final class StardewTaskPlanner {
     }
 
     BlockPos regionMax() {
+        if (owner.regionModeActive()) return regionBounds(false);
         StardewPointManager.StardewPoint start = owner.points.get(StardewPointType.START);
         StardewPointManager.StardewPoint end = owner.points.get(StardewPointType.END);
         if (start == null || end == null) return null;
         return new BlockPos(Math.max(start.x(), end.x()), Math.max(start.y(), end.y()), Math.max(start.z(), end.z()));
+    }
+
+    /**
+     * 全部区域的并集包围盒。
+     *
+     * <p><b>为什么是包围盒而不是逐区域扫：</b>扫描器按「一个矩形逐格推进」工作，改成多段扫描要动
+     * 整个扫描器；用并集包围盒多扫到的格子（区域之间的走道）由 {@code resolveTask} 一句
+     * 「未分区格子不管」直接过滤，行为一致而改动面最小。</p>
+     */
+    private BlockPos regionBounds(boolean min) {
+        if (owner.regions.isEmpty()) return null;
+        int x = min ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+        int y = min ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+        int z = min ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+        for (StardewRegionManager.Region region : owner.regions) {
+            x = min ? Math.min(x, region.minX()) : Math.max(x, region.maxX());
+            y = min ? Math.min(y, region.minY()) : Math.max(y, region.maxY());
+            z = min ? Math.min(z, region.minZ()) : Math.max(z, region.maxZ());
+        }
+        return new BlockPos(x, y, z);
     }
 }

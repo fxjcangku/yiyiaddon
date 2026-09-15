@@ -65,6 +65,9 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
     /** 播报前缀使用的模块名：旧项目 {@code AutoChestModule} 的模块名为 {@code 自动箱子} */
     public static final String MESSAGE_MODULE = "自动箱子";
 
+    /** 图标字形：箱子（Material Symbols inventory / archive box，已确认存在于所引字体） */
+    private static final String ICON = "\uE1A1";
+
     /**
      * 视角同步：每 tick 最多转多少度（约 0.3 秒转 90°，不是瞬移式甩头）。
      */
@@ -124,6 +127,11 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
     @Override
     public String name() {
         return "AutoChest";
+    }
+
+    @Override
+    public String icon() {
+        return ICON;
     }
 
     @Override

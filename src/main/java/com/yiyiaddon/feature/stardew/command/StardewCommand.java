@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.RuleEvidence;
 import com.yiyiaddon.feature.stardew.recognition.CropRuntimeStateResolver;
+import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
@@ -69,10 +70,13 @@ public final class StardewCommand extends ClientCommand {
 
     /** 根节点子命令字面量（注册顺序） */
     private static final List<String> ROOT_SUBCOMMANDS = List.of(
-        "绑定", "添加洒水器", "移除洒水器", "移除", "种植", "标记成熟", "控制台", "季节", "状态", "清空");
+        "绑定", "添加洒水器", "移除洒水器", "移除", "种植", "种植区域", "标记成熟", "控制台", "季节", "状态", "清空", "预览范围");
 
     /** {@code 绑定} / {@code 移除} 的点位字面量 */
     private static final List<String> POINT_NAMES = List.of("起点", "终点", "种子箱", "成品箱", "补水点");
+
+    /** {@code 种植区域} 的管理字面量（第二层固定候选，与已勾选作物一起列） */
+    private static final List<String> REGION_ACTIONS = List.of("取消", "列表", "删除", "清空");
 
     /** {@code 季节} 的字面量（先 {@code 清除}，再短名 / 全名成对） */
     private static final List<String> SEASON_NAMES = List.of(
@@ -102,15 +106,17 @@ public final class StardewCommand extends ClientCommand {
         }
         switch (context.arg(0)) {
             case "绑定" -> bindPoint(context);
-            case "添加洒水器" -> addSprinkler();
+            case "添加洒水器" -> addSprinkler(context);
             case "移除洒水器" -> removeSprinkler();
             case "移除" -> removePointByName(context);
             case "种植" -> setPlantIntent(context);
+            case "种植区域" -> region(context);
             case "标记成熟" -> markMature(context);
             case "控制台" -> openConsole();
             case "季节" -> season(context);
             case "状态" -> status();
             case "清空" -> clear();
+            case "预览范围" -> toggleRangePreview();
             default -> {
                 context.error("未知子命令：" + context.arg(0));
                 context.usage(usage());
@@ -156,6 +162,23 @@ public final class StardewCommand extends ClientCommand {
             }
 
             case "季节" -> context.size() == 1 ? SEASON_NAMES : List.of();
+
+            // 种植区域：第二层列「取消 / 列表 / 删除 / 清空」+ 已勾选的作物；删除之后再列区域序号
+            case "种植区域" -> {
+                if (context.size() == 1) {
+                    List<String> candidates = new ArrayList<>(REGION_ACTIONS);
+                    if (module != null) candidates.addAll(module.selectedCropCompletions());
+                    yield candidates;
+                }
+                if (context.size() == 2 && "删除".equals(context.arg(1)) && module != null) {
+                    yield module.regionSequenceCompletions();
+                }
+                yield List.of();
+            }
+
+            // 添加洒水器：可选的类型参数，只列当前已选的洒水器类型
+            case "添加洒水器" -> context.size() == 1 && module != null
+                ? module.sprinklerTypeCompletions() : List.of();
 
             default -> List.of();
         };
@@ -232,10 +255,13 @@ public final class StardewCommand extends ClientCommand {
         module.setPointFromCrosshair(type);
     }
 
-    private void addSprinkler() {
+    /** {@code .stardew 添加洒水器 [类型]}：不给类型时由程序自动识别（见 StardewPointActions） */
+    private void addSprinkler(CommandContext context) {
         StardewFarmModule module = module();
         if (module == null) return;
-        module.addSprinklerFromCrosshair();
+        // 资源闸门最优先：没有当前服务器的资源身份，绑定只会把点位记到「认不出的方块」上
+        if (!resourceGate(module, "设置洒水器失败", "未保存")) return;
+        module.addSprinklerFromCrosshair(context.size() > 1 ? context.arg(1) : null);
     }
 
     private void removeSprinkler() {
@@ -253,6 +279,12 @@ public final class StardewCommand extends ClientCommand {
     private void setPlantIntent(CommandContext context) {
         StardewFarmModule module = module();
         if (module == null) return;
+        // 分区种植开启后，「整片田一个目标」不再参与：一份用不到的全田意图只会与区域口径打架
+        if (module.regionPlantingOn()) {
+            fail("设置种植目标失败",
+                "分区种植已开启：现在由种植区域决定每块地种什么，请改用 .stardew 种植区域 <作物> 圈地");
+            return;
+        }
         String cropKey = context.arg(1);
         if (cropKey == null) {
             context.error("缺少作物参数");
@@ -282,6 +314,73 @@ public final class StardewCommand extends ClientCommand {
     }
 
     /**
+     * {@code .stardew 种植区域 <作物>} 进入选区模式。
+     *
+     * <p>四种管理动作（{@code 取消 / 列表 / 删除 <序号> / 清空}）与「圈一块新地」共用同一个子命令，
+     * 与旧项目「一个子命令下挂中文字面量」的风格一致。</p>
+     */
+    private void region(CommandContext context) {
+        StardewFarmModule module = module();
+        if (module == null) return;
+        String action = context.arg(1);
+        // 资源闸门最优先：没资源时「连没带参数」也先说资源问题，管理动作同样一并拦下。
+        // 唯一例外是「取消」——它是选区模式唯一的退出方式，任何情况下都必须能敲。
+        if (!"取消".equals(action) && !resourceGate(module, "种植区域失败", "未圈地")) return;
+        if (action == null) {
+            context.error("缺少参数");
+            context.usage(usage());
+            return;
+        }
+        switch (action) {
+            case "取消" -> {
+                if (!module.cancelRegionSelection()) fail("取消种植区域", "当前没有正在圈的地");
+            }
+            case "列表" -> listRegions(module);
+            case "删除" -> removeRegion(module, context.arg(2));
+            case "清空" -> {
+                if (module.clearRegions() == 0) fail("清空种植区域", "当前还没有划分任何区域");
+            }
+            default -> {
+                String failure = module.startRegionSelection(action);
+                if (failure != null) fail("种植区域", failure);
+            }
+        }
+    }
+
+    /** {@code .stardew 种植区域 列表}：聊天里逐条列出区域 + 未分区格数 */
+    private void listRegions(StardewFarmModule module) {
+        List<StardewRegionManager.Region> list = module.regionsInDimension();
+        if (list.isEmpty()) {
+            fail("种植区域列表", "当前维度还没有划分任何区域（用 .stardew 种植区域 <作物> 圈一块）");
+            return;
+        }
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, "种植区域 ▶ 共 " + list.size() + " 个");
+        for (StardewRegionManager.Region region : list) {
+            formatter.field("区域 " + region.index(),
+                region.cropName() + " · " + region.rangeText() + " · " + region.cellCount() + " 格 · "
+                    + module.regionSprinklerInfo(region));
+        }
+        int unpartitioned = module.unpartitionedCellCount();
+        if (unpartitioned >= 0) formatter.field("未分区", unpartitioned + " 格（不管）");
+        formatter.status(CommandMessageFormatter.Level.SUCCESS, "已列出").send();
+    }
+
+    /** {@code .stardew 种植区域 删除 <序号>}：删除即「不再管这块地」 */
+    private void removeRegion(StardewFarmModule module, String sequenceInput) {
+        int sequence = -1;
+        try {
+            if (sequenceInput != null) sequence = Integer.parseInt(sequenceInput.trim());
+        } catch (Exception ignored) {
+            sequence = -1;
+        }
+        if (sequence <= 0) {
+            fail("删除种植区域", "请给出区域序号，例如 .stardew 种植区域 删除 1（序号可用 TAB 补全）");
+            return;
+        }
+        if (!module.removeRegion(sequence)) fail("删除种植区域", "没有序号为 " + sequence + " 的区域");
+    }
+
+    /**
      * 资源闸门：人工标记成熟的最前置校验，必须先于任何 cropKey / stageKey 解析。
      *
      * <p>资源未就绪时真正的问题不是玩家输入，因此此时既不解析 crop 也不解析 stage，
@@ -290,14 +389,25 @@ public final class StardewCommand extends ClientCommand {
      * @return true 表示资源就绪，可以继续解析
      */
     private boolean matureResourceGate(StardewFarmModule module) {
-        if (module.matureMarkAllowed()) return true;
-        reportMatureNotReady();
+        return resourceGate(module, "标记成熟失败", "未保存");
+    }
+
+    /**
+     * 通用资源闸门：{@code title} 是这次操作的失败标题，{@code status} 是状态栏收尾。
+     *
+     * <p>给「圈地」「绑洒水器」这类<b>要拿资源身份记账</b>的入口复用；查询类指令不受影响。</p>
+     *
+     * @return true 表示资源就绪，可以继续
+     */
+    private boolean resourceGate(StardewFarmModule module, String title, String status) {
+        if (module.resourceReady()) return true;
+        reportResourceNotReady(title, status);
         return false;
     }
 
     /** 「资源未就绪」统一中文提示：按环境给原因与操作，绝不提示玩家输入错 */
-    private void reportMatureNotReady() {
-        CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, "标记成熟失败");
+    private void reportResourceNotReady(String title, String status) {
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, title);
         switch (WorldContextFormatter.environment()) {
             case MAIN_MENU -> {
                 formatter.field("原因", "当前未进入世界")
@@ -313,7 +423,7 @@ public final class StardewCommand extends ClientCommand {
                     .field("操作", "请先进入「服务器资源」执行「检测/提取当前服务器资源包」，资源 READY 后再使用该命令");
             }
         }
-        formatter.status(CommandMessageFormatter.Level.FAILURE, "未保存").send();
+        formatter.status(CommandMessageFormatter.Level.FAILURE, status).send();
     }
 
     /**
@@ -473,7 +583,7 @@ public final class StardewCommand extends ClientCommand {
             case UNKNOWN_CROP -> fail("标记成熟失败", "该作物（" + outcome.cropKey()
                 + "）不在当前服务器资源索引中：请先在「服务器资源」检测 / 提取资源");
 
-            case NOT_READY -> reportMatureNotReady();
+            case NOT_READY -> reportResourceNotReady("标记成熟失败", "未保存");
 
             case FAILED -> fail("标记成熟失败", "保存失败：请确认当前服务器资源已就绪（需为多人服务器且已完成资源检测）");
 
@@ -527,6 +637,21 @@ public final class StardewCommand extends ClientCommand {
         CommandMessageFormatter card = CommandMessageFormatter.of(MODULE_NAME, "当前状态");
         for (String line : module.statusLines()) card.raw(line);
         card.send();
+    }
+
+    /**
+     * {@code .stardew 预览范围}：不启动模块也能看农田边界与附近洒水器覆盖范围；
+     * 32 格内自动显示，不用绑定（再敲一次关闭）。
+     *
+     * <p>播报由模块统一给出（GUI 与指令共用同一实现）。</p>
+     */
+    private void toggleRangePreview() {
+        StardewFarmModule module = module();
+        if (module == null) return;
+        // 关掉不拦（纯本地开关，任何情况下都得让你关）；开启才要求资源就绪——
+        // 没读过资源就认不出洒水器类型，开了也是一片空白，只会让人以为功能坏了。
+        if (!module.rangePreviewOn() && !resourceGate(module, "范围预览失败", "未开启")) return;
+        module.toggleRangePreview();
     }
 
     /** {@code .stardew 控制台}：打开整屏控制台（概览 / 种植 / 后勤 / 点位 / 日志） */

@@ -56,9 +56,10 @@ public final class HelpCommand extends ClientCommand {
                 .send();
     }
 
+    /** 只补第一层指令名：给出指令名之后按 Tab 不再出候选（旧项目该参数是命令树的叶子） */
     @Override
     public List<String> complete(CommandContext context) {
-        return CommandRegistry.allNames();
+        return context.isEmpty() ? CommandRegistry.allNames() : List.of();
     }
 
     private void printAll() {

@@ -255,6 +255,16 @@ public final class BaritoneSettingTranslations {
         return new Translation("Baritone 设置", "控制 Baritone 的此项行为或参数；请保留英文键用于命令和配置。 ");
     }
 
+    /**
+     * 有中文条目时返回该条目，没有则返回 {@code null}。
+     *
+     * <p>留给「需要自己决定回退文案」的调用方（例如设置界面用英文键名兜底，而不是统一显示
+     * {@link #get(String)} 的通用占位文案）。</p>
+     */
+    public static Translation find(String key) {
+        return key == null ? null : TRANSLATIONS.get(key);
+    }
+
     public record Translation(String name, String description) {}
 
     private static Map.Entry<String, Translation> entry(String key, String name, String description) {

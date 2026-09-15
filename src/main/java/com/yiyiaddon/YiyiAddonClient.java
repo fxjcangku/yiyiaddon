@@ -2,6 +2,7 @@ package com.yiyiaddon;
 
 import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.config.identity.IdentityTargetConfig;
+import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
 import com.yiyiaddon.module.AddonModules;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
@@ -29,5 +30,10 @@ public final class YiyiAddonClient implements ClientModInitializer {
 
         // 资源生命周期服务：进服识别、断线失效、每 tick 推进状态机与下载兜底
         ResourceExtractionService.init();
+
+        // 星露谷季节识别：常驻挂载（不依赖模块开关），必须排在资源服务之后——
+        // 它要订阅资源的就绪 / 失效事件，且模块启用前收到的服务器季节组件也不能丢
+        // （旧项目 AddonTemplate 里两者同样是先后相邻的两次 init）
+        StardewSeasonService.init();
     }
 }

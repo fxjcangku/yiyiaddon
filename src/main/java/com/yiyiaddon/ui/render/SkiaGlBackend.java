@@ -65,6 +65,22 @@ public final class SkiaGlBackend {
         return binding[0];
     }
 
+    /**
+     * 全项目共享的 Skija GL 上下文。
+     *
+     * <p><b>为什么必须共享：</b>同一 GL context 上并存多个 {@code GrDirectContext} 时，
+     * 用 A 上下文「收养」的纹理在 B 上下文的画布上不保证可用（跨上下文贴图会被丢弃）。
+     * 本项目有多个绘制后端（主界面 / 模块页 / 独立面板 / 世界叠加层）以及离屏贴图采集，
+     * 全部走这一个上下文才能保证「甲处采集的贴图，乙处能正常绘制」。</p>
+     */
+    private static DirectContext sharedContext;
+
+    /** 取值即创建（要求当前线程已有可用的 GL 上下文，故只在渲染线程调用）。 */
+    public static DirectContext sharedContext() {
+        if (sharedContext == null) sharedContext = DirectContext.makeGL();
+        return sharedContext;
+    }
+
     public Canvas begin() {
         return begin(0);
     }
@@ -166,10 +182,8 @@ public final class SkiaGlBackend {
                 renderTarget.close();
                 renderTarget = null;
             }
-            if (context != null) {
-                context.close();
-                context = null;
-            }
+            // 上下文是全项目共享的，销毁单个后端时绝不关闭它（否则其它界面与已采集的贴图一起失效）
+            context = null;
             canvas = null;
             width = -1;
             height = -1;
@@ -211,7 +225,7 @@ public final class SkiaGlBackend {
 
     private void ensureContext() {
         if (context != null) return;
-        context = DirectContext.makeGL();
+        context = sharedContext();
     }
 
     private void ensureState() {

@@ -20,7 +20,10 @@ import com.yiyiaddon.feature.stardew.point.StardewPointActions;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
+import com.yiyiaddon.feature.stardew.profile.SprinklerDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropRuntimeStateResolver;
+import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
+import com.yiyiaddon.feature.stardew.region.StardewRegionSelector;
 import com.yiyiaddon.feature.stardew.render.StardewRenderState;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonBinding;
@@ -37,6 +40,7 @@ import com.yiyiaddon.feature.stardew.task.StardewCoordinator;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleData;
 import com.yiyiaddon.feature.stardew.ui.StardewResourcePanelPage;
 import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.platform.identity.ItemIdentifier;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
@@ -45,6 +49,9 @@ import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
 
 import java.util.List;
 
@@ -68,8 +75,13 @@ public final class StardewFarmModule extends Module {
 
     /** 模块 ID，同时作为状态文件键与世界渲染层标识 */
     public static final String MODULE_ID = "stardew";
+    /** 范围预览渲染层：与模块自身那一层分开，模块启动后预览层就不再挂载 */
+    private static final String PREVIEW_LAYER_ID = MODULE_ID + "-preview";
     /** 事件订阅所有者标识 */
     private static final String EVENT_OWNER = "module.stardew";
+
+    /** 图标字形：拖拉机（Material Symbols agriculture，已确认存在于所引字体） */
+    private static final String ICON = "\uEA79";
 
     private final Minecraft mc = Minecraft.getInstance();
 
@@ -87,6 +99,10 @@ public final class StardewFarmModule extends Module {
     private final StardewQuerySupport query;
     private final StardewPointActions pointActions;
     private final StardewRenderState renderState;
+
+    // ── 分区种植（实验功能）：区域数据 + 选区会话 ──
+    private final StardewRegionManager regionManager = new StardewRegionManager();
+    private final StardewRegionSelector regionSelector;
 
     /** 全部设置项的数据载体（旧项目 Setting 定义逐字搬入 {@link StardewSettings}） */
     private final StardewSettings settings = new StardewSettings();
@@ -116,6 +132,8 @@ public final class StardewFarmModule extends Module {
     private boolean deathStopPending = false;
     /** 启动自检失败关闭模块时，避免再播一条普通“已停止”覆盖失败原因。 */
     private boolean startupStopPending = false;
+    /** 农田整片都是未选作物而停机：同样避免关闭时的普通“已停止”盖掉失败原因。 */
+    private boolean cropMismatchStopPending = false;
 
     /**
      * 是否抑制框架的统一开关播报「已开启」。
@@ -127,6 +145,18 @@ public final class StardewFarmModule extends Module {
 
     /** 是否已在本次会话内跑过启动自检：旧项目只在世界内激活，主菜单不跑自检 */
     private boolean startupSelfCheckDone = false;
+
+    /** 范围预览开关（.stardew 预览范围）：不启动模块也能看农田边界与洒水器覆盖范围 */
+    private boolean rangePreview = false;
+
+    /** 附近洒水器自动预览的扫描半径（格）：够看整片田，又不必逐帧扫世界 */
+    private static final int NEARBY_PREVIEW_RADIUS = 32;
+    /** 附近洒水器自动预览的重扫间隔（毫秒）：站着不动时的刷新节奏 */
+    private static final long NEARBY_PREVIEW_INTERVAL_MS = 1000L;
+    /** 附近扫描的缓存结论：渲染层每帧都会问，绝不能每帧扫世界 */
+    private List<StardewPointActions.NearbySprinkler> nearbyPreview = List.of();
+    private long nearbyPreviewAt;
+    private BlockPos nearbyPreviewOrigin;
 
     // ── 六类选择器（内存镜像在 StardewSettings，按 ServerKey 落盘走 StardewSelectionStore） ──
     private final StardewSelectionBinding selections;
@@ -150,7 +180,11 @@ public final class StardewFarmModule extends Module {
         this.profileAssembler = new StardewProfileAssembler(index, statusReporter);
         this.query = new StardewQuerySupport(index, profileAssembler, pointManager, memory, settings);
         this.pointActions = new StardewPointActions(pointManager, index, profileAssembler, coordinator, inventory, settings);
-        this.renderState = new StardewRenderState(settings, pointManager, index, coordinator);
+        this.renderState = new StardewRenderState(settings, pointManager, index, coordinator, regionManager,
+            this::nearbySprinklerPreview);
+        this.regionSelector = new StardewRegionSelector(this);
+        // 洒水器新绑定：分区种植开启时必须落在某个种植区域内（存量点位不回溯，照常维护）
+        this.pointActions.setSprinklerRegionGate(this::sprinklerRegionGate);
 
         // 六类选择器（数据源：资源包扫描 + ID 配置双源合并）
         selections = new StardewSelectionBinding(index, settings);
@@ -175,6 +209,8 @@ public final class StardewFarmModule extends Module {
             ResourceExtractionService.serverKey(), ResourceExtractionService.fingerprint(), cropKey));
         coordinator.setHarvestRuleResolver(cropKey -> profileAssembler.activeHarvestRules().get(cropKey));
         coordinator.setHarvestLearningListener(profileAssembler::saveLearnedHarvestRule);
+        coordinator.setCropMismatchHandler(this::stopForCropMismatch);
+        coordinator.setRegionMismatchHandler(this::stopForRegionMismatch);
 
         // 资源生命周期订阅：资源真正 READY 后才重建索引 / 加载档案 / 绑定选择；
         // 切服或断线立即失效，绝不在资源未就绪时使用上一服务器的数据。
@@ -212,6 +248,11 @@ public final class StardewFarmModule extends Module {
     @Override
     public ModulePage page() {
         return new StardewResourcePanelPage(this);
+    }
+
+    @Override
+    public String icon() {
+        return ICON;
     }
 
     /** 模块自带指令 {@code .stardew}；由运行时统一注册（与 AutoChestModule 同一注册点） */
@@ -339,6 +380,7 @@ public final class StardewFarmModule extends Module {
         pruneSelectors();
         profileAssembler.reload(serverKey);
         pointManager.load(serverKey);
+        regionManager.load(serverKey);
         pointActions.normalizeStoredFarmBoundaries(serverKey);
 
         if (isEnabled()) configureCoordinator(serverKey, StardewContext.dimension());
@@ -357,11 +399,27 @@ public final class StardewFarmModule extends Module {
         consumedReadyGeneration = -1L;
         coordinator.reset();
         pointManager.invalidate();
+        // 区域数据同样按服务器隔离：切服 / 断线后清空内存视图，磁盘文件保留
+        regionManager.invalidate();
+        boolean wasSelecting = regionSelector.isActive();
+        regionSelector.cancel(true);
         // 后勤参数缓存按 ServerKey + 指纹分组：切服 / 资源换包后必须丢弃内存缓存，
         // 磁盘文件保留（回到原服务器原资源时参数照旧）
         StardewLogisticsStore.invalidate();
         StardewCropPlanStore.invalidate();
         statusReporter.reset();
+        // 选区模式是被动取消的：必须说明原因，否则玩家只会看到「框突然没了」
+        if (wasSelecting) {
+            mc.execute(() -> statusReporter.critical("REGION_RESOURCE_LOST", "已退出选区模式",
+                "服务器资源已失效（切服 / 断线）：半成品已丢弃，请重新检测资源后再圈地"));
+        }
+        // 范围预览同样依赖资源（认不出洒水器类型就画不出东西）：一起收起来，别留一个永远空白的层
+        if (rangePreview) {
+            rangePreview = false;
+            syncRangePreview();
+            mc.execute(() -> statusReporter.critical("PREVIEW_RESOURCE_LOST", "已关闭范围预览",
+                "服务器资源已失效（切服 / 断线）：请重新检测资源后再开启"));
+        }
         if (isEnabled()) ModuleManager.setEnabled(MODULE_ID, false);
     }
 
@@ -384,6 +442,7 @@ public final class StardewFarmModule extends Module {
 
         // 旧 onRender3D / onRender2D 的世界渲染层：启用时注册、关闭时注销
         WorldOverlay.register(MODULE_ID, renderState::render);
+        syncRangePreview();
 
         deathStopPending = false;
         startupStopPending = false;
@@ -451,11 +510,15 @@ public final class StardewFarmModule extends Module {
     protected void onDisable() {
         ClientEventBus.unsubscribeAll(EVENT_OWNER);
         WorldOverlay.unregister(MODULE_ID);
+        syncRangePreview();
+        // 选区模式属于运行中的会话状态：停机即丢弃半成品，避免下次开启时残留上一次的角
+        regionSelector.cancel(true);
 
-        boolean forcedStop = deathStopPending || startupStopPending;
+        boolean forcedStop = deathStopPending || startupStopPending || cropMismatchStopPending;
         coordinator.reset();
         deathStopPending = false;
         startupStopPending = false;
+        cropMismatchStopPending = false;
         pendingSeasonFollowup = false;
         seasonDiagnosticGrace = 0;
         if (!forcedStop) statusReporter.state("STOPPED", "已停止", "自动任务已释放");
@@ -474,6 +537,56 @@ public final class StardewFarmModule extends Module {
         coordinator.reset();
         statusReporter.critical("PLAYER_DEAD", "已强制停止", "玩家死亡，农场任务已中止");
         mc.execute(() -> { if (isEnabled()) ModuleManager.setEnabledSilently(MODULE_ID, false); });
+    }
+
+    /**
+     * 农田整片都不是已选作物：报错并直接停机（等同玩家自己关掉模块）。
+     *
+     * <p>旧项目对「作物不在已选列表」的格子是一律静默跳过，于是整片田都种着别的作物时，
+     * 模块既不收也不浇、直接回中心站着，玩家只会以为模块卡死。这里报一条红色错误并像
+     * 「玩家死亡」那样强制关闭模块：玩家收获掉、或把那几种作物选进种植列表后重新打开即可。</p>
+     *
+     * <p>停机走 {@code mc.execute} 延后一帧（与死亡停机同口径），先同步撤销寻路与目标，
+     * 避免本 tick 剩余的协调器步骤继续接管 Baritone。</p>
+     */
+    public void stopForCropMismatch(List<String> crops) {
+        if (cropMismatchStopPending) return;
+        cropMismatchStopPending = true;
+        autoStartPending = -1;
+        autoStartWaitBudget = 0;
+        coordinator.reset();
+        statusReporter.critical("CROP_MISMATCH", "农田作物与已选不符", mismatchDetail(crops));
+        mc.execute(() -> { if (isEnabled()) ModuleManager.setEnabledSilently(MODULE_ID, false); });
+    }
+
+    /** 冲突详情：最多列三种作物，更多时补「等 N 种」，并给出两条出路。 */
+    private static String mismatchDetail(List<String> crops) {
+        if (crops == null || crops.isEmpty()) return "农田里的作物不在已选列表里 ▸ 请先收获，或把它们选进种植列表再启动";
+        String names = String.join("、", crops.subList(0, Math.min(3, crops.size())));
+        if (crops.size() > 3) names += " 等 " + crops.size() + " 种";
+        return "田里种的是「" + names + "」，没有一种是已选作物 ▸ 请先收获，或把它们选进种植列表再启动";
+    }
+
+    /**
+     * 种植区域里种了别的作物：同样报错并强制关闭模块。
+     *
+     * <p>分区模式的口径是「这块地由区域决定种什么」，所以区内出现异种不能将就：既不收也不浇，
+     * 让玩家先处理掉。与旧口径的唯一差别是证据更具体——直接给出区域号、绑定作物、实际作物与坐标。</p>
+     */
+    public void stopForRegionMismatch(List<String> details) {
+        if (cropMismatchStopPending) return;
+        cropMismatchStopPending = true;
+        autoStartPending = -1;
+        autoStartWaitBudget = 0;
+        coordinator.reset();
+        statusReporter.critical("REGION_MISMATCH", "种植区域内作物与绑定不符", regionMismatchDetail(details));
+        mc.execute(() -> { if (isEnabled()) ModuleManager.setEnabledSilently(MODULE_ID, false); });
+    }
+
+    /** 区域冲突详情：最多列三处，更多时补「等 N 处」，并给出唯一出路。 */
+    private static String regionMismatchDetail(List<String> details) {
+        if (details == null || details.isEmpty()) return "种植区域里的作物和区域绑定的作物不一致 ▸ 请先清理，或把区域删掉重划";
+        return String.join("；", details) + " ▸ 请先清理，或把区域删掉重划";
     }
 
     private void onGameJoined() {
@@ -497,6 +610,7 @@ public final class StardewFarmModule extends Module {
         autoStartPending = -1;
         autoStartWaitBudget = 0;
         startupSelfCheckDone = false;
+        regionSelector.cancel(true);
         if (isEnabled()) ModuleManager.setEnabled(MODULE_ID, false);
     }
 
@@ -574,6 +688,7 @@ public final class StardewFarmModule extends Module {
     }
 
     public void configureCoordinator(String serverKey, String dimension) {
+        regionManager.load(serverKey);
         coordinator.configure(profileAssembler.profile(), index, identityService, memory, pointManager, inventory,
             selections.crop().selectedCropKeys(), selections.pot().selectedKeys(), selections.can().selectedKeys(),
             selections.fertilizer().selectedKeys(), selections.potion().selectedKeys(), selections.sprinkler().selectedKeys(),
@@ -585,7 +700,7 @@ public final class StardewFarmModule extends Module {
             StardewLogisticsStore.CropLogistics.DEFAULT.restockTarget(),
             StardewLogisticsStore.CropLogistics.DEFAULT.unloadTrigger(),
             StardewLogisticsStore.CropLogistics.DEFAULT.unloadKeep(),
-            settings.returnCenterDelay, settings.batchActions);
+            settings.returnCenterDelay, settings.batchActions, settings.regionPlanting, regionManager.inDimension(dimension));
     }
 
     // ── 点位设置 / 查询：旧模块公开入口，实现落在专职类（GUI 按钮与 .stardew 指令共用同一实现） ──
@@ -595,11 +710,402 @@ public final class StardewFarmModule extends Module {
     }
 
     public boolean addSprinklerFromCrosshair() {
-        return pointActions.addSprinklerFromCrosshair();
+        return pointActions.addSprinklerFromCrosshair(null);
+    }
+
+    /** 明确指定类型的添加（{@code .stardew 添加洒水器 <类型>} 走这条） */
+    public boolean addSprinklerFromCrosshair(String typeInput) {
+        return pointActions.addSprinklerFromCrosshair(typeInput);
+    }
+
+    /** 「添加洒水器」的 TAB 候选：当前已选的洒水器类型名 */
+    public List<String> sprinklerTypeCompletions() {
+        return pointActions.selectedSprinklerTypeNames();
     }
 
     public boolean removeSprinklerFromCrosshair() {
         return pointActions.removeSprinklerFromCrosshair();
+    }
+
+    /** 已绑定的洒水器点位（控制台「洒水器点位」列表用；按当前服务器档读取） */
+    public List<StardewPointManager.StardewPoint> sprinklerPoints() {
+        pointManager.load(StardewContext.serverKey());
+        return pointManager.getAll(StardewPointType.SPRINKLER);
+    }
+
+    /** 删除一个洒水器点位（列表逐条删除） */
+    public boolean removeSprinklerPoint(StardewPointManager.StardewPoint point) {
+        return pointActions.removeSprinklerPoint(point);
+    }
+
+    /** 清空全部洒水器点位 */
+    public void clearSprinklerPoints() {
+        pointActions.clearSprinklerPoints();
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  分区种植（实验）：区域数据、选区会话、判定
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /** 分区种植实验开关是否开启；关闭时区域数据照常留在盘上，只是没有任何地方读它 */
+    public boolean regionPlantingOn() {
+        return settings.regionPlanting;
+    }
+
+    public StardewRegionManager regionManager() {
+        return regionManager;
+    }
+
+    /** 当前服务器的全部区域（不区分维度，回执用） */
+    public List<StardewRegionManager.Region> regions() {
+        regionManager.load(StardewContext.serverKey());
+        return regionManager.all();
+    }
+
+    /** 当前维度内的区域（建区 / 任务判定按维度收口） */
+    public List<StardewRegionManager.Region> regionsInDimension() {
+        regionManager.load(StardewContext.serverKey());
+        return regionManager.inDimension(StardewContext.dimension());
+    }
+
+    /** 当前玩家所在的选区是否进行中 */
+    public boolean regionSelecting() {
+        return regionSelector.isActive();
+    }
+
+    /** 选点工具提示（进入选区与「还没点角」的提示都用它，保证口径一致） */
+    public String regionToolHint() {
+        return "选点工具：" + regionToolDisplayName() + "。左键点第一个角，右键点对角";
+    }
+
+    /** 已记下第一个角之后的下一步提示 */
+    public String regionSecondCornerHint() {
+        return "右键点对角即可成区";
+    }
+
+    /** 区域字牌字号：跟随「字牌大小」设置，字牌关了也能看见预览 */
+    public int regionLabelSize() {
+        return settings.labelSize;
+    }
+
+    /**
+     * 当前是否可以用准星选点。
+     *
+     * <p>默认只认空手；设置里指定了选点工具后，空手或手持该工具都算。指定工具的意义是
+     * 避免「手滑点了方块」，界面上会明确警告手持它不再挖方块。</p>
+     */
+    public boolean regionToolUsable() {
+        if (mc.player == null) return false;
+        ItemStack held = mc.player.getMainHandItem();
+        if (settings.regionToolKey == null) return held.isEmpty();
+        if (held.isEmpty()) return true;
+        return settings.regionToolKey.equals(ItemIdentifier.coreKeyOf(held));
+    }
+
+    /**
+     * 一键设定选点工具：把主手物品记为圈地工具。
+     *
+     * <p>回执必须写清代价——手持它以后不会挖方块；想恢复就点「清除」回到空手。</p>
+     */
+    public void setRegionToolFromHand() {
+        String failure = null;
+        ItemStack held = mc.player == null ? ItemStack.EMPTY : mc.player.getMainHandItem();
+        if (mc.player == null) {
+            failure = "当前不在世界内";
+        } else if (held.isEmpty()) {
+            failure = "请先把要当工具的物品拿到主手（想只用空手就不用设）";
+        } else if (ItemIdentifier.coreKeyOf(held).isEmpty()) {
+            failure = "识别不出这个物品的稳定身份，换一个物品再试";
+        }
+        if (failure != null) {
+            CommandMessageFormatter.of(MODULE_NAME, "设置选点工具失败")
+                .field("原因", failure)
+                .status(CommandMessageFormatter.Level.FAILURE, "未设置")
+                .send();
+            return;
+        }
+        settings.regionToolKey = ItemIdentifier.coreKeyOf(held);
+        settings.regionToolName = held.getHoverName().getString();
+        persistSettings();
+        CommandMessageFormatter.of(MODULE_NAME, "已把 " + settings.regionToolName + " 设为选点工具")
+            .field("提醒", "以后手持它不会挖方块")
+            .status(CommandMessageFormatter.Level.SUCCESS, "可以开始圈地")
+            .send();
+    }
+
+    /** 清除选点工具，回到「只能空手圈地」 */
+    public void clearRegionTool() {
+        settings.regionToolKey = null;
+        settings.regionToolName = null;
+        persistSettings();
+        CommandMessageFormatter.of(MODULE_NAME, "选点工具已清除")
+            .status(CommandMessageFormatter.Level.SUCCESS, "只能用空手圈地").send();
+    }
+
+    /** 选点工具的中文显示名；没设过返回「空手」 */
+    public String regionToolDisplayName() {
+        if (settings.regionToolKey == null) return "空手";
+        return settings.regionToolName == null ? settings.regionToolKey : settings.regionToolName;
+    }
+
+    /**
+     * 新建种植区域（选区模式两次点角的收口）：裁剪 → 校验 → 落盘 → 回执。
+     *
+     * <p><b>越出农田只裁不拒：</b>玩家圈得比农田大是常事，直接裁到农田矩形内更顺手；
+     * 裁完什么都没有才拒绝。农田起止点未绑定时不裁（还没有可比的范围）。</p>
+     *
+     * @return {@code null} 表示成功（回执已发出）；否则是给玩家看的失败原因
+     */
+    public String createRegion(String cropKey, String cropName, BlockPos a, BlockPos b) {
+        String serverKey = StardewContext.serverKey();
+        if (serverKey == null) return "当前不在可用的服务器会话里";
+        String dimension = StardewContext.dimension();
+        String clipNote = null;
+        BlockPos first = a;
+        BlockPos second = b;
+        BlockPos[] clipped = clipToFarm(a, b);
+        if (clipped != null) {
+            first = clipped[0];
+            second = clipped[1];
+            clipNote = "已按农田边界裁剪";
+        }
+        StardewRegionManager.AddResult result = regionManager.add(serverKey, cropKey, cropName, dimension, first, second);
+        if (!result.ok()) return result.failure();
+        StardewRegionManager.Region region = result.region();
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, "已设置种植区域")
+            .field("区域", "区域 " + region.index() + " · " + region.cropName())
+            .field("范围", region.rangeText())
+            .field("格子数", region.cellCount() + " 格")
+            .field("洒水器", regionSprinklerInfo(region));
+        if (clipNote != null) formatter.field("提示", clipNote);
+        formatter.status(CommandMessageFormatter.Level.SUCCESS, "已写入").send();
+        return null;
+    }
+
+    /**
+     * 把两个角裁到农田矩形内（只比 XZ）。
+     *
+     * @return 发生裁剪时返回裁剪后的两角；没裁返回 {@code null}（含无法判定：起止点未绑定 / 其它维度）
+     */
+    private BlockPos[] clipToFarm(BlockPos a, BlockPos b) {
+        StardewPointManager.StardewPoint start = pointManager.get(StardewPointType.START);
+        StardewPointManager.StardewPoint end = pointManager.get(StardewPointType.END);
+        if (start == null || end == null) return null;
+        if (!start.inCurrentDimension() || !end.inCurrentDimension()) return null;
+        int minX = Math.min(start.x(), end.x());
+        int maxX = Math.max(start.x(), end.x());
+        int minZ = Math.min(start.z(), end.z());
+        int maxZ = Math.max(start.z(), end.z());
+        int x1 = Math.max(minX, Math.min(maxX, a.getX()));
+        int x2 = Math.max(minX, Math.min(maxX, b.getX()));
+        int z1 = Math.max(minZ, Math.min(maxZ, a.getZ()));
+        int z2 = Math.max(minZ, Math.min(maxZ, b.getZ()));
+        if (x1 == a.getX() && x2 == b.getX() && z1 == a.getZ() && z2 == b.getZ()) return null;
+        return new BlockPos[]{
+            new BlockPos(x1, a.getY(), z1),
+            new BlockPos(x2, b.getY(), z2)};
+    }
+
+    /**
+     * 一块区域的洒水器覆盖情况（只做信息展示，不拦启动、不进红灯）。
+     *
+     * <p>口径：只算<b>落在该区域内</b>的洒水器（区域外的洒水器不为这块地服务）；
+     * 覆盖率 = 区域内被这些洒水器方形范围盖到的格子占区域总格数的比例（只比 XZ）。</p>
+     */
+    public String regionSprinklerInfo(StardewRegionManager.Region region) {
+        if (region == null) return "洒水器 0 台 · 覆盖 0%";
+        java.util.Set<Long> covered = new java.util.HashSet<>();
+        int machines = 0;
+        for (StardewPointManager.StardewPoint point : pointManager.getAll(StardewPointType.SPRINKLER)) {
+            if (!point.inCurrentDimension() || !region.contains(point.pos())) continue;
+            machines++;
+            int radius = StardewRenderState.radiusOfLevel(sprinklerLevel(point));
+            for (int x = point.x() - radius; x <= point.x() + radius; x++) {
+                for (int z = point.z() - radius; z <= point.z() + radius; z++) {
+                    if (!region.containsXZ(x, z)) continue;
+                    covered.add(((long) x << 32) ^ (z & 0xFFFFFFFFL));
+                }
+            }
+        }
+        int total = Math.max(1, region.cellCount());
+        int percent = (int) Math.round(covered.size() * 100.0 / total);
+        return "洒水器 " + machines + " 台 · 覆盖 " + Math.min(100, percent) + "%";
+    }
+
+    /** 洒水器等级；查不到按 1（与渲染层保守取值一致） */
+    private int sprinklerLevel(StardewPointManager.StardewPoint point) {
+        return index.entryByKey(point.identity()) instanceof SprinklerDefinition def ? def.sprinklerIndex() : 1;
+    }
+
+    /**
+     * 「未分区 N 格」：农田范围内没有被任何区域覆盖的格子数。
+     *
+     * @return 无法统计（农田起止点未绑定）时返回 -1
+     */
+    public int unpartitionedCellCount() {
+        StardewPointManager.StardewPoint start = pointManager.get(StardewPointType.START);
+        StardewPointManager.StardewPoint end = pointManager.get(StardewPointType.END);
+        if (start == null || end == null) return -1;
+        List<StardewRegionManager.Region> list = regionsInDimension();
+        int count = 0;
+        for (int x = Math.min(start.x(), end.x()); x <= Math.max(start.x(), end.x()); x++) {
+            for (int z = Math.min(start.z(), end.z()); z <= Math.max(start.z(), end.z()); z++) {
+                boolean covered = false;
+                for (StardewRegionManager.Region region : list) {
+                    if (region.containsXZ(x, z)) {
+                        covered = true;
+                        break;
+                    }
+                }
+                if (!covered) count++;
+            }
+        }
+        return count;
+    }
+
+    /** 删除一个区域（该地块随即回到「未分区」，不再被种 / 收 / 浇 / 画） */
+    public boolean removeRegion(int seq) {
+        boolean removed = regionManager.remove(StardewContext.serverKey(), seq);
+        if (removed) CommandMessageFormatter.of(MODULE_NAME, "已删除区域 " + seq)
+            .status(CommandMessageFormatter.Level.SUCCESS, "这块地不再被管理").send();
+        return removed;
+    }
+
+    /** 清空全部区域 */
+    public int clearRegions() {
+        int count = regionManager.clear(StardewContext.serverKey());
+        if (count > 0) CommandMessageFormatter.of(MODULE_NAME, "已清空全部种植区域")
+            .field("数量", count + " 个")
+            .status(CommandMessageFormatter.Level.SUCCESS, "这些地不再被管理").send();
+        return count;
+    }
+
+    /**
+     * 进入选区模式（{@code .stardew 种植区域 <作物>}）。
+     *
+     * @return {@code null} 表示已进入；否则是给玩家看的失败原因
+     */
+    public String startRegionSelection(String cropInput) {
+        if (regionSelecting()) {
+            return "已经在选区模式里（当前作物 " + regionSelector.cropName()
+                + "）：右键点对角即可成区，或先 .stardew 种植区域 取消";
+        }
+        if (!settings.regionPlanting) {
+            return "「分区种植」还没开启：请先在设置里打开这个实验开关";
+        }
+        String canonical = canonicalCropKey(cropInput);
+        if (canonical == null || !isKnownCrop(canonical)) {
+            return "无法唯一解析作物「" + cropInput + "」：请用当前服务器资源里存在的作物名（TAB 补全）";
+        }
+        if (!selections.crop().selectedCropKeys().contains(canonical)) {
+            return "「" + cropDisplayName(canonical) + "」还没被勾选：请先在「作物」选择器里勾上它";
+        }
+        String toolFailure = regionToolReadyFailure();
+        if (toolFailure != null) return toolFailure;
+        return regionSelector.enter(canonical, cropDisplayName(canonical));
+    }
+
+    /** 退出选区模式（{@code .stardew 种植区域 取消}）；返回是否本来就在模式内 */
+    public boolean cancelRegionSelection() {
+        boolean active = regionSelector.isActive();
+        if (active) regionSelector.cancel(false);
+        return active;
+    }
+
+    /**
+     * 资源闸门读数：圈地 / 绑洒水器 这类「要拿资源身份记账」的入口必须先过这里。
+     *
+     * <p><b>为什么不能只看索引有没有内容：</b>资源分析结果是落盘缓存的，进游戏时会从缓存恢复索引进内存，
+     * 于是「本会话根本没检测过资源」也能解析出作物名。这类入口与「标记成熟」同口径：
+     * 多人服务器 + 本会话资源 READY + 已确定 ServerKey + 索引非空，四者缺一都拒绝。
+     * 索引在切服 / 断线时会被清空，因此这个闸门天然是<b>按服务器</b>的。</p>
+     */
+    public boolean resourceReady() {
+        return query.matureMarkAllowed();
+    }
+
+    /** 选区模式是否可接管左右键（选点工具是否就手） */
+    public String regionToolReadyFailure() {
+        if (regionToolUsable()) return null;
+        return settings.regionToolKey == null
+            ? "选点要空手：请先把主手换成空手"
+            : "选点要用「" + regionToolDisplayName() + "」或空手：请先换到手上";
+    }
+
+    /**
+     * 洒水器新绑定的分区闸门：分区种植开启时必须落在某个种植区域内。
+     *
+     * <p><b>为什么不改点位校验：</b>已经绑好的洒水器不回溯（玩家会突然发现一半洒水器失效），
+     * 只有「新绑定」按新口径要求落在区域内。</p>
+     *
+     * @return {@code null} 表示放行；否则是给玩家看的失败原因
+     */
+    private String sprinklerRegionGate(BlockPos pos) {
+        if (!settings.regionPlanting) return null;
+        regionManager.load(StardewContext.serverKey());
+        StardewRegionManager.Region region = regionManager.at(pos, StardewContext.dimension());
+        if (region != null) return null;
+        return "分区种植已开启：洒水器要落在某个种植区域内（当前这格不在任何区域内）";
+    }
+
+    /** 范围预览是否开启 */
+    public boolean rangePreviewOn() {
+        return rangePreview;
+    }
+
+    /**
+     * {@code .stardew 预览范围}：不启动模块也能看农田边界与洒水器覆盖范围（再敲一次关闭）。
+     *
+     * <p><b>为什么要有：</b>世界渲染层原来只在模块启用时挂载，没开模块就看不到洒水器覆盖范围，
+     * 没法照着范围规划分区。预览层只画图形、不产生任何任务，与模块开关完全解耦。</p>
+     */
+    public void toggleRangePreview() {
+        rangePreview = !rangePreview;
+        syncRangePreview();
+        boolean showing = rangePreview && !isEnabled();
+        CommandMessageFormatter.of(MODULE_NAME, rangePreview ? "范围预览已开启" : "范围预览已关闭")
+            .status(CommandMessageFormatter.Level.SUCCESS,
+                rangePreview
+                    ? (showing ? "正在显示农田边界与附近洒水器覆盖范围（32 格内自动显示，无需绑定）"
+                               : "模块已启动，本来就在显示")
+                    : "已停止显示")
+            .send();
+    }
+
+    /**
+     * 附近洒水器自动预览：不绑定也能看「附近每台洒水器各盖多大」。
+     *
+     * <p><b>为什么不做准星跟随：</b>实机反馈「动一下就没了、还会闪」——准星只够到 5 格、换格就跳，
+     * 看不出布局。改成以玩家为中心扫描，框常亮、走动转动都在。</p>
+     *
+     * <p><b>取数口径：</b>走与「添加洒水器」同一条识别链（资源语义 → 贴图实体），认不出类型的
+     * 不画——凭空画框只会变成噪音。已经绑定的台由青色覆盖框负责，这里跳过，避免同一台画两个框。</p>
+     *
+     * <p>只有「预览范围」开着时才有值；扫描结果缓存，只在「距上次超过 1 秒」或「玩家移动超过 4 格」
+     * 时重扫。只画不落盘、不参与任何决策，也不需要绑定。</p>
+     */
+    public List<StardewPointActions.NearbySprinkler> nearbySprinklerPreview() {
+        if (!rangePreview || mc.player == null || mc.level == null) return List.of();
+        BlockPos origin = mc.player.blockPosition();
+        long now = System.currentTimeMillis();
+        boolean moved = nearbyPreviewOrigin == null || nearbyPreviewOrigin.distSqr(origin) >= 16;
+        if (!moved && now - nearbyPreviewAt < NEARBY_PREVIEW_INTERVAL_MS) return nearbyPreview;
+        nearbyPreviewOrigin = origin.immutable();
+        nearbyPreviewAt = now;
+        nearbyPreview = pointActions.scanSprinklers(new AABB(origin).inflate(NEARBY_PREVIEW_RADIUS));
+        return nearbyPreview;
+    }
+
+    /** 预览层只在「开着预览且模块未启动」时挂载：模块启动时它自己那一层就在画，避免同一份图形画两遍 */
+    private void syncRangePreview() {
+        if (rangePreview && !isEnabled()) {
+            // 模块没启动时也要先把点位与区域读出来，否则算不出范围
+            pointManager.load(StardewContext.serverKey());
+            regionManager.load(StardewContext.serverKey());
+            WorldOverlay.register(PREVIEW_LAYER_ID, renderState::render);
+        } else {
+            WorldOverlay.unregister(PREVIEW_LAYER_ID);
+        }
     }
 
     public boolean removePoint(StardewPointType type) {
@@ -627,6 +1133,20 @@ public final class StardewFarmModule extends Module {
 
     public List<String> cropCompletions(String prefix, boolean quoted) {
         return query.cropCompletions(prefix, quoted);
+    }
+
+    /** 「种植区域 <作物>」的 TAB 候选：只列已勾选的作物（用中文名，圈地时看着最直观） */
+    public List<String> selectedCropCompletions() {
+        List<String> names = new java.util.ArrayList<>();
+        for (String key : selections.crop().selectedCropKeys()) names.add(cropDisplayName(key));
+        return names;
+    }
+
+    /** 「种植区域 删除 <序号>」的 TAB 候选：当前已有区域的序号 */
+    public List<String> regionSequenceCompletions() {
+        List<String> sequences = new java.util.ArrayList<>();
+        for (StardewRegionManager.Region region : regionsInDimension()) sequences.add(String.valueOf(region.index()));
+        return sequences;
     }
 
     public List<String> stageCompletions(String cropInput, String prefix) {
@@ -753,15 +1273,15 @@ public final class StardewFarmModule extends Module {
                 "  §e▸ §f绑定 / 删除点位会关闭控制台（需要准星对准方块），重新打开即可看到新坐标"
             ),
             new HelpPanelScreen.HelpSection("运行参数（控制台「运行」页）",
-                "  §8> §3状态提示 §8— §7开关聊天栏任务播报（默认关闭）；启动自检、季节结论、报错不受它影响",
-                "  §8> §3批量右击 §8— §7同一 tick 最多对几个格子发右键（1 = 关闭，默认 4 = 上限），只做收割 / 浇水 / 播种 / 施肥",
+                "  §8> §3状态提示 §8— §7开关聊天栏任务播报（默认开启）；启动自检、季节结论、报错不受它影响",
+                "  §8> §3批量右击 §8— §7同一 tick 最多对几个格子发右键（1 = 关闭，默认 4，上限 8），只做收割 / 浇水 / 播种 / 施肥",
                 "  §8> §3交互距离 / 扫描预算 §8— §7前者决定够不够得着，后者决定每 tick 扫多少格，跑得顺不顺主要看这两个",
                 "  §8> §3自动浇水 / 自动施肥 / 自动用药剂 / 洒水器维护 §8— §7总开关，关了对应任务就不产生",
                 "  §e▸ §f按主题成块排：启动 → 交互距离 / 扫描预算 / 回中心等待 → 浇水 → 施肥 / 药剂 → 洒水器 → 状态提示",
                 "  §e▸ §f同主题的数值项与开关项挨着（如「洒水器维护」紧邻「洒水器检查间隔」），不按控件类型分家",
-                "  §e▸ §f批量右击默认已是上限 4，觉得激进就往下调（2~3 更保守）；同 tick 多个交互包更容易被反作弊注意到",
+                "  §e▸ §f批量右击默认 4、上限 8；填得越激进越容易被服务器丢包或反作弊注意到（服务端实测同 tick 多包会被丢）",
                 "  §e▸ §f清理枯苗是左键破坏，永远单目标；收获学习是空手探测，也永远一格格来，都不进批量",
-                "  §8> §3补水节奏 §8— §7同一 tick 连发多包：容量读得到就一轮补满（读「当前/上限」数字，或认资源包水位条字形 + 「端帽 + 重复格」通用结构）",
+                "  §8> §3补水节奏 §8— §7读得到容量就按「差多少发多少」一次打满（同一 tick 连发，服务端最多吞掉个别包，验证阶段自动补齐）；读不到容量才退回固定批量慢慢逼近",
                 "  §e▸ §f读不到上限时先按「每包 +1」试探并记住单包增量，此后补水同样是一轮的事；喝水靠服务端判定，多发的包只会被忽略"
             ),
             new HelpPanelScreen.HelpSection("点位指令",
@@ -770,13 +1290,22 @@ public final class StardewFarmModule extends Module {
                 "  §8> §3.stardew 绑定 种子箱 §8— §7准星对准种子箱",
                 "  §8> §3.stardew 绑定 成品箱 §8— §7准星对准成品箱",
                 "  §8> §3.stardew 绑定 补水点 §8— §7准星对准静止水源",
-                "  §8> §3.stardew 添加洒水器 §8— §7准星对准洒水器；资源无法识别时请先只选择一个洒水器类型",
+                "  §8> §3.stardew 添加洒水器 [类型] §8— §7准星对准洒水器；认得出类型就自动绑定，认不出时写明类型（TAB 补全）",
                 "  §8> §3.stardew 移除洒水器 §8— §7准星对准要移除的洒水器",
                 "  §8> §3.stardew 移除 <点位> §8— §7删除单个已绑定点位",
                 "  §8> §3.stardew 状态 §8— §7查看当前农场完整状态",
+                "  §8> §3.stardew 预览范围 §8— §7不启动模块也能看农田边界与附近洒水器覆盖范围；"
+                    + "32 格内自动显示，不用绑定（再敲一次关闭）",
                 "  §8> §3.stardew 清空 §8— §7删除当前服务器全部点位",
+                "  §e▸ §f分区种植（实验，默认关闭）：§3.stardew 种植区域 <作物>§f 圈一块地并绑定这种作物"
+                    + "（空手左键点一个角、右键点对角；作物要已在选择器里勾选，TAB 只补已勾选的）",
+                "  §e▸ §f区域的查看与收拾：§3.stardew 种植区域 列表 / 删除 <序号> / 清空 / 取消§f"
+                    + "（列表含「未分区 N 格」；删除 = 这块地不再被管；取消 = 退出选区，半成品丢弃）",
+                "  §e▸ §f打开后每块地只种它绑定的那种作物，未分区的地不管；关掉开关一切照旧，划好的区域留着",
+                "  §e▸ §f圈地工具默认空手；「运行」页可一键把手上物品设为圈地工具，但手持它以后不会挖方块",
                 "  §e▸ §f控制台「点位」页也能做同样的事：六张卡片点「设置 / 删除」（需准星对准方块）",
-                "  §e▸ §f控制台「点位」页的「§c清空全部点位§f」= §3.stardew 清空§f，点击后需二次确认"
+                "  §e▸ §f控制台「点位」页的「§c清空全部点位§f」= §3.stardew 清空§f，点击后需二次确认",
+                "  §e▸ §f洒水器卡片的「§e管理§f」打开洒水器点位列表：每格一行「删除」，或只清空洒水器（不动起点 / 终点 / 箱子 / 补水点）"
             ),
             new HelpPanelScreen.HelpSection("后勤参数（控制台「后勤」页 · 每种作物独立）",
                 "  §e▸ §f默认勾选「简化后勤」：每种作物只显示数量模式与目标数量，四个阈值固定用默认值",
@@ -865,7 +1394,7 @@ public final class StardewFarmModule extends Module {
             ),
             new HelpPanelScreen.HelpSection("洒水器人工世界绑定",
                 "  §e▸ §f服务器可能用 sugar_cane 等普通载体表示洒水器，资源模型显示未知并不代表实物不存在",
-                "  §8├─ §f执行「添加洒水器」就是一次人工确认：无法自动识别时必须只选择一个逻辑洒水器类型",
+                "  §8├─ §f执行「添加洒水器」就是一次人工确认：先自动识别，认不出时可写明类型（多选也行）",
                 "  §8├─ §f绑定保存 ServerKey + fingerprint + 逻辑类型 + 真实 BlockState，换服不会串用",
                 "  §8├─ §ffingerprint 或载体状态改变后必须重新确认，旧绑定不会盲目继续 VERIFIED",
                 "  §8└─ §f人工绑定只属于星露谷业务，不会把普通方块伪造成通用 .id 资源身份"

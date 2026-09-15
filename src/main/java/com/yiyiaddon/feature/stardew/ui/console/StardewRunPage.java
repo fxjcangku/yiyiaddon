@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.ConsoleRow
 import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.Note;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
 
@@ -67,9 +68,16 @@ public final class StardewRunPage {
         stack.add(boolRow(StardewSettings.NAME_STATUS_HINTS, StardewSettings.DESC_STATUS_HINTS,
             () -> s.statusHints, value -> s.statusHints = value));
 
-        stack.add(new Note(owner, "§8状态提示默认关闭：开启后聊天栏才播报任务状态，结论类消息不受影响"));
+        // 分区种植（实验）：开关 + 选点工具。默认全关 / 空手，行为与开启前完全一致
+        stack.add(boolRow(StardewSettings.NAME_REGION_PLANTING, StardewSettings.DESC_REGION_PLANTING,
+            () -> s.regionPlanting, value -> s.regionPlanting = value));
+        stack.add(toolRow());
+
+        stack.add(new Note(owner, "§8状态提示默认开启：关闭后聊天栏不再播报任务状态，结论类消息不受影响"));
         stack.add(new Note(owner, "§8批量右击 = 同一 tick 最多对几个格子发右键（只做收割 / 浇水 / 播种 / 施肥）。"
             + "调高更快，也更容易被服务器反作弊注意到"));
+        stack.add(new Note(owner, "§8分区种植默认关闭：打开后每块地只种它绑定的那种作物，"
+            + "未分区的地不管；关着的时候一切照旧，已经划好的区域会留到下次打开"));
     }
 
     private CompactElement boolRow(String name, String description, Supplier<Boolean> getter,
@@ -90,5 +98,17 @@ public final class StardewRunPage {
                 module.persistSettings();
             });
         return new ConsoleRow(owner, () -> name, description, null, List.of(new Ctl(box)));
+    }
+
+    /**
+     * 选点工具行：一键把主手物品设为圈地工具，或清除回空手。
+     *
+     * <p>行尾注释实时显示当前工具（默认「空手」）；按钮文案与回执都写清代价——手持它不再挖方块。</p>
+     */
+    private CompactElement toolRow() {
+        Button set = new Button("§e一键设定", module::setRegionToolFromHand);
+        Button clear = new Button("§c清除", module::clearRegionTool);
+        return ConsoleRow.liveComment(owner, () -> StardewSettings.NAME_REGION_TOOL, StardewSettings.DESC_REGION_TOOL,
+            () -> "§7当前：§f" + module.regionToolDisplayName(), List.of(new Ctl(set), new Ctl(clear)));
     }
 }

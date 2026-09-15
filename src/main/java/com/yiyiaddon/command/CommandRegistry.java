@@ -54,13 +54,29 @@ public final class CommandRegistry {
         return List.copyOf(PRIMARY.values());
     }
 
-    /** 全部名称与别名，供指令名补全 */
+    /**
+     * 指令名补全候选：只出英文写法（主名与英文别名）。
+     *
+     * <p>指令前缀（指令名）不汉化——候选里绝不出现 {@code 帮助}、{@code 模块} 这类中文指令名；
+     * 中文写法仍可作为输入被 {@link #find(String)} 解析，只是不进入候选。</p>
+     */
     public static synchronized List<String> allNames() {
         List<String> names = new ArrayList<>();
         for (ClientCommand command : PRIMARY.values()) {
-            names.addAll(command.allNames());
+            for (String name : command.allNames()) {
+                if (isEnglish(name)) names.add(name);
+            }
         }
         return names;
+    }
+
+    /** 指令名是否英文写法（含 ASCII 之外的一律不视为可选指令名） */
+    private static boolean isEnglish(String name) {
+        if (name == null || name.isBlank()) return false;
+        for (int i = 0; i < name.length(); i++) {
+            if (name.charAt(i) > 0x7F) return false;
+        }
+        return true;
     }
 
     public static synchronized int count() {

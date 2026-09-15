@@ -1,6 +1,8 @@
 package com.yiyiaddon.ui.screen;
 
 import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.module.CategoryRegistry;
+import com.yiyiaddon.module.ModuleCategory;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.anim.PressState;
@@ -12,10 +14,12 @@ import com.yiyiaddon.ui.component.PanelFrame;
 import com.yiyiaddon.ui.component.ScrollViewport;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
 import com.yiyiaddon.ui.navigation.PageRouter;
+import com.yiyiaddon.ui.navigation.UiNavigationMemory;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.HomePage;
 import com.yiyiaddon.ui.page.InterfacePage;
 import com.yiyiaddon.ui.page.ModuleCenterPage;
+import com.yiyiaddon.ui.page.ModuleListPage;
 import com.yiyiaddon.ui.page.SearchResultsPage;
 import com.yiyiaddon.ui.page.SettingsPage;
 import com.yiyiaddon.ui.render.FontRenderer;
@@ -152,11 +156,48 @@ public class ClickGuiScreen extends SkiaScreen {
         super(Component.literal("yiyiaddon"), parent);
         router = new PageRouter();
         for (BasePage page : createRootPages()) router.addRoot(page);
+        restoreNavigation();
     }
 
     /** 左侧导航的根页面，顺序与 NAV_KEYS 一一对应。 */
     private List<BasePage> createRootPages() {
         return List.of(new HomePage(), new ModuleCenterPage(router, this::openModuleScreen), new InterfacePage(), new SettingsPage());
+    }
+
+    /**
+     * 恢复上次关闭面板时停留的位置（导航项 + 下钻页面）。
+     *
+     * <p>只按标识重建：标识指向的分类若已不存在（改了注册表 / 换了存档），就地停在前一级，
+     * 不抛异常也不回首页。</p>
+     */
+    private void restoreNavigation() {
+        router.select(UiNavigationMemory.rootIndex());
+        for (String token : UiNavigationMemory.tokens()) {
+            BasePage page = pageForToken(token);
+            if (page == null) break;
+            router.open(page, token);
+        }
+    }
+
+    /** 由可重建标识装配页面（与 {@link ModuleCenterPage} 的进入逻辑一一对应）。 */
+    private BasePage pageForToken(String token) {
+        String listCategory = UiNavigationMemory.categoryId(token, UiNavigationMemory.TOKEN_LIST);
+        if (listCategory != null) {
+            ModuleCategory category = CategoryRegistry.byId(listCategory);
+            return category == null || category.page() != null
+                ? null : new ModuleListPage(category, this::openModuleScreen);
+        }
+        String ownPageCategory = UiNavigationMemory.categoryId(token, UiNavigationMemory.TOKEN_PAGE);
+        if (ownPageCategory != null) {
+            ModuleCategory category = CategoryRegistry.byId(ownPageCategory);
+            return category == null || category.page() == null ? null : category.page().get();
+        }
+        return null;
+    }
+
+    /** 关闭面板时记住当前位置：下次打开还停在原处，不再每次都回首页。 */
+    private void rememberNavigation() {
+        UiNavigationMemory.remember(router.index(), router.tokens());
     }
 
     /** 打开模块独立屏幕：把本界面作为返回目标交给模块页。 */
@@ -264,6 +305,7 @@ public class ClickGuiScreen extends SkiaScreen {
     public void removed() {
         SettingTextBox.clearFocus();
         ImeBridge.reset();
+        rememberNavigation();
         draggingInContent = false;
         draggingScrollbar = false;
         glBackend.destroy();

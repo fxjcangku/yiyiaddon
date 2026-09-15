@@ -104,20 +104,23 @@ public final class StardewFarmScanner {
 
             // 玩家框选时可能点中绊线/自定义作物载体而不是其下方种植盆；若当前格本身
             // 能确认为作物且下方能确认为盆，统一归一回真实盆坐标，避免有菜时漏掉干盆。
-            boolean directPot = pot.state() == PotState.DRY || pot.state() == PotState.WET;
-            if (!directPot) {
-                CropRecognizer.CropRecognition cropAtCursor = CropRecognizer.recognize(potState, profile);
-                BlockPos below = potPos.below();
-                BlockState belowState = mc.level.getBlockState(below);
-                CropRecognizer.PotRecognition belowPot = CropRecognizer.recognizePotDetailed(belowState);
-                boolean belowIsPot = belowPot.state() == PotState.DRY || belowPot.state() == PotState.WET;
-                boolean cursorIsCropLayer = potState.isAir()
-                    || cropAtCursor.state() != CropState.EMPTY && cropAtCursor.state() != CropState.UNKNOWN;
-                if (belowIsPot && cursorIsCropLayer) {
-                    potPos = below;
-                    pot = belowPot;
-                    crop = cropAtCursor;
-                }
+            //
+            // <b>这里不能先看「当前格是不是盆」再决定要不要归一：</b>作物名里含 "pot" 的
+            // （sweet_potato_stage_N / potato_crate / teapot 等）会被判成「干盆」，一旦提前
+            // 认定当前格就是盆，归一就被跳过 —— 结果是拿作物层那格当干盆去浇水：浇不到真盆、
+            // 验证永远不是 WET，最后刷成「水壶缺水」，表现就是「已经滋润的盆被当成干枯」。
+            CropRecognizer.CropRecognition cropAtCursor = CropRecognizer.recognize(potState, profile);
+            BlockPos below = potPos.below();
+            BlockState belowState = mc.level.getBlockState(below);
+            CropRecognizer.PotRecognition belowPot = CropRecognizer.recognizePotDetailed(belowState);
+            boolean belowIsPot = belowPot.state() == PotState.DRY || belowPot.state() == PotState.WET;
+            boolean cursorIsCropLayer = potState.isAir()
+                || cropAtCursor.state() != CropState.EMPTY && cropAtCursor.state() != CropState.UNKNOWN;
+            // 真盆下方永远不会是盆（盆只放在土地上），所以命中「下方是盆」时当前格必然是作物层
+            if (belowIsPot && cursorIsCropLayer) {
+                potPos = below;
+                pot = belowPot;
+                crop = cropAtCursor;
             }
 
             // 盆识别成功（干/湿）→ 正常入列；盆型未知但其上方确有作物 → 回退按作物处理

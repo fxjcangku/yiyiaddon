@@ -77,10 +77,15 @@ public final class IdentityActions {
         rows.add(new IdentitySummary.Row("数量", String.valueOf(identity.quantity())));
         rows.add(new IdentitySummary.Row("身份键", identity.identityKey()));
 
-        return IdentitySummary.ok(IdentitySummary.Kind.ITEM, identity.displayName(), rows, fileName);
+        return IdentitySummary.ok(IdentitySummary.Kind.ITEM, identity.displayName(), rows, fileName, null);
     }
 
-    /** 识别准星命中的方块 */
+    /**
+     * 识别准星命中的方块。
+     *
+     * <p><b>自动保存时是两次落盘</b>（旧项目 {@code IdCommand#identifyBlock} 的 AUTO_SAVE 分支原文）：
+     * 先写方块稳定记录，再写一份当前状态快照——同一坐标不同状态指纹不同，因此允许分别保存。</p>
+     */
     public static IdentitySummary identifyBlock(boolean save) {
         BlockIdentity identity = BlockIdentifier.identify();
         if (identity == null) {
@@ -89,7 +94,13 @@ public final class IdentityActions {
             return IdentitySummary.failed(IdentitySummary.Kind.BLOCK, reason);
         }
 
-        String fileName = save ? IdentityService.shared().addBlock(identity) : null;
+        String fileName = null;
+        String snapshotName = null;
+        if (save) {
+            IdentityService service = IdentityService.shared();
+            fileName = service.addBlock(identity);
+            snapshotName = service.addBlockSnapshot(identity, false);
+        }
         List<IdentitySummary.Row> rows = new ArrayList<>();
         rows.add(new IdentitySummary.Row("名称", identity.displayName()));
         rows.add(new IdentitySummary.Row("方块 ID", identity.blockId()));
@@ -109,7 +120,7 @@ public final class IdentityActions {
         }
         rows.add(new IdentitySummary.Row("身份键", identity.identityKey()));
 
-        return IdentitySummary.ok(IdentitySummary.Kind.BLOCK, identity.displayName(), rows, fileName);
+        return IdentitySummary.ok(IdentitySummary.Kind.BLOCK, identity.displayName(), rows, fileName, snapshotName);
     }
 
     /** 识别准星命中的实体 */
@@ -137,7 +148,7 @@ public final class IdentityActions {
         rows.add(new IdentitySummary.Row("坐标", identity.blockX() + ", " + identity.blockY() + ", " + identity.blockZ()));
         rows.add(new IdentitySummary.Row("身份键", identity.identityKey()));
 
-        return IdentitySummary.ok(IdentitySummary.Kind.ENTITY, identity.displayName(), rows, fileName);
+        return IdentitySummary.ok(IdentitySummary.Kind.ENTITY, identity.displayName(), rows, fileName, null);
     }
 
     // ── 身份数据维护 ──

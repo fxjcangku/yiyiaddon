@@ -290,6 +290,13 @@ public final class StardewSeasonService {
         seedRules.clear();
         // 资源指纹已变：字体语义表必须按当前生效资源重建，旧 glyph→季节 映射一律作废。
         glyphMap = StardewSeasonGlyphMap.current();
+
+        // 资源就绪后自动补算一次：季节证据几乎总是<b>先于资源</b>到达（进服瞬间 HUD / 记分板已经
+        // 下发，而资源包还在提取）。那时语义表是空的，同一件证据只能解析出「无语义的 glyph 令牌」，
+        // 界面于是显示「当前季节」这种半成品——玩家得手动点一次「检测 / 提取」让证据重来一遍才对。
+        // 这里拿最近一次真实证据在新语义表下原地重算，语义一出来快照 revision 就会涨，
+        // 控制台与状态机都会跟着走，不需要玩家点任何按钮。
+        if (lastProbeComponent != null) acceptComponent(lastProbeComponent, lastProbeSource);
     }
 
     /** 换服、断线和资源失效均清空会话证据。 */
@@ -298,6 +305,13 @@ public final class StardewSeasonService {
         seedRules.clear();
         seasonObjectives.clear();
         seasonTitleAwaitingSubtitle = false;
+        // 证据同样属于<b>上一个会话</b>：换服后若还留着，资源就绪时的自动补算会把 A 服的季节
+        // 写进 B 服快照，因此这里必须一起清掉（未识别时宁可显示「暂无」）。
+        lastProbeComponent = null;
+        lastProbeSource = null;
+        lastProbeText = null;
+        lastProbeDetail = null;
+        lastProbeGlyphs = List.of();
         // 资源失效后旧 glyph 语义一律作废：绝不允许用旧映射继续判定 DISALLOWED。
         glyphMap = StardewSeasonGlyphMap.empty();
     }

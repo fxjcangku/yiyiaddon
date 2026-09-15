@@ -4,7 +4,7 @@
   "package": "com.yiyiaddon.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ChatScreenCompletionMixin",
+    "CommandSuggestionsCompletionMixin",
     "ClientLevelPredictionAccessor",
     "ConnectionPacketMixin",
     "GpuDeviceAccessor",

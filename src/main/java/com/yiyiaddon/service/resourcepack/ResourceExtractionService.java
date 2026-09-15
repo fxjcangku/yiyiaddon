@@ -2,6 +2,9 @@ package com.yiyiaddon.service.resourcepack;
 
 import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.core.CommandMessageFormatter;
+import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
+import com.yiyiaddon.feature.stardew.profile.StardewResourceScanner;
+import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.model.resource.ResourcePhase;
 import com.yiyiaddon.model.resource.ResourceScanResult;
 import com.yiyiaddon.model.resource.ResourceSource;
@@ -27,6 +30,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *
  * <p><b>职责：</b>把「当前服务器 → 资源包推送 → 本地缓存 → 客户端加载 → 资源就绪」这条链路
  * 收敛成唯一的状态机与唯一的事实来源。业务模块只读本服务的状态，不再各自扫一遍、各自等一遍。</p>
+ *
+ * <p><b>就绪判定口径沿用旧项目 {@code ServerResourceService}：</b>判据是「扫到的星露谷逻辑对象数」
+ * （{@code items/*.json} 按语义家族聚合去重）而不是「自定义命名空间里有几个资源文件」；扫不到即
+ * {@link ResourcePhase#NO_CONTENT}「非星露谷资源」，并由本服务发出 {@code [星露谷农场]} 口径的
+ * 「资源档案已建立」计数卡。</p>
  *
  * <p><b>触发模型：进服只识别、不下载。</b>玩家不一定使用依赖服务器资源的功能，每进一个普通
  * 服务器就自动下载一份资源包不可接受。进入服务器只做一件事：识别当前 ServerKey 并把阶段置为
@@ -54,6 +62,11 @@ public final class ResourceExtractionService {
     /** 下载参数（不依赖任何模块设置，保证模块关闭时也能工作） */
     private static final int DOWNLOAD_RETRIES = 5;
     private static final int DOWNLOAD_TIMEOUT_MS = 60_000;
+    /** 星露谷农场口径的提示前缀（档案建立 / 未检测到资源） */
+    private static final String STARDEW_MODULE = "星露谷农场";
+    /** 计数格补位用的字符像素宽（旧项目 {@code ServerResourceService} 原文） */
+    private static final int FULL_WIDTH_PX = 9;
+    private static final int HALF_WIDTH_PX = 4;
 
     // ── 会话状态（只由本类写；跨线程读取用 volatile） ──
     private static boolean extractionRequested;
@@ -630,12 +643,21 @@ public final class ResourceExtractionService {
         announce("parsing", "§e正在解析资源…");
     }
 
+    /**
+     * 解析当前已加载资源里的星露谷逻辑对象，并按结果落到就绪 / 非星露谷资源。
+     *
+     * <p><b>就绪判定沿用旧项目口径：</b>判据是「扫到的星露谷逻辑对象数」而不是「自定义命名空间里
+     * 有几个资源文件」——只统计 {@code items/*.json} 物品定义、按语义家族聚合去重，与旧项目
+     * {@code ServerResourceService.advanceParsing()} 逐行对应。</p>
+     */
     private static void advanceParsing() {
         ResourceContentProbe contentProbe = probe;
         ResourceScanResult result = contentProbe == null ? ResourceScanResult.empty() : contentProbe.analyze();
         if (result == null) result = ResourceScanResult.empty();
 
         scanResult = result;
+
+        ProfileCounts counts = profileCounts();
         fingerprint = ensureFingerprint();
         if (cacheName == null) {
             source = ResourceSource.LOADED;
@@ -643,9 +665,9 @@ public final class ResourceExtractionService {
         }
         stageTicks = 0;
 
-        if (result.isEmpty()) {
+        if (counts.total() == 0) {
             phase = ResourcePhase.NO_CONTENT;
-            announce("noContent", "§c当前服务器未检测到可识别的星露谷资源，未建立资源档案。");
+            announceStardewFarm("notStardew", "§c当前服务器未检测到可识别的星露谷资源，未建立资源档案。");
             return;
         }
 
@@ -654,28 +676,89 @@ public final class ResourceExtractionService {
         lastReadyContentIds = currentContentIds();
         lastReadyServerKey = serverKey;
 
-        announce("ready", "§a资源检测完成"
+        announce("parsed", "§a资源检测完成"
             + "\n" + CommandMessageFormatter.line("资源来源", "§f" + resourceSource().label())
             + "\n" + CommandMessageFormatter.line("资源缓存", "§f" + cacheLabel())
             + "\n" + CommandMessageFormatter.line("资源指纹", "§b" + fingerprintLabel())
-            + "\n" + CommandMessageFormatter.line("资源分类", "§f" + countsText())
+            + "\n" + CommandMessageFormatter.line("资源状态", "§a星露谷资源")
             + "\n" + CommandMessageFormatter.line("状态", temporaryFallback ? "§6临时可用" : "§a成功"));
+        announceStardewFarm("ready", profileText(counts));
         notifyReady();
     }
 
-    /** 分类计数一行文本，固定按探针给出的分类顺序排列 */
-    private static String countsText() {
-        ResourceContentProbe contentProbe = probe;
-        List<String> names = contentProbe == null ? List.of() : contentProbe.categoryNames();
-        if (names.isEmpty()) {
-            return "共 " + scanResult.total() + " 项";
+    /**
+     * 解析当前已加载资源里的星露谷逻辑对象。
+     *
+     * <p>只统计 {@code items/*.json}（用户可见的物品定义）并按语义家族聚合去重，
+     * 绝不把每个 raw resource / world model 当成一个选择项（旧项目 {@code parse()} 原文）。</p>
+     */
+    private static ProfileCounts profileCounts() {
+        Set<String> crops = new LinkedHashSet<>();
+        Set<String> pots = new LinkedHashSet<>();
+        Set<String> fertilizers = new LinkedHashSet<>();
+        Set<String> potions = new LinkedHashSet<>();
+        Set<String> cans = new LinkedHashSet<>();
+        Set<String> sprinklers = new LinkedHashSet<>();
+
+        for (StardewResourceScanner.ScannedModel model : StardewResourceScanner.scan()) {
+            if (!model.itemDef() || !StardewResourceScanner.isStardew(model.modelId())) continue;
+            StardewSelectorCategory category =
+                StardewSelectorCategory.classify(StardewResourceScanner.STARDEW_NAMESPACE, model.modelName());
+            if (category == null) continue;
+            String canonical = StardewResourceIndex.canonicalOf(category, model.modelName());
+            switch (category) {
+                case CROP -> crops.add(canonical);
+                case POT -> pots.add(canonical);
+                case FERTILIZER -> fertilizers.add(canonical);
+                case POTION -> potions.add(canonical);
+                case WATERING_CAN -> cans.add(canonical);
+                case SPRINKLER -> sprinklers.add(canonical);
+            }
         }
-        StringBuilder sb = new StringBuilder();
-        for (String name : names) {
-            if (sb.length() > 0) sb.append(" / ");
-            sb.append(name).append(' ').append(scanResult.counts().getOrDefault(name, 0));
+        return new ProfileCounts(crops.size(), pots.size(), fertilizers.size(), potions.size(),
+            cans.size(), sprinklers.size());
+    }
+
+    /** 六类逻辑对象数量（旧项目 {@code ParseResult} 的计数部分） */
+    private record ProfileCounts(int crops, int pots, int fertilizers, int potions, int cans, int sprinklers) {
+
+        int total() {
+            return crops + pots + fertilizers + potions + cans + sprinklers;
         }
-        return sb.toString();
+    }
+
+    /**
+     * 「资源档案已建立」计数块：六类对象固定「三列 × 两行」表，不再一列一行摊开。
+     *
+     * <p>行内列起点由 {@link #countCell} 按真实字体宽度补齐，保证上下两行严格对齐（旧项目原文）。</p>
+     */
+    private static String profileText(ProfileCounts counts) {
+        return "§a资源档案已建立"
+            + "\n" + countRow("作物", counts.crops(), "种植盆", counts.pots(), "肥料", counts.fertilizers())
+            + "\n" + countRow("药剂", counts.potions(), "水壶", counts.cans(), "洒水器", counts.sprinklers());
+    }
+
+    /**
+     * 一行三格计数。
+     *
+     * <p>行首 {@code §r} 是刻意的：对齐逻辑只作用于「以 {@code §7} 开头的单字段行」，
+     * 表格行由本方法自行排布，跳过对齐才不会被二次补位（旧项目原文）。</p>
+     */
+    private static String countRow(String label1, int value1, String label2, int value2,
+                                   String label3, int value3) {
+        return "§r" + countCell(label1, value1) + countCell(label2, value2) + countCell(label3, value3);
+    }
+
+    /** 单格「§7标签 §8▶ §a数值」，整格按真实字体宽度补齐到统一像素宽（全角 / 半角空格混合补位） */
+    private static String countCell(String label, int value) {
+        int gap = Math.max(0, countCellPx() - Minecraft.getInstance().font.width(label + " ▶ " + value));
+        return "§7" + label + " §8▶ §a" + value
+            + "　".repeat(gap / FULL_WIDTH_PX) + " ".repeat((gap % FULL_WIDTH_PX) / HALF_WIDTH_PX);
+    }
+
+    /** 单格目标像素宽：取最长标签「洒水器」与三位数值，保证任何一格都不会挤到下一列 */
+    private static int countCellPx() {
+        return Minecraft.getInstance().font.width("洒水器 ▶ 888");
     }
 
     private static void fail(String reason) {
@@ -738,18 +821,36 @@ public final class ResourceExtractionService {
 
     /** 每个阶段只提示一次 */
     private static void announce(String stage, String text) {
+        announceAs(MODULE, stage, text);
+    }
+
+    /** 星露谷农场口径的提示（档案建立 / 未检测到资源） */
+    private static void announceStardewFarm(String stage, String text) {
+        announceAs(STARDEW_MODULE, stage, text);
+    }
+
+    /**
+     * 每个阶段只提示一次（去重键带模块名，与旧项目 {@code announceAs} 同口径）。
+     *
+     * <p><b>不再自动追加任何行：</b>文案由调用方一次写全，阶段信息只出现在真正需要的字段里。</p>
+     */
+    private static void announceAs(String moduleName, String stage, String text) {
         if (!extractionRequested) return;
-        if (!ANNOUNCED.add(stage)) return;
-        notifyChat(text);
+        if (!ANNOUNCED.add(moduleName + "/" + stage)) return;
+        notifyChat(moduleName, text);
     }
 
     /** 无条件提示（不去重）：用于玩家操作反馈 */
     private static void notice(String text) {
-        notifyChat(text);
+        notifyChat(MODULE, text);
     }
 
     private static void notifyChat(String text) {
-        String message = ClientChat.prefix(MODULE) + text;
+        notifyChat(MODULE, text);
+    }
+
+    private static void notifyChat(String moduleName, String text) {
+        String message = ClientChat.prefix(moduleName) + text;
         if (Minecraft.getInstance().player != null) {
             ClientChat.raw(message);
         } else {

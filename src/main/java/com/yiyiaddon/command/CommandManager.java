@@ -6,19 +6,16 @@ import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
 
 /**
- * 客户端指令管理器：聊天输入拦截、指令派发与参数补全。
+ * 客户端指令管理器：聊天输入拦截与指令派发。
  *
  * <p>拦截方式是 Fabric 的聊天发送事件，不注入原版界面：以 {@link #prefix()} 开头的消息在客户端被
  * 拦下并本地执行，不会发送到服务端。未知指令名同样被拦下并给出中文提示，避免误发到服务器。</p>
  *
- * <p>补全由 {@link #applyTabCompletion} 提供，聊天框内按 Tab 生效；补全候选按「指令名 →
- * 该指令自己声明的参数候选」两级展开。</p>
+ * <p>补全不在这里做：候选由各指令自己的 {@link ClientCommand#complete} 声明，聊天框的 Tab 与候选
+ * 弹窗统一交给原版补全组件，桥接见 {@link ClientCommandSuggestions}。</p>
  *
  * <p>前缀可在「设置」页修改并持久化到 {@code AddonConfig}；非法值（空、以 {@code /} 开头、
  * 含空白或颜色码、超长）一律回落到 {@link #DEFAULT_PREFIX}，保证指令始终可用。</p>
@@ -33,9 +30,6 @@ public final class CommandManager {
 
     /** 框架级回执前缀（指令框架自身提示的归属功能名） */
     public static final String FRAMEWORK_PREFIX = "帮助";
-
-    /** 单次补全最多展示的候选数量 */
-    private static final int MAX_PRINTED_CANDIDATES = 30;
 
     private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/command");
 
@@ -98,6 +92,26 @@ public final class CommandManager {
     }
 
     /**
+     * 把全角空格等非 ASCII 空白统一成半角空格，长度不变。
+     *
+     * <p>中文输入法下打出的分隔符常是 {@code U+3000}（全角空格）、{@code U+00A0} 等，若不归一化，
+     * 「{@code .stardew　控制台}」会被当成一个参数——原版补全还会因此报「参数后应有空格分隔」。
+     * 长度不变是为了让归一化后的字符串仍能按原光标位置解析补全。</p>
+     */
+    public static String normalizeSeparators(String text) {
+        if (text == null || text.isEmpty()) return text;
+        StringBuilder builder = null;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == ' ') continue;
+            if (!Character.isWhitespace(ch) && !Character.isSpaceChar(ch) && ch != '\uFEFF') continue;
+            if (builder == null) builder = new StringBuilder(text);
+            builder.setCharAt(i, ' ');
+        }
+        return builder == null ? text : builder.toString();
+    }
+
+    /**
      * 执行一条客户端指令。
      *
      * @return 是否已被本模组消费（返回 true 时调用方必须拦截该消息，不再发给服务端）
@@ -106,7 +120,7 @@ public final class CommandManager {
         if (!isCommand(message)) return false;
 
         String prefix = prefix();
-        String body = message.substring(prefix.length()).strip();
+        String body = normalizeSeparators(message.substring(prefix.length())).strip();
         if (body.isEmpty()) {
             ClientChat.send(FRAMEWORK_PREFIX, "客户端指令共 " + CommandRegistry.count() + " 个，输入 " + prefix + "help 查看全部");
             return true;
@@ -129,122 +143,5 @@ public final class CommandManager {
                     + (error.getMessage() == null ? "" : "：" + error.getMessage()));
         }
         return true;
-    }
-
-    // ── 补全 ──
-
-    /**
-     * 应用一次 Tab 补全。
-     *
-     * @param input 聊天框当前文本
-     * @return 补全后的文本；无可补全内容时原样返回
-     */
-    public static String applyTabCompletion(String input) {
-        String prefix = prefix();
-        if (input == null || !input.startsWith(prefix)) return input;
-
-        String body = input.substring(prefix.length());
-        boolean trailingSpace = !body.isEmpty() && body.charAt(body.length() - 1) == ' ';
-        String trimmed = body.strip();
-        if (trimmed.isEmpty()) {
-            ClientChat.send(FRAMEWORK_PREFIX, "客户端指令共 " + CommandRegistry.count() + " 个，输入 " + prefix + "help 查看全部");
-            return input;
-        }
-
-        String[] tokens = trimmed.split("\\s+");
-        if (tokens.length == 1 && !trailingSpace) {
-            return applyCommandNameCompletion(tokens[0], input, prefix);
-        }
-
-        ClientCommand command = CommandRegistry.find(tokens[0]);
-        if (command == null) return input;
-
-        String currentWord = trailingSpace ? "" : tokens[tokens.length - 1];
-        int completed = trailingSpace ? tokens.length : tokens.length - 1;
-        String[] args = Arrays.copyOfRange(tokens, 1, Math.max(1, completed));
-
-        List<String> candidates = safeComplete(command, command.context(args), currentWord);
-        return applyCandidates(candidates, currentWord, tokens, completed, input, prefix);
-    }
-
-    /** 指令名补全 */
-    private static String applyCommandNameCompletion(String token, String input, String prefix) {
-        List<String> candidates = filter(CommandRegistry.allNames(), token);
-        if (candidates.isEmpty()) return input;
-        if (candidates.size() == 1) return prefix + candidates.get(0) + " ";
-
-        String common = commonPrefix(candidates);
-        if (common.length() > token.length()) return prefix + common;
-        printCandidates(candidates);
-        return input;
-    }
-
-    /** 参数补全：唯一候选直接采用，多候选取公共前缀，无法推进时列出候选 */
-    private static String applyCandidates(List<String> candidates, String currentWord, String[] tokens,
-                                          int completed, String input, String prefix) {
-        if (candidates == null || candidates.isEmpty()) return input;
-        if (candidates.size() == 1) {
-            return buildInput(tokens, completed, candidates.get(0), prefix);
-        }
-        String common = commonPrefix(candidates);
-        if (common.length() > currentWord.length()) {
-            return buildInput(tokens, completed, common, prefix);
-        }
-        printCandidates(candidates);
-        return input;
-    }
-
-    private static String buildInput(String[] tokens, int completed, String last, String prefix) {
-        StringBuilder builder = new StringBuilder(prefix);
-        for (int i = 0; i < completed; i++) {
-            builder.append(tokens[i]).append(' ');
-        }
-        builder.append(last).append(' ');
-        return builder.toString();
-    }
-
-    private static List<String> safeComplete(ClientCommand command, CommandContext context, String currentWord) {
-        try {
-            return filter(command.complete(context), currentWord);
-        } catch (Throwable error) {
-            LOGGER.error("指令 {} 补全异常", command.name(), error);
-            return List.of();
-        }
-    }
-
-    /** 前缀匹配（不区分大小写）；无前缀命中时退回包含匹配 */
-    private static List<String> filter(List<String> source, String prefix) {
-        List<String> result = new ArrayList<>();
-        if (source == null || source.isEmpty()) return result;
-        String needle = prefix == null ? "" : prefix.toLowerCase(Locale.ROOT);
-        for (String candidate : source) {
-            if (candidate == null || candidate.isBlank()) continue;
-            if (candidate.toLowerCase(Locale.ROOT).startsWith(needle)) result.add(candidate);
-        }
-        return result;
-    }
-
-    /** 列表公共前缀（不区分大小写则按首元素原样返回） */
-    private static String commonPrefix(List<String> values) {
-        String first = values.get(0);
-        int length = first.length();
-        for (String value : values) {
-            int limit = Math.min(length, value.length());
-            int index = 0;
-            while (index < limit && Character.toLowerCase(first.charAt(index)) == Character.toLowerCase(value.charAt(index))) {
-                index++;
-            }
-            length = index;
-            if (length == 0) return "";
-        }
-        return first.substring(0, length);
-    }
-
-    private static void printCandidates(List<String> candidates) {
-        int shown = Math.min(candidates.size(), MAX_PRINTED_CANDIDATES);
-        StringBuilder text = new StringBuilder("§7补全候选（" + candidates.size() + " 项）：§f");
-        text.append(String.join("§7，§f", candidates.subList(0, shown)));
-        if (shown < candidates.size()) text.append("§7，…");
-        ClientChat.send(FRAMEWORK_PREFIX, text.toString());
     }
 }

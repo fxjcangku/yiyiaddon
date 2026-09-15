@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
 import com.yiyiaddon.feature.stardew.ui.StardewRenderObjectScreen;
+import com.yiyiaddon.feature.stardew.ui.StardewSprinklerListScreen;
 import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.Ctl;
 import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.ConsoleRow;
@@ -19,6 +20,7 @@ import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
+import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
 
@@ -54,7 +56,22 @@ public final class StardewPointPage {
         for (StardewSettings.RenderObject object : module.settings().renderObjects()) {
             stack.add(renderRow(object));
         }
+        stack.add(labelSizeRow());
         stack.add(new Note(owner, "§8也可以用指令：§f.stardew 绑定 … §8/ §f.stardew 移除 …"));
+    }
+
+    /** 字牌大小：点位头顶文字的字号，与「点位字牌」的显示 / 颜色分开一行 */
+    private CompactElement labelSizeRow() {
+        StardewSettings s = module.settings();
+        SettingNumberBox box = new SettingNumberBox(
+            StardewSettings.LABEL_SIZE_MIN, StardewSettings.LABEL_SIZE_MAX, 1, "%.0f",
+            () -> (double) s.labelSize,
+            value -> {
+                s.labelSize = (int) Math.round(value);
+                module.persistSettings();
+            });
+        return new ConsoleRow(owner, () -> StardewSettings.NAME_LABEL_SIZE, StardewSettings.DESC_LABEL_SIZE,
+            null, List.of(new Ctl(box)));
     }
 
     /** 一行渲染对象：对象名 + 显示开关 + 「设置」（旧项目 StardewRenderSetting 的行结构） */
@@ -70,7 +87,9 @@ public final class StardewPointPage {
         });
         return new ConsoleRow(owner, () -> object.name(), object.description(), null, List.of(
             new Ctl(toggle, "显示 / 隐藏「" + object.name() + "」"),
-            new Ctl(settings, "打开「" + object.name() + "」的显示 / 颜色 / 渲染模式")));
+            new Ctl(settings, object.colorEditable()
+                ? "打开「" + object.name() + "」的显示 / 颜色 / 渲染模式"
+                : "打开「" + object.name() + "」的显示开关（颜色跟随对应点位的方框）")));
     }
 
     /** 清空全部点位：二次确认（正文与确认按钮逐字照旧控制台） */
@@ -139,9 +158,11 @@ public final class StardewPointPage {
                 () -> {
                     if (module.addSprinklerFromCrosshair()) owner.closeToGame();
                 },
-                "§c移除",
+                "§e管理",
                 () -> {
-                    if (module.removeSprinklerFromCrosshair()) owner.closeToGame();
+                    if (owner.client() != null) {
+                        owner.client().setScreen(new StardewSprinklerListScreen(owner.client().screen, module));
+                    }
                 });
         }
 

@@ -22,13 +22,14 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * 单个渲染对象的配置页：显示 / 颜色 / 彩虹 / 渲染模式（点位字牌只有显示与文字颜色）。
+ * 单个渲染对象的配置页：显示 / 颜色 / 彩虹 / 渲染模式（点位字牌只有显示开关）。
  *
  * <p><b>逐字搬运自旧项目</b> {@code stardew/selector/StardewRenderObjectScreen.java}：
  * 窗口标题 {@code "渲染设置 · " + 对象名}，四行标签 {@code §7显示 §8▶}、{@code §7颜色 §8▶}、
  * {@code §7彩虹 §8▶}（tooltip「颜色随时间自动循环（与配色页里的「彩虹」是同一个开关）」）、
  * {@code §7渲染模式 §8▶}（仅 {@code object.hasMode()} 时出现），底部说明
- * {@code §8本页只影响「<对象名>」，与其它渲染对象互不影响}。</p>
+ * {@code §8本页只影响「<对象名>」，与其它渲染对象互不影响}。
+ * 颜色 / 彩虹两行仅 {@code object.colorEditable()} 时出现（点位字牌的颜色跟随对应方框）。</p>
  *
  * <p><b>为什么直接读写对象自己的字段：</b>本页不新建任何状态，显示 / 颜色 / 彩虹 / 渲染模式
  * 全部落在 {@link StardewSettings.RenderObject} 上，改完立即 {@link StardewFarmModule#persistSettings()}
@@ -68,14 +69,17 @@ public final class StardewRenderObjectScreen extends PanelScreen {
                 module.persistSettings();
             })));
 
-        // 颜色：色块点击打开调色板；彩虹是同一个 EspColor 上的开关
-        content().add(new Row("§7颜色 §8▶", () -> HINT_OPEN_PICKER,
-            new SettingColorPicker(object.name() + "颜色", object.color)));
-        content().add(new Row("§7彩虹 §8▶", () -> HINT_RAINBOW,
-            new SettingToggle(() -> object.color.rainbow(), value -> {
-                object.color.rainbow(value);
-                module.persistSettings();
-            })));
+        // 颜色：色块点击打开调色板；彩虹是同一个 EspColor 上的开关。
+        // 点位字牌没有这一项：它的颜色跟随对应点位方框，摆一个点了没反应的色块只会误导。
+        if (object.colorEditable()) {
+            content().add(new Row("§7颜色 §8▶", () -> HINT_OPEN_PICKER,
+                new SettingColorPicker(object.name() + "颜色", object.color)));
+            content().add(new Row("§7彩虹 §8▶", () -> HINT_RAINBOW,
+                new SettingToggle(() -> object.color.rainbow(), value -> {
+                    object.color.rainbow(value);
+                    module.persistSettings();
+                })));
+        }
 
         // 渲染模式：线框 / 面 / 两者（点位字牌没有这一项）
         if (object.hasMode()) {

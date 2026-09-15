@@ -65,10 +65,10 @@ public final class IdentityCommand extends ClientCommand {
         }
     }
 
+    /** 只补第一层子命令：旧项目这三个词是叶子 literal，后面没有参数 */
     @Override
     public List<String> complete(CommandContext context) {
-        if (context.isEmpty() || context.size() == 1) return SUBCOMMANDS;
-        return List.of();
+        return context.isEmpty() ? SUBCOMMANDS : List.of();
     }
 
     // ── 子命令实现 ──

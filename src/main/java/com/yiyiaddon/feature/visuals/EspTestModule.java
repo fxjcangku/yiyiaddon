@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.visuals.ui.EspTestPage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.ColorPresets;
 import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
@@ -133,8 +134,25 @@ public final class EspTestModule extends Module {
 
     // ── 测试项实现 ──
 
+    /**
+     * 本地玩家相关测试项在第一人称下默认不画。
+     *
+     * <p>Meteor 的 ESP 有两条自过滤判据（{@code ignore-self} 与「第一人称跳过相机实体」）。
+     * 本模块这三项的主体就是自己（玩家线框盒 / 玩家屏幕框 / 眼前的渐变面），第一人称下画出来
+     * 只会糊在准星上挡视野；切到第三人称（F5）才画，那时正好用来对比 3D 与 2D 两种形态。</p>
+     *
+     * <p>两条判据都可在「ESP 全局设置」里改：关掉第一人称隐藏就用原版观感，打开第三人称隐藏
+     * 连 F5 下的自己也一起收掉。</p>
+     */
+    private static boolean selfHidden() {
+        Minecraft client = Minecraft.getInstance();
+        boolean firstPerson = client.options == null || client.options.getCameraType().isFirstPerson();
+        return EspGlobalSettings.get().hideSelf(firstPerson);
+    }
+
     /** 3D 线框盒：透视下应呈现立体缩形，不是屏幕对齐矩形。 */
     private static void drawPlayerBox(EspRenderer renderer) {
+        if (selfHidden()) return;
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
         renderer.box(client.player.getBoundingBox(), RED_FILL, RED, ShapeMode.Both, 2f);
@@ -142,6 +160,7 @@ public final class EspTestModule extends Module {
 
     /** 屏幕轴对齐包围框：与本项目独有的 2D 形态对比 3D 的差异。 */
     private static void drawPlayerBox2D(EspRenderer renderer) {
+        if (selfHidden()) return;
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
         renderer.box2D(client.player.getBoundingBox(), 0, GREEN, ShapeMode.Lines, 2f);
@@ -209,6 +228,8 @@ public final class EspTestModule extends Module {
 
     /** 渐变面 + 双色线：验证这两项分段近似实现的实际观感。 */
     private static void drawGradient(EspRenderer renderer) {
+        // 渐变面就贴在眼前 1.5 格，第一人称下等于糊在准星上，切第三人称才看得出效果
+        if (selfHidden()) return;
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
 

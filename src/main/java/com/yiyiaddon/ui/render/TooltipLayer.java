@@ -31,8 +31,17 @@ public final class TooltipLayer {
     /** 相对鼠标的锚点偏移：浮层落在指针右下方，再按视口贴边修正。 */
     private static final float TIP_OFFSET_X = 14f;
     private static final float TIP_OFFSET_Y = 16f;
-    /** 浮层文字基准色（旧项目 tooltip 正文为白字，行内颜色码自行覆盖）。 */
-    private static final int TIP_COLOR = 0xFFFFFF;
+
+    /**
+     * 浮层文字基准色。
+     *
+     * <p>旧项目 tooltip 正文是白字，那是深色底；白色主题的浮层底色同样是白的，白字压白底等于看不见
+     * （实机表现就是「悬停在设置上看不到中文注释」）。因此浅色主题改用主题主文字色，
+     * 深色主题一个像素不改；文案里自带的 {@code §} 颜色码照旧覆盖基准色。</p>
+     */
+    private static int baseColor(ClickGuiThemeColors tc) {
+        return tc != null && !tc.dark ? tc.primaryText : 0xFFFFFF;
+    }
 
     private static String text;
     private static float anchorX;
@@ -93,8 +102,9 @@ public final class TooltipLayer {
         GlassPanel.rim(canvas, drawX, drawY, tipWidth, tipHeight, TIP_RADIUS, tc.rim, alpha, 0.22f);
 
         float cursorY = drawY + TIP_PAD;
+        int base = baseColor(tc);
         for (String line : lines) {
-            MinecraftText.draw(canvas, line, drawX + TIP_PAD, cursorY + TIP_SIZE, TIP_SIZE, TIP_COLOR, alpha);
+            MinecraftText.draw(canvas, line, drawX + TIP_PAD, cursorY + TIP_SIZE, TIP_SIZE, base, alpha);
             cursorY += TIP_LINE;
         }
     }

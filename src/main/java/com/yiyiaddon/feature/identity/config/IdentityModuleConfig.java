@@ -31,11 +31,6 @@ public final class IdentityModuleConfig {
         this.mode = mode == null ? IdentifyMode.AUTO_SAVE : mode;
     }
 
-    /** 识别结果是否写入身份库：仅「聊天复制/显示」模式不落盘 */
-    public boolean savesToLibrary() {
-        return mode != IdentifyMode.CHAT_COPY;
-    }
-
     /** 方块语义调试：开启后 {@code .id 方块} 把语义解析全过程输出到 latest.log */
     public boolean blockSemanticDebug() {
         return blockSemanticDebug;

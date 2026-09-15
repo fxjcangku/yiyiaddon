@@ -11,6 +11,7 @@ import com.yiyiaddon.feature.stardew.task.StardewCoordinator.Phase;
 import com.yiyiaddon.platform.container.ContainerAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -24,10 +25,62 @@ import java.util.Map;
  */
 final class StardewFarmReporter {
 
+    /** 已播报过「被挖掉」的点位键：方块恢复或点位重设后自动复位，避免每轮巡检重复刷屏 */
+    private final java.util.Set<String> lostPointKeys = new java.util.HashSet<>();
+
     private final StardewCoordinator owner;
 
     StardewFarmReporter(StardewCoordinator owner) {
         this.owner = owner;
+    }
+
+    /**
+     * 点位方块巡检：绑定的方块被挖掉（或容器被换成非容器）时立即报警一次。
+     *
+     * <p><b>为什么只判「方块没了」：</b>{@code validationFailure} 里还包含「所在区块尚未加载」
+     * 「资源未就绪」这类与玩家操作无关的状态，拿它逐 tick 播报只会变成噪音。这里只认确定性事件
+     * ——该坐标已经没有方块、或原本要求是容器而现在不是容器——报一次后记住，方块回来就自动复位。</p>
+     *
+     * <p><b>农田起点 / 终点不在此列：</b>它们已有逐 tick 的停机逻辑（{@link #farmBoundaryFailure()}），
+     * 重复报会变成两条消息说同一件事。</p>
+     */
+    void watchPointBlocks() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        for (StardewPointType type : StardewPointType.values()) {
+            if (type == StardewPointType.START || type == StardewPointType.END) continue;
+            if (type == StardewPointType.SPRINKLER) {
+                for (StardewPointManager.StardewPoint point : owner.points.getAll(type)) {
+                    watchPointBlock(mc, type, point);
+                }
+            } else {
+                StardewPointManager.StardewPoint point = owner.points.get(type);
+                if (point != null) watchPointBlock(mc, type, point);
+            }
+        }
+    }
+
+    /** 会话 / 服务器切换时清空「已播报」记录：换服后同一坐标要能重新报警 */
+    void forgetLostPoints() {
+        lostPointKeys.clear();
+    }
+
+    /** 单点位判定；区块未加载 / 非当前维度一律视为「无法判定」，绝不当成被挖掉 */
+    private void watchPointBlock(Minecraft mc, StardewPointType type, StardewPointManager.StardewPoint point) {
+        String key = "POINT_LOST:" + type + ':' + point.pos();
+        if (!point.inCurrentDimension() || mc.level == null || !mc.level.isLoaded(point.pos())) {
+            lostPointKeys.remove(key);
+            return;
+        }
+        boolean gone = mc.level.getBlockState(point.pos()).isAir()
+            || (type.requiresContainer() && !(mc.level.getBlockEntity(point.pos()) instanceof Container));
+        if (!gone) {
+            lostPointKeys.remove(key);
+            return;
+        }
+        if (!lostPointKeys.add(key)) return;
+        owner.status.critical(key, type.title() + "已被挖掉",
+            "坐标 X" + point.x() + " Y" + point.y() + " Z" + point.z() + "；请重新设置该点位");
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -56,9 +109,47 @@ final class StardewFarmReporter {
             case RETURN_CENTER -> owner.status.state("RETURN", "返回农田", "正在前往农田中心");
             case FERTILIZE -> owner.status.state("FERTILIZE", "正在施肥", cropName);
             case POTION -> owner.status.state("POTION", "正在使用魔法药剂", cropName);
-            case SPRINKLER_CHECK, SPRINKLER_REFILL -> owner.status.state("SPRINKLER", "正在维护洒水器", "");
+            case SPRINKLER_CHECK, SPRINKLER_REFILL -> {
+                BlockPos sprinkler = owner.planner.sprinklerTarget();
+                // 点位键带上坐标：三种洒水器要能一眼看出「现在在维护哪一台、是哪种」
+                owner.status.state("SPRINKLER:" + sprinkler, "正在维护洒水器", sprinklerLabel(sprinkler));
+            }
         }
         captureTaskInventory();
+    }
+
+    /** 「高级洒水器 · 19875, 64, -1630」；点位已删或类型未知时如实降级，绝不编造类型名 */
+    private String sprinklerLabel(BlockPos pos) {
+        if (pos == null) return "";
+        String coords = pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+        for (StardewPointManager.StardewPoint point : owner.points.getAll(StardewPointType.SPRINKLER)) {
+            if (point.inCurrentDimension() && point.pos().equals(pos)) {
+                return (point.typeName() == null ? "洒水器" : point.typeName()) + " · " + coords;
+            }
+        }
+        return coords;
+    }
+
+    /** 单台洒水器维护结束：只在水量确实没再减少时才说「已灌满」 */
+    void announceSprinklerDone(BlockPos pos, boolean filledFull) {
+        owner.status.state("SPRINKLER_DONE:" + pos,
+            filledFull ? "洒水器已灌满" : "洒水器维护完成", sprinklerLabel(pos));
+    }
+
+    /** 一轮洒水器维护结束 */
+    void announceSprinklerRoundDone(int count) {
+        owner.status.state("SPRINKLER_ROUND", "洒水器维护完成", "本轮 " + count + " 台");
+    }
+
+    /** 这台刚验过是满的：本轮跳过，只更新状态卡，不刷聊天（一轮最多一条汇总） */
+    void announceSprinklerSkipped(BlockPos pos) {
+        owner.status.silent("SPRINKLER_SKIP:" + pos, "洒水器已满，本轮跳过", sprinklerLabel(pos), "");
+    }
+
+    /** 整轮都是刚验过满的：本轮不跑腿，只给一条聊天提示 */
+    void announceSprinklerAllSkipped(int count) {
+        owner.status.state("SPRINKLER_SKIP_ROUND", "洒水器本轮全部已满，跳过",
+            "共 " + count + " 台 · 到点后自动重查");
     }
 
     private CropDefinition taskCrop() {
