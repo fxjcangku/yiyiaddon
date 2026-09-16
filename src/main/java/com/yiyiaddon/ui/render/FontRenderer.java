@@ -62,10 +62,22 @@ public class FontRenderer {
         return font;
     }
 
+    /**
+     * 字体渲染参数：<b>一律落在整像素上</b>。
+     *
+     * <p>用户 2026-09-16 反馈「这个选择器 点进去之后 字都糊了」。实测本机（窗口 1280×720、GUI 缩放 3、
+     * 界面大小 100%）面板由 {@code PanelFrame} 按 <b>1.344 设备像素 / 设计单位</b> 缩放绘制，于是每段
+     * 文字的起点、每个字形的推进量都落在非整数设备像素上：开了亚像素定位时 Skia 会按这个小数偏移把字形
+     * 横向抹开，小字号（选择器整页都是 10~11 号）就糊成一片。</p>
+     *
+     * <p>因此这里按「像素对齐」优先来配：<b>关掉亚像素定位</b>（每个字形落到最近整像素，笔画不再被
+     * 摊到两列上），并把边缘改成灰度抗锯齿 —— 面板是半透明玻璃，LCD（清彩）抗锯齿要求不透明底色，
+     * 在玻璃上会出彩边，反而更糊。字号与字宽口径不变。</p>
+     */
     private static Font configure(Font font) {
-        font.setSubpixel(true);
+        font.setSubpixel(false);
         font.setHinting(FontHinting.SLIGHT);
-        font.setEdging(FontEdging.SUBPIXEL_ANTI_ALIAS);
+        font.setEdging(FontEdging.ANTI_ALIAS);
         return font;
     }
 
@@ -76,11 +88,45 @@ public class FontRenderer {
     public static void drawText(Canvas canvas, String text, float x, float y, float size, int argb, String fontName) {
         Font font = makeFont(fontName, size);
         textPaint.setColor(argb);
+        // 起点对齐到整数设备像素：见 deviceScale / configure 的注释
+        float snappedX = snapToDeviceX(canvas, x);
+        float snappedY = snapToDeviceY(canvas, y);
         if (!needsFallback(fontName, text)) {
-            canvas.drawString(text, x, y, font, textPaint);
+            canvas.drawString(text, snappedX, snappedY, font, textPaint);
             return;
         }
-        drawWithFallback(canvas, text, x, y, size, fontName, font);
+        drawWithFallback(canvas, text, snappedX, snappedY, size, fontName, font);
+    }
+
+    /**
+     * 画布当前的设备缩放（1 设计单位 = 多少物理像素）。
+     *
+     * <p>取自画布总矩阵而不是页面自己的缩放系数：主界面、模块页、独立面板、选择器、世界叠加层的
+     * 变换各不相同（还叠加了 {@code guiScale}），只有总矩阵是它们共同的真相。</p>
+     *
+     * <p>旋转 / 斜切（折叠箭头的旋转动画）下横纵轴不再与屏幕网格平行，逐轴取整会引入抖动，
+     * 此时返回 {@code null} 表示不做对齐。</p>
+     */
+    private static float[] deviceScale(Canvas canvas) {
+        if (canvas == null) return null;
+        float[] mat = canvas.getLocalToDeviceAsMatrix33().getMat();
+        if (Math.abs(mat[1]) > 0.001f || Math.abs(mat[3]) > 0.001f) return null;
+        float scaleX = mat[0];
+        float scaleY = mat[4];
+        if (!(scaleX > 0f) || !(scaleY > 0f) || !Float.isFinite(scaleX) || !Float.isFinite(scaleY)) return null;
+        return mat;
+    }
+
+    /** 文字起点横向对齐到整设备像素；无法判定缩放时原样返回。 */
+    private static float snapToDeviceX(Canvas canvas, float x) {
+        float[] mat = deviceScale(canvas);
+        return mat == null ? x : Math.round(x * mat[0]) / mat[0];
+    }
+
+    /** 文字基线纵向对齐到整设备像素；无法判定缩放时原样返回。 */
+    private static float snapToDeviceY(Canvas canvas, float y) {
+        float[] mat = deviceScale(canvas);
+        return mat == null ? y : Math.round(y * mat[4]) / mat[4];
     }
 
     /**
@@ -102,7 +148,9 @@ public class FontRenderer {
                 index += Character.charCount(text.codePointAt(index));
             }
             String chunk = text.substring(start, index);
-            canvas.drawString(chunk, cursor, y, font, textPaint);
+            // 每段起点都重新对齐整设备像素：段间推进量是设计单位下的浮点值，第二段起若不重新对齐，
+            // 整段就落在非整数设备像素上被抹开，表现为「一行字前半清、后半糊」
+            canvas.drawString(chunk, snapToDeviceX(canvas, cursor), y, font, textPaint);
             cursor += font.measureTextWidth(chunk);
         }
     }

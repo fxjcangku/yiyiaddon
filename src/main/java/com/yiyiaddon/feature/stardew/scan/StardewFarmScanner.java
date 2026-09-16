@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
 import com.yiyiaddon.feature.stardew.recognition.CropState;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.recognition.PotState;
+import com.yiyiaddon.feature.stardew.recognition.StardewCropDisplayProbe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -77,6 +78,8 @@ public final class StardewFarmScanner {
         this.cursor = new BlockPos(min.getX(), min.getY(), min.getZ());
         this.active = true;
         this.emitted.clear();
+        // 展示实体归零后重新归档：作物不是方块的服务器（CraftEngine 无客户端模组）靠它认作物
+        StardewCropDisplayProbe.refresh(min, max);
     }
 
     /** 停止扫描并清空范围 */
@@ -86,6 +89,7 @@ public final class StardewFarmScanner {
         this.cursor = null;
         this.active = false;
         this.emitted.clear();
+        StardewCropDisplayProbe.reset();
     }
 
     /** 是否有范围可扫描 */
@@ -156,6 +160,18 @@ public final class StardewFarmScanner {
             // （仅用于收割/清理，不浇水，因为浇水对象必须是被确认的盆）。
             boolean potOk = pot.state() == PotState.DRY || pot.state() == PotState.WET;
             boolean cropOk = crop.state() != CropState.EMPTY && crop.state() != CropState.UNKNOWN;
+
+            // 作物不是方块的服务器兜底：盆上方永远是空气或隐形载体，作物只存在于展示实体里。
+            // 走 CropRecognizer.recognizeAtPot 这一条统一入口——收获验证用的是同一个方法，
+            // 两处判定必须同源，否则会出现「扫描认得出、收获验证判不出变化」的割裂。
+            if (!cropOk && potOk) {
+                CropRecognizer.CropRecognition fromDisplay = CropRecognizer.recognizeAtPot(potPos, profile);
+                if (fromDisplay.state() != CropState.EMPTY && fromDisplay.state() != CropState.UNKNOWN) {
+                    crop = fromDisplay;
+                    cropOk = true;
+                }
+            }
+
             if ((potOk || cropOk) && emitted.add(potPos)) {
                 found.add(new Cell(potPos, pot.state(), pot.potKey(), crop));
             }

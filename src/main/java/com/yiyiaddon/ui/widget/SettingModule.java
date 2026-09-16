@@ -2,6 +2,7 @@ package com.yiyiaddon.ui.widget;
 
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
@@ -36,6 +37,27 @@ public class SettingModule {
     private static final float COMPACT_MODULE_H = 40f;
     private static final float COMPACT_SUB_H = 30f;
     private static final float COMPACT_COLUMN_GAP = 12f;
+    /**
+     * 图标行的表头行高：直接取模块中心的模块行（{@link ModuleRow#HEIGHT}），行距由页面给
+     * （{@code BasePage.moduleGap()} 读的也是 {@link ModuleRow#ROW_GAP}）。
+     *
+     * <p>用户 2026-09-16 看过「设置」「界面」两页的截图后说「这些也要啊」——两页的行要和模块中心
+     * 长成一样：行首一个 Material 图标、行高收到模块行那一档。行高是共享的值：总高度、命中判定与
+     * 绘制都按它算，写两份就是「点得到看不见、看得见点不到」。</p>
+     */
+    private static final float ICON_ROW_H = ModuleRow.HEIGHT;
+    /**
+     * 图标行的标题 / 说明字号。
+     *
+     * <p>就是这两页原来的 14 / 11——收行高时<b>一个都没降</b>：说明从第二行挪到标题右侧同一行
+     * （模块行也是「名称 + 说明」一行），放不下的部分照旧省略，完整原文由悬停浮层给出。</p>
+     */
+    private static final float ICON_ROW_TITLE_SIZE = 14f;
+    private static final float ICON_ROW_SUB_SIZE = 11f;
+    /** 展开箭头字形：图标行与经典表头共用（文字让位时也按它算宽度）。 */
+    private static final float EXPAND_ARROW_SIZE = 12f;
+    /** 展开箭头距行右边界的距离（经典表头的原口径，图标行不改右基线）。 */
+    private static final float EXPAND_ARROW_INSET = 5f;
     /** 控件宽过这个值就独占一行（文本框 / 只读值 / 分段选择器放不下半列） */
     private static final float COMPACT_MAX_CELL_W = 200f;
     /**
@@ -49,6 +71,19 @@ public class SettingModule {
     private static final float COMPACT_CELL_W = 240.5f;
     /** 标题与控件之间至少留出的间距 */
     private static final float LABEL_GAP = 8f;
+    /**
+     * 紧凑双列里格内左右内缩。
+     *
+     * <p><b>比经典的 {@link #PAD_X}（20）小：</b>20 是经典大卡片的呼吸位，而双列的格子只有 241 宽，
+     * 左右各留 20 就吃掉 40——标题可用宽度被压到 93，于是「区块边界获取上限」这种 8 字标题（实测 96）
+     * 正好差 3 个单位放不下，被 {@link #spansWholeRow} 判成「必须独占整行」。实机看到的就是
+     * 「排版乱七八糟」：这些 8 字标题的项目一条一条单独占满整行、标题与控件之间空出一大片，
+     * 而 7 字标题的项目照旧两列——一页里混着三种行型（用户 2026-09-16 截图反馈）。</p>
+     *
+     * <p>收到 12 后标题可用宽度 109（放得下 9 个全角字），量级相符的项都落回半格，整页回到
+     * 整齐的双列；只剩真正宽的控件（文本框 220 / 只读值 320 / 三维偏移）才独占整行。</p>
+     */
+    private static final float COMPACT_PAD_X = 12f;
     /** 子项标题字号 */
     private static final float SUB_LABEL_SIZE = 12f;
     private static final float PAD_X = 20f;
@@ -66,6 +101,12 @@ public class SettingModule {
     private boolean compact;
     /** 表头右侧的小标（折叠态下唯一能看到的量，例如「96 项」）；null = 不画 */
     private String badge;
+    /**
+     * 行首图标码点（Material 符号）；非 null 时表头走「图标 + 标题 + 说明 + 右侧控件」的紧凑单行。
+     *
+     * <p>见 {@link #icon(String)}。</p>
+     */
+    private String icon;
 
     public SettingModule(String title, String subtitle, SettingWidget mainWidget) {
         this.title = title;
@@ -86,6 +127,26 @@ public class SettingModule {
      */
     public SettingModule compact() {
         compact = true;
+        return this;
+    }
+
+    /**
+     * 行首图标：表头压成模块中心同款的紧凑单行（{@link #ICON_ROW_H}，24）。
+     *
+     * <p><b>给谁用：</b>「设置」「界面」这种「一行一项」的清单页——一行里放下「图标 + 标题 + 说明 +
+     * 右侧控件」，和模块中心的模块行一个观感（用户 2026-09-16 看过这两页截图后要求「这些也要啊」）。
+     * 子项层（展开后的卡片）沿用原样，本轮只对齐一级行。</p>
+     *
+     * <p><b>字号不降：</b>标题仍是 14、说明仍是 11，说明只是从第二行挪到标题右侧；说明放不下时照旧
+     * 省略，完整原文悬停可见（同 {@link #compact()} 的做法，宿主屏幕需支持浮层）。</p>
+     *
+     * <p><b>码点必须已验证：</b>字形直接进字体绘制，字体里没有就是一块豆腐——码点只能取自项目已验真
+     * 的集合（开发习惯第 140 条），详见各页面图标常量的注释。</p>
+     *
+     * @param glyph Material 符号码点；{@code null} / 空串表示不画图标，表头回到经典布局
+     */
+    public SettingModule icon(String glyph) {
+        icon = glyph == null || glyph.isEmpty() ? null : glyph;
         return this;
     }
 
@@ -114,8 +175,30 @@ public class SettingModule {
         return true;
     }
 
+    /**
+     * 表头是否走图标行。
+     *
+     * <p>与 {@link #compact()} 互斥（{@code compact} 优先）：两套紧凑口径的子项高度不同
+     * （30 / 44），混在一起必然错位。本项目里 {@code compact()} 只有 Baritone 设置页用。</p>
+     */
+    private boolean iconRow() {
+        return icon != null && !compact;
+    }
+
+    /** 模块占的槽高：图标行 24 / 紧凑双列 40 / 经典 56。总高度与页面排序都读它。 */
     private float moduleHeight() {
+        if (iconRow()) return ICON_ROW_H;
         return compactLayout() ? COMPACT_MODULE_H : MODULE_H;
+    }
+
+    /**
+     * 表头（可点的标题那一块）的绘制高度。
+     *
+     * <p>经典 / 紧凑双列的老口径是「槽高 - 8」——那 8 是子项卡片与投影的呼吸位；图标行的 24 就是行本身，
+     * 行距由页面给（6，同模块中心），不再留这 8。绘制、控件居中与命中判定都读这一个口径。</p>
+     */
+    private float headerHeight() {
+        return iconRow() ? ICON_ROW_H : moduleHeight() - 8f;
     }
 
     private float subHeight() {
@@ -214,7 +297,7 @@ public class SettingModule {
 
     /** 半列里标题可用的宽度：从格内左侧内缩起，到控件左侧再让出 {@link #LABEL_GAP}（与绘制同一公式） */
     private static float compactLabelWidth(float widgetW) {
-        return COMPACT_CELL_W - PAD_X * 2f - widgetW - LABEL_GAP;
+        return COMPACT_CELL_W - COMPACT_PAD_X * 2f - widgetW - LABEL_GAP;
     }
 
     private int compactRowCount() {
@@ -377,7 +460,12 @@ public class SettingModule {
         ModuleKeybindManager.registerModule(this);
         drawStaticContent(canvas, x, y, contentW, alpha, viewportTop, viewportBottom, expandProgress);
         // 紧凑模式的表头说明走悬停浮层；子项稍后登记，鼠标在子项上时后者覆盖前者（同一帧只留最后一条）
-        if (compactLayout() && mouseY >= y && mouseY <= y + moduleHeight() - 8f
+        if (compactLayout() && mouseY >= y && mouseY <= y + headerHeight()
+                && mouseX >= x && mouseX <= x + contentW) {
+            TooltipLayer.show(subtitle, mouseX, mouseY);
+        }
+        // 图标行同理：说明挤在标题右侧，长句必然被省略，悬停给完整原文
+        if (iconRow() && mouseY >= y && mouseY <= y + headerHeight()
                 && mouseX >= x && mouseX <= x + contentW) {
             TooltipLayer.show(subtitle, mouseX, mouseY);
         }
@@ -385,7 +473,7 @@ public class SettingModule {
             float widgetWidth = mainWidget == null ? 0f : mainWidget.getWidth();
             float widgetHeight = mainWidget == null ? KEYBIND_H : mainWidget.getHeight();
             float wx = x + contentW - PAD_X - widgetWidth;
-            float wy = y + (moduleHeight() - 8f - widgetHeight) / 2f;
+            float wy = y + (headerHeight() - widgetHeight) / 2f;
             drawKeybind(canvas, wx, wy, alpha, mouseX, mouseY);
             if (mainWidget != null) {
                 mainWidget.hover(mouseX, mouseY, wx, wy, widgetWidth);
@@ -397,7 +485,7 @@ public class SettingModule {
             drawCompactCells(canvas, x, y, contentW, alpha, viewportTop, viewportBottom, mouseX, mouseY);
             return;
         }
-        float sy = y + MODULE_H;
+        float sy = y + moduleHeight();
         for (SubEntry sub : subEntries) {
             if (!sub.isVisible()) continue;
             float subBottom = sy + SUB_H - 6f;
@@ -458,9 +546,9 @@ public class SettingModule {
             Box box = compactWidgetBox(cx, cw, cy, sub.widget);
             float widgetX = box.x();
             // 标题可用宽度与装箱判定同一公式（放不下的项已经独占整行了，这里的截断只是兜底）
-            float labelWidth = Math.max(40f, widgetX - (cx + PAD_X) - LABEL_GAP);
+            float labelWidth = Math.max(40f, widgetX - (cx + COMPACT_PAD_X) - LABEL_GAP);
             String label = CardLayout.ellipsize(sub.title, labelWidth, SUB_LABEL_SIZE);
-            FontRenderer.drawText(canvas, label, cx + PAD_X, cy + ch / 2f + 4.5f, SUB_LABEL_SIZE,
+            FontRenderer.drawText(canvas, label, cx + COMPACT_PAD_X, cy + ch / 2f + 4.5f, SUB_LABEL_SIZE,
                     withAlpha(tc.subModuleText, subAlpha));
 
             if (mouseX >= cx && mouseX <= cx + cw && mouseY >= cy && mouseY <= cy + ch) {
@@ -525,20 +613,25 @@ public class SettingModule {
     private void drawStaticContent(Canvas canvas, float x, float y, float contentW, float alpha, float viewportTop, float viewportBottom, float progress) {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float rowAlpha = ClickGuiThemeColors.panelBackgroundAlpha(alpha);
-        float headH = moduleHeight();
-        GlassPanel.frost(canvas, x, y, contentW, headH - 8f, 16f, tc.module, 0.70f, rowAlpha);
-        GlassPanel.rim(canvas, x, y, contentW, headH - 8f, 16f, tc.rim, rowAlpha, 0.10f);
-        if (compactLayout()) {
+        float headH = headerHeight();
+        // 图标行是「行本身」：圆角按行高收窄、底色略淡，与模块中心的模块行同一观感；
+        // 经典表头沿用 16 的大圆角与 0.70 底
+        float radius = iconRow() ? GlassPanel.rowRadius(headH) : 16f;
+        GlassPanel.frost(canvas, x, y, contentW, headH, radius, tc.module, iconRow() ? 0.55f : 0.70f, rowAlpha);
+        GlassPanel.rim(canvas, x, y, contentW, headH, radius, tc.rim, rowAlpha, iconRow() ? 0.06f : 0.10f);
+        if (iconRow()) {
+            drawIconHeader(canvas, x, y, contentW, alpha);
+        } else if (compactLayout()) {
             // 单行表头：两行表头在两百多项的页面上太费地方；说明改由悬停浮层给出，
             // 名称按可用宽度截断（右侧依次是小标与展开箭头）
             float badgeW = 0f;
             if (badge != null && !badge.isEmpty()) {
                 badgeW = FontRenderer.measureTextWidth(badge, 11f);
                 FontRenderer.drawText(canvas, badge, x + contentW - 18f - badgeW,
-                        y + (headH - 8f) / 2f + 4.5f, 11f, withAlpha(tc.labelTertiary, alpha));
+                        y + headH / 2f + 4.5f, 11f, withAlpha(tc.labelTertiary, alpha));
             }
             String label = CardLayout.ellipsize(title, contentW - PAD_X * 2f - 24f - badgeW, 14f);
-            FontRenderer.drawTextBold(canvas, label, x + PAD_X, y + (headH - 8f) / 2f + 5f, 14f,
+            FontRenderer.drawTextBold(canvas, label, x + PAD_X, y + headH / 2f + 5f, 14f,
                     withAlpha(tc.primaryText, alpha));
         } else {
             FontRenderer.drawTextBold(canvas, title, x + PAD_X, y + 24f, 14f, withAlpha(tc.primaryText, alpha));
@@ -546,7 +639,7 @@ public class SettingModule {
         }
         // 紧凑模式的子项底板由 drawCompactCells 画（它同时还要画控件与标题），这里只画经典模式的
         if (progress > 0.01f && !compactLayout()) {
-            float sy = y + MODULE_H;
+            float sy = y + moduleHeight();
             for (SubEntry sub : subEntries) {
                 if (!sub.isVisible()) continue;
                 float subBottom = sy + SUB_H - 6f;
@@ -591,9 +684,65 @@ public class SettingModule {
         }
         if (hasVisibleSubEntries()) {
             String arrow = progress > 0.5f ? ARROW_EXPANDED : ARROW_COLLAPSED;
-            float aw = FontRenderer.measureTextWidth(arrow, 12f, FontRenderer.MATERIAL_SYMBOLS);
-            FontRenderer.drawText(canvas, arrow, x + contentW - 5f - aw, y + (headH - 8f) / 2f + 5.5f, 12f, withAlpha(tc.mutedText, alpha), FontRenderer.MATERIAL_SYMBOLS);
+            float aw = FontRenderer.measureTextWidth(arrow, EXPAND_ARROW_SIZE, FontRenderer.MATERIAL_SYMBOLS);
+            FontRenderer.drawText(canvas, arrow, x + contentW - EXPAND_ARROW_INSET - aw,
+                    y + headH / 2f + 5.5f, EXPAND_ARROW_SIZE, withAlpha(tc.mutedText, alpha), FontRenderer.MATERIAL_SYMBOLS);
         }
+    }
+
+    /**
+     * 图标行的表头：图标 + 标题 + 说明 + 右侧让位，与模块中心的模块行同一套左度量
+     * （{@link ModuleRow#PAD_X} / {@link ModuleRow#drawIcon}）。
+     *
+     * <p><b>为什么标题与说明同一行：</b>行高压到 {@link #ICON_ROW_H}（24）后放不下两行文字，
+     * 而字号是这两页原有的 14 / 11，一个都不降（用户要的是「方便阅读」）——于是说明挪到标题右侧，
+     * 和模块行的「模块名 + 描述」同一排版；放不下的部分照旧省略，完整原文由悬停浮层给出。</p>
+     *
+     * <p><b>右侧一字未动：</b>控件仍是 {@code x + contentW - PAD_X - 宽}、按键块仍在控件左侧、
+     * 展开箭头仍在最右（{@link #EXPAND_ARROW_INSET}），这里只是把它们的左边界算出来给文字让位。</p>
+     *
+     * <p><b>为什么不缩进：</b>图标行是页面的一级行，没有「上一行分类」可归属——{@link ModuleRow#INDENT}
+     * 表达的是模块行隶属于分类头，照搬到这两页只会让整列凭空内缩。</p>
+     */
+    private void drawIconHeader(Canvas canvas, float x, float y, float contentW, float alpha) {
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        float centerY = y + ICON_ROW_H / 2f;
+        float cursor = ModuleRow.drawIcon(canvas, icon, x + ModuleRow.PAD_X, centerY, alpha, tc);
+
+        float textRight = rowTextRight(x, contentW);
+        float available = textRight - cursor;
+        if (available <= 0f) return;
+
+        // 标题优先整份显示：14 号比模块行的 12 号宽，按固定比例切栏会把「Baritone设置」截成省略号
+        float titleMax = Math.min(FontRenderer.measureTextWidthBold(title, ICON_ROW_TITLE_SIZE), available);
+        String titleText = CardLayout.ellipsize(title, titleMax, ICON_ROW_TITLE_SIZE);
+        FontRenderer.drawTextBold(canvas, titleText, cursor, CardLayout.baseline(centerY, ICON_ROW_TITLE_SIZE),
+                ICON_ROW_TITLE_SIZE, withAlpha(tc.primaryText, alpha));
+
+        if (subtitle == null || subtitle.isEmpty()) return;
+        float descX = cursor + FontRenderer.measureTextWidthBold(titleText, ICON_ROW_TITLE_SIZE) + LABEL_GAP;
+        float descMax = textRight - descX;
+        if (descMax < 16f) return;
+        FontRenderer.drawText(canvas, CardLayout.ellipsize(subtitle, descMax, ICON_ROW_SUB_SIZE), descX,
+                CardLayout.baseline(centerY, ICON_ROW_SUB_SIZE), ICON_ROW_SUB_SIZE,
+                withAlpha(tc.labelTertiary, alpha));
+    }
+
+    /**
+     * 图标行里文字可用的右边界：右侧控件 / 按键块 / 展开箭头里最靠左的那个，再让出 {@link #LABEL_GAP}。
+     *
+     * <p>控件宽度是动态的（按键块绑上键位后会变宽、数字框绘制期间才报宽度），所以每帧现算，
+     * 与 {@link #draw} 摆控件用的是同一组表达式。</p>
+     */
+    private float rowTextRight(float x, float contentW) {
+        float right = x + contentW - PAD_X;
+        if (mainWidget != null) right -= mainWidget.getWidth();
+        if (isKeybindable() && !keybindId().isBlank()) right -= 8f + keybindWidth;
+        if (hasVisibleSubEntries()) {
+            right = Math.min(right, x + contentW - EXPAND_ARROW_INSET
+                    - FontRenderer.measureTextWidth(ARROW_COLLAPSED, EXPAND_ARROW_SIZE, FontRenderer.MATERIAL_SYMBOLS));
+        }
+        return right - LABEL_GAP;
     }
 
     /**
@@ -604,7 +753,7 @@ public class SettingModule {
      */
     private static Box compactWidgetBox(float cx, float cw, float cy, SettingWidget widget) {
         float w = widget.getWidth();
-        return new Box(cx + cw - PAD_X - w, cy + (COMPACT_SUB_H - 6f - widget.getHeight()) / 2f, w);
+        return new Box(cx + cw - COMPACT_PAD_X - w, cy + (COMPACT_SUB_H - 6f - widget.getHeight()) / 2f, w);
     }
 
     /** 控件摆放框：左上角 + 宽度（高度由控件自报）。 */
@@ -612,7 +761,7 @@ public class SettingModule {
     }
 
     public boolean onClick(float mx, float my, float x, float y, float contentW, int button) {
-        float moduleBottom = y + moduleHeight() - 8f;
+        float moduleBottom = y + headerHeight();
         if (my >= y && my <= moduleBottom) {
             // 右键展开；没有主控件也没有快捷键的「纯标题分组」左键同样可以展开，
             // 否则用户左键点标题毫无反应（例如 Baritone设置 的七个分组）。
@@ -625,7 +774,7 @@ public class SettingModule {
             if (button == 0 && isKeybindable() && !id.isBlank()) {
                 float widgetX = x + contentW - PAD_X - (mainWidget == null ? 0f : mainWidget.getWidth());
                 float keybindX = widgetX - 8f - keybindWidth;
-                float keybindY = y + (moduleHeight() - 8f - KEYBIND_H) / 2f + 1.5f;
+                float keybindY = y + (headerHeight() - KEYBIND_H) / 2f + 1.5f;
                 if (mx >= keybindX && mx <= keybindX + keybindWidth && my >= keybindY && my <= keybindY + KEYBIND_H) {
                     if (ModuleKeybindManager.hasBinding(id) && !ModuleKeybindManager.ACTION_CLICK_GUI.equals(id)) {
                         ModuleKeybindManager.clearBinding(id);
@@ -637,7 +786,7 @@ public class SettingModule {
             }
             if (button == 0 && mainWidget != null) {
                 float wx = x + contentW - PAD_X - mainWidget.getWidth();
-                float wy = y + (moduleHeight() - 8f - mainWidget.getHeight()) / 2f;
+                float wy = y + (headerHeight() - mainWidget.getHeight()) / 2f;
                 return mainWidget.onClick(mx, my, wx, wy, button);
             }
         }
@@ -656,7 +805,7 @@ public class SettingModule {
                 }
                 return false;
             }
-            float sy = y + MODULE_H;
+            float sy = y + moduleHeight();
             for (SubEntry sub : subEntries) {
                 if (!sub.isVisible()) continue;
                 float subBottom = sy + SUB_H - 6f;
@@ -692,7 +841,7 @@ public class SettingModule {
     public boolean onDrag(float mx, float my, float x, float y, float contentW) {
         if (mainWidget instanceof SettingTextBox textBox) {
             float wx = x + contentW - PAD_X - textBox.getWidth();
-            float wy = y + (moduleHeight() - 8f - textBox.getHeight()) / 2f;
+            float wy = y + (headerHeight() - textBox.getHeight()) / 2f;
             if (textBox.onDrag(mx, my, wx, wy)) return true;
         }
         if (expanded) {
@@ -709,7 +858,7 @@ public class SettingModule {
                 }
                 return false;
             }
-            float sy = y + MODULE_H;
+            float sy = y + moduleHeight();
             for (SubEntry sub : subEntries) {
                 if (!sub.isVisible()) continue;
                 if (sub.widget instanceof SettingTextBox textBox) {

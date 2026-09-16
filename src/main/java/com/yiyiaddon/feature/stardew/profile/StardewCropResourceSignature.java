@@ -60,6 +60,26 @@ public final class StardewCropResourceSignature {
      * @return cropKey → 签名；没有阶段模型或读取失败的作物不会出现在结果中
      */
     public static Map<String, Signature> compute(Collection<CropDefinition> crops) {
+        return compute(crops, cropKey -> false);
+    }
+
+    /**
+     * 同上，但对「按文件名归属不到阶段模型的作物」多一条兜底。
+     *
+     * <p><b>为什么需要兜底：</b>部分服务器把阶段模型混成随机路径、阶段只出现在物品定义内容里，
+     * 逐作物签名于是算不出来（{@code stageCount = 0} → {@code usable() = false}）。后果不是「少一条规则」，
+     * 而是<b>整条收获链断掉</b>：人工标记成熟判 {@code NOT_READY}、收获学习学出来也存不下、成熟判定
+     * 只剩文档规则——实机表现就是「标记成熟没用、熟了不收、学不出来」。</p>
+     *
+     * <p>兜底签名取「本服务器资源指纹 + 作物键」，语义仍然是「这条规则属于这个资源版本的这个作物」：
+     * 既不会跨服务器 / 跨资源版本串规则，也绝不会被误当成参考资源包（参考规则要求签名完全等于内置
+     * 参考值）。只对<b>索引里确实有真实阶段、但按文件名归属不到</b>的作物生效，因此已经能算签名的
+     * 服务器（及其已存规则签名）分毫不变。</p>
+     *
+     * @param hasIndexedStages 该作物在当前索引里是否有真实阶段（资源扫描的结论，不是文件名推断）
+     */
+    public static Map<String, Signature> compute(Collection<CropDefinition> crops,
+                                                 java.util.function.Predicate<String> hasIndexedStages) {
         Map<String, CropDefinition> definitions = new LinkedHashMap<>();
         if (crops != null) {
             for (CropDefinition crop : crops) {
@@ -108,9 +128,21 @@ public final class StardewCropResourceSignature {
             int stages = stagesByCrop.getOrDefault(cropKey, 0);
             String value = digest(entries);
             Signature signature = new Signature(value, entries.size(), stages);
-            if (signature.usable()) result.put(cropKey, signature);
+            if (signature.usable()) {
+                result.put(cropKey, signature);
+                continue;
+            }
+            if (!hasIndexedStages.test(cropKey)) continue;
+            result.put(cropKey, new Signature(scopeSignature(cropKey), 1, 1));
         }
         return result;
+    }
+
+    /** 兜底签名：{@code fp:<资源指纹>:<作物键>}；指纹缺失时仍给稳定字符串，绝不返回 null */
+    private static String scopeSignature(String cropKey) {
+        String fingerprint = com.yiyiaddon.service.resourcepack.ResourceExtractionService.fingerprint();
+        return "fp:" + (fingerprint == null || fingerprint.isBlank() ? "unknown" : fingerprint)
+            + ':' + cropKey.toLowerCase(Locale.ROOT);
     }
 
     /** 枚举普通 JSON 资源并按精确作物归属写入签名输入。 */

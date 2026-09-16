@@ -113,6 +113,15 @@ public final class StardewSeasonService {
     private static final StardewSeasonService INSTANCE = new StardewSeasonService();
     private static final String[] LABELS = {"生长环境", "生长季节", "允许季节", "当前季节", "季节", "season"};
 
+    /**
+     * 服务器发包证据的静默窗口：这段时间内刚收到过包证据时，显示态轮询让位。
+     *
+     * <p><b>为什么必须让位：</b>包证据与显示态证据可能来自两个不同来源（例如记分板发包带语义、
+     * BOSS 栏文本只有图标）。两边交替写入会让快照代次反复变化，协调器随之反复重规划。让位后
+     * 「服务器在发」时以包为准，「服务器不再发」时轮询才接管。</p>
+     */
+    private static final long DISPLAY_POLL_QUIET_MS = 5000L;
+
     private final Map<String, SeedSeasonRule> seedRules = new HashMap<>();
     /** 明确以“季节”为标题的记分板目标；仅它的分数值允许按无标签季节值解析。 */
     private final Set<String> seasonObjectives = new LinkedHashSet<>();
@@ -128,6 +137,8 @@ public final class StardewSeasonService {
     private volatile List<GlyphRef> lastProbeGlyphs = List.of();
     private boolean seasonTitleAwaitingSubtitle;
     private boolean initialized;
+    /** 最近一次服务器发包带来季节证据的时间（毫秒）；显示态轮询据此让位，避免两个来源交替刷代次。 */
+    private volatile long lastPacketEvidenceAtMs;
 
     private StardewSeasonService() {
     }
@@ -141,6 +152,8 @@ public final class StardewSeasonService {
         ClientEventBus.subscribe(OWNER, ClientEventType.DISCONNECT, event -> INSTANCE.resetSession());
         ResourceExtractionService.addReadyListener(INSTANCE::onResourceReady);
         ResourceExtractionService.addInvalidateListener(INSTANCE::resetSession);
+        // 显示态轮询：包证据之外的第二条证据通道（服务器不再重发 HUD 时靠它跟上屏幕）
+        StardewSeasonDisplayProbe.init();
     }
 
     /** 协调器通过构造注入消费同一服务实例。 */
@@ -183,10 +196,11 @@ public final class StardewSeasonService {
         StardewSeasonGlyphMap.invalidate();
         glyphMap = StardewSeasonGlyphMap.current();
 
-        // 用最近一次真实证据原地重算，保证与 acceptComponent 走同一条收窄 / 判重规则
+        // 用最近一次真实证据原地重算，保证与 acceptComponent 走同一条收窄 / 判重规则；
+        // 这不是服务器新发的证据，不更新「最近发包证据」时间戳。
         Component component = lastProbeComponent;
         if (component == null) return;
-        acceptComponent(component, lastProbeSource);
+        acceptComponent(component, lastProbeSource, false);
     }
 
     /** 状态版本号；季节改变时协调器据此立即 Replan。 */
@@ -283,6 +297,9 @@ public final class StardewSeasonService {
             || snapshot.fingerprint() != null && !java.util.Objects.equals(snapshot.fingerprint(), fingerprint)) {
             long next = snapshot.revision() + 1;
             snapshot = new SeasonSnapshot(serverKey, fingerprint, Set.of(), null, null, next);
+            // 会话证据已被指纹变化作废：显示态轮询必须能立刻接管，
+            // 不能被「资源就绪之前那一次旧证据」的包时间戳压住。
+            lastPacketEvidenceAtMs = 0L;
         } else {
             snapshot = new SeasonSnapshot(serverKey, fingerprint, snapshot.tokens(), snapshot.source(),
                 snapshot.rawText(), snapshot.revision());
@@ -305,6 +322,8 @@ public final class StardewSeasonService {
         seedRules.clear();
         seasonObjectives.clear();
         seasonTitleAwaitingSubtitle = false;
+        // 新会话的显示态轮询必须能立刻接管：上一个会话的发包时间戳不能继续压着它
+        lastPacketEvidenceAtMs = 0L;
         // 证据同样属于<b>上一个会话</b>：换服后若还留着，资源就绪时的自动补算会把 A 服的季节
         // 写进 B 服快照，因此这里必须一起清掉（未识别时宁可显示「暂无」）。
         lastProbeComponent = null;
@@ -314,6 +333,25 @@ public final class StardewSeasonService {
         lastProbeGlyphs = List.of();
         // 资源失效后旧 glyph 语义一律作废：绝不允许用旧映射继续判定 DISALLOWED。
         glyphMap = StardewSeasonGlyphMap.empty();
+    }
+
+    /**
+     * 显示态轮询入口：把「客户端当前正显示的季节文本」补进同一条判定链路。
+     *
+     * <p><b>为什么要它：</b>证据原本只来自服务器发包。服务器把 BOSS 栏 / 记分板设置一次之后就不再重发，
+     * 或那次包发生在进服之前时，插件手里没有证据——屏幕上明明显示着季节，结论却停在「未知」。读客户端
+     * 已持有的显示态即可补上，不再依赖包何时再来一次。</p>
+     *
+     * <p><b>让位规则：</b>最近 {@link #DISPLAY_POLL_QUIET_MS} 内收到过服务器包证据时直接返回——服务器
+     * 在发就以包为准；只有服务器不再发时才由轮询接管。写入走 {@code acceptComponent}，因此收窄、判重、
+     * 代次规则与包证据完全一致（文本没变就只做几次字符串比较，不会刷代次、不会触发重规划）。</p>
+     */
+    public synchronized void acceptDisplayed(Component component, String source) {
+        if (component == null) return;
+        if (System.currentTimeMillis() - lastPacketEvidenceAtMs < DISPLAY_POLL_QUIET_MS) return;
+        // 与 plantingStatus 同一前置：字体语义表必须与当前资源指纹一致，否则图标只能得到 glyph 令牌
+        glyphMap = StardewSeasonGlyphMap.current();
+        acceptComponent(component, source, false);
     }
 
     /**
@@ -371,10 +409,25 @@ public final class StardewSeasonService {
 
     /** 只有明确含季节字段的组件才能更新当前季节，普通聊天中的单个季节词不会误触发。 */
     private void acceptComponent(Component component, String source) {
+        acceptComponent(component, source, true);
+    }
+
+    /**
+     * @param packetEvidence 本次文本是否来自服务器发包。显示态轮询走同一条链路，但绝不能把自己
+     *                       记成「服务器最近发过证据」，否则轮询会把真正该由包驱动的刷新压掉。
+     */
+    private void acceptComponent(Component component, String source, boolean packetEvidence) {
         if (component == null) return;
         String plain = component.getString();
         int start = labelEnd(plain);
         if (start < 0) return;
+        if (packetEvidence) lastPacketEvidenceAtMs = System.currentTimeMillis();
+        // 语义表必须与「当前 ServerKey + fingerprint」一致才允许提取：字体语义表原本只在
+        // plantingStatus / 资源就绪时赋值，若证据第一次到达时它还是空表（服务器季节图标只在缓存 ZIP
+        // 里有、而那时 ServerKey 尚未就绪），同一件证据只能解析出「无语义的 glyph 令牌」，快照就停在
+        // 「当前季节」这种半成品——而要能解析出语义的 map 明明已经建好了，只是没被取用。
+        // current() 命中缓存时只做一次 key 比较，开销可忽略。
+        glyphMap = StardewSeasonGlyphMap.current();
         recordProbe(source, plain, start);
         int end = valueEnd(plain, start);
         List<GlyphRef> glyphs = collectGlyphRefs(component, start, end);
@@ -429,6 +482,9 @@ public final class StardewSeasonService {
     /** 已由标题/Objective 证明字段语义时，允许值组件本身不重复携带“季节”标签。 */
     private void acceptSeasonValue(Component component, String source) {
         if (component == null) return;
+        lastPacketEvidenceAtMs = System.currentTimeMillis();
+        // 与 acceptComponent 同一条前置：提取前先对齐语义表，避免只拿到无语义的 glyph 令牌
+        glyphMap = StardewSeasonGlyphMap.current();
         String plain = component.getString();
         recordProbe(source, plain, 0);
         int end = valueEnd(plain, 0);

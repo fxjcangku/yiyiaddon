@@ -20,10 +20,12 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayList;
@@ -139,9 +141,10 @@ public final class StardewPointActions {
      */
     public boolean addSprinklerFromCrosshair(String typeInput) {
         if (!pointEnvironmentAllowed()) return false;
-        BlockPos pos = crosshairBlock();
+        BlockPos pos = crosshairOrEntityBlock();
         if (pos == null) {
-            pointFailure(StardewPointType.SPRINKLER.title(), "准星没有对准任何方块");
+            pointFailure(StardewPointType.SPRINKLER.title(),
+                "准星没有对准洒水器（准星命中：" + crosshairHitLabel() + "）");
             return false;
         }
         String plantingRegionFailure = sprinklerRegionGate.apply(pos);
@@ -337,9 +340,10 @@ public final class StardewPointActions {
     /** 准星移除洒水器点位（GUI「移除」按钮与 {@code .stardew 移除洒水器} 共用） */
     public boolean removeSprinklerFromCrosshair() {
         if (!pointEnvironmentAllowed()) return false;
-        BlockPos pos = crosshairBlock();
+        BlockPos pos = crosshairOrEntityBlock();
         if (pos == null) {
-            pointFailure(StardewPointType.SPRINKLER.title(), "准星没有对准任何方块");
+            pointFailure(StardewPointType.SPRINKLER.title(),
+                "准星没有对准洒水器（准星命中：" + crosshairHitLabel() + "）");
             return false;
         }
         StardewPointManager.StardewPoint existing = findSprinkler(pointManager, pos);
@@ -455,6 +459,51 @@ public final class StardewPointActions {
         if (hit == null || hit.getType() != HitResult.Type.BLOCK) return null;
         if (!(hit instanceof BlockHitResult blockHit)) return null;
         return blockHit.getBlockPos().immutable();
+    }
+
+    /**
+     * 洒水器点位专用目标坐标：方块命中优先，其次<b>实体命中</b>。
+     *
+     * <p><b>为什么必须接受实体命中：</b>这类服务器（CraftEngine 系，客户端没装对应模组）的洒水器是
+     * 展示实体渲染的，世界上没有对应方块，只在同一格配了一个 {@code interaction} 实体承担交互。
+     * 准星射线会命中那个实体而不是方块，若只认 {@code BlockHitResult}，对着实物正中间也会被判成
+     * 「准星没有对准任何方块」（真机事故：moexd 设置洒水器失败）。</p>
+     *
+     * <p>取值口径与 {@code matchSprinklerDisplay} 完全一致——它也要求展示实体的 {@code blockPosition}
+     * 等于绑定坐标，因此两边不可能指到不同的格子。</p>
+     */
+    private BlockPos crosshairOrEntityBlock() {
+        if (mc.player == null || mc.level == null) return null;
+        HitResult hit = mc.hitResult;
+        if (hit == null) return null;
+        if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult blockHit) {
+            return blockHit.getBlockPos().immutable();
+        }
+        if (hit.getType() == HitResult.Type.ENTITY && hit instanceof EntityHitResult entityHit
+            && entityHit.getEntity() != null) {
+            // 只认「无碰撞箱的交互载体」（interaction / 载具等）。生物一律不接受：对着牛也能绑成
+            // 洒水器是明显的误绑，宁可失败并如实报出命中目标。
+            if (entityHit.getEntity() instanceof LivingEntity) return null;
+            return entityHit.getEntity().blockPosition().immutable();
+        }
+        return null;
+    }
+
+    /** 准星实际命中了什么（失败提示用：区分「没命中」与「命中的是什么」） */
+    private String crosshairHitLabel() {
+        HitResult hit = mc.hitResult;
+        if (hit == null || hit.getType() == HitResult.Type.MISS) return "无";
+        if (hit instanceof BlockHitResult blockHit) {
+            var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(
+                mc.level == null ? net.minecraft.world.level.block.Blocks.AIR
+                    : mc.level.getBlockState(blockHit.getBlockPos()).getBlock());
+            return "方块 " + (id == null ? "未知" : id);
+        }
+        if (hit instanceof EntityHitResult entityHit && entityHit.getEntity() != null) {
+            var id = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entityHit.getEntity().getType());
+            return "实体 " + (id == null ? "未知" : id) + " @" + entityHit.getEntity().blockPosition().toShortString();
+        }
+        return "未知";
     }
 
     /** 补水点使用包含流体的射线检测，否则原版准星只会命中水底或水后的实体方块。 */

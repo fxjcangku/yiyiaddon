@@ -9,10 +9,10 @@ import com.yiyiaddon.feature.admindetect.ui.AdminDetectorConsoleScreen;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleStateColumn;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
-import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.render.PlayerFaceCache;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.widget.Button;
@@ -41,8 +41,13 @@ public final class AdminListPage {
     /** 名单行的「点击选择」按钮（逐字照本项目其它控制台页） */
     private static final String SELECT_LABEL = "点击选择";
 
-    /** 状态文字字号：与 {@code SettingText} 内部字号一致，用于按文本宽度算列宽 */
-    private static final float STATE_FONT_SIZE = 11f;
+    /**
+     * 状态列的下界：按该列可能出现的最长文案量出（用户 2026-09-16：「点击选择 按钮不对齐」）。
+     *
+     * <p>计数进到 999 项已远超玩家名单的现实上限，再长就由 {@link ConsoleStateColumn} 按实测值加宽，
+     * 列宽本身不会回落。</p>
+     */
+    private static final String STATE_LONGEST = "已选 999 项";
 
     /** 候选来源说明（新增文案：解释「已离线」分组从哪来，否则玩家不懂名单里为什么有人标已离线） */
     private static final String CANDIDATE_NOTE =
@@ -50,6 +55,8 @@ public final class AdminListPage {
 
     private final AdminDetectorConsoleScreen owner;
     private final AdminDetectorModule module;
+    /** 两行共用的状态列宽度（见 {@link ConsoleStateColumn}：浮动会把「点击选择」顶得左右移动） */
+    private final ConsoleStateColumn stateColumn = new ConsoleStateColumn(STATE_LONGEST);
 
     public AdminListPage(AdminDetectorConsoleScreen owner, AdminDetectorModule module) {
         this.owner = owner;
@@ -78,8 +85,9 @@ public final class AdminListPage {
                                    Runnable open, Runnable reset) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
-            new Ctl(new SettingText(status,
-                () -> MinecraftText.measure(status.get(), STATE_FONT_SIZE, false)).alignLeft()),
+            // 列宽走两行共用的固定列（`已选 10 项` 与 `未选择` 各自量宽会把「点击选择」顶得左右浮动）；
+            // ↻ 是最后一个控件，仍然贴行右边界，位置不变
+            new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
             new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
     }
 

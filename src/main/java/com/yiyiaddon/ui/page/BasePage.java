@@ -30,6 +30,18 @@ public abstract class BasePage {
     public abstract String getTitle();
     public abstract String getSubtitle();
 
+    /**
+     * 模块之间的垂直间距；默认 {@link #MODULE_GAP}。
+     *
+     * <p>「图标行」那一类清单页（{@code SettingsPage} / {@code InterfacePage}）覆写成模块中心的行距
+     * （{@link com.yiyiaddon.ui.component.ModuleRow#ROW_GAP}）：行高收到 24 后仍按 8 排行还是散，
+     * 四个页面的行节奏必须一致（用户 2026-09-16 要求这两页「也一样」）。绘制、命中、拖动与总高度
+     * 必须读同一个值，否则命中框会与画面错位。</p>
+     */
+    protected float moduleGap() {
+        return MODULE_GAP;
+    }
+
     public List<SettingModule> getModules() {
         assignBindingIds();
         return modules;
@@ -51,7 +63,7 @@ public abstract class BasePage {
     /** 可见模块之间的间距总量，供内容区计算滚动上限。 */
     public float getVisibleSpacing() {
         ensureLayoutCache();
-        return visibleModules.size() * MODULE_GAP;
+        return visibleModules.size() * moduleGap();
     }
 
     public boolean hasSearchResults() {
@@ -84,7 +96,7 @@ public abstract class BasePage {
             if (cy + mh > viewportTop && cy < viewportBottom) {
                 m.draw(canvas, x, cy, contentW, alpha, viewportTop, viewportBottom, mouseX, mouseY);
             }
-            cy += mh + MODULE_GAP;
+            cy += mh + moduleGap();
         }
     }
 
@@ -97,7 +109,7 @@ public abstract class BasePage {
             if (my >= cy && my <= cy + mh) {
                 return m.onClick(mx, my, contentX, cy, contentW, button);
             }
-            cy += mh + MODULE_GAP;
+            cy += mh + moduleGap();
         }
         return false;
     }
@@ -109,7 +121,7 @@ public abstract class BasePage {
             SettingModule m = visibleModules.get(i);
             float mh = visibleModuleHeights.get(i);
             if (m.onDrag(mx, my, contentX, cy, contentW)) return true;
-            cy += mh + MODULE_GAP;
+            cy += mh + moduleGap();
         }
         return false;
     }

@@ -200,6 +200,29 @@ public final class GlassPanel {
         rim(canvas, x, y, w, h, radius, tc.rim, alpha, tc.dark ? 0.30f : 0.48f);
     }
 
+    /** 输入框底色系数：与同页的行同源（行是 0.70），低一档，使输入区不会比旁边的行抢眼。 */
+    private static final float FIELD_TINT = 0.55f;
+
+    /** 输入框聚焦时抬升的底色系数：只是极轻的重心变化，聚焦提示仍由光标与焦点环表达。 */
+    private static final float FIELD_FOCUS_LIFT = 0.15f;
+
+    /**
+     * 输入框（搜索框 / 文本输入）的统一底：与同页的行共用一套玻璃语言（frost + 1px 高光内描边）。
+     *
+     * <p>用户 2026-09-16 原话「点击搜索的框 太深了 看见了吗 像一块东西粘住在那里一样 突兀」：
+     * 输入框原来是实心填色（{@code searchBackground}），乘过 {@code panelBackgroundAlpha} 后仍是一块实心，
+     * 且比同页的行更暗，夹在霜化玻璃行之间就是一块贴上去的深色板。此处是输入框底的唯一定义，
+     * {@code SettingTextBox} 与主面板左侧搜索框都取这一份——两处各写一套必然会再次走样。</p>
+     */
+    public static void textField(Canvas canvas, float x, float y, float w, float h, float radius,
+                                 ClickGuiThemeColors tc, float focusAlpha, float alpha) {
+        if (alpha <= 0.01f || w <= 0f || h <= 0f) return;
+        frost(canvas, x, y, w, h, radius, tc.module,
+                FIELD_TINT + FIELD_FOCUS_LIFT * focusAlpha,
+                ClickGuiThemeColors.panelBackgroundAlpha(alpha));
+        rim(canvas, x, y, w, h, radius, tc.rim, alpha, 0.10f);
+    }
+
     /** 悬停高光：在卡片上形成克制的斜向反射，静止时完全不绘制。 */
     public static void sheen(Canvas canvas, float x, float y, float w, float h, float radius,
                              ClickGuiThemeColors tc, float alpha, float hover) {

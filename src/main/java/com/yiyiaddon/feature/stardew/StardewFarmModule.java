@@ -19,6 +19,7 @@ import com.yiyiaddon.feature.stardew.plan.StardewCropPlanStore;
 import com.yiyiaddon.feature.stardew.point.StardewPointActions;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
+import com.yiyiaddon.feature.stardew.profile.StardewCropNameStore;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.SprinklerDefinition;
@@ -64,7 +65,7 @@ import java.util.List;
  *
  * <p>核心原则：先看当前服务器资源包与 ID 配置里实际有什么，再决定能识别 / 能配置 /
  * 能执行什么；成熟判定只信服务器档案的成熟阶段规则（绝不猜 max(stage)），收割后以
- * 真实世界观察为准决定补种 / 保留。六类选择器 + 点位 + 农田记忆 + 服务器档案分层
+ * 真实世界观察为准决定补种 / 保留。七类选择器 + 点位 + 农田记忆 + 服务器档案分层
  * 隔离，切服 / 换档互不串用。</p>
  *
  * <p>逐字搬运自旧项目 {@code stardew/StardewFarmModule.java}。框架适配点：旧 Meteor
@@ -162,7 +163,7 @@ public final class StardewFarmModule extends Module {
     private long nearbyPreviewAt;
     private BlockPos nearbyPreviewOrigin;
 
-    // ── 六类选择器（内存镜像在 StardewSettings，按 ServerKey 落盘走 StardewSelectionStore） ──
+    // ── 七类选择器（内存镜像在 StardewSettings，按 ServerKey 落盘走 StardewSelectionStore） ──
     private final StardewSelectionBinding selections;
 
     // ── 拆分出的专职类：各自持有本模块引用，公开 API 仍由本类转发 ──
@@ -190,7 +191,7 @@ public final class StardewFarmModule extends Module {
         // 洒水器新绑定：必须落在某个种植区域内（存量点位不回溯，照常维护）
         this.pointActions.setSprinklerRegionGate(this::sprinklerRegionGate);
 
-        // 六类选择器（数据源：资源包扫描 + ID 配置双源合并）
+        // 七类选择器（数据源：资源包扫描 + ID 配置双源合并）
         selections = new StardewSelectionBinding(index, settings);
         startupCheck = new StardewStartupCheck(this);
         seasonBinding = new StardewSeasonBinding(this);
@@ -221,6 +222,11 @@ public final class StardewFarmModule extends Module {
         // 切服或断线立即失效，绝不在资源未就绪时使用上一服务器的数据。
         ResourceExtractionService.addReadyListener(this::onResourceReady);
         ResourceExtractionService.addInvalidateListener(this::onResourceInvalidated);
+
+        // 作物中文名自动学名（部分服务器的资源包只翻译了一部分作物）：常驻观察玩家附近的自定义物品，
+        // 学到新名字就重建索引，让选择器立刻用上中文名。名字不参与成熟规则签名，重建不会让已学规则失效。
+        StardewCropNameStore.init();
+        StardewCropNameStore.addChangeListener(this::onCropNamesLearned);
 
         // ID 配置变更只做「身份/证据补充」：资源未就绪时绝不重建，
         // 因此 `.id 方块` 不再是星露谷的初始化开关。
@@ -364,6 +370,17 @@ public final class StardewFarmModule extends Module {
     }
 
     /**
+     * 学到新的作物中文名：重建索引，让选择器 / 播报立刻用上中文名。
+     *
+     * <p>只重建索引，不触碰选择集合：名字不改变任何键，已选作物照旧有效。成熟规则签名吸收的是
+     * 资源文件内容（见 {@code StardewCropResourceSignature}），不含名字，因此重建不会让已学规则失效。</p>
+     */
+    private void onCropNamesLearned() {
+        if (!ResourceExtractionService.isReady()) return;
+        index.rebuild();
+    }
+
+    /**
      * 资源就绪：重建当前服务器的资源索引 → 绑定该服务器的选择集合 → 载入档案与点位。
      *
      * <p>这是索引唯一的「正常初始化入口」。触发者是 {@code ResourceExtractionService} 在
@@ -404,6 +421,8 @@ public final class StardewFarmModule extends Module {
         consumedReadyGeneration = -1L;
         coordinator.reset();
         pointManager.invalidate();
+        // 学到的作物中文名同样按 ServerKey + 指纹隔离：切服只清内存视图，磁盘档案保留
+        StardewCropNameStore.reset();
         // 区域数据同样按服务器隔离：切服 / 断线后清空内存视图，磁盘文件保留
         regionManager.invalidate();
         boolean wasSelecting = regionSelector.isActive();
@@ -428,7 +447,7 @@ public final class StardewFarmModule extends Module {
         if (isEnabled()) ModuleManager.setEnabled(MODULE_ID, false);
     }
 
-    /** 清理六类选择器里已不在当前索引中的失效键，并写回当前服务器档案 */
+    /** 清理七类选择器里已不在当前索引中的失效键，并写回当前服务器档案 */
     private void pruneSelectors() {
         selections.pruneAndPersist();
     }
@@ -452,6 +471,7 @@ public final class StardewFarmModule extends Module {
         forceStopPending = false;
         startupStopPending = false;
         suppressEnableAnnounce = false;
+        startupCheck.resetWorldPending();
         // 旧 Meteor 在主菜单不激活模块（runInMainMenu=false），自检只发生在世界内；本框架恢复
         // 「上次开启」时会在主菜单直接调用 onEnable，因此这里用同一口径跳过，等进服事件再跑，
         // 避免主菜单凭空播报一次「当前环境不是多人服务器」。
@@ -665,6 +685,10 @@ public final class StardewFarmModule extends Module {
 
         if (!isEnabled()) return;
 
+        // 启动自检的「世界数据未就绪」复核：区块 / 容器方块实体还没到客户端时，这一拍不进入运行循环
+        // （coordinator 也还没按通过态装配），等复核结果决定启动还是拦下。
+        if (startupCheck.tickWorldPending()) return;
+
         // 启动自检时季节还没下发 → 识别出来后补播一次
         seasonBinding.checkSeasonFollowup();
 
@@ -722,6 +746,7 @@ public final class StardewFarmModule extends Module {
         coordinator.configure(profileAssembler.profile(), index, identityService, memory, pointManager, inventory,
             selections.crop().selectedCropKeys(), selections.pot().selectedKeys(), selections.can().selectedKeys(),
             selections.fertilizer().selectedKeys(), selections.potion().selectedKeys(), selections.sprinkler().selectedKeys(),
+            selections.shelter().selectedKeys(),
             serverKey, dimension, settings.reach, settings.scanBudget,
             settings.autoWater, settings.switchCan, settings.restoreHand,
             settings.autoFertilize, settings.autoPotion,
@@ -1283,6 +1308,26 @@ public final class StardewFarmModule extends Module {
     }
 
     /**
+     * 「标记成熟 清除 <作物>」的 TAB 候选：只列<b>已经有收获规则</b>的作物，中文名优先、技术键附后。
+     *
+     * <p>清除是纠错动作，候选就应该是「自己配过或模块学过的那几种」；把本服 56 种作物的技术键
+     * 全铺出来，玩家在 agaricus_xxx 里根本找不到自己要清的那个（实机反馈）。</p>
+     */
+    public List<String> ruledCropCompletions() {
+        List<String> candidates = new java.util.ArrayList<>();
+        for (String key : query.ruledCropKeys()) {
+            String display = cropDisplayName(key);
+            if (display == null || display.isBlank() || display.equals(key)) {
+                candidates.add(key);
+                continue;
+            }
+            candidates.add(display);
+            candidates.add(key);
+        }
+        return candidates;
+    }
+
+    /**
      * 已勾选作物的键（顺序与「种植」页一致）。
      *
      * <p>只保留当前资源索引里认得出的：切服 / 换包后旧键会解不出中文名与图标，
@@ -1315,6 +1360,22 @@ public final class StardewFarmModule extends Module {
     /** 人工标记某作物的成熟阶段（全项目唯一写入口）。 */
     public StardewQuerySupport.MatureMarkOutcome markMature(String cropKey, String stageName, boolean force) {
         return query.markMature(cropKey, stageName, force);
+    }
+
+    /** 准星模式专用：带上刚读到的世界实证身份（阶段清单扫不出来的服务器靠它才能完成人工校准） */
+    public StardewQuerySupport.MatureMarkOutcome markMature(String cropKey, String stageName, boolean force,
+                                                            String observedIdentity) {
+        return query.markMature(cropKey, stageName, force, observedIdentity);
+    }
+
+    /** 该作物是否已有可直接执行并验证的完整收获规则 */
+    public boolean harvestRuleComplete(String cropKey) {
+        return query.harvestRuleComplete(cropKey);
+    }
+
+    /** 人工删除某作物的收获规则（成熟阶段 + 生命周期一起清掉）；写盘成功后立刻生效，无需重启 */
+    public StardewQuerySupport.RuleClearOutcome clearHarvestRule(String cropKey) {
+        return query.clearHarvestRule(cropKey);
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1370,6 +1431,16 @@ public final class StardewFarmModule extends Module {
     }
 
     /**
+     * 运行时诊断行（供 {@code .stardew 诊断}）。
+     *
+     * <p>扫描到的资源、索引里真实的作物与工具数量、每种作物有没有真实阶段模型、索引构建是否完整、
+     * 准星方块的识别链路——适配新服务器时先跑它，不必靠猜。</p>
+     */
+    public List<String> diagnosticLines() {
+        return query.diagnosticLines();
+    }
+
+    /**
      * 当前服务器的「文档成熟」条数。
      *
      * <p>只统计「当前服务器资源索引里真实存在、且攻略基线有记录」的作物。服务器未建立
@@ -1390,7 +1461,7 @@ public final class StardewFarmModule extends Module {
         return HelpPanelScreen.buildHelpContent(
             new HelpPanelScreen.HelpSection("准备工作",
                 "  §8├─ §f打开控制台：输入 §3.stardew 控制台§f，或设置页「服务器资源」里的「打开控制台」",
-                "  §8├─ §f点「检测 / 提取当前服务器资源包」，六类选择器才会出现真实资源",
+                "  §8├─ §f点「检测 / 提取当前服务器资源包」，七类选择器才会出现真实资源",
                 "  §8├─ §f进服只识别当前服务器，不会自动下载资源（用 yiyiaddon 的玩家不一定玩星露谷）",
                 "  §8├─ §f资源就绪后可点「查看资源包」在文件管理器里定位当前服务器的 ZIP 缓存",
                 "  §8├─ §f在控制台「种植」页选择目标作物及相关工具（成熟产物图标 + 关联种子）",
@@ -1412,9 +1483,9 @@ public final class StardewFarmModule extends Module {
             ),
             new HelpPanelScreen.HelpSection("控制台（六个页签）",
                 "  §8> §3概览 §8— §7资源包 / 季节 / 当前任务 + 每种作物的配额与背包库存",
-                "  §8> §3种植 §8— §7六类选择器：种植作物 / 种植盆 / 肥料 / 魔法药剂 / 水壶 / 洒水器",
+                "  §8> §3种植 §8— §7七类选择器：种植作物 / 种植盆 / 肥料 / 魔法药剂 / 水壶 / 洒水器 / 温室玻璃",
                 "  §e▸ §f「水壶」选择页顶部会提示：选中即自动联动补水——用尽自动回补水点、一次连发补满，无需额外设置",
-                "  §8> §3运行 §8— §7全部运行参数：交互距离、扫描预算、自动浇灌、状态提示、批量右击…",
+                "  §8> §3运行 §8— §7全部运行参数：交互距离、扫描预算、自动浇灌、状态提示、批量动作…",
                 "  §8> §3后勤 §8— §7「简化后勤」开关 + 每种作物的数量模式、目标数量（可选四个阈值）",
                 "  §8> §3点位 §8— §7「农田」卡片（模式切换 + 圈地 + 区域列表 + 清空）+ 四类点位卡（设置 / 删除）"
                     + " + 清空全部点位 + 各类点位的显示与颜色",
@@ -1425,14 +1496,14 @@ public final class StardewFarmModule extends Module {
             ),
             new HelpPanelScreen.HelpSection("运行参数（控制台「运行」页）",
                 "  §8> §3状态提示 §8— §7开关聊天栏任务播报（默认开启）；启动自检、季节结论、报错不受它影响",
-                "  §8> §3批量右击 §8— §7同一 tick 最多对几个格子发右键（1 = 关闭，默认 4，上限 8），只做收割 / 浇水 / 播种 / 施肥",
+                "  §8> §3批量动作 §8— §7同一 tick 最多对几个格子连发交互包（1 = 关闭，默认 8，上限 15）：收割 / 浇水 / 播种 / 施肥发右键，清枯苗 / 清错位 / 清杂物发左键破坏",
                 "  §8> §3交互距离 / 扫描预算 §8— §7前者决定够不够得着，后者决定每 tick 扫多少格，跑得顺不顺主要看这两个",
                 "  §8> §3自动浇灌 / 自动施肥 / 自动用药剂 / 洒水器维护 §8— §7总开关，关了对应任务就不产生",
                 "  §e▸ §f按主题成块排：启停与作业 → 自动化 → 洒水器维护 → 分区种植 → 播报，"
                     + "每块标题就是这组的用途",
                 "  §e▸ §f同主题的数值项与开关项挨着（如「洒水器维护」紧邻「洒水器检查间隔」），不按控件类型分家",
-                "  §e▸ §f批量右击默认 4、上限 8；填得越激进越容易被服务器丢包或反作弊注意到（服务端实测同 tick 多包会被丢）",
-                "  §e▸ §f清理枯苗是左键破坏，永远单目标；收获学习是空手探测，也永远一格格来，都不进批量",
+                "  §e▸ §f批量动作默认 8、上限 15；填得越激进越容易被服务器丢包或反作弊注意到（服务端实测同 tick 多包会被丢）",
+                "  §e▸ §f批量只打「当前任务自己那一格 + 同类型同区域的其它格」：多打的格子不参与验证，服务端没收下就下一轮再补；收获学习是空手探测，永远一格格来",
                 "  §8> §3补水节奏 §8— §7读得到容量就按「差多少发多少」一次打满（同一 tick 连发，服务端最多吞掉个别包，验证阶段自动补齐）；读不到容量才退回固定批量慢慢逼近",
                 "  §e▸ §f读不到上限时先按「每包 +1」试探并记住单包增量，此后补水同样是一轮的事；喝水靠服务端判定，多发的包只会被忽略"
             ),
@@ -1456,7 +1527,10 @@ public final class StardewFarmModule extends Module {
                 "  §e▸ §f每块地只种它绑定的那种作物（混种地除外），没圈到的地一律不管",
                 "  §e▸ §f错位处置：单一作物区里种了别的作物时，错位格会用§c红框§f标出；"
                     + "§3自动清理错位作物§f 开着（默认）就自动走过去把它挖掉，空出的盆按这块地绑定的作物补种；"
-                    + "关掉则先停住等你手动清，清干净后自动继续（破坏动作永远单目标，不会连发）",
+                    + "关掉则先停住等你手动清，清干净后自动继续（挖除量受「批量动作」档位约束）",
+                "  §e▸ §f死株与杂物不算错位：分区内枯死作物（冬季成片冻死）一律静默清掉再补种，"
+                    + "盆上杂物（认不出的方块，如积雪层）也会被挖掉——两者都不报警、不停机；"
+                    + "杂物受「自动清理错位作物」开关约束，死株清理始终执行",
                 "  §e▸ §f圈地工具默认「不限」：手持任何物品都能点角（模式内不会挖到作物）；"
                     + "「运行」页可把手上物品设为白名单，此后只有空手或手持它才算点角",
                 "  §e▸ §f控制台圈地：「点位」页「农田」卡先点「模式」选 区域 / 农场，再点「圈地」；"
@@ -1475,7 +1549,7 @@ public final class StardewFarmModule extends Module {
                 "  §8├─ §f每个 cropKey 各存一套：番茄的种子数不会顶掉玉米的补货缺口",
                 "  §8├─ §f取消选择 → 参数块隐藏、数据保留；重新选择 → 恢复该作物之前的参数",
                 "  §8├─ §f只有真实空盆产生播种需求时才会检查种子与补货；种满后种子为 0 也不会跑箱子",
-                "  §8├─ §f空盆先检查季节；允许种植后，干盆先浇湿，再检查种子、补货与播种",
+                "  §8├─ §f空盆先检查季节（盆上方 5 格内有已选温室玻璃时不按季节拦）；通过后，干盆先浇湿，再检查种子、补货与播种",
                 "  §8├─ §f种子箱为空后按真实事件解锁，不再每约 60 秒反复白跑；无外部证据时 15 分钟保险复查",
                 "  §8├─ §f空箱只暂停该种子的补货，收获 / 拾取 / 浇水 / 清枯苗 / 卸货继续运行",
                 "  §8├─ §f补货与卸货会先走到完整箱体外围合法站位，再静默开箱；双箱按两格整体计算",
@@ -1512,6 +1586,7 @@ public final class StardewFarmModule extends Module {
                 "  §8└─ §f控制台「概览」页顶部状态栏与聊天读的是同一份快照，不打开播报也能看"
             ),
             new HelpPanelScreen.HelpSection("种植目标与成熟规则",
+                "  §8> §3.stardew 诊断 §8— §7资源扫描 / 索引 / 准星识别链路的运行时真相（换新服先跑它，不用猜）",
                 "  §8> §3.stardew 标记成熟 §8— §7准星对准作物，一键人工确认成熟阶段（无需手抄 ID）",
                 "  §8> §3.stardew 标记成熟 强制 §8— §7准星纠错：仅当确认旧规则有误时覆盖冲突阶段（危险）",
                 "  §8> §3.stardew 标记成熟 <作物> <阶段> §8— §7高级兜底；<TAB> 只补全本服真实存在的作物与阶段",
@@ -1539,6 +1614,8 @@ public final class StardewFarmModule extends Module {
                 "  §8├─ §f种子允许季节读取真实 ItemStack Lore 与完整 Tooltip，两边共用同一套 token 规则",
                 "  §8├─ §f只有双方都有可靠季节证据且无交集才判禁种；证据不足保持未知，未知绝不阻止播种",
                 "  §8├─ §f季节不允许时只跳过该作物 Plant，收获 / 拾取 / 浇水 / 清枯苗 / 卸货继续运行",
+                "  §8├─ §f§a温室玻璃§f：在盆上方 5 格内放一块（先在「种植」页勾选它），该盆不再按季节拦播种——"
+                    + "判定逐盆做（服务器也是每口盆各算），挖掉玻璃下一轮即恢复当季判断",
                 "  §8└─ §f季节变化自动重新规划；证据按 ServerKey + fingerprint 隔离，换服或资源包更新立即重建"
             ),
             new HelpPanelScreen.HelpSection("季节人工绑定（自动识别不出时使用）",

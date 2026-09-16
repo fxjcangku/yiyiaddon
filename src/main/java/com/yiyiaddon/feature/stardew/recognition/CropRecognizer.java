@@ -5,6 +5,8 @@ import com.yiyiaddon.feature.stardew.profile.StardewCropLifecycle;
 import com.yiyiaddon.feature.stardew.profile.StardewServerProfile;
 import com.yiyiaddon.model.resource.BlockSemantic;
 import com.yiyiaddon.platform.resource.BlockStateModelResolver;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
@@ -76,6 +78,55 @@ public final class CropRecognizer {
         CropRuntimeStateResolver.RuntimeResult runtime = CropRuntimeStateResolver.resolve(
             identity, semantic.name(), semantic.model(), sourceFor(profile));
         return new CropRecognition(toCropState(runtime), runtime.cropKey(), runtime.stageName(), identity, runtime);
+    }
+
+    /**
+     * 按语义身份直接识别作物（不走方块状态）。
+     *
+     * <p>给「作物不是方块」的服务器用：CraftEngine 系服务端在没有客户端模组时把作物渲染成展示实体
+     * （{@code item_display}），实体手里的物品模型就是 {@code customcrops:<作物>_stage_N}——与方块模型
+     * 派生出的身份是同一个格式，因此走同一条判定入口（收窄 / 成熟规则 / 生命周期完全同源），
+     * 不会出现两条链路结论不同。</p>
+     *
+     * @param identity 语义身份（如 {@code customcrops:chinese_cabbage_stage_3}），传物品模型即可
+     */
+    public static CropRecognition recognizeIdentity(String identity, String name, String model,
+                                                    StardewServerProfile profile) {
+        if (identity == null || identity.isBlank()) return CropRecognition.unknown();
+        CropRuntimeStateResolver.RuntimeResult runtime = CropRuntimeStateResolver.resolve(
+            identity, name, model, sourceFor(profile));
+        return new CropRecognition(toCropState(runtime), runtime.cropKey(), runtime.stageName(), identity, runtime);
+    }
+
+    /**
+     * 从一个种植盆位识别作物：方块侧优先，认不出时再看展示实体。
+     *
+     * <p>CraftEngine 系服务器把作物只做成展示实体——盆上方那格往往是空气，或一个永远不变的隐形
+     * 载体方块（如 {@code minecraft:tripwire}）。只看方块状态不但读不到作物，更读不到「作物已经
+     * 没了」这个收获验证最关键的变化。真机事故：收割明明成功（掉落物已出现、模块都去拾取了），
+     * 验证却因方块侧无变化而判「成熟植株状态未发生可验证变化」，于是永远学不出收获规则、收了也不认。</p>
+     *
+     * @param potPos 种植盆坐标（作物在它上面一格）
+     */
+    public static CropRecognition recognizeAtPot(BlockPos potPos, StardewServerProfile profile) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || potPos == null) return CropRecognition.unknown();
+        BlockPos cropPos = potPos.above();
+        CropRecognition byBlock = recognize(mc.level.getBlockState(cropPos), profile);
+        if (byBlock.state() != CropState.EMPTY && byBlock.state() != CropState.UNKNOWN) return byBlock;
+        // 方块侧认不出（空气 / 隐形载体）→ 看展示实体：它可能贴在作物格，也可能落在盆格
+        CropRecognition byDisplay = fromDisplay(cropPos, profile);
+        if (byDisplay == null) byDisplay = fromDisplay(potPos, profile);
+        return byDisplay != null ? byDisplay : byBlock;
+    }
+
+    /** 展示实体通道：该位置归档的作物模型逐个尝试，取第一个能确定身份的 */
+    private static CropRecognition fromDisplay(BlockPos pos, StardewServerProfile profile) {
+        for (String model : StardewCropDisplayProbe.modelsAt(pos)) {
+            CropRecognition recognition = recognizeIdentity(model, null, model, profile);
+            if (recognition.state() != CropState.UNKNOWN) return recognition;
+        }
+        return null;
     }
 
     /**
@@ -203,8 +254,15 @@ public final class CropRecognizer {
         return new PotRecognition(state, potKey, identity);
     }
 
-    /** 从语义身份末段提取稳定盆键（如 {@code customcrops:dry_pot_1} → {@code dry_pot_1}） */
-    private static String potKeyOf(String identity) {
+    /**
+     * 从语义身份末段提取稳定盆键（如 {@code customcrops:dry_pot_1} → {@code dry_pot_1}）。
+     *
+     * <p>公开静态：世界识别链路与 {@code .stardew 诊断} 共用同一口径。**必须剥离命名空间**——
+     * 语义身份是 {@code namespace:path} 形式（如 {@code customcrops:dry_pot}），直接取末段会得到
+     * 带命名空间的整串，与 {@code PotDefinition} 的干湿模型末段永远对不上（诊断里就会显示「盆型命中：否」，
+     * 而实际识别其实是命中的）。</p>
+     */
+    public static String potKeyOf(String identity) {
         if (identity == null || identity.isBlank()) return null;
         String path = identity.contains(":") ? identity.substring(identity.indexOf(':') + 1) : identity;
         int slash = path.lastIndexOf('/');

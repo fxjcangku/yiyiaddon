@@ -24,12 +24,13 @@ public final class StardewSelectionBinding {
     private final Selection potion;
     private final Selection can;
     private final Selection sprinkler;
+    private final Selection shelter;
     /** 当前绑定的服务器；盆型按维度分档时需要它来切档 */
     private String serverKey;
 
     public StardewSelectionBinding(StardewResourceIndex index, StardewSettings settings) {
         this.index = index;
-        // 六类选择器（数据源：资源包扫描 + ID 配置双源合并）
+        // 七类选择器（数据源：资源包扫描 + ID 配置双源合并）
         crop = new Selection(StardewSelectorCategory.CROP, index, settings.selectedCropKeys);
         // 盆型按维度分档：主世界记普通盆、下界记下界盆、末地记末地盆，换维度不必重新勾
         pot = new Selection(StardewSelectorCategory.POT, index, settings.selectedPotKeys, true);
@@ -37,6 +38,7 @@ public final class StardewSelectionBinding {
         potion = new Selection(StardewSelectorCategory.POTION, index, settings.selectedPotionKeys);
         can = new Selection(StardewSelectorCategory.WATERING_CAN, index, settings.selectedCanKeys);
         sprinkler = new Selection(StardewSelectorCategory.SPRINKLER, index, settings.selectedSprinklerKeys);
+        shelter = new Selection(StardewSelectorCategory.SHELTER, index, settings.selectedShelterKeys);
     }
 
     public Selection crop() {
@@ -63,8 +65,13 @@ public final class StardewSelectionBinding {
         return sprinkler;
     }
 
+    /** 温室玻璃选择（盆上方 5 格内识别用；未勾选 = 不做季节豁免） */
+    public Selection shelter() {
+        return shelter;
+    }
+
     /**
-     * 六类选择的数据入口（界面壳使用）。
+     * 七类选择的数据入口（界面壳使用）。
      *
      * <p>与旧项目的 {@code StardewTargetSetting} 一一对应：界面只负责把选中项加入 / 移除，
      * 写盘一律交回本对象，保证「选择的内存镜像」与「按 ServerKey 落盘」只有一份实现。</p>
@@ -78,6 +85,7 @@ public final class StardewSelectionBinding {
             case POTION -> potion;
             case WATERING_CAN -> can;
             case SPRINKLER -> sprinkler;
+            case SHELTER -> shelter;
         };
     }
 
@@ -90,6 +98,7 @@ public final class StardewSelectionBinding {
         potion.bindTo(serverKey, dimension);
         can.bindTo(serverKey, dimension);
         sprinkler.bindTo(serverKey, dimension);
+        shelter.bindTo(serverKey, dimension);
     }
 
     /**
@@ -103,7 +112,7 @@ public final class StardewSelectionBinding {
         return pot.bindTo(serverKey, dimension);
     }
 
-    /** 清理六类选择器里已不在当前索引中的失效键，并写回当前服务器档案 */
+    /** 清理七类选择器里已不在当前索引中的失效键，并写回当前服务器档案 */
     public void pruneAndPersist() {
         if (index.isEmpty()) return;
         crop.pruneInvalid();
@@ -112,17 +121,19 @@ public final class StardewSelectionBinding {
         potion.pruneInvalid();
         can.pruneInvalid();
         sprinkler.pruneInvalid();
+        shelter.pruneInvalid();
         crop.persist();
         pot.persist();
         fertilizer.persist();
         potion.persist();
         can.persist();
         sprinkler.persist();
+        shelter.persist();
         // 旧实现的 refreshCount() 六行是纯 GUI 计数标签刷新，随界面壳由界面批处理接入，此处不再搬运
     }
 
     /**
-     * 六类选择器的数据与业务：内存镜像 + 按 ServerKey 隔离落盘。
+     * 七类选择器的数据与业务：内存镜像 + 按 ServerKey 隔离落盘。
      *
      * <p>旧项目这里是 Meteor 设置子类 {@code StardewTargetSetting}（含设置控件与计数标签）；
      * 界面壳由界面批处理另行接入，本类只保留数据语义：{@code bindServer / persist /

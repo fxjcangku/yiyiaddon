@@ -147,8 +147,8 @@ public final class StardewCoordinator {
     static final int PLAYER_LOW_FREE_SLOTS = 6;
     /** 精确移动（非整叠）时单次交互最多连发的点击次数，超出部分下一轮继续。 */
     static final int MAX_TRANSFER_BURST = 16;
-    /** 「批量右击」的硬上限：再多也不会发，避免一 tick 内刷出一串交互包。 */
-    static final int MAX_BATCH_ACTIONS = 8;
+    /** 「批量动作」的硬上限：再多也不会发，避免一 tick 内刷出一串交互包。 */
+    static final int MAX_BATCH_ACTIONS = 15;
 
     /**
      * 启动自检里「分区错位」一次性扫描的总格数预算。
@@ -179,8 +179,13 @@ public final class StardewCoordinator {
     List<String> selectedFertilizerKeys = List.of();
     List<String> selectedPotionKeys = List.of();
     List<String> selectedSprinklerKeys = List.of();
+    /** 已选温室玻璃：盆上方 5 格内有它 → 该盆无视季节限制照常播种（空 = 这条机制未启用） */
+    List<String> selectedShelterKeys = List.of();
 
-    /** 自动清理错位作物：开着时错位格由 CLEAR_MISMATCH 任务逐格挖掉，关着则停机等玩家手动清 */
+    /**
+     * 自动清理错位作物：开着时错位格由 CLEAR_MISMATCH 任务挖掉、盆上杂物由 CLEAR_JUNK 挖掉，
+     * 关着则错位格只画红框不动手、杂物保持原样不碰（枯死株清理不受本开关影响）。
+     */
     boolean autoClearMismatch = false;
     /** 当前维度内的种植区域快照（模块每 tick 同步） */
     List<StardewRegionManager.Region> regions = List.of();
@@ -199,7 +204,8 @@ public final class StardewCoordinator {
     int returnCenterDelayTicks = 200;
 
     /**
-     * 同一 tick 最多对几个格子右键（1 = 关闭）。
+     * 同一 tick 最多对几个格子连发交互包（1 = 关闭）：收割 / 浇水 / 播种 / 施肥发右键，
+     * 清枯苗 / 清错位 / 清杂物发左键破坏。
      *
      * <p>只影响「顺带多打几个」的额外发包，主目标仍然走完整的 决策 → 导航 → 交互 → 验证；
      * 额外目标不做断言（{@link #verifyResult()} 只看主目标自己那一格），
@@ -335,7 +341,11 @@ public final class StardewCoordinator {
             while (!oneShot.complete()) {
                 for (StardewFarmScanner.Cell cell : oneShot.scanTick(profile, STARTUP_MISMATCH_SCAN_STEP)) {
                     String key = cell.crop().cropKey();
-                    if (key == null || cell.crop().state() == CropState.UNKNOWN) continue;
+                    if (key == null) continue;
+                    // 与运行中同口径：枯死株 / 认不出的方块不是「种错了作物」，它们是清理链的活，
+                    // 不该在开机时被报成「区域里的作物与绑定不符」（冬季冻死一片时尤其明显）。
+                    CropState state = cell.crop().state();
+                    if (state == CropState.DEAD || state == CropState.UNKNOWN) continue;
                     if (!key.equals(region.cropKey())) {
                         found.add(new StardewTaskPlanner.RegionMismatch(cell.potPos(), region, key));
                     }
@@ -551,6 +561,8 @@ public final class StardewCoordinator {
     final Set<String> seasonBlockedCrops = new HashSet<>();
     /** 已播报过的「作物 + 季节」阻塞组合：重算不会重复刷屏，季节变化后允许再次播报 */
     final Set<String> announcedSeasonBlocks = new HashSet<>();
+    /** 已播报过的「作物 + 季节」温室豁免组合：有玻璃照常播种只播一次，绝不每格刷屏 */
+    final Set<String> announcedShelterCrops = new HashSet<>();
     /** 已播报过「盆型 × 维度不匹配」的盆型：下界盆 / 末地盆各只提示一次，避免每轮扫描刷屏 */
     final Set<String> announcedDimensionBlocks = new HashSet<>();
     /** 已播报过「下界盆缺岩浆 / 末地盆缺龙息」的盆型：备好料之前只提醒一次 */
@@ -621,6 +633,7 @@ public final class StardewCoordinator {
                           FarmMemoryStore memory, StardewPointManager points, StardewInventoryService inventory,
                           List<String> selectedCropKeys, List<String> selectedPotKeys, List<String> selectedCanKeys,
                           List<String> selectedFertilizerKeys, List<String> selectedPotionKeys, List<String> selectedSprinklerKeys,
+                          List<String> selectedShelterKeys,
                           String serverKey, String dimension, int reach, int scanBudget,
                           boolean wateringEnabled, boolean switchCan, boolean restoreHand,
                           boolean autoFertilize, boolean autoPotion,
@@ -651,6 +664,7 @@ public final class StardewCoordinator {
             lastBlockedSeedCounts.clear();
             seasonBlockedCrops.clear();
             announcedSeasonBlocks.clear();
+            announcedShelterCrops.clear();
             announcedSeedReturns.clear();
             waitingSeasonAnnouncedLabel = null;
             reportedContainerFailures.clear();
@@ -674,6 +688,7 @@ public final class StardewCoordinator {
         this.selectedFertilizerKeys = selectedFertilizerKeys == null ? List.of() : selectedFertilizerKeys;
         this.selectedPotionKeys = selectedPotionKeys == null ? List.of() : selectedPotionKeys;
         this.selectedSprinklerKeys = selectedSprinklerKeys == null ? List.of() : selectedSprinklerKeys;
+        this.selectedShelterKeys = selectedShelterKeys == null ? List.of() : selectedShelterKeys;
         this.serverKey = serverKey;
         this.dimension = dimension;
         this.reach = reach;
@@ -755,6 +770,7 @@ public final class StardewCoordinator {
         reportedLearningFailures.clear();
         seasonBlockedCrops.clear();
         announcedSeasonBlocks.clear();
+        announcedShelterCrops.clear();
         announcedDimensionBlocks.clear();
         announcedMaterialShortage.clear();
         announcedNoFertilize.clear();
@@ -1038,7 +1054,9 @@ public final class StardewCoordinator {
         // 所有待播种作物都被季节阻塞、且没有任何可执行任务：模块保持开启，回中心等待。
         // 每个季节只播一次（同一季节标签不再重复播报，绝不刷屏）；季节标签变化后允许再播一次。
         // 季节代次变化时由 releaseSeasonBlocks() 释放并 Replan，不需要玩家重开模块。
-        if (!seasonBlockedCrops.isEmpty()) {
+        // 判据取「现实里还有没有被拦的格子」：玩家补上温室玻璃、或自己把那几格种上之后，
+        // seasonBlockedCrops 已不是现实，只按集合非空会误播一条「等待季节」。
+        if (!seasonBlockedCrops.isEmpty() && planner.hasSeasonBlockedEmptyPot()) {
             String seasonLabel = reporter.seasonPlayerLabel();
             if (!seasonLabel.equals(waitingSeasonAnnouncedLabel)) {
                 waitingSeasonAnnouncedLabel = seasonLabel;
@@ -1160,7 +1178,7 @@ public final class StardewCoordinator {
         boolean acted = switch (taskType) {
             case HARVEST -> executor.doHarvest();
             case LEARN_HARVEST -> executor.doLearnHarvest();
-            case CLEAR_DEAD, CLEAR_MISMATCH -> executor.doBreakPlant();
+            case CLEAR_DEAD, CLEAR_MISMATCH, CLEAR_JUNK -> executor.doBreakPlant();
             case WATER -> executor.doWater();
             case PLANT -> executor.doPlant();
             case FERTILIZE -> executor.doFertilize();
@@ -1202,6 +1220,9 @@ public final class StardewCoordinator {
             forceRefill = true;
             phase = Phase.REPLAN;
         } else if (retryCount >= MAX_RETRY) {
+            // 杂物可能是砸不掉的东西（服务端保护方块 / 屏障）：给它一个退避窗口，
+            // 否则每一轮都会重新走到那一格再试一次，观感就是站在田里原地打转。
+            if (taskType == TaskType.CLEAR_JUNK) planner.blockNavigationTarget(TaskType.CLEAR_JUNK, targetPot);
             phase = Phase.REPLAN;
         } else {
             retryCount++;

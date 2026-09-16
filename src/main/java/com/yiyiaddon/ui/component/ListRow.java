@@ -26,19 +26,34 @@ import java.util.function.Supplier;
  */
 public class ListRow implements CompactElement {
 
-    /** 行高。 */
-    public static final float HEIGHT = 36f;
+    /**
+     * 行高：与外部页面（模块中心 / 设置 / 界面 / 模块页）的清单行同高（{@link ModuleRow#HEIGHT}）。
+     *
+     * <p>用户 2026-09-16 原话「控制台里面 也要缩小啊 你只缩小外面的 控制台里面都没变」——本行是
+     * 控制台的「点击选择 / 目标物品 / 名单」这些选择器窗口（以及 Baritone 列表、ID 清单、箱子清单）
+     * 唯一的清单行，原来是 36，比上一轮统一后的 24 大出半行，从控制台点进选择器就立刻变大一号。
+     * 行高直接读外面那一个常量，不再各写一份数字。</p>
+     *
+     * <p>收的只是几何：字形（名称 11 / 补充信息 10 / 徽标 10）一个都没动；图标底框取模块行的
+     * {@link ModuleRow#ICON_BOX}，与同一轮的其它行同一套度量。命中 / 绘制 / 滚动高度三处都读
+     * {@link #HEIGHT}（{@code draw} 里的裁切矩形也由它推导），行高变化不会出现裁切或点击错位。</p>
+     */
+    public static final float HEIGHT = ModuleRow.HEIGHT;
 
-    private static final float PAD_X = 12f;
-    private static final float ICON_SIZE = 24f;
-    private static final float ICON_GAP = 10f;
+    private static final float PAD_X = 10f;
+    private static final float ICON_SIZE = ModuleRow.ICON_BOX;
+    private static final float ICON_GAP = 8f;
     private static final float NAME_SIZE = 11f;
     private static final float DETAIL_SIZE = 10f;
-    private static final float DETAIL_GAP = 8f;
+    private static final float DETAIL_GAP = 6f;
     private static final float BADGE_SIZE = 10f;
-    private static final float BADGE_GAP = 10f;
+    private static final float BADGE_GAP = 8f;
     private static final float ACTION_GAP = 6f;
     private static final float HOVER_SMOOTHING = 14f;
+    /** 选中态的强调色镀层系数：能一眼看出「这条已加入」，又不至于盖掉行内的文字与图标。 */
+    private static final float SELECTED_TINT = 0.18f;
+    /** 选中态的强调色描边强度。 */
+    private static final float SELECTED_RIM = 0.35f;
 
     /** 图标绘制回调：由调用方决定画物品、方块还是实体图标。 */
     @FunctionalInterface
@@ -54,6 +69,8 @@ public class ListRow implements CompactElement {
     private int badgeColor = -1;
     private final List<SettingWidget> actions = new ArrayList<>();
     private Runnable onActivate;
+    /** 选中态：整行镀一层强调色（通用选择器里「已加入」的行）。 */
+    private boolean selected;
 
     private float hover;
     private boolean hovered;
@@ -99,6 +116,18 @@ public class ListRow implements CompactElement {
         return this;
     }
 
+    /**
+     * 选中态：整行镀一层强调色 + 强调色描边。
+     *
+     * <p>通用选择器改成单栏后，选中项不再跳到另一栏，只能靠行自己说明「这条已经加了」——
+     * 只有右侧按钮从 ＋ 变 − 不够醒目，扫一眼列表分不出哪些是已选。行本身不可变，
+     * 选中变化由调用方重建行，因此这里用普通布尔而不是 Supplier。</p>
+     */
+    public ListRow selected(boolean selected) {
+        this.selected = selected;
+        return this;
+    }
+
     // ── CompactElement ──
 
     @Override
@@ -124,6 +153,10 @@ public class ListRow implements CompactElement {
         hovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + HEIGHT;
         if (hover > 0.01f) {
             GlassPanel.fill(canvas, x, y, width, HEIGHT, radius, tc.surfaceHover, rowAlpha * hover);
+        }
+        if (selected) {
+            GlassPanel.fill(canvas, x, y, width, HEIGHT, radius, tc.accent, rowAlpha * SELECTED_TINT);
+            GlassPanel.rim(canvas, x, y, width, HEIGHT, radius, tc.accent, alpha, SELECTED_RIM);
         }
 
         float centerY = y + HEIGHT / 2f;

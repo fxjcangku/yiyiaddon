@@ -13,11 +13,11 @@ import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleStateColumn;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ItemIconCache;
-import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
@@ -30,6 +30,7 @@ import io.github.humbleui.skija.Canvas;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -60,8 +61,11 @@ public final class KillAuraTargetingPage {
 
     /** 名单行的「点击选择」按钮（逐字照星露谷 / 挖矿控制台页） */
     private static final String SELECT_LABEL = "点击选择";
-    /** 状态文字字号：与 {@code SettingText} 内部字号一致，用于按文本宽度算列宽 */
-    private static final float STATE_FONT_SIZE = 11f;
+    /**
+     * 状态列的下界：本页状态文字只有「未选择（共 N 项）」与「已选 N / M 项」两种，按 999 项量宽即可
+     * 覆盖（更宽时由 {@link ConsoleStateColumn} 按实测值加宽，列宽本身不回落）。
+     */
+    private static final String STATE_LONGEST = "未选择（共 999 项）";
 
     /**
      * 选择器分组标题：<b>按生物分类分组</b>（用户 2026-09-16：「并不是像 meteo r一样分类好的」），
@@ -101,6 +105,8 @@ public final class KillAuraTargetingPage {
 
     private final KillAuraConsoleScreen owner;
     private final KillAuraModule module;
+    /** 名单行共用的状态列宽度（见 {@link ConsoleStateColumn}：浮动会把「点击选择」顶得左右移动） */
+    private final ConsoleStateColumn stateColumn = new ConsoleStateColumn(STATE_LONGEST);
 
     public KillAuraTargetingPage(KillAuraConsoleScreen owner, KillAuraModule module) {
         this.owner = owner;
@@ -164,8 +170,8 @@ public final class KillAuraTargetingPage {
                                    Runnable open, Runnable reset) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
-            new Ctl(new SettingText(status,
-                () -> MinecraftText.measure(status.get(), STATE_FONT_SIZE, false)).alignLeft()),
+            // 列宽走共用固定列：按当前文案各自量宽会把「点击选择」顶着左右浮动
+            new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
             new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
     }
 
@@ -317,24 +323,29 @@ public final class KillAuraTargetingPage {
     /**
      * 实体候选条目。
      *
-     * <p><b>行图标三级回退</b>（用户 2026-09-16：「而且有一些还不显示方块实体图片」）：</p>
+     * <p><b>行图标四级回退</b>（用户 2026-09-16：「要不你就全部改成这种类型的 不要生怪蛋了」）：</p>
      * <ol>
-     *     <li><b>刷怪蛋</b> —— {@link ItemIconCache#drawEntity}，绝大多数生物走这条；</li>
-     *     <li><b>显式映射表 / 同名物品</b> —— 先查 {@link #ICON_OVERRIDES}（原版没有刷怪蛋、
-     *         或实体 id 与物品 id 不同名的，逐条登记依据）；其余按<b>同名物品</b>解析：
-     *         船 / 竹筏 / 盔甲架 / 矿车 / 展示框 / 画 的物品 id 与实体 id 同名，一条通用规则即可覆盖；</li>
-     *     <li><b>首字占位</b> —— 两者都没有的（「标记」与三个展示实体这类，原版根本没有对应物品），
-     *         画一个弱色圆角框 + 显示名首字。保证每一行都有图标，不留空位。</li>
+     *     <li><b>实体渲染图</b> —— {@link ItemIconCache#drawEntityModel}，<b>所有生物（非 MISC）都走它</b>。
+     *         这是真正的实体模型渲染，整列风格统一；上一版是「有刷怪蛋的走蛋、没蛋的才走模型」，
+     *         一列里混着两种画法，用户看到巨人（模型）夹在一片刷怪蛋里直接问「巨人是什么？？」；</li>
+     *     <li><b>刷怪蛋物品图标</b> —— {@link ItemIconCache#hasSpawnEgg} + {@link ItemIconCache#drawEntity}，
+     *         只给模型渲不出来的（玩家 / 假人这类没有注册渲染器的）与非生物（MISC）；</li>
+     *     <li><b>显式映射表 / 同名物品</b> —— 见 {@link #ICON_OVERRIDES}（每条都注明为什么只能是静态物品）
+     *         与同名物品规则（船 / 竹筏 / 盔甲架 / 矿车 / 展示框 / 画 的实体 id 与物品 id 同名）；</li>
+     *     <li><b>首字占位</b> —— 三者都没有的，画一个弱色圆角框 + 显示名首字。保证每一行都有图标，不留空位。</li>
      * </ol>
+     *
+     * <p>模型渲染有「本帧还没截取好」的中间态：此时<b>保持空图标</b>而不落回下一级，
+     * 否则列表会先闪一张刷怪蛋再换成模型，看得见的抖动比空一帧更糟。</p>
      */
     private static final class EntityEntry implements SelectorScreen.Entry {
 
         private final String key;
         private final EntityType<?> type;
         private final String group;
-        /** 第 2 级回退图标的物品；{@code null} = 表中没有、也没有同名物品，走首字占位 */
+        /** 第 3 级回退图标的物品；{@code null} = 表中没有、也没有同名物品，走首字占位 */
         private final Item fallbackItem;
-        /** 第 2 级回退的物品堆：首次绘制时才构造（构建物品栈要注册表已绑定，不能在设置载入期做） */
+        /** 第 3 级回退的物品堆：首次绘制时才构造（构建物品栈要注册表已绑定，不能在设置载入期做） */
         private ItemStack fallbackStack;
 
         private EntityEntry(String key, EntityType<?> type) {
@@ -354,6 +365,18 @@ public final class KillAuraTargetingPage {
             return type.getDescription().getString();
         }
 
+        /**
+         * 名称右侧显示实体 ID。
+         *
+         * <p>用户 2026-09-16 对着「巨人」一行问「巨人是什么？？」——那是原版译名（{@code minecraft:giant}，
+         * 原版不刷出来的六倍僵尸），光看名字认不出。把真实 ID 摆在名字旁边，任何一个看不懂的显示名
+         * 都能自己对回原版实体。</p>
+         */
+        @Override
+        public String detail() {
+            return key;
+        }
+
         @Override
         public String group() {
             return group;
@@ -361,11 +384,21 @@ public final class KillAuraTargetingPage {
 
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
-            if (ItemIconCache.getInstance().drawEntity(canvas, type, x, y, size)) return true;
+            ItemIconCache cache = ItemIconCache.getInstance();
+            // ① 生物（非 MISC）：渲实体自己的模型 —— 与「已选」栏里的行同一来源，整列风格一致
+            if (type.getCategory() != MobCategory.MISC) {
+                if (cache.drawEntityModel(canvas, type, x, y, size)) return true;
+                // 这一帧还在截取：先空着（宁可空一帧，也不要先闪一张兜底图标再换成实体渲染图）
+                if (!cache.isEntityModelUnsupported(type)) return true;
+            }
+            // ② 模型不可用（玩家 / 投射物 / 标记这类没有渲染器的）或本来就是非生物 → 刷怪蛋
+            if (cache.drawEntity(canvas, type, x, y, size)) return true;
+            // ③ 静态物品兜底
             if (fallbackItem != null) {
                 if (fallbackStack == null) fallbackStack = new ItemStack(fallbackItem);
-                return ItemIconCache.getInstance().draw(canvas, fallbackStack, x, y, size);
+                if (cache.draw(canvas, fallbackStack, x, y, size)) return true;
             }
+            // ④ 首字占位
             drawInitialPlaceholder(canvas, x, y, size);
             return true;
         }
@@ -393,19 +426,19 @@ public final class KillAuraTargetingPage {
     }
 
     /**
-     * 没有刷怪蛋（或实体 id 与物品 id 不同名）的实体的<b>显式图标映射表</b>。
+     * 没有刷怪蛋（或实体 id 与物品 id 不同名）的实体的<b>显式图标映射表 = 静态兜底</b>。
      *
-     * <p><b>为什么要表：</b>刷怪蛋那一级走的是「遍历物品注册表找带 {@code ENTITY_DATA} 的蛋」，
-     * 没有蛋的实体（用户 2026-09-16 截图里的「巨人」「幻术师」等）会一路退到首字占位，
-     * 于是列表里混着汉字方块与真图标。表中每一条都注明依据，<b>只登记确实没有刷怪蛋的实体</b>，
-     * 其余实体一律保持原回退链（刷怪蛋 → 同名物品 → 首字占位），不做任何推断性映射。</p>
+     * <p><b>它现在是第 3 级回退，不再是「没有刷怪蛋」的最终答案：</b>第 ② 级会用
+     * {@link ItemIconCache#drawEntityModel} 渲实体自己的模型（巨人 / 幻术师这类原版不给刷怪蛋的生物），
+     * 只有模型路径确实不可用时才会落到本表。本表每一条都注明<b>为什么它只能是静态物品</b>。</p>
      *
      * <p><b>依据来源（26.1.2 原版源码，两份本地源码树各有一份）：</b></p>
      * <ul>
      *     <li>{@code net/minecraft/world/item/Items.java:1510-1596} 的 {@code registerSpawnEgg}
      *         调用表 —— 原版全部刷怪蛋（86 项）都在这里，不在其中的实体即「没有刷怪蛋」；</li>
-     *     <li>{@code net/minecraft/world/entity/EntityType.java} 的实体清单 —— 与上表逐一比对，
-     *         得到本节登记的实体（巨人 / 幻术师 / 玩家 / 人偶 + 若干投射物与展示类实体）；</li>
+     *     <li>{@code net/minecraft/client/renderer/entity/EntityRenderers.java} 的渲染器登记表 ——
+     *         判断某实体能不能走第 ② 级的实体渲染图（巨人 {@code GiantMobRenderer}、幻术师
+     *         {@code IllusionerRenderer} 都在表里；玩家 / 假人不在，只有专用渲染器）；</li>
      *     <li>第二类（id 不同名）来自 {@code Items.java} 的物品登记名：实体 {@code eye_of_ender}
      *         对应物品 {@code ender_eye}、实体 {@code leash_knot} 对应物品 {@code lead}……
      *         同名规则抓不到，只能逐条写明。</li>
@@ -418,20 +451,25 @@ public final class KillAuraTargetingPage {
      * 本类只由控制台界面加载，取用时机晚于注册表绑定；物品堆仍在首次绘制时才构造。</p>
      */
     private static final Map<EntityType<?>, Item> ICON_OVERRIDES = Map.ofEntries(
-        // ── 一、原版没有刷怪蛋的生物 ──
-        // 巨人是放大版的僵尸（模型与贴图就是僵尸），头颅最贴切
-        Map.entry(EntityType.GIANT, Items.ZOMBIE_HEAD),
-        // 幻术师是灾厄村民里的施法者（隐身 + 幻象 + 失明），书比药水更贴「施法」
-        Map.entry(EntityType.ILLUSIONER, Items.ENCHANTED_BOOK),
-        // 玩家没有刷怪蛋；脑袋是唯一且最直白的对应物
+        // ── 一、没有刷怪蛋的生物：这一级只在实体渲染图不可用时兜底 ──
+        // 巨人：原版 GiantMobRenderer 用的就是僵尸模型 + 僵尸贴图（放大 6 倍），正常走实体渲染图；
+        // 模型渲不出来时以僵尸刷怪蛋兜底 —— 同样是「僵尸形象」，不会出现用户点名的绿色方块
+        Map.entry(EntityType.GIANT, Items.ZOMBIE_SPAWN_EGG),
+        // 幻术师：灾厄村民里的施法者，同族中形象最接近唤魔者，模型渲不出来时以唤魔者刷怪蛋兜底
+        Map.entry(EntityType.ILLUSIONER, Items.EVOKER_SPAWN_EGG),
+        // 玩家：玩家渲染器只认 AbstractClientPlayer（合成的玩家实体拿不到渲染器，模型路径必然不可用）；
+        // 真实玩家头像另有出路（管理员检测页走 PlayerFaceCache），这里是通用兜底，脑袋最直白
         Map.entry(EntityType.PLAYER, Items.PLAYER_HEAD),
-        // 人偶（26.1.2 新增的可摆姿势假人）与盔甲架同类，注册表里没有对应物品
+        // 人偶：假人渲染器只认 ClientMannequin（由客户端世界生成的实体），合成的 MANNEQUIN 实体拿不到
+        // 渲染器；它与盔甲架同类（可摆姿势的摆件），注册表里也没有对应物品，用盔甲架图标
         Map.entry(EntityType.MANNEQUIN, Items.ARMOR_STAND),
-        // ── 二、实体 id 与物品 id 不同名，同名规则抓不到 ──
-        // 拴绳结：物品 id 是 lead（旧代码在这一处单开过特例，现统一收进本表）
+        // ── 二、非生物实体（都是 MISC 分类，不进第 ② 级）：没有「生物形象」可取，静态物品更清楚 ──
+        // 拴绳结：本体只是拴在栅栏上的一个绳结，实体渲染图是几个像素的结，拴绳物品更易辨识
         Map.entry(EntityType.LEASH_KNOT, Items.LEAD),
-        // 荧光展示框：原版就是用荧光墨囊点出来的，注册表里没有 glow_item_frame 物品
+        // 荧光展示框：空框的渲染图与普通物品展示框完全同形，只有荧光墨囊图标能体现「荧光」
         Map.entry(EntityType.GLOW_ITEM_FRAME, Items.GLOW_INK_SAC),
+        // 以下全是抛射物 / 攻击效果 / 不可见实体：原版要么用 ThrownItemRenderer 把物品模型画进 3D
+        // （渲染图与物品图标本就是同一个东西），要么（不祥之物生成器）本体根本不渲染，故一律静态物品
         Map.entry(EntityType.EYE_OF_ENDER, Items.ENDER_EYE),
         // 旋风人的风弹：实体 breeze_wind_charge，物品只有 wind_charge
         Map.entry(EntityType.BREEZE_WIND_CHARGE, Items.WIND_CHARGE),
@@ -443,9 +481,9 @@ public final class KillAuraTargetingPage {
         Map.entry(EntityType.WITHER_SKULL, Items.WITHER_SKELETON_SKULL),
         // 潜影贝子弹：用壳指代（潜影贝本体走刷怪蛋）
         Map.entry(EntityType.SHULKER_BULLET, Items.SHULKER_SHELL),
-        // 唤魔者尖牙：用唤魔者的刷怪蛋指代来源，原版没有尖牙物品
+        // 唤魔者尖牙：瞬时攻击效果实体（不是生物），用唤魔者的刷怪蛋指代来源，原版没有尖牙物品
         Map.entry(EntityType.EVOKER_FANGS, Items.EVOKER_SPAWN_EGG),
-        // 不祥之物生成器：与不祥之瓶同属试炼密室体系，瓶子上就是那个图案
+        // 不祥之物生成器：原版本体不渲染任何东西（不可见实体），渲染图必然是空的，只能用物品表示
         Map.entry(EntityType.OMINOUS_ITEM_SPAWNER, Items.OMINOUS_BOTTLE)
     );
 

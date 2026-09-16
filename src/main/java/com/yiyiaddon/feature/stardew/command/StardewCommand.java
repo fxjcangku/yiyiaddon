@@ -8,15 +8,21 @@ import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.RuleEvidence;
 import com.yiyiaddon.feature.stardew.recognition.CropRuntimeStateResolver;
+import com.yiyiaddon.feature.stardew.recognition.StardewCropDisplayProbe;
 import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,10 +36,11 @@ import java.util.List;
  * 静止水源、洒水器资源身份匹配）与播报都在 {@link StardewFarmModule} 内完成——GUI 按钮与指令
  * 共用同一实现，禁止各写一套文案或各写一套校验。</p>
  *
- * <p><b>{@code 标记成熟} 三种入口，共用同一闸门、同一校验、同一保存逻辑：</b></p>
+ * <p><b>{@code 标记成熟} 四种入口，共用同一闸门、同一校验、同一保存逻辑：</b></p>
  * <pre>
  * .stardew 标记成熟                     ← 准星模式：对准作物直接人工确认
  * .stardew 标记成熟 强制                ← 准星纠错模式：只会覆盖与已有规则冲突的阶段
+ * .stardew 标记成熟 清除 &lt;作物&gt;      ← 清除纠错：删掉该作物的收获规则（标错阶段的退路）
  * .stardew 标记成熟 &lt;作物&gt; &lt;阶段&gt;   ← 参数模式（高级 / 调试兜底，带 TAB 补全）
  * .stardew 季节                         ← 季节识别结论 + 最近一次真实证据
  * .stardew 季节 春|夏|秋|冬             ← 人工绑定当前季节图标（仅当前服务器 + 资源指纹）
@@ -56,6 +63,8 @@ import java.util.List;
  */
 public final class StardewCommand extends ClientCommand {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/stardew");
+
     private static final String MODULE_NAME = "星露谷农场";
 
     /** 参数模式的两个参数名（准星模式无参数，因此不冲突） */
@@ -69,7 +78,7 @@ public final class StardewCommand extends ClientCommand {
 
     /** 根节点子命令字面量（注册顺序） */
     private static final List<String> ROOT_SUBCOMMANDS = List.of(
-        "绑定", "添加洒水器", "移除洒水器", "移除", "种植区域", "标记成熟", "控制台", "季节", "状态", "清空", "预览范围");
+        "绑定", "添加洒水器", "移除洒水器", "移除", "种植区域", "标记成熟", "控制台", "季节", "状态", "诊断", "清空", "预览范围");
 
     /** {@code 绑定} / {@code 移除} 的点位字面量 */
     private static final List<String> POINT_NAMES = List.of("种子箱", "成品箱", "补水点");
@@ -113,6 +122,7 @@ public final class StardewCommand extends ClientCommand {
             case "控制台" -> openConsole();
             case "季节" -> season(context);
             case "状态" -> status();
+            case "诊断" -> diagnose();
             case "清空" -> clear();
             case "预览范围" -> toggleRangePreview();
             default -> {
@@ -137,16 +147,21 @@ public final class StardewCommand extends ClientCommand {
         return switch (context.arg(0)) {
             case "绑定", "移除" -> context.size() == 1 ? POINT_NAMES : List.of();
 
-            // 标记成熟：强制 literal + 参数模式 A（cropKey）+ 参数模式 B（中文名，引号形式）
+            // 标记成熟：强制 / 清除 literal + 参数模式 A（cropKey）+ 参数模式 B（中文名，引号形式）
             case "标记成熟" -> {
                 if (context.size() == 1) {
                     List<String> candidates = new ArrayList<>();
                     candidates.add("强制");
+                    candidates.add("清除");
                     if (module != null) {
                         candidates.addAll(module.cropCompletions("", false));
                         candidates.addAll(module.cropCompletions("", true));
                     }
                     yield candidates;
+                }
+                // 清除 <作物>：只列「已经有收获规则」的作物（中文名 + 技术键），不列阶段
+                if (context.size() == 2 && "清除".equals(context.arg(1)) && module != null) {
+                    yield module.ruledCropCompletions();
                 }
                 // 阶段补全：只列该作物在当前服务器资源包里真实存在的阶段
                 if (context.size() == 2 && !"强制".equals(context.arg(1)) && module != null) {
@@ -202,7 +217,7 @@ public final class StardewCommand extends ClientCommand {
         removePoint(type);
     }
 
-    /** {@code .stardew 标记成熟}：准星模式 / 强制纠错 / 参数模式三分支（旧三种入口） */
+    /** {@code .stardew 标记成熟}：准星模式 / 强制纠错 / 清除纠错 / 参数模式四分支 */
     private void markMature(CommandContext context) {
         if (context.size() == 1) {
             markMatureFromCrosshair(false);
@@ -210,6 +225,20 @@ public final class StardewCommand extends ClientCommand {
         }
         if (context.size() == 2 && "强制".equals(context.arg(1))) {
             markMatureFromCrosshair(true);
+            return;
+        }
+        // 清除纠错：把某个作物的收获规则整条删掉（标错阶段后唯一不需要重启客户端、也不用改文件的退路）
+        if ("清除".equals(context.arg(1))) {
+            String cropInput = context.arg(2);
+            if (cropInput == null) {
+                CommandMessageFormatter.of(MODULE_NAME, "标记成熟 ▶ 清除 ▶ 缺少参数")
+                    .field("<作物>", "要清除的作物，如 .stardew 标记成熟 清除 辣椒（也可用 cropKey，TAB 只列已有规则的作物）")
+                    .field("作用", "删除后模块会重新空手试探该作物，重新学习生命周期并恢复自动收菜")
+                    .status(CommandMessageFormatter.Level.FAILURE, "未改动")
+                    .send();
+                return;
+            }
+            clearHarvestRule(cropInput);
             return;
         }
         // 参数模式 A / B：canonical cropKey 或中文显示名 → 同一 canonical 解析口径
@@ -221,6 +250,61 @@ public final class StardewCommand extends ClientCommand {
             return;
         }
         markMatureWithArgs(cropInput, stageName, false);
+    }
+
+    /**
+     * {@code .stardew 标记成熟 清除 <作物>}：删掉该作物的收获规则。
+     *
+     * <p>与人工标记共用同一个写入口，写盘成功即替换内存规则并重建档案，<b>立刻生效、不需要重启客户端</b>；
+     * 「本来就没有规则」如实说明，绝不报成「已删除」。</p>
+     */
+    private void clearHarvestRule(String cropInput) {
+        StardewFarmModule module = module();
+        if (module == null) return;
+        if (!matureResourceGate(module)) return;
+
+        String cropKey = module.canonicalCropKey(cropInput);
+        if (cropKey == null) {
+            fail("清除收获规则失败", "无法唯一解析作物「" + cropInput
+                + "」：请使用当前服务器资源里存在的 cropKey，或 TAB 补全后再执行");
+            return;
+        }
+        StardewQuerySupport.RuleClearOutcome outcome = module.clearHarvestRule(cropKey);
+        if (outcome == null) {
+            fail("清除收获规则失败", "当前服务器资源未就绪，或该作物不在资源索引中");
+            return;
+        }
+        CommandMessageFormatter card = CommandMessageFormatter.of(MODULE_NAME,
+            outcome.previousStage() == null ? "该作物没有可清除的规则" : "已清除收获规则")
+            .highlight("作物", module.cropDisplayName(outcome.cropKey()))
+            .key("cropKey", outcome.cropKey());
+        if (outcome.previousStage() != null) {
+            card.field("删除的成熟阶段", outcome.previousStage());
+            card.field("原规则来源", evidenceLabel(outcome.previousEvidence()));
+            card.field("作用域", "当前服务器 · 资源指纹 · 作物");
+        }
+        if (!outcome.saved()) {
+            LOGGER.info("[星露谷] 清除收获规则未写盘：{}", outcome.cropKey());
+            card.field("原因", "收获规则档案写入失败")
+                .status(CommandMessageFormatter.Level.FAILURE, "未改动");
+            card.send();
+            return;
+        }
+        if (outcome.previousStage() == null) {
+            card.field("说明", "该作物当前没有已保存的收获规则，档案未做任何改动");
+            // 「清错对象」的补救：把真正有规则的作物直接列出来，省得玩家一个个试（实机反馈）
+            List<String> ruled = module.ruledCropCompletions();
+            if (!ruled.isEmpty()) card.field("当前有规则的作物", String.join("、", ruled));
+            card.status(CommandMessageFormatter.Level.INFO, "未改动").send();
+            return;
+        }
+        LOGGER.info("[星露谷] 清除收获规则已保存：{}（原成熟阶段 {}）", outcome.cropKey(), outcome.previousStage());
+        card.field("后续", "模块会重新对该作物做空手试探，确认生命周期后恢复自动收菜");
+        if (outcome.previousEvidence() == RuleEvidence.DOCUMENTED) {
+            // 内置攻略规则不在玩家档案里，删掉后仍会被重新推导出来，必须如实说明
+            card.field("注意", "该阶段来自内置攻略，下次资源检测后会自动恢复；要长期压掉请对准真实成熟植株用「标记成熟 强制」");
+        }
+        card.status(CommandMessageFormatter.Level.SUCCESS, "已删除").send();
     }
 
     /** {@code .stardew 季节}：识别结论 / 人工绑定 / 清除（旧 {@code seasonNode}） */
@@ -386,8 +470,11 @@ public final class StardewCommand extends ClientCommand {
      * 准星模式（普通 / 「强制」纠错）：对准当前自定义作物确认成熟阶段。
      *
      * <p>cropKey 与 stageKey 全部由统一真实状态解析自动取得，玩家不需要抄 ID。
-     * 准星未命中 / MISS / 命中空气 / 命中普通方块 / 缺少阶段信息分别给出明确中文原因，
+     * 准星未命中 / MISS / 命中空气 / 命中生物 / 缺少阶段信息分别给出明确中文原因，
      * 绝不退回「上一次目标」「猜一个作物」「用附近的作物代替」。</p>
+     *
+     * <p>作物是展示实体的服务器（CraftEngine 系）命中的是实体而非方块：这条路径会读展示实体手里的
+     * 物品模型取身份，与方块路径共用同一份判定，因此「准星点不到方块」不再等于「无法人工校准」。</p>
      *
      * @param force 仅 {@code .stardew 标记成熟 强制} 传入 true
      */
@@ -395,15 +482,25 @@ public final class StardewCommand extends ClientCommand {
         StardewFarmModule module = module();
         if (module == null) return;
 
+        LOGGER.info("[星露谷] 标记成熟（准星）执行 force={}", force);
+
         // ① 资源闸门最优先
         if (!matureResourceGate(module)) return;
 
         // ② 准星目标校验（普通模式与「强制」模式共用，force 不能绕过任何一条）
-        BlockPos pos = crosshairTarget();
-        if (pos == null) return;
+        CrosshairTarget target = crosshairTarget();
+        if (target == null) {
+            LOGGER.info("[星露谷] 标记成熟（准星）中止：准星没有指向有效目标（hitResult={}）",
+                mc.hitResult == null ? "null" : mc.hitResult.getType());
+            return;
+        }
 
         // ③ 统一真实状态解析取得 cropKey / stageKey（与 .id 方块 同一套判定）
-        CropRuntimeStateResolver.RuntimeResult crop = CropRuntimeStateResolver.resolve(pos);
+        CropRuntimeStateResolver.RuntimeResult crop = resolveAt(target);
+        LOGGER.info("[星露谷] 标记成熟（准星）目标 {} 展示身份 {} → 作物 {} / 阶段 {} / 状态 {}",
+            target.pos().toShortString(), target.displayIdentity(), crop.cropKey(), crop.stageName(),
+            crop.state().displayName());
+
         if (crop.state() == CropRuntimeStateResolver.RuntimeState.DEAD) {
             CommandMessageFormatter.of("星露谷农场", "标记成熟失败")
                 .world()
@@ -414,7 +511,7 @@ public final class StardewCommand extends ClientCommand {
             return;
         }
         if (!crop.isCrop()) {
-            fail("标记成熟失败", "当前方块不是已识别的自定义作物");
+            fail("标记成熟失败", crosshairSubject(target) + "不是已识别的自定义作物");
             return;
         }
         if (!crop.hasStage()) {
@@ -422,13 +519,16 @@ public final class StardewCommand extends ClientCommand {
             return;
         }
 
-        StardewQuerySupport.MatureMarkOutcome outcome = module.markMature(crop.cropKey(), crop.stageName(), force);
+        StardewQuerySupport.MatureMarkOutcome outcome =
+            module.markMature(crop.cropKey(), crop.stageName(), force, crop.identity());
         if (outcome.status() != StardewQuerySupport.MatureMarkStatus.SAVED) {
+            LOGGER.info("[星露谷] 标记成熟（准星）未保存：{}", outcome.status());
             reportRejected(module, outcome, crop);
             return;
         }
+        LOGGER.info("[星露谷] 标记成熟（准星）已保存：{} = {}", outcome.cropKey(), outcome.stageName());
         // 保存后重新解析一次：真实状态必须来自同一套判定，绝不手写「成熟」
-        reportSaved(module, outcome, CropRuntimeStateResolver.resolve(pos), force);
+        reportSaved(module, outcome, resolveAt(target), force);
     }
 
     /** 参数模式：解析中文名 / cropKey → 唯一 canonical → 与准星模式共用同一闸门、同一保存、同一播报 */
@@ -455,21 +555,35 @@ public final class StardewCommand extends ClientCommand {
     }
 
     /**
+     * 准星目标：命中坐标 + 该位置可用的展示实体身份 + 命中实体名（未命中实体为 {@code null}）。
+     *
+     * @param pos             命中坐标（命中方块 = 该方块坐标；命中实体 = 实体所在格）
+     * @param displayIdentity 展示实体携带的作物身份（如 {@code customcrops:chinese_cabbage_stage_3}），无则 null
+     * @param entityLabel     命中实体名（仅用于如实播报「命中了什么」），无则 null
+     */
+    private record CrosshairTarget(BlockPos pos, String displayIdentity, String entityLabel) {
+    }
+
+    /**
      * 准星目标校验（{@code 标记成熟} 与 {@code 标记成熟 强制} 共用，{@code force} 不能绕过任何一条）。
      *
      * <p>按 26.1.2 真实 {@code mc.hitResult} 的形态分别给中文原因：</p>
      * <ul>
      *   <li>{@code null} → 当前没有有效的准星目标；</li>
      *   <li>{@code Type.MISS}（朝向天空 / 空气，没有真正命中方块）→ 当前准星指向空气 + 操作提示；</li>
-     *   <li>非 {@code BlockHitResult}（例如命中实体）→ 当前没有有效的准星目标；</li>
-     *   <li>命中方块但该方块 {@code isAir()} → 当前准星指向空气。</li>
+     *   <li>命中方块但该方块 {@code isAir()} → 当前准星指向空气；</li>
+     *   <li>命中实体 → 取实体所在格；展示实体（{@code item_display}）直接读手里的物品模型，
+     *       {@code interaction} 这类点击载体则查同格 / 上下邻格的展示实体；</li>
+     *   <li>命中生物或其它非作物实体 → 如实播报命中了什么，绝不拿附近的作物顶替。</li>
      * </ul>
      *
-     * <p>只读<b>当前</b> {@code mc.hitResult}：不使用上一次目标、不使用附近作物、不缓存、不猜。</p>
+     * <p><b>为什么必须接受实体命中：</b>CraftEngine 系服务器把作物渲染成展示实体（客户端未装对应模组
+     * 时的退化渲染），世界里没有作物方块，盆上方只有空气或不变的隐形载体。这类作物<b>没有碰撞箱</b>，
+     * 若命中实体直接判失败，玩家只会看到「准星没有对准任何方块」，人工校准成熟阶段永远走不通。</p>
      *
-     * @return 真实方块坐标；任何不合法情况都返回 {@code null}（原因已播报）
+     * <p>只读<b>当前</b> {@code mc.hitResult}：不使用上一次目标、不使用附近作物、不缓存、不猜。</p>
      */
-    private BlockPos crosshairTarget() {
+    private CrosshairTarget crosshairTarget() {
         HitResult hit = mc.hitResult;
         if (hit == null) {
             fail("标记成熟失败", "当前没有有效的准星目标");
@@ -483,16 +597,79 @@ public final class StardewCommand extends ClientCommand {
                 .send();
             return null;
         }
-        if (!(hit instanceof BlockHitResult blockHit)) {
-            fail("标记成熟失败", "当前没有有效的准星目标");
-            return null;
+        if (hit instanceof BlockHitResult blockHit) {
+            BlockPos pos = blockHit.getBlockPos();
+            BlockState state = mc.level == null ? null : mc.level.getBlockState(blockHit.getBlockPos());
+            if (state == null || state.isAir()) {
+                fail("标记成熟失败", "当前准星指向空气");
+                return null;
+            }
+            return new CrosshairTarget(pos, displayIdentityAt(pos), null);
         }
-        BlockState state = mc.level == null ? null : mc.level.getBlockState(blockHit.getBlockPos());
-        if (state == null || state.isAir()) {
-            fail("标记成熟失败", "当前准星指向空气");
-            return null;
+        if (hit instanceof EntityHitResult entityHit) {
+            Entity entity = entityHit.getEntity();
+            if (entity == null || entity instanceof LivingEntity) {
+                fail("标记成熟失败", "当前准星没有指向自定义作物"
+                    + (entity == null ? "" : "（命中的是 " + entity.getName().getString() + "）"));
+                return null;
+            }
+            BlockPos pos = entity.blockPosition();
+            // 展示实体自带物品模型 → 直接读；interaction 这类点击载体不带物品 → 查同格与上下邻格的展示实体
+            String identity = StardewCropDisplayProbe.modelOf(entity);
+            if (identity == null) identity = displayIdentityAt(pos);
+            return new CrosshairTarget(pos, identity, entity.getName().getString());
         }
-        return blockHit.getBlockPos();
+        fail("标记成熟失败", "当前没有有效的准星目标");
+        return null;
+    }
+
+    /**
+     * 准星位置的作物真实状态：展示实体通道优先，其次命中的方块本身，再其次它上面一格。
+     *
+     * <p>与 {@code .id 方块}、农田扫描共用 {@link CropRuntimeStateResolver} 这一条唯一判定入口，
+     * 准星路径不另写一套规则。</p>
+     *
+     * <p>「上面一格」是种植盆的固定结构：作物永远种在盆上，准星对着盆（或盆上的隐形载体）时实际
+     * 要校准的是它上面那株作物；只有该格身份确实解析成了带阶段的作物才会采用，绝不会因为「附近有作物」
+     * 就随便认一株。</p>
+     */
+    private CropRuntimeStateResolver.RuntimeResult resolveAt(CrosshairTarget target) {
+        if (target.displayIdentity() != null) {
+            CropRuntimeStateResolver.RuntimeResult byDisplay =
+                CropRuntimeStateResolver.resolveIdentity(target.displayIdentity());
+            if (byDisplay.isCrop() && byDisplay.hasStage()) return byDisplay;
+        }
+        CropRuntimeStateResolver.RuntimeResult direct = CropRuntimeStateResolver.resolve(target.pos());
+        if (direct.isCrop() && direct.hasStage()) return direct;
+        CropRuntimeStateResolver.RuntimeResult above = CropRuntimeStateResolver.resolve(target.pos().above());
+        if (above.isCrop() && above.hasStage()) return above;
+        if (direct.isCrop() || direct.hasStage()) return direct;
+        return above;
+    }
+
+    /**
+     * 该格（含上下邻格）展示实体携带的作物身份。
+     *
+     * <p>展示实体没有碰撞箱，准星命中的往往是服务端放来接收点击的 {@code interaction} 实体，它本身
+     * 不带物品；真正的作物模型挂在旁边的 {@code item_display} 上，而落点在不同服务器上会差一格。
+     * 只读<b>此刻</b>的世界实体：先补录归档（不丢弃农田扫描已有归档）再查。</p>
+     *
+     * @return 已确认成作物（能解析出阶段）的身份；都不是则 {@code null}
+     */
+    private static String displayIdentityAt(BlockPos pos) {
+        StardewCropDisplayProbe.archiveAround(pos);
+        for (BlockPos candidate : List.of(pos, pos.above(), pos.below())) {
+            for (String model : StardewCropDisplayProbe.modelsAt(candidate)) {
+                CropRuntimeStateResolver.RuntimeResult result = CropRuntimeStateResolver.resolveIdentity(model);
+                if (result.isCrop() && result.hasStage()) return model;
+            }
+        }
+        return null;
+    }
+
+    /** 失败原因里的主语：命中实体时如实报出命中了谁，避免玩家以为是「对准的方块不对」 */
+    private static String crosshairSubject(CrosshairTarget target) {
+        return target.entityLabel() == null ? "当前方块" : "命中的 " + target.entityLabel();
     }
 
     /**
@@ -533,6 +710,8 @@ public final class StardewCommand extends ClientCommand {
                 .key("cropKey", outcome.cropKey())
                 .field("阶段", outcome.stageName())
                 .field("原因", "当前服务器资源中不存在该阶段")
+                .field("操作", "若该作物就在眼前，请把准星对准成熟植株后执行「.stardew 标记成熟」——"
+                    + "准星模式会带上刚读到的世界实证阶段，不依赖资源包的阶段清单")
                 .status(CommandMessageFormatter.Level.FAILURE, "未保存")
                 .send();
 
@@ -540,6 +719,15 @@ public final class StardewCommand extends ClientCommand {
                 + "）不在当前服务器资源索引中：请先在「服务器资源」检测 / 提取资源");
 
             case NOT_READY -> reportResourceNotReady("标记成熟失败", "未保存");
+
+            case NO_STAGE_EVIDENCE -> CommandMessageFormatter.of(MODULE_NAME, "标记成熟失败")
+                .highlight("作物", module.cropDisplayName(outcome.cropKey()))
+                .key("cropKey", outcome.cropKey())
+                .field("阶段", outcome.stageName())
+                .field("原因", "当前服务器资源里找不到该作物的阶段证据，无法建立逐作物签名")
+                .field("操作", "先走到农田（或打开种子界面）让该作物被扫描到，再执行「.stardew 检测」重建资源索引后重试")
+                .status(CommandMessageFormatter.Level.FAILURE, "未保存")
+                .send();
 
             case FAILED -> fail("标记成熟失败", "保存失败：请确认当前服务器资源已就绪（需为多人服务器且已完成资源检测）");
 
@@ -573,6 +761,12 @@ public final class StardewCommand extends ClientCommand {
             formatter.field("真实状态", observed.state().displayName());
             formatter.field("生命周期", observed.lifecycleLabel());
         }
+        if (!module.harvestRuleComplete(outcome.cropKey())) {
+            // 成熟阶段只是收菜的一半条件：没有确认生命周期时规则不算完整，模块会先做一次空手试探。
+            // 不说清楚，玩家只会看到「已保存」却等不到自动收菜（实机反馈：这条指令「没用」）。
+            formatter.field("后续", "该作物还缺「生命周期」证据：模块下一轮会对准成熟植株做一次空手试探自动确认"
+                + "（一次性 / 保株），确认后立即开始自动收菜，不需要再手动执行任何指令");
+        }
         formatter.field("规则来源", RuleEvidence.VERIFIED.displayName()
                 + (force ? "（VERIFIED · 人工纠错）" : "（VERIFIED · 人工校准）"))
             .field("作用域", "当前服务器 + 资源指纹 + 作物")
@@ -592,6 +786,26 @@ public final class StardewCommand extends ClientCommand {
         // 标题由排版器统一给出（与其它指令同款），模块只提供「标签 ▶ 值」数据行。
         CommandMessageFormatter card = CommandMessageFormatter.of(MODULE_NAME, "当前状态");
         for (String line : module.statusLines()) card.raw(line);
+        card.send();
+    }
+
+    /**
+     * {@code .stardew 诊断}：资源扫描 / 索引 / 准星识别链路的运行时真相。
+     *
+     * <p>「这个服只识别出一两种作物」这类问题，先跑它就能看出断在哪一环：扫描到多少条、索引里实际
+     * 有几种作物、有没有阶段模型、索引构建是否半途失败、准星方块的方块 ID 能否派生出语义身份。
+     * 与 {@code 状态} 分开：{@code 状态} 讲模块与配置，{@code 诊断} 讲资源与识别。</p>
+     */
+    private void diagnose() {
+        StardewFarmModule module = module();
+        if (module == null) return;
+        CommandMessageFormatter card = CommandMessageFormatter.of(MODULE_NAME, "运行时诊断");
+        for (String line : module.diagnosticLines()) {
+            card.raw(line);
+            // 诊断只进聊天框时没法远程排查（截图才看得到），这里同时留一份到日志。
+            // 玩家在商店 / 箱子等界面里根本无法输入指令，日志往往是唯一能拿到的证据。
+            LOGGER.info("[星露谷] 诊断 {}", line.replaceAll("§[0-9a-fk-orA-FK-OR]", ""));
+        }
         card.send();
     }
 

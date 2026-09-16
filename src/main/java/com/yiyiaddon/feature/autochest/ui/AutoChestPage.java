@@ -15,6 +15,7 @@ import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.component.KeybindBadge;
 import com.yiyiaddon.ui.component.ListRow;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
@@ -80,7 +81,14 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
             "§f  · 后台挂机不抢鼠标/焦点，走客户端内部 API")
     };
 
-    private static final float TEXT_HEIGHT = 22f;
+    /**
+     * 空态文字行的行高：取模块中心的行高（{@link ModuleRow#HEIGHT}）。
+     *
+     * <p>用户 2026-09-16 点进模块页后说「还有点击进去的时候 模块也要缩小 现在都不对称」——本页原来
+     * 自己写 22，与上下同为模块页的卡片行（24）错着两像素，整列文字看着不在节奏上；这里跟着模块
+     * 页统一（行高 24、行距走 {@code CompactModulePage.ROW_GAP}）。分隔线高度不是行，保持原值。</p>
+     */
+    private static final float TEXT_HEIGHT = ModuleRow.HEIGHT;
     private static final float DIVIDER_HEIGHT = 13f;
 
     private final AutoChestModule module;

@@ -66,7 +66,8 @@ public abstract class PanelScreen extends SkiaScreen {
     private static final float TITLE_X = BACK_X + BackButton.SIZE + 12f;
     private static final float TITLE_Y = 27f;
     private static final float PAGE_INSET_X = 10f;
-    private static final float PAGE_RESERVED_W = 40f;
+    /** 页面左右为滚动条等预留的宽度；子类要算「一行到底有多宽」时需要它（如整栏宽的搜索框）。 */
+    protected static final float PAGE_RESERVED_W = 40f;
     private static final float CONTENT_BOTTOM_PAD = 8f;
     private static final float TRACK_INSET = 8f;
     private static final float TRACK_TOP_PAD = 4f;
@@ -183,6 +184,18 @@ public abstract class PanelScreen extends SkiaScreen {
 
     private float contentHeight() {
         return frame.cardHeight() - CONTENT_TOP - CONTENT_PAD;
+    }
+
+    /**
+     * 面板停在最终位置后才动隐藏格子。
+     *
+     * <p>开合动画期间面板每帧都在改缩放与下沉量，而隐藏格子的画面备份取自上一帧的主帧缓冲
+     * （含上一帧的面板），画回去之后与当前面板对不齐，透在半透明玻璃里就是正文重影
+     * （用户 2026-09-16：「字糊了」，详情见 {@code SkiaScreen#canCaptureIcons}）。</p>
+     */
+    @Override
+    protected boolean canCaptureIcons() {
+        return frame.animationAlpha() >= 1f;
     }
 
     @Override

@@ -38,8 +38,8 @@ public final class StardewSettings {
     public int scanBudget = 16;
     /** 回中心等待时间，默认 10，取值域 1~300 */
     public int returnCenterDelay = 10;
-    /** 批量右击，默认 4，取值域 1~8 */
-    public int batchActions = 4;
+    /** 批量动作（右键 / 破坏同 tick 连发上限），默认 8，取值域 1~15 */
+    public int batchActions = 8;
 
     // ━━━ 运行参数：浇水 ━━━
 
@@ -163,6 +163,8 @@ public final class StardewSettings {
     public final List<String> selectedPotionKeys = new ArrayList<>();
     public final List<String> selectedCanKeys = new ArrayList<>();
     public final List<String> selectedSprinklerKeys = new ArrayList<>();
+    /** 已选温室玻璃（盆上方 5 格内有它 → 作物不因季节枯萎，非当季照常播种） */
+    public final List<String> selectedShelterKeys = new ArrayList<>();
 
     // ━━━ 取值域（界面输入框与服务层共用同一份，禁止各自再写一遍） ━━━
 
@@ -173,7 +175,7 @@ public final class StardewSettings {
     public static final int RETURN_CENTER_DELAY_MIN = 1;
     public static final int RETURN_CENTER_DELAY_MAX = 300;
     public static final int BATCH_ACTIONS_MIN = 1;
-    public static final int BATCH_ACTIONS_MAX = 8;
+    public static final int BATCH_ACTIONS_MAX = 15;
     public static final int SPRINKLER_INTERVAL_MIN = 200;
     public static final int SPRINKLER_INTERVAL_MAX = 12000;
     public static final int LABEL_SIZE_MIN = 6;
@@ -193,9 +195,9 @@ public final class StardewSettings {
     public static final String NAME_RETURN_CENTER_DELAY = "回中心等待时间";
     public static final String DESC_RETURN_CENTER_DELAY = "没有可执行任务时，玩家连续静止多少秒才自动返回农田中心";
 
-    public static final String NAME_BATCH_ACTIONS = "批量右击";
-    public static final String DESC_BATCH_ACTIONS = "同一 tick 最多对几个格子发右键（1 = 关闭）。只做右键：收割 / 浇水 / 播种 / 施肥；"
-        + "清理枯苗这类破坏动作永远单目标。默认 4，上限 8；填得越高越快——同 tick 多个交互包"
+    public static final String NAME_BATCH_ACTIONS = "批量动作";
+    public static final String DESC_BATCH_ACTIONS = "同一 tick 最多对几个格子连发交互包（1 = 关闭）：收割 / 浇水 / 播种 / 施肥发右键，"
+        + "清枯苗 / 清错位 / 清杂物发左键破坏（只打盆上方那格，不碰盆）。默认 8，上限 15；填得越高越快——同 tick 多个交互包"
         + "更容易被服务器丢掉或反作弊注意到";
 
     public static final String NAME_AUTO_WATER = "自动浇灌";
@@ -233,7 +235,9 @@ public final class StardewSettings {
     public static final String NAME_AUTO_CLEAR_MISMATCH = "自动清理错位作物";
     public static final String DESC_AUTO_CLEAR_MISMATCH = "某块单一作物区里种了别的作物时，自动走过去把它挖掉，"
         + "空出的盆按这块地绑定的作物补种（默认开启）；关掉则只把错位格用红框标出并停住，等你手动清理。"
-        + "混种区域种什么都算对，不参与这条；破坏动作永远单目标，不会连发";
+        + "本开关同时管盆上杂物（认不出的方块）：开着照挖、关掉不动手。分区内的枯死作物不受本开关影响，"
+        + "一律静默清掉再补种——冬天冻死成片时不再报「区域里的作物不对」，也不停机。"
+        + "混种区域种什么都算对，不参与错位判定；挖除量受「批量动作」档位约束（1 = 一格一格挖）";
 
     public static final String NAME_LOGISTICS_SIMPLE = "简化后勤";
     public static final String DESC_LOGISTICS_SIMPLE = "开启时不用设置补货 / 卸货：种子少于 2 去补、补到 8；成品攒到 8 去卸、不留底。"

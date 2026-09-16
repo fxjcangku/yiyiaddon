@@ -122,7 +122,8 @@ public final class StardewProfileAssembler {
     private StardewServerProfile loadProfileWithDocumentedRules(String serverKey) {
         String fingerprint = ResourceExtractionService.fingerprint();
         Map<String, StardewCropResourceSignature.Signature> computed =
-            StardewCropResourceSignature.compute(index.crops());
+            StardewCropResourceSignature.compute(index.crops(),
+                cropKey -> !index.stagesOf(cropKey).isEmpty());
         activeCropSignatures = new LinkedHashMap<>();
         computed.forEach((cropKey, signature) -> activeCropSignatures.put(cropKey, signature.value()));
 
@@ -165,7 +166,15 @@ public final class StardewProfileAssembler {
         String serverKey = StardewContext.serverKey();
         String fingerprint = ResourceExtractionService.fingerprint();
         String signature = activeCropSignatures.get(learned.cropKey());
-        if (fingerprint == null || signature == null || index.cropByKey(learned.cropKey()) == null) return;
+        if (fingerprint == null || signature == null || index.cropByKey(learned.cropKey()) == null) {
+            // 学出来却存不下去必须说出来：静默返回会让玩家看到「正在收获」循环却永远没有规则，
+            // 完全不知道断在哪（实机反馈：熟了不收、也不报错）。
+            if (signature == null && index.cropByKey(learned.cropKey()) != null) {
+                statusReporter.state("LEARN_NO_SIGNATURE:" + learned.cropKey(), "收获规则未能保存",
+                    "当前服务器资源里找不到该作物的阶段证据，无法建立逐作物签名");
+            }
+            return;
+        }
         StardewHarvestRule rule = new StardewHarvestRule(learned.matureStage(),
             StardewHarvestAction.RIGHT_CLICK, learned.lifecycle(), learned.afterHarvestStage(),
             RuleEvidence.VERIFIED, signature);

@@ -54,8 +54,8 @@ public final class StardewRunPage {
         stack.add(intRow(StardewSettings.NAME_BATCH_ACTIONS, StardewSettings.DESC_BATCH_ACTIONS,
             StardewSettings.BATCH_ACTIONS_MIN, StardewSettings.BATCH_ACTIONS_MAX,
             () -> s.batchActions, value -> s.batchActions = value));
-        stack.add(new Note(owner, "§8批量右击 = 同一 tick 最多对几个格子发右键（只做收割 / 浇水 / 播种 / 施肥）。"
-            + "调高更快，也更容易被服务器反作弊注意到"));
+        stack.add(new Note(owner, "§8批量动作 = 同一 tick 最多对几个格子连发交互包（收割 / 浇水 / 播种 / 施肥发右键，"
+            + "清枯苗 / 清错位 / 清杂物发左键破坏）。调高更快，也更容易被服务器反作弊注意到"));
 
         stack.add(section("自动化"));
         stack.add(boolRow(StardewSettings.NAME_AUTO_WATER, StardewSettings.DESC_AUTO_WATER,

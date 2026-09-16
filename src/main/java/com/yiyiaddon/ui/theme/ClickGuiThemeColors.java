@@ -52,8 +52,8 @@ public final class ClickGuiThemeColors {
     public final int scrollbarThumb;
 
     // —— 派生色：搜索框 ——
-    public final int searchBackground;
-    public final int searchFocusedBackground;
+    // 注：搜索框的「底」不在这里——它走 GlassPanel#textField（与同页的行同一套霜化玻璃），
+    // 实心填色会在霜化玻璃行之间显得像贴上去的深色板（用户 2026-09-16 反馈）。
     public final int searchIcon;
     public final int searchCursor;
     public final int searchText;
@@ -86,7 +86,7 @@ public final class ClickGuiThemeColors {
             int mutedText, int inactiveText, int inactiveIcon, int subModuleText,
             int indicator, int hoverBackground, int buttonBackground, int buttonText,
             int scrollbarTrack, int scrollbarThumb,
-            int searchBackground, int searchFocusedBackground, int searchIcon,
+            int searchIcon,
             int searchCursor, int searchText, int searchTextPlaceholder,
             int dangerHoverBackground, int dangerHoverText,
             int keybindBackground, int keybindHoverBackground, int keybindUnbindBackground,
@@ -119,8 +119,6 @@ public final class ClickGuiThemeColors {
         this.buttonText = buttonText;
         this.scrollbarTrack = scrollbarTrack;
         this.scrollbarThumb = scrollbarThumb;
-        this.searchBackground = searchBackground;
-        this.searchFocusedBackground = searchFocusedBackground;
         this.searchIcon = searchIcon;
         this.searchCursor = searchCursor;
         this.searchText = searchText;
@@ -185,9 +183,7 @@ public final class ClickGuiThemeColors {
         int scrollbarTrack = mix(border, window, 0.5f);
         int scrollbarThumb = mix(secondaryText, dark ? window : 0x000000, dark ? 0.20f : 0.10f);
 
-        // 搜索框
-        int searchBackground = mix(sidebar, accent, dark ? 0.06f : 0.03f);
-        int searchFocusedBackground = mix(sidebar, accent, dark ? 0.18f : 0.10f);
+        // 搜索框：底色不在这里（走 GlassPanel#textField），只留文字与图标几支派生色
         int searchIcon = secondaryText;
         int searchCursor = accent;
         int searchText = primaryText;
@@ -225,7 +221,7 @@ public final class ClickGuiThemeColors {
                 mutedText, inactiveText, inactiveIcon, subModuleText,
                 indicator, hoverBackground, buttonBackground, buttonText,
                 scrollbarTrack, scrollbarThumb,
-                searchBackground, searchFocusedBackground, searchIcon,
+                searchIcon,
                 searchCursor, searchText, searchTextPlaceholder,
                 dangerHoverBackground, dangerHoverText,
                 keybindBackground, keybindHoverBackground, keybindUnbindBackground,

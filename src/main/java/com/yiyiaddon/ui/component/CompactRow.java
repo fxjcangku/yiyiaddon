@@ -17,14 +17,24 @@ import java.util.function.Supplier;
  * 实际空隙截断，因此永远不会压住控件或标签。标签留空时控件左对齐，用于「一排分段按钮」这种
  * 没有标签的整行控件。</p>
  *
+ * <p><b>行高走模块中心的那一档</b>（{@link ModuleRow#HEIGHT}）：用户 2026-09-16 点进模块页后说
+ * 「还有点击进去的时候 模块也要缩小 现在都不对称」——行里的按钮行原来是 36 的高卡，与模块中心
+ * 的模块行（24）不是一套视觉语言。收的是<b>行高，不是字号</b>：标签仍 13、悬停说明仍 10，
+ * 行内控件（按钮 24 / 开关 24 / 输入框 24 …）本来就都不高于 24，正好落在行内居中。</p>
+ *
+ * <p>行高是共享的值：{@link #height()}（总高度）、{@link #draw}（绘制）与 {@link #onClick}
+ * （命中）三处都读 {@link #HEIGHT}，圆角也由 {@link GlassPanel#rowRadius(float)} 按同一个高度算，
+ * 因此「看到的」「点到的」「滚动范围」同源，不会出现矮行点不准。</p>
+ *
  * <p>控件矩形由私有方法统一给出，绘制、悬停、点击、拖动共用，行高变矮也不会错位。</p>
  */
 public final class CompactRow implements CompactElement {
 
-    /** 行高：明显低于旧设置行的 56。 */
-    public static final float HEIGHT = 36f;
+    /** 行高：与模块中心的模块行同高（{@link ModuleRow#HEIGHT}），整页行节奏才是一套。 */
+    public static final float HEIGHT = ModuleRow.HEIGHT;
 
-    private static final float PAD_X = 14f;
+    /** 左内缩：与控制台的 {@code ConsoleMetrics.PAD_X} 同值（标签行在两种页面里对齐同一列）。 */
+    public static final float PAD_X = 14f;
     private static final float LABEL_SIZE = 13f;
     private static final float HINT_SIZE = 10f;
     private static final float HINT_GAP = 12f;

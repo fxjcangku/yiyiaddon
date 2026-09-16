@@ -19,7 +19,13 @@ public final class CardLayout {
 
     /** 列间距。 */
     public static final float GAP_X = 14f;
-    /** 行间距。 */
+    /**
+     * 行间距的默认值。
+     *
+     * <p>紧凑清单（模块中心）行高只有 {@code ModuleRow.HEIGHT}，配 14 的行距会显得松散，
+     * 因此行距做成了可传参：{@link #cardY(float, float, float, int, int)} 一族收 {@code gapY}，
+     * 不传的旧调用（带投影的卡片网格）继续用 14。</p>
+     */
     public static final float GAP_Y = 14f;
 
     /**
@@ -46,8 +52,18 @@ public final class CardLayout {
 
     /** 第 index 张卡片的顶边界；绘制与命中共用。 */
     public static float cardY(float originY, float cardH, int columns, int index) {
+        return cardY(originY, cardH, GAP_Y, columns, index);
+    }
+
+    /**
+     * 第 index 张卡片的顶边界，行距由调用方给出；绘制与命中共用。
+     *
+     * <p>行距走参数而不是全局常量：同一份坐标计算要同时服务「行距 8 的紧凑清单」与
+     * 「行距 14 的卡片网格」，各算各的就会让命中与画面错位。</p>
+     */
+    public static float cardY(float originY, float cardH, float gapY, int columns, int index) {
         int cols = Math.max(1, columns);
-        return originY + (index / cols) * (cardH + GAP_Y);
+        return originY + (index / cols) * (cardH + gapY);
     }
 
     /** 总行数；卡片数不是列数整数倍时最后一行按剩余卡片计。 */
@@ -59,9 +75,14 @@ public final class CardLayout {
 
     /** 全部卡片占用的总高度。 */
     public static float totalHeight(int count, float cardH, int columns) {
+        return totalHeight(count, cardH, GAP_Y, columns);
+    }
+
+    /** 全部卡片占用的总高度，行距由调用方给出；滚动范围与画面用同一份结果。 */
+    public static float totalHeight(int count, float cardH, float gapY, int columns) {
         int rows = rows(count, columns);
         if (rows <= 0) return 0f;
-        return rows * cardH + (rows - 1) * GAP_Y;
+        return rows * cardH + (rows - 1) * gapY;
     }
 
     /**
@@ -72,11 +93,17 @@ public final class CardLayout {
      */
     public static int indexAt(float mx, float my, float originX, float originY, float contentW, float cardH,
                               int columns, int count) {
+        return indexAt(mx, my, originX, originY, contentW, cardH, GAP_Y, columns, count);
+    }
+
+    /** 命中测试，行距由调用方给出：与 {@link #cardY(float, float, float, int, int)} 同源，命中框不会错位。 */
+    public static int indexAt(float mx, float my, float originX, float originY, float contentW, float cardH,
+                              float gapY, int columns, int count) {
         if (count <= 0) return -1;
         float cardW = cardWidth(contentW, columns);
         for (int i = 0; i < count; i++) {
             float cx = cardX(originX, contentW, columns, i);
-            float cy = cardY(originY, cardH, columns, i);
+            float cy = cardY(originY, cardH, gapY, columns, i);
             if (mx >= cx && mx <= cx + cardW && my >= cy && my <= cy + cardH) return i;
         }
         return -1;

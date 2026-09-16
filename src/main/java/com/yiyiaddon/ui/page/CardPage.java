@@ -14,11 +14,13 @@ import org.lwjgl.glfw.GLFW;
 /**
  * 卡片式页面基类。
  *
- * <p>模块中心与模块列表都是「一屏卡片网格」，滚动、命中与悬停动画的几何计算完全相同，
- * 因此集中在这里；子类只需给出卡片列数、卡片高度、单张卡片的绘制与点击行为。</p>
+ * <p>滚动、命中与悬停动画的几何计算完全相同，因此集中在这里；子类只需给出卡片高度、单张卡片的
+ * 绘制与点击行为，以及需要时覆写一组逐张卡片生效的几何钩子（列宽 / 左右上下坐标 / 命中 / 总高度）。</p>
  *
- * <p>列宽、行列坐标与总高度全部来自 {@link CardLayout}，绘制、悬停、点击共用同一组结果，
- * 卡片紧凑后鼠标命中仍与画面一致。</p>
+ * <p>默认几何＝整页等宽网格，列宽、行列坐标与总高度全部来自 {@link CardLayout}；行宽随行变化的页面
+ * （模块中心：分类头独占一行、其下的模块横向并排）覆写钩子即可，绘制、悬停、点击与滚动总高度共用
+ * 同一份结果，卡片紧凑后鼠标命中仍与画面一致。行距默认 {@link CardLayout#GAP_Y}，紧凑清单页可覆写
+ * {@link #rowGap()} 收得更紧。</p>
  *
  * <p>悬停强度用临界阻尼弹簧过渡到目标值，卡片同时上抬 1px；按下时卡片缩到 0.97。
  * 两套动画状态都在构造时一次性分配，绘制期间不产生新对象。</p>
@@ -77,11 +79,65 @@ public abstract class CardPage extends BasePage {
         return cardCount;
     }
 
-    /** 卡片列数；由页面按卡片内容长度给出，绘制与命中都读这一个值。 */
-    protected abstract int columns();
+    /**
+     * 卡片列数（整页等宽网格的页面覆写）；默认单列。
+     *
+     * <p>行宽随行变化的页面<b>不</b>覆写它，而是覆写下面那一组几何钩子：模块中心的分类头要独占
+     * 一整行、其下的模块又要按网格横向并排，一张卡片的宽度不再由「全页列数」决定，只有逐张算
+     * 才排得对。</p>
+     */
+    protected int columns() {
+        return 1;
+    }
 
     /** 单张卡片高度。 */
     protected abstract float cardHeight();
+
+    /**
+     * 第 index 张卡片的宽度。
+     *
+     * <p>默认实现＝整页等宽网格。绘制、悬停、点击与滚动总高度<b>必须</b>全部走
+     * {@link #cardWidth} / {@link #cardX} / {@link #cardY} / {@link #indexAt} / {@link #contentHeight}
+     * 这一组钩子：几何只要有两处算法，命中就会与画面错位。</p>
+     */
+    protected float cardWidth(float contentW, int index) {
+        return CardLayout.cardWidth(contentW, columns());
+    }
+
+    /** 第 index 张卡片的左边界。 */
+    protected float cardX(float originX, float contentW, int index) {
+        return CardLayout.cardX(originX, contentW, columns(), index);
+    }
+
+    /** 第 index 张卡片的顶边界。 */
+    protected float cardY(float originY, float contentW, int index) {
+        return CardLayout.cardY(originY, cardHeight(), rowGap(), columns(), index);
+    }
+
+    /** 卡片内容的总高度（不含顶部留白）；滚动范围与画面共用同一份结果。 */
+    protected float contentHeight(float contentW) {
+        return CardLayout.totalHeight(cardCount, cardHeight(), rowGap(), columns());
+    }
+
+    /**
+     * 命中测试：返回命中的卡片下标，未命中返回 {@code -1}。
+     *
+     * @param originY 卡片区顶部（已扣除滚动偏移）
+     */
+    protected int indexAt(float mx, float my, float originX, float originY, float contentW) {
+        return CardLayout.indexAt(mx, my, originX, originY, contentW, cardHeight(), rowGap(), columns(), cardCount);
+    }
+
+    /**
+     * 行间距；默认 {@link CardLayout#GAP_Y}（14，给带投影的卡片网格留的）。
+     *
+     * <p>紧凑清单页可以覆写成更小值：模块中心的行高只有 {@link com.yiyiaddon.ui.component.ModuleRow#HEIGHT}，
+     * 再按 14 排行会显得松散、展开后的整组节奏断裂（用户 2026-09-16 要「做小一点」）。行距必须由
+     * 绘制、命中、悬停、总高度共用同一个值，否则命中框会与画面错位。</p>
+     */
+    protected float rowGap() {
+        return CardLayout.GAP_Y;
+    }
 
     /** 绘制第 index 张卡片，(x, y) 为卡片左上角。 */
     protected abstract void drawCard(Canvas canvas, int index, float x, float y, float w, float alpha, float hover,
@@ -98,21 +154,35 @@ public abstract class CardPage extends BasePage {
     @Override
     public float getTotalHeight() {
         if (cardCount == 0) return TOP_INSET + EMPTY_STATE_HEIGHT;
-        return TOP_INSET + CardLayout.totalHeight(cardCount, cardHeight(), columns());
+        // 宽度来自上一帧的绘制（滚动上限在绘制之前刷新），页面自己兜底处理「还不知道宽度」的情形
+        return TOP_INSET + contentHeight(lastContentW);
     }
 
     @Override
     public void update(float dt) {
-        int columns = columns();
         int target = Float.isNaN(lastMouseX)
                 ? -1
-                : CardLayout.indexAt(lastMouseX, lastMouseY, lastOriginX, lastOriginY, lastContentW, cardHeight(),
-                        columns, cardCount);
+                : indexAt(lastMouseX, lastMouseY, lastOriginX, lastOriginY, lastContentW);
         for (int i = 0; i < cardCount; i++) {
             hoverSpring[i].setTarget(i == target ? 1f : 0f);
             hoverSpring[i].update(dt);
             pressState[i].update(dt);
         }
+    }
+
+    /**
+     * 本帧指针横坐标（设计空间）。
+     *
+     * <p>卡片绘制时需要它做两件事：判断指针是否落在自己身上、以及把悬停浮层锚在指针旁边。
+     * {@code drawCard} 拿不到指针坐标，因此由这里给出本帧 {@link #draw} 收到的同一份值。</p>
+     */
+    protected final float frameMouseX() {
+        return lastMouseX;
+    }
+
+    /** 本帧指针纵坐标（设计空间）；与 {@link #frameMouseX()} 同一来源。 */
+    protected final float frameMouseY() {
+        return lastMouseY;
     }
 
     @Override
@@ -129,14 +199,14 @@ public abstract class CardPage extends BasePage {
             return;
         }
 
-        int columns = columns();
-        float cardW = CardLayout.cardWidth(contentW, columns);
-        float cardH = cardHeight();
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        float cardH = cardHeight();
         for (int i = 0; i < cardCount; i++) {
             float hover = hoverSpring[i].value();
-            float cx = CardLayout.cardX(x, contentW, columns, i);
-            float cy = CardLayout.cardY(lastOriginY, cardH, columns, i) - hover * HOVER_LIFT;
+            // 宽度逐张问：分类头独占一行、模块按网格并排的页面，一行里每张卡的宽度并不相同
+            float cardW = cardWidth(contentW, i);
+            float cx = cardX(x, contentW, i);
+            float cy = cardY(lastOriginY, contentW, i) - hover * HOVER_LIFT;
             float pressScale = pressState[i].scale();
             boolean pressed = Math.abs(pressScale - 1f) > 0.0005f;
             if (pressed) {
@@ -156,8 +226,7 @@ public abstract class CardPage extends BasePage {
     public boolean onClick(float mx, float my, float contentX, float contentY, float contentW, float scrollOffset,
                            int button) {
         if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT || cardCount == 0) return false;
-        int index = CardLayout.indexAt(mx, my, contentX, contentY + TOP_INSET - scrollOffset, contentW, cardHeight(),
-                columns(), cardCount);
+        int index = indexAt(mx, my, contentX, contentY + TOP_INSET - scrollOffset, contentW);
         if (index < 0) return false;
         pressState[index].press();
         onCardActivated(index);

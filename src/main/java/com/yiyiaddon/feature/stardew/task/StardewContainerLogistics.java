@@ -53,8 +53,14 @@ final class StardewContainerLogistics {
         StardewPointType pointType = owner.taskType == TaskType.UNLOAD ? StardewPointType.OUTPUT_BOX : StardewPointType.SEED_BOX;
         String pointFailure = owner.points.validationFailure(pointType, owner.points.get(pointType), owner.index);
         if (pointFailure != null) {
-            owner.status.critical("LOGISTICS_POINT:" + pointType + ':' + pointFailure,
-                pointType.title() + "点位失效", "已暂停当前后勤任务");
+            // 同 MATERIAL_BOX：区块 / 方块实体尚未同步是暂时的，别按「点位失效」停机
+            if (StardewPointManager.isWorldPending(pointFailure)) {
+                owner.status.state("LOGISTICS_POINT_PENDING:" + pointType,
+                    pointType.title() + " 数据尚未同步", "稍后自动复核");
+            } else {
+                owner.status.critical("LOGISTICS_POINT:" + pointType + ':' + pointFailure,
+                    pointType.title() + "点位失效", "已暂停当前后勤任务");
+            }
             owner.phase = Phase.REPLAN;
             return;
         }

@@ -103,6 +103,12 @@ public final class ModuleScreen extends SkiaScreen {
         return frame.cardHeight() - CONTENT_TOP - CONTENT_PAD;
     }
 
+    /** 面板停在最终位置后才动隐藏格子；动画期间的画面备份与当前面板对不齐，会透出正文重影。 */
+    @Override
+    protected boolean canCaptureIcons() {
+        return frame.animationAlpha() >= 1f;
+    }
+
     // —— 绘制 ——
 
     @Override

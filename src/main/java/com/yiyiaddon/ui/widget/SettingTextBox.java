@@ -7,7 +7,6 @@ import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.Paint;
-import io.github.humbleui.types.RRect;
 import io.github.humbleui.types.Rect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.CharacterEvent;
@@ -27,7 +26,6 @@ public class SettingTextBox extends SettingWidget {
     private final Supplier<String> valueSupplier;
     private final Consumer<String> valueConsumer;
     private final int maxLength;
-    private final Paint bgPaint = new Paint().setAntiAlias(true);
     private final Paint linePaint = new Paint().setAntiAlias(true);
     private final Paint selectionPaint = new Paint().setAntiAlias(true);
     private final Paint cursorPaint = new Paint().setAntiAlias(true);
@@ -62,9 +60,12 @@ public class SettingTextBox extends SettingWidget {
         boolean active = focused == this;
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
-        int background = lerpColor(tc.searchBackground, tc.searchFocusedBackground, focusAlpha);
-        bgPaint.setColor(withAlpha(background, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(x, y, getWidth(), getHeight(), 7f), bgPaint);
+        // 输入框与同页的行共用一套玻璃语言（ListRow / CompactRow 的 frost + 1px 高光内描边），
+        // 唯一定义在 GlassPanel#textField：用户 2026-09-16 原话「点击搜索的框 太深了 看见了吗
+        // 像一块东西粘住在那里一样 突兀」——实心填色夹在霜化玻璃行之间就是一块贴上去的深色板。
+        // 聚焦提示仍由光标与焦点环表达，底色只是极轻的重心变化。
+        float radius = GlassPanel.rowRadius(getHeight());
+        GlassPanel.textField(canvas, x, y, getWidth(), getHeight(), radius, tc, focusAlpha, alpha);
 
         String text = getDisplayText();
         clampCursor(text);
@@ -105,7 +106,7 @@ public class SettingTextBox extends SettingWidget {
         canvas.drawRect(Rect.makeXYWH(x + 8f, y + getHeight() - 2f, getWidth() - 16f, 1f), linePaint);
 
         // 获得输入焦点时描一圈强调色焦点环
-        GlassPanel.focusRing(canvas, x, y, getWidth(), getHeight(), 7f, tc.accent, alpha * focusAlpha);
+        GlassPanel.focusRing(canvas, x, y, getWidth(), getHeight(), radius, tc.accent, alpha * focusAlpha);
     }
 
     /** 绘制 IME 预编辑串（拼音组合等）：跟随光标位置，带下划线。 */
@@ -385,12 +386,5 @@ public class SettingTextBox extends SettingWidget {
     private static boolean isKeyDown(int key) {
         long handle = Minecraft.getInstance().getWindow().handle();
         return GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS;
-    }
-
-    private static int lerpColor(int a, int b, float t) {
-        t = Math.max(0f, Math.min(1f, t));
-        int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
-        int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
-        return ((int)(ar+(br-ar)*t) << 16) | ((int)(ag+(bg-ag)*t) << 8) | (int)(ab+(bb-ab)*t);
     }
 }

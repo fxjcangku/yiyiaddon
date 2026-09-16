@@ -34,8 +34,22 @@ public abstract class SkiaScreen extends Screen {
         frameDelta = partialTick;
         framePending = true;
         // 把本帧待加载的物品图标画进屏幕中心的隐藏格子，帧末截取成贴图后即可被面板覆盖。
-        ItemIconCache.getInstance().renderPending(graphics);
+        if (canCaptureIcons()) {
+            ItemIconCache.getInstance().renderPending(graphics);
+        }
         // 局部玻璃在帧末只采样面板区域；这里不再模糊整屏，否则折射边缘与主体失去差异。
+    }
+
+    /**
+     * 本帧是否允许向主帧缓冲写「隐藏格子」并回读画面备份。
+     *
+     * <p>默认允许。面板类界面在开合动画期间必须返回 {@code false}：画面备份取自<b>上一帧</b>的
+     * 主帧缓冲（抽帧阶段读，那时上一帧画面还在，本帧还没清屏），而上一帧的面板还在另一档缩放与
+     * 位移上，把它画回去之后新面板（更小、且半透明）盖不住它，于是旧面板的文字与新面板错位叠在
+     * 一起 —— 就是用户 2026-09-16 反馈的「字糊了」（动画一结束两帧面板完全重合，糊味自动消失）。</p>
+     */
+    protected boolean canCaptureIcons() {
+        return true;
     }
 
     /** 由帧末 Mixin 在主 Framebuffer blit 之前调用。 */

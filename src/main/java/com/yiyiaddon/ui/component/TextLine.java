@@ -25,6 +25,8 @@ public class TextLine implements CompactElement {
     private float height = DEFAULT_HEIGHT;
     private float size = DEFAULT_SIZE;
     private boolean bold;
+    /** 额外左缩进（在默认左内边距之外再加）；两级分组的子标题靠它显示层级。 */
+    private float indent;
     /** 文字基准色；0 表示跟随主题主文字色。 */
     private int color;
 
@@ -56,6 +58,12 @@ public class TextLine implements CompactElement {
         return this;
     }
 
+    /** 额外左缩进：在默认左内边距之外再右移，用于两级分组里的次级标题。 */
+    public TextLine indent(float indent) {
+        this.indent = Math.max(0f, indent);
+        return this;
+    }
+
     /** 覆盖文字基准色（RGB）；0 表示跟随主题。 */
     public TextLine color(int rgb) {
         this.color = rgb & 0xFFFFFF;
@@ -76,7 +84,7 @@ public class TextLine implements CompactElement {
         String value = text.get();
         if (value == null || value.isEmpty()) return;
         int base = color == 0 ? ClickGuiThemeColors.current().primaryText : color;
-        MinecraftText.draw(canvas, value, x + PAD_X, y + height / 2f + size * BASELINE_RATIO,
+        MinecraftText.draw(canvas, value, x + PAD_X + indent, y + height / 2f + size * BASELINE_RATIO,
                 size, base, alpha, bold);
     }
 

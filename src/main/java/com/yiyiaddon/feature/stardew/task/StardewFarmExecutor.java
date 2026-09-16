@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.profile.WateringCanDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
+import com.yiyiaddon.feature.stardew.recognition.StardewCropDisplayProbe;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
 import com.yiyiaddon.feature.stardew.task.StardewCoordinator.Phase;
@@ -17,8 +18,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +42,7 @@ import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.VIEW_TURN_ST
 import static com.yiyiaddon.feature.stardew.task.StardewCoordinator.learningKey;
 
 /**
- * 星露谷农场执行器：视角同步 / 批量右击 / 收割浇水播种施肥药剂 / 水壶补水 / 洒水器维护 / 主手切换。
+ * 星露谷农场执行器：视角同步 / 批量动作（右击 / 破坏）/ 收割浇水播种施肥药剂 / 水壶补水 / 洒水器维护 / 主手切换。
  *
  * <p>本类由 {@link StardewCoordinator} 机械拆分而来，共享协调器的全部可变状态
  * （通过 {@code owner} 直接读写），行为与拆分前完全一致。</p>
@@ -114,7 +117,8 @@ final class StardewFarmExecutor {
     private BlockPos interactionFacingTarget() {
         if (owner.taskType == null) return null;
         return switch (owner.taskType) {
-            case HARVEST, LEARN_HARVEST, CLEAR_DEAD, CLEAR_MISMATCH -> owner.targetPot == null ? null : owner.targetPot.above();
+            case HARVEST, LEARN_HARVEST, CLEAR_DEAD, CLEAR_MISMATCH, CLEAR_JUNK ->
+                owner.targetPot == null ? null : owner.targetPot.above();
             case WATER, PLANT, FERTILIZE, POTION -> owner.targetPot;
             case REFILL -> {
                 // 物料盆（下界 / 末地）的 REFILL 是去岩浆箱 / 龙息箱取料，视角必须对准箱子；
@@ -155,26 +159,30 @@ final class StardewFarmExecutor {
     }
 
     /**
-     * 批量右击：主目标发包成功后，顺手把同一批里其它合格的格子也右键掉，省掉每格一遍完整状态机。
+     * 批量动作：主目标发包成功后，顺手把同一批里其它合格的格子也打掉，省掉每格一遍完整状态机。
      *
-     * <p><b>为什么只做右键：</b>收割 / 浇水 / 播种 / 施肥都是右键（{@code interactBlock} /
-     * {@code useOnBlock}），服务端按命中坐标独立判定，互不干扰；<b>清理枯苗是左键破坏</b>，
-     * 一律走单目标，绝不进批量，避免一次连发打坏一片。</p>
+     * <p><b>两种批量：</b>收割 / 浇水 / 播种 / 施肥是右键（{@code interactBlock} / {@code useOnBlock}）；
+     * 清枯苗 / 清错位 / 清杂物是左键破坏（{@code START_DESTROY_BLOCK + STOP}，这类方块硬度为 0，一包即毁）。
+     * 两者都只在同一 tick 连发若干包，服务端按命中坐标独立判定，互不干扰；破坏始终只打作物本体
+     * （盆上方那格），绝不碰盆。</p>
      *
      * <p><b>为什么不做学习探测：</b>{@code LEARN_HARVEST} 是「空手试探 + 观察证据」，必须一格格来，
      * 连发会把证据搅在一起，学习结论直接作废。</p>
      *
-     * <p><b>筛选口径与决策完全一致：</b>复用 {@link #resolveTask}，只挑「同一任务类型、同一作物、
-     * 同一盆类型、在交互距离内、未被导航退避」的格子；因此批量不会越过分区，也不会跨作物乱采。</p>
+     * <p><b>筛选口径与决策完全一致：</b>复用 {@link #resolveTask}，只挑「同一任务类型、同一作物
+     * （破坏不按作物匹配：枯苗 / 错位本就是要把这一格清掉）、同一区域、在交互距离内、未被导航退避」
+     * 的格子；因此批量不会越过分区，也不会跨作物乱采、乱种。</p>
      *
      * <p><b>不做额外断言：</b>额外目标不参与 {@link #verifyResult()}，服务端若拒绝，下一轮观察
      * 会重新把它当待办，等于「最多白打一次」，不会出现假成功。</p>
      */
     void sendBatchActions() {
         if (owner.batchActions <= 1) return;
-        if (owner.taskType != TaskType.HARVEST && owner.taskType != TaskType.WATER
-            && owner.taskType != TaskType.PLANT && owner.taskType != TaskType.FERTILIZE) return;
         if (owner.targetPot == null || owner.activeCell == null) return;
+        boolean breaking = owner.taskType == TaskType.CLEAR_DEAD || owner.taskType == TaskType.CLEAR_MISMATCH
+            || owner.taskType == TaskType.CLEAR_JUNK;
+        if (!breaking && owner.taskType != TaskType.HARVEST && owner.taskType != TaskType.WATER
+            && owner.taskType != TaskType.PLANT && owner.taskType != TaskType.FERTILIZE) return;
         // 物料盆（下界 / 末地）不参与批量：一次右键就把手上那一桶岩浆 / 那一个龙息消耗掉了，
         // 第二发手上已经不是物料（变成空桶 / 玻璃瓶），服务端只会白收一个包。
         // 水壶能连发是因为它是同一件工具、只减水量，物品本身不变。
@@ -191,17 +199,17 @@ final class StardewFarmExecutor {
             if (remaining <= 0) return;
             BlockPos pot = cell.potPos();
             if (pot.equals(owner.targetPot) || !sent.add(pot)) continue;
-            if (cropKey != null && !cropKey.equals(cell.crop().cropKey())) continue;
-            if (batchTarget != null) {
-                CropDefinition want = owner.planner.cropOf(pot);
-                if (want == null || !batchTarget.cropKey().equals(want.cropKey())) continue;
-            }
+            if (!breaking && cropKey != null && !cropKey.equals(cell.crop().cropKey())) continue;
+            CropDefinition want = owner.planner.cropOf(pot);
+            if (want == null || !batchTarget.cropKey().equals(want.cropKey())) continue;
             if (owner.planner.resolveTask(cell) != owner.taskType) continue;
             if (owner.planner.isNavigationBlocked(owner.taskType, pot)) continue;
-            BlockPos interactPos = batchInteractPos(pot);
+            BlockPos interactPos = breaking ? pot.above() : batchInteractPos(pot);
             if (!withinInteractReach(interactPos)) continue;
-            if (!sendBatchOne(interactPos)) return;
             remaining--;
+            // 破坏的返回 false 只代表「那一格快照已过期（方块已是空气）」，跳过它继续清下一格；
+            // 右键发不出包说明这次批量不再可靠，直接中止。
+            if (!sendBatchOne(interactPos, breaking) && !breaking) return;
         }
     }
 
@@ -210,7 +218,8 @@ final class StardewFarmExecutor {
         return owner.taskType == TaskType.HARVEST ? pot.above() : pot;
     }
 
-    private boolean sendBatchOne(BlockPos interactPos) {
+    private boolean sendBatchOne(BlockPos interactPos, boolean breaking) {
+        if (breaking) return owner.adapter.breakBlock(interactPos, Direction.UP);
         if (owner.taskType == TaskType.HARVEST) {
             InteractionHand hand = prepareHarvestHand();
             return hand != null && owner.adapter.interactBlock(hand, interactPos, Direction.UP);
@@ -245,10 +254,11 @@ final class StardewFarmExecutor {
         if (hand == null) return false;
         boolean sent = owner.adapter.face(owner.targetPot.above())
             && owner.adapter.interactBlock(hand, owner.targetPot.above(), Direction.UP);
-        if (!sent) {
-            LOGGER.info("[星露谷] 收割发包未发出：手={} 目标={}",
-                hand == InteractionHand.OFF_HAND ? "副手" : "主手", owner.targetPot.above());
-        }
+        // 收不动只有两种可能：作物其实不在方块里（展示实体服要右键实体），或者右键包发不出去。
+        // 这条日志把「该格此刻是什么」直接写清楚，不用再靠猜。
+        LOGGER.info("[星露谷] 收割交互 手={} 目标={} {} 发包={}",
+            hand == InteractionHand.OFF_HAND ? "副手" : "主手", owner.targetPot.above(),
+            cellSummary(owner.targetPot.above()), sent);
         return sent;
     }
 
@@ -281,10 +291,39 @@ final class StardewFarmExecutor {
         owner.learningBeforeDrops = owner.verifier.countNearbyCropDrops(owner.activeCrop, owner.targetPot.above());
         owner.learningInteractionSent = owner.adapter.face(owner.targetPot.above())
             && owner.adapter.interactBlock(hand, owner.targetPot.above(), Direction.UP);
+        LOGGER.info("[星露谷] 收获试探交互 手={} 目标={} {} 发包={}",
+            hand == InteractionHand.OFF_HAND ? "副手" : "主手", owner.targetPot.above(),
+            cellSummary(owner.targetPot.above()), owner.learningInteractionSent);
         return owner.learningInteractionSent;
     }
 
-    /** 左键破坏盆上方那株作物本体（清枯苗 / 清错位共用；破坏动作绝不进批量、绝不打盆本体）。 */
+    /**
+     * 作物格「此刻真实构成」摘要：方块 ID + 该格实体（展示实体附带物品模型）。
+     *
+     * <p>「右键收不动 / 收获学习拿不到证据」只能靠它定位：作物到底是方块还是展示实体、该右键方块还是
+     * 交互实体，一看日志就清楚，不必再靠猜。</p>
+     */
+    private static String cellSummary(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || pos == null) return "无";
+        var blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock());
+        StringBuilder out = new StringBuilder("方块 ").append(blockId == null ? "未知" : blockId);
+        int count = 0;
+        for (Entity entity : mc.level.getEntities((Entity) null, new AABB(pos).inflate(0.5))) {
+            out.append(count++ == 0 ? " · 实体 " : "、");
+            var typeId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+            out.append(typeId == null ? "未知" : typeId);
+            String model = StardewCropDisplayProbe.modelOf(entity);
+            if (model != null) out.append('(').append(model).append(')');
+        }
+        return count == 0 ? out.append(" · 该格无实体").toString() : out.toString();
+    }
+
+    /**
+     * 左键破坏盆上方那格（清枯苗 / 清错位 / 清杂物共用；只打盆上方那格、绝不打盆本体）。
+     *
+     * <p>主目标走这里，同一批里余下的枯苗 / 错位 / 杂物由 {@link #sendBatchActions()} 在同一 tick 连发破坏包。</p>
+     */
     boolean doBreakPlant() {
         return owner.targetPot != null && owner.adapter.breakBlock(owner.targetPot.above(), Direction.UP);
     }
@@ -371,8 +410,15 @@ final class StardewFarmExecutor {
         }
         String failure = owner.points.validationFailure(boxType, owner.points.get(boxType), owner.index);
         if (failure != null) {
-            owner.status.critical("MATERIAL_BOX:" + boxType + ':' + failure,
-                boxType.title() + "点位失效", "已暂停当前补料任务");
+            // 「世界数据还没同步」不等于点位失效：走过去的一瞬间区块 / 方块实体可能刚到，
+            // 这时候报「点位失效 · 已暂停」纯属虚惊，改为普通状态 + 重规划，下一轮自然复核。
+            if (StardewPointManager.isWorldPending(failure)) {
+                owner.status.state("MATERIAL_BOX_PENDING:" + boxType,
+                    boxType.title() + " 数据尚未同步", "稍后自动复核");
+            } else {
+                owner.status.critical("MATERIAL_BOX:" + boxType + ':' + failure,
+                    boxType.title() + "点位失效", "已暂停当前补料任务");
+            }
             owner.phase = Phase.REPLAN;
             return;
         }

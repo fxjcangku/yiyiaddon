@@ -10,12 +10,12 @@ import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleStateColumn;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.render.ItemIconCache;
-import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.screen.PanelScreen;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.widget.Button;
@@ -44,8 +44,9 @@ import java.util.Set;
  * 目标附魔全部在本窗口内完成。旧项目 {@code GearEnchantScreen} 就是独立窗口，本类与它对齐。</p>
  *
  * <p><b>装备选择</b>：不再用「点一下跳下一档」的三级切换（用户同日：「为什么点击就直接帮我选择了？
- * 我都没看见列表」），改成打开按<b>大类分组</b>的候选列表，点行即选中 —— 候选天然分组、
- * 一屏内可见，不需要滚动查找。</p>
+ * 我都没看见列表」），改成打开候选列表，点行即选中 —— 列表按<b>大类 → 品质</b>两级折叠分组
+ * （用户同日：「选择都是没按品质来的 哎 能不能弄好分类啊」，见 {@link #openGearPicker()}），
+ * 默认全部收起，展开哪一档才铺出那一档的工具 / 武器 / 护甲。</p>
  *
  * <p><b>重建</b>：本窗口自己管理 {@code content()}，任何写配置的动作后调 {@link #rebuild()}；
  * 同时通知控制台 {@link EnchantConsoleScreen#reload()}，保证关窗后主页面的状态条与摘要同步。</p>
@@ -54,12 +55,12 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
 
     /** 设置描述：旧 {@code GearEnchantSetting} 的 description（逐字） */
     private static final String GEAR_DESCRIPTION = "按大类分组的装备列表，点行即选中";
-    /** 状态文字字号：与 {@code SettingText} 内部字号一致，用于按文本宽度算列宽 */
-    private static final float STATE_FONT_SIZE = 11f;
     /** 注册表不可用（未进世界）时的等级上限兜底；真实上限由 {@code GearEnchantData.maxLevelOf} 给出 */
     private static final int FALLBACK_MAX_LEVEL = 10;
     /** 大类标题前缀（与项目其它选择器一致的分组标题写法） */
     private static final String GROUP_PREFIX = "§b§l▌ ";
+    /** 二级标题（品质 / 材质）前缀：比大类弱一档，选择器还会再右缩进并小一号 */
+    private static final String GROUP_SUB_PREFIX = "§7";
     /** 认不出大类的装备归到这一组，避免漏项 */
     private static final String GROUP_OTHER = "§7§l▌ 其他";
 
@@ -109,12 +110,19 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         // 方案名文本的列宽按实际文本量给（同星露谷 / 挖矿 / 杀戮光环三页的状态列口径）：
         // SettingText 默认 200 宽，而方案名只有几十像素，多出来的空白会把「点击选择」顶到行中间去
         // ——用户 2026-09-16 原话「怎么在中间？」。收紧列宽后本行与「装备」行一样贴右。
+        //
+        // 列宽不再随「当前方案名」逐帧变（那会让「点击选择」在切换方案时左右移动）：下界取本装备
+        // 全部方案名里最宽的那个（见 ConsoleStateColumn），选哪套方案列宽都一样。
+        ConsoleStateColumn profileColumn = new ConsoleStateColumn("");
+        for (GearEnchantData.GearProfile profile : gear.profiles) {
+            profileColumn.widthOf(() -> "§b" + profile.name);
+        }
         List<Ctl> profileControls = new ArrayList<>();
         if (gear.profiles.size() > 1) {
             profileControls.add(new Ctl(new Button("点击选择", () -> openProfilePicker(gear))));
         }
         profileControls.add(new Ctl(new SettingText(() -> profileText(gear),
-            () -> MinecraftText.measure(profileText(gear), STATE_FONT_SIZE, false)).alignLeft()));
+            () -> profileColumn.widthOf(() -> profileText(gear))).alignLeft()));
         stack.add(new ConsoleRow(this, () -> "极品方案", null, null, profileControls));
 
         // ── 目标附魔逐条（旧 :187-236）：名称 + 排除 / 核心 + 等级加减 ──
@@ -197,32 +205,39 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
     // ── 选择器 ──
 
     /**
-     * 装备候选：静态库里的全部装备，按大类分组，带物品图标。
+     * 装备候选：静态库里的全部装备，按「大类 → 品质（材质）」两级分组，带物品图标。
      *
-     * <p>分组顺序固定取 {@link GearCatalog#categories()} 的顺序（组内顺序取静态库顺序），
+     * <p><b>为什么要两级</b>（用户 2026-09-16：「选择都是没按品质来的 哎 能不能弄好分类啊 按品质 工具 装备」）：
+     * 上一版只按大类分组，工具那一组把 7 种材质的镐斧锹锄铺成 28 行，木镐与下界合金镐之间没有任何分界，
+     * 找「钻石镐」只能从头往下翻。装备库本身就是「大类 → 品质 → 类型」三级结构
+     * （{@link GearCatalog}），这里把前两级交给选择器折叠分组、第三级就是组内的行
+     * （同一品质下的镐 / 斧 / 锹 / 锄），因此展开「工具 → 钻石」时看到的正是钻石那一档的全部工具。</p>
+     *
+     * <p>顺序全部取自 {@link GearCatalog}（大类固定顺序、品质低→高、类型取静态库顺序），
      * 因此同一件装备在列表里的位置稳定，不会因过滤词变化而跳位。</p>
      */
     private void openGearPicker() {
         List<SelectorScreen.Entry> entries = new ArrayList<>();
-        List<VanillaEnchantDatabase.GearCandidateRule> rules = VanillaEnchantDatabase.get().gears();
+        Set<String> added = new HashSet<>();
 
         for (GearCatalog.Category category : GearCatalog.categories()) {
-            List<SelectorScreen.Entry> group = new ArrayList<>();
-            for (VanillaEnchantDatabase.GearCandidateRule rule : rules) {
-                if (!category.key().equals(categoryKeyOf(rule))) continue;
-                group.add(gearChoice(rule));
-            }
-            if (group.isEmpty()) continue;
-            String title = GROUP_PREFIX + category.title();
-            for (int i = 0; i < group.size(); i++) {
-                entries.add(((GearChoice) group.get(i)).withGroup(title));
+            String parent = GROUP_PREFIX + category.title();
+            for (GearCatalog.Material material : GearCatalog.materials(category.key())) {
+                String group = GROUP_SUB_PREFIX + material.title();
+                for (GearCatalog.Type type : GearCatalog.types(category.key(), material.key())) {
+                    VanillaEnchantDatabase.GearCandidateRule rule =
+                            GearCatalog.gear(category.key(), material.key(), type.key());
+                    if (rule == null || !added.add(rule.itemId())) continue;
+                    entries.add(gearChoice(rule).withGroup(parent, group));
+                }
             }
         }
 
-        // 兜底：静态库里出现了不认识的 category，也要能选到（否则用户会找不到某件装备）
-        for (VanillaEnchantDatabase.GearCandidateRule rule : rules) {
-            if (knownCategory(categoryKeyOf(rule))) continue;
-            entries.add(gearChoice(rule).withGroup(GROUP_OTHER));
+        // 兜底：静态库里出现了 GearCatalog 认不出的条目（没有 category 前缀，或前缀对不上任何大类），
+        // 也要能选到——否则用户会「找不到某件装备」，而这类漏项从界面上完全看不出来。
+        for (VanillaEnchantDatabase.GearCandidateRule rule : VanillaEnchantDatabase.get().gears()) {
+            if (added.contains(rule.itemId())) continue;
+            entries.add(gearChoice(rule).withGroup("", GROUP_OTHER));
         }
 
         if (entries.isEmpty()) return;
@@ -259,25 +274,11 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         rebuild();
     }
 
-    private static boolean knownCategory(String categoryKey) {
-        for (GearCatalog.Category category : GearCatalog.categories()) {
-            if (category.key().equals(categoryKey)) return true;
-        }
-        return false;
-    }
-
     private static GearChoice gearChoice(VanillaEnchantDatabase.GearCandidateRule rule) {
         GearEnchantData.GearDefinition gear = GearEnchantData.get().gear(rule.itemId());
         String name = gear == null || gear.name == null || gear.name.isBlank()
             ? rule.itemId() : gear.name;
-        return new GearChoice(rule.itemId(), "§f" + name, "");
-    }
-
-    /** 装备的 category 前缀（{@code TOOL_PICKAXE → TOOL}）；认不出时给空串（落进「其他」组） */
-    private static String categoryKeyOf(VanillaEnchantDatabase.GearCandidateRule rule) {
-        String category = rule.category();
-        int idx = category == null ? -1 : category.indexOf('_');
-        return idx <= 0 ? "" : category.substring(0, idx);
+        return new GearChoice(rule.itemId(), "§f" + name);
     }
 
     /** 附魔等级罗马数字（1-5 → I-V，超出范围回退阿拉伯数字；旧 {@code roman:301-309}） */
@@ -305,21 +306,24 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
 
     // ── 候选项 ──
 
-    /** 装备候选：分组标题在构建时确定，图标懒构造（构建物品栈需要注册表已绑定） */
+    /** 装备候选：两级分组标题在构建时确定，图标懒构造（构建物品栈需要注册表已绑定） */
     private static final class GearChoice implements SelectorScreen.Entry {
 
         private final String key;
         private final String title;
-        private String group;
+        /** 二级标题（品质）；空串 = 只有一级 */
+        private String group = "";
+        /** 一级标题（大类）；空串 = 没有父级（兜底的「其他」组） */
+        private String parentGroup = "";
 
-        private GearChoice(String key, String title, String group) {
+        private GearChoice(String key, String title) {
             this.key = key;
             this.title = title;
-            this.group = group;
         }
 
-        private GearChoice withGroup(String value) {
-            this.group = value;
+        private GearChoice withGroup(String parentGroup, String group) {
+            this.parentGroup = parentGroup == null ? "" : parentGroup;
+            this.group = group == null ? "" : group;
             return this;
         }
 
@@ -339,6 +343,11 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         }
 
         @Override
+        public String parentGroup() {
+            return parentGroup;
+        }
+
+        @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
             Identifier id = Identifier.tryParse(key);
             if (id == null) return false;
@@ -348,8 +357,40 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         }
     }
 
-    /** 纯文字候选项：方案名没有对应物品，因此不画图标 */
-    private record LabelEntry(String key, String title) implements SelectorScreen.Entry {
+    /**
+     * 极品方案候选项：键取方案 ID、标题取方案名。
+     *
+     * <p><b>行图标</b>：用户 2026-09-16 原话「然后极品页面没有附魔书图标」——方案名与词条是同一类条目
+     * （附魔方案本身不是物品），因此照抄 {@code EnchantSelectPage.EnchantEntry} 那一处的做法：
+     * 统一用 {@link Items#ENCHANTED_BOOK} 的 {@link ItemStack} 做图标，惰性构造（构建物品栈需要
+     * 注册表已绑定，不能在设置载入期做）。不按方案区分图标，是因为原版没有任何「方案名 → 物品」的映射，
+     * 硬编一张表只会出现与真实物品不符的假图。</p>
+     *
+     * <p><b>不补图标的同类文本</b>：本文件里只剩分组标题（{@code §b§l▌ 工具} 这类装备大类原文）没有图标，
+     * 那是纯分类名、不是可点选的记录；行图标只属于「一条可点选的记录」，且分组标题由选择器宿主
+     * ({@link SelectorScreen}) 统一绘制，候选项不参与。</p>
+     */
+    private static final class LabelEntry implements SelectorScreen.Entry {
+
+        private final String key;
+        private final String title;
+        /** 惰性构造：构建物品栈需要注册表已绑定，不能在设置载入期做 */
+        private ItemStack iconStack;
+
+        private LabelEntry(String key, String title) {
+            this.key = key;
+            this.title = title;
+        }
+
+        @Override
+        public String key() {
+            return key;
+        }
+
+        @Override
+        public String title() {
+            return title;
+        }
 
         @Override
         public String group() {
@@ -358,7 +399,8 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
 
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
-            return false;
+            if (iconStack == null) iconStack = new ItemStack(Items.ENCHANTED_BOOK);
+            return ItemIconCache.getInstance().draw(canvas, iconStack, x, y, size);
         }
     }
 }

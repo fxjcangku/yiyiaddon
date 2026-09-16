@@ -153,10 +153,10 @@ public final class KillAuraTexts {
     public static final String DESC_PAUSE_ON_USE = "正在使用物品时不攻击。";
 
     /** 蓝本 {@code pause-on-CA}（{@code KillAura.java:224-229}）："Does not attack while CA is placing." */
-    public static final String NAME_PAUSE_ON_CA = "CrystalAura放置时暂停";
+    public static final String NAME_PAUSE_ON_CA = "水晶光环放置时暂停";
 
     /** 蓝本 {@code pause-on-CA}（{@code KillAura.java:224-229}） */
-    public static final String DESC_PAUSE_ON_CA = "CrystalAura 正在放置时不攻击。";
+    public static final String DESC_PAUSE_ON_CA = "水晶光环（末地水晶）正在放置时不攻击。";
 
     /** 蓝本 {@code TPS-sync}（{@code KillAura.java:231-236}）："Tries to sync attack delay with the server's TPS." */
     public static final String NAME_TPS_SYNC = "同步服务器TPS";

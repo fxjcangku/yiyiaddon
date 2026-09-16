@@ -9,11 +9,11 @@ import com.yiyiaddon.feature.mining.ui.MiningTargetControls;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleStateColumn;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.render.FontRenderer;
-import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingSegmented;
@@ -52,8 +52,11 @@ public final class MiningTargetPage {
 
     /** 选择器行的「点击选择」按钮（逐字照星露谷控制台页 {@code StardewPlantingPage:69}） */
     private static final String SELECT_LABEL = "点击选择";
-    /** 状态文字字号：与 {@code SettingText} 内部字号一致，用于按文本宽度算列宽 */
-    private static final float STATE_FONT_SIZE = 11f;
+    /**
+     * 状态列的下界：本页状态文字是「未选择（共 N 项）」或选中物的显示名，取前者按 999 项量宽
+     * （显示名更宽时由 {@link ConsoleStateColumn} 按实测值加宽，列宽本身不回落）。
+     */
+    private static final String STATE_LONGEST = "未选择（共 999 项）";
     /** 行内图标的字号口径：{@code IconButton} 取自身边长的 0.58 倍（{@code IconButton#resolvedIconSize}） */
     private static final float ICON_GLYPH_RATIO = 0.58f;
     /** Material Symbols 图标网格的内缩：墨迹在 1 em 的 advance 里左右各留 1/6（量法见 {@link #measureIconInkInset()}） */
@@ -62,6 +65,8 @@ public final class MiningTargetPage {
     private final MiningConsoleScreen owner;
     private final AutoMinerModule module;
     private final MiningTargetControls controls;
+    /** 六行共用的状态列宽度（见 {@link ConsoleStateColumn}：浮动会把「点击选择」顶得左右移动） */
+    private final ConsoleStateColumn stateColumn = new ConsoleStateColumn(STATE_LONGEST);
     /** ↻ 图标的字形内缩量：本页构建时量一次（见 {@link #measureIconInkInset()}） */
     private final float iconInkInset = measureIconInkInset();
 
@@ -217,15 +222,14 @@ public final class MiningTargetPage {
      * 选择器行的统一构造（行样式照星露谷控制台页 {@code StardewPlantingPage:69-85}）：
      * 名称 + 说明 …… [点击选择] [状态文字] [↻]。
      *
-     * <p>状态文字用 {@link SettingText}，列宽按当前文本实测宽度给；↻ 的图标与动作都与星露谷一致
-     * ——清空本行已选，空则静默。</p>
+     * <p>状态文字用 {@link SettingText}，列宽走六行共用的固定列（各自按当前文案量宽会把「点击选择」
+     * 顶得左右浮动）；↻ 的图标与动作都与星露谷一致——清空本行已选，空则静默。</p>
      */
     private CompactElement selectorRow(String title, String description, Supplier<String> status,
                                        Runnable open, Runnable reset) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
-            new Ctl(new SettingText(status,
-                () -> MinecraftText.measure(status.get(), STATE_FONT_SIZE, false)).alignLeft()),
+            new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
             new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
     }
 

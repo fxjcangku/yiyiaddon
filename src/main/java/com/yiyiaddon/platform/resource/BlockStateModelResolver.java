@@ -156,10 +156,9 @@ public final class BlockStateModelResolver {
     /**
      * 从单个命中模型路径派生语义身份与中文名。
      *
-     * <p>模型路径形如 {@code customcrops:block/crop/tomato/stage_3}：去掉 {@code block/} 前缀与
-     * 首个类别段（crop / misc / sprinkler / custom 等），剩余段用下划线连接即得身份
-     * （{@code tomato_stage_3}），据此拼语言键 {@code block.customcrops.tomato_stage_3}
-     * 读取资源包中文名。该规则通用，不硬编码任何服务器。</p>
+     * <p>模型路径形如 {@code customcrops:block/crop/tomato/stage_3}，身份推导统一走
+     * {@link #deriveIdentityPath(String)}（{@code item/} 前缀按同一规则处理）。该规则通用，
+     * 不硬编码任何服务器。</p>
      *
      * <p>模型为 {@code block/empty}（隐形载体）时无法派生身份，回退方块注册 ID。</p>
      */
@@ -171,18 +170,58 @@ public final class BlockStateModelResolver {
         if (path.equals("empty") || path.equals("block/empty")) {
             return fallbackIdentity(blockId, model, "未知", "隐形载体模型（block/empty），无法派生语义身份");
         }
-        if (!path.startsWith("block/")) return null;
-
-        String subPath = path.substring("block/".length());
-        int firstSlash = subPath.indexOf('/');
-        String identityPath = firstSlash >= 0
-            ? subPath.substring(firstSlash + 1).replace('/', '_')
-            : subPath;
-        if (identityPath.isBlank()) return null;
+        String identityPath = deriveIdentityPath(path);
+        if (identityPath == null || identityPath.isBlank()) return null;
 
         String identity = modelId.getNamespace() + ":" + identityPath;
         String name = resolveName("block." + modelId.getNamespace() + "." + identityPath, identityPath);
         return new BlockSemantic(model, identity, name, "当前资源包", "已确认", null);
+    }
+
+    /**
+     * 从模型引用路径派生语义身份路径（不含命名空间），世界识别与阶段清单共用这一份规则。
+     *
+     * <p><b>为什么必须只有一份：</b>身份（世界里这株是什么）与阶段清单（这种作物有哪些阶段）
+     * 若各写一套，同一株作物会出现两个作物键，识别链两侧对不上，表现成「把连作作物当错位作物去挖」。</p>
+     *
+     * <p><b>规则（均来自真实资源包实测，不硬编码任何服务器）：</b></p>
+     * <ol>
+     *   <li>剥掉 {@code block/} 或 {@code item/} 模型目录前缀（部分服务器把作物阶段定义在
+     *       {@code models/item/} 下，再让原版载体方块指向它，路径结构与 {@code block/} 完全一致）；</li>
+     *   <li>末段是纯阶段名（{@code stage_3}）→ 作物名在上一段，拼成 {@code tomato_stage_3}；</li>
+     *   <li>末段自带完整身份（{@code lentinus_edodes_stage_3}、{@code dry_pot}、
+     *       {@code greenhouse_glass}）→ 原样取末段，<b>不能再拼父目录</b>，否则会得到
+     *       {@code lentinus_lentinus_edodes_stage_3} 这种带重复目录段的假身份；</li>
+     *   <li>其余（无阶段标记的类别路径）→ 去掉首段类别后整串下划线连接
+     *       （{@code misc/dry_pot_1} → {@code dry_pot_1}）。</li>
+     * </ol>
+     *
+     * @param modelPath 模型引用路径（可带命名空间，如 {@code customcrops:item/crops/tomato/stage_3}）
+     * @return 身份路径；无法派生返回 {@code null}
+     */
+    public static String deriveIdentityPath(String modelPath) {
+        if (modelPath == null || modelPath.isBlank()) return null;
+        String path = modelPath;
+        int colon = path.indexOf(':');
+        if (colon >= 0) path = path.substring(colon + 1);
+        if (path.startsWith("block/")) path = path.substring("block/".length());
+        else if (path.startsWith("item/")) path = path.substring("item/".length());
+        if (path.isBlank()) return null;
+
+        int lastSlash = path.lastIndexOf('/');
+        String last = lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
+        if (last.isBlank()) return null;
+
+        if (last.startsWith("stage")) {
+            if (lastSlash < 0) return null;   // 只有 stage_N、没有作物名：如实派生不出身份
+            int prevSlash = path.lastIndexOf('/', lastSlash - 1);
+            String parent = path.substring(prevSlash + 1, lastSlash);
+            return parent.isBlank() ? last : parent + "_" + last;
+        }
+        if (last.contains("_stage_")) return last;
+
+        int firstSlash = path.indexOf('/');
+        return firstSlash >= 0 ? path.substring(firstSlash + 1).replace('/', '_') : path;
     }
 
     /**

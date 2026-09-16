@@ -644,6 +644,33 @@ public final class ResourceExtractionService {
     }
 
     /**
+     * 「非星露谷资源」的具体原因。
+     *
+     * <p>真机事故：玩家切到不推送该资源包的子服（主城 / 家具城）后点检测，只看到一句
+     * 「未检测到可识别的星露谷资源」，无从判断是服务器没有这个包、当前子服没推、还是模块出问题，
+     * 于是反复点检测。这里把「扫到多少条星露谷资源、其中多少条是物品定义」如实报出来，
+     * 两种成因给两种建议，绝不让人靠猜。</p>
+     */
+    private static String noContentReport() {
+        int scanned = 0;
+        int itemDefs = 0;
+        for (StardewResourceScanner.ScannedModel model : StardewResourceScanner.scan()) {
+            scanned++;
+            if (model.itemDef() && StardewResourceScanner.isStardew(model.modelId())) itemDefs++;
+        }
+        if (scanned == 0) {
+            return "§c当前服务器未检测到可识别的星露谷资源，未建立资源档案。"
+                + "\n" + CommandMessageFormatter.line("原因", "§f客户端当前没有加载 customcrops 资源（扫描 0 条）")
+                + "\n" + CommandMessageFormatter.line("可能情况", "§f当前子服未推送该资源包，或服务器资源包未启用")
+                + "\n" + CommandMessageFormatter.line("建议", "§f回到农田所在的子服，或在「资源包」界面启用服务器资源包后重试");
+        }
+        return "§c当前服务器未检测到可识别的星露谷资源，未建立资源档案。"
+            + "\n" + CommandMessageFormatter.line("原因",
+                "§f扫到 customcrops 资源 " + scanned + " 条，但只有 " + itemDefs + " 条物品定义")
+            + "\n" + CommandMessageFormatter.line("建议", "§f该资源包结构与 CustomCrops 标准布局不同，无法按物品定义建索引");
+    }
+
+    /**
      * 解析当前已加载资源里的星露谷逻辑对象，并按结果落到就绪 / 非星露谷资源。
      *
      * <p><b>就绪判定沿用旧项目口径：</b>判据是「扫到的星露谷逻辑对象数」而不是「自定义命名空间里
@@ -667,7 +694,7 @@ public final class ResourceExtractionService {
 
         if (counts.total() == 0) {
             phase = ResourcePhase.NO_CONTENT;
-            announceStardewFarm("notStardew", "§c当前服务器未检测到可识别的星露谷资源，未建立资源档案。");
+            announceStardewFarm("notStardew", noContentReport());
             return;
         }
 
@@ -699,6 +726,7 @@ public final class ResourceExtractionService {
         Set<String> potions = new LinkedHashSet<>();
         Set<String> cans = new LinkedHashSet<>();
         Set<String> sprinklers = new LinkedHashSet<>();
+        Set<String> shelters = new LinkedHashSet<>();
 
         for (StardewResourceScanner.ScannedModel model : StardewResourceScanner.scan()) {
             if (!model.itemDef() || !StardewResourceScanner.isStardew(model.modelId())) continue;
@@ -713,29 +741,33 @@ public final class ResourceExtractionService {
                 case POTION -> potions.add(canonical);
                 case WATERING_CAN -> cans.add(canonical);
                 case SPRINKLER -> sprinklers.add(canonical);
+                case SHELTER -> shelters.add(canonical);
             }
         }
         return new ProfileCounts(crops.size(), pots.size(), fertilizers.size(), potions.size(),
-            cans.size(), sprinklers.size());
+            cans.size(), sprinklers.size(), shelters.size());
     }
 
-    /** 六类逻辑对象数量（旧项目 {@code ParseResult} 的计数部分） */
-    private record ProfileCounts(int crops, int pots, int fertilizers, int potions, int cans, int sprinklers) {
+    /** 七类逻辑对象数量（旧项目 {@code ParseResult} 的计数部分 + 温室玻璃） */
+    private record ProfileCounts(int crops, int pots, int fertilizers, int potions, int cans, int sprinklers,
+                                 int shelters) {
 
         int total() {
-            return crops + pots + fertilizers + potions + cans + sprinklers;
+            return crops + pots + fertilizers + potions + cans + sprinklers + shelters;
         }
     }
 
     /**
-     * 「资源档案已建立」计数块：六类对象固定「三列 × 两行」表，不再一列一行摊开。
+     * 「资源档案已建立」计数块：七类对象排成「三列 × 两行 + 单格」的固定表，不再一列一行摊开。
      *
-     * <p>行内列起点由 {@link #countCell} 按真实字体宽度补齐，保证上下两行严格对齐（旧项目原文）。</p>
+     * <p>行内列起点由 {@link #countCell} 按真实字体宽度补齐，保证上下两行严格对齐（旧项目原文）；
+     * 第七类（温室玻璃）另起一行占第一格，列宽与上面第一列完全一致。</p>
      */
     private static String profileText(ProfileCounts counts) {
         return "§a资源档案已建立"
             + "\n" + countRow("作物", counts.crops(), "种植盆", counts.pots(), "肥料", counts.fertilizers())
-            + "\n" + countRow("药剂", counts.potions(), "水壶", counts.cans(), "洒水器", counts.sprinklers());
+            + "\n" + countRow("药剂", counts.potions(), "水壶", counts.cans(), "洒水器", counts.sprinklers())
+            + "\n" + "§r" + countCell("温室玻璃", counts.shelters());
     }
 
     /**

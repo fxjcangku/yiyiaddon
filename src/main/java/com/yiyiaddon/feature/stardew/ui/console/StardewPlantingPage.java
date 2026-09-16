@@ -18,14 +18,14 @@ import com.yiyiaddon.ui.widget.SettingText;
 import java.util.List;
 
 /**
- * 星露谷控制台「种植」页：六类选择器（点击打开各自的选择页）。
+ * 星露谷控制台「种植」页：七类选择器（点击打开各自的选择页）。
  *
  * <p>逐字搬运自 {@code StardewConsoleScreen.buildPlanting} 与其配套私有方法；方法体、文案与
  * tooltip 一字未改，只把模块与宿主窗口访问改为经字段读取。</p>
  */
 public final class StardewPlantingPage {
 
-    /** 六类选择器：顺序、标题与描述逐字照旧项目设置定义（sgCrops 构造顺序） */
+    /** 七类选择器：顺序、标题与描述逐字照旧项目设置定义（sgCrops 构造顺序） */
     private static final class SelectorDef {
         private final String name;
         private final String description;
@@ -44,7 +44,8 @@ public final class StardewPlantingPage {
         new SelectorDef("肥料", "选择使用的肥料（需开启自动施肥）", StardewSelectorCategory.FERTILIZER),
         new SelectorDef("魔法药剂", "选择使用的魔法药剂（需开启自动用药剂）", StardewSelectorCategory.POTION),
         new SelectorDef("水壶", "选择浇水用的水壶；选中即自动联动补水——用尽自动回补水点、一次连发补满", StardewSelectorCategory.WATERING_CAN),
-        new SelectorDef("洒水器", "选择要维护的洒水器", StardewSelectorCategory.SPRINKLER)
+        new SelectorDef("洒水器", "选择要维护的洒水器", StardewSelectorCategory.SPRINKLER),
+        new SelectorDef("温室玻璃", "选中后在盆上方 5 格内识别它：有玻璃的盆当季/非当季都能种（作物不会因季节枯萎）", StardewSelectorCategory.SHELTER)
     );
 
     private final StardewConsoleScreen owner;
@@ -131,6 +132,7 @@ public final class StardewPlantingPage {
             case POTION -> settings.selectedPotionKeys;
             case WATERING_CAN -> settings.selectedCanKeys;
             case SPRINKLER -> settings.selectedSprinklerKeys;
+            case SHELTER -> settings.selectedShelterKeys;
         };
     }
 }

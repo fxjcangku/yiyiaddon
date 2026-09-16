@@ -16,6 +16,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.Container;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -310,6 +311,22 @@ public final class StardewPointManager {
         loadedServer = null;
     }
 
+    /**
+     * 「世界数据还没同步好」类失败：区块 / 方块实体尚未到达客户端。
+     *
+     * <p>这类失败是<b>暂时</b>的——进服或切维度后区块与方块实体分批到达，服务器也可能在玩家靠近时
+     * 才把占位方块换成真容器。调用方必须复核后再判，绝不能拿它当配置错误拦启动。</p>
+     */
+    public static final String PENDING_CHUNK = "所在区块尚未加载，无法验证";
+
+    /** @see #PENDING_CHUNK 容器方块实体尚未同步（区块已加载但方块实体还没到） */
+    public static final String PENDING_CONTAINER = "容器数据尚未同步，无法验证";
+
+    /** 该失败是否属于「世界数据未就绪」（可稍后复核） */
+    public static boolean isWorldPending(String failure) {
+        return PENDING_CHUNK.equals(failure) || PENDING_CONTAINER.equals(failure);
+    }
+
     /** 设置、自检与运行交互共用的实时点位校验。 */
     public String validationFailure(StardewPointType type, StardewPoint point, StardewResourceIndex index) {
         if (point == null) return "未绑定";
@@ -318,9 +335,18 @@ public final class StardewPointManager {
             || !java.util.Objects.equals(loadedServer, StardewContext.serverKey())) return "点位属于其它服务器";
         if (!point.inCurrentDimension()) return "点位属于其它维度";
         var mc = Minecraft.getInstance();
-        if (mc.level == null || !mc.level.isLoaded(point.pos())) return "所在区块尚未加载，无法验证";
+        if (mc.level == null || !mc.level.isLoaded(point.pos())) return PENDING_CHUNK;
         if (type == StardewPointType.WATER_SOURCE) return waterSourceFailure(point.pos());
-        if (type.requiresContainer() && !(mc.level.getBlockEntity(point.pos()) instanceof Container)) return "原容器已不存在或类型已改变";
+        if (type.requiresContainer()) {
+            BlockState state = mc.level.getBlockState(point.pos());
+            // 顺序很重要：先判「方块没了 / 还没同步」，再判「类型变了」。旧实现把三者并成
+            // 「原容器已不存在或类型已改变」，于是「区块刚加载、方块实体还在路上」也被说成
+            // 配置错误并直接禁止启动——实机反馈是「我什么都没动，重新开关模块就好了」。
+            if (state.isAir()) return "原方块已不存在";
+            if (!(mc.level.getBlockEntity(point.pos()) instanceof Container)) {
+                return state.hasBlockEntity() ? PENDING_CONTAINER : "原容器已不存在或类型已改变";
+            }
+        }
         if (type == StardewPointType.SPRINKLER) {
             SprinklerWorldBinding binding = point.sprinklerBinding();
             if (binding != null) {

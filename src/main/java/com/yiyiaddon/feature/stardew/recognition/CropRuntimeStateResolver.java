@@ -240,6 +240,17 @@ public final class CropRuntimeStateResolver {
         return resolve(level.getBlockState(pos));
     }
 
+    /**
+     * 解析语义身份（不走方块状态）。给「作物不是方块」的服务器用：CraftEngine 系服务端把作物渲染成
+     * 展示实体，物品模型就是 {@code customcrops:<作物>_stage_N}——与方块路径派生出的身份同格式，
+     * 因此喂进同一条判定入口，成熟规则 / 生命周期结论与方块路径完全一致。
+     *
+     * @param identity 语义身份（如 {@code customcrops:chinese_cabbage_stage_3}）
+     */
+    public static RuntimeResult resolveIdentity(String identity) {
+        return resolve(identity, null, identity, source());
+    }
+
     /** 解析某方块状态的作物真实状态 */
     public static RuntimeResult resolve(BlockState cropState) {
         if (cropState == null || cropState.isAir()) return RuntimeResult.UNKNOWN;

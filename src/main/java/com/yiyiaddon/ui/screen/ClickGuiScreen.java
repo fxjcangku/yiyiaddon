@@ -170,7 +170,6 @@ public class ClickGuiScreen extends SkiaScreen {
     private final Paint hoverPaint = new Paint().setAntiAlias(true);
     private final Paint resetBgPaint = new Paint().setAntiAlias(true);
     private final Paint closeBgPaint = new Paint().setAntiAlias(true);
-    private final Paint searchBgPaint = new Paint().setAntiAlias(true);
     private final Paint searchLinePaint = new Paint().setAntiAlias(true);
     private final Paint thumbPaint = new Paint().setAntiAlias(true);
     private final Paint previewBorderPaint = new Paint().setAntiAlias(true).setMode(PaintMode.STROKE).setStrokeWidth(1.2f);
@@ -350,6 +349,12 @@ public class ClickGuiScreen extends SkiaScreen {
         glBackend.destroy();
         AddonConfig.save();
         super.removed();
+    }
+
+    /** 面板停在最终位置后才动隐藏格子；动画期间的画面备份与当前面板对不齐，会透出正文重影。 */
+    @Override
+    protected boolean canCaptureIcons() {
+        return frame.animationAlpha() >= 1f;
     }
 
     private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY) {
@@ -679,10 +684,9 @@ public class ClickGuiScreen extends SkiaScreen {
     }
 
     private void drawSearchBox(Canvas canvas, float x, float y, float width, float height, float alpha, float dt, ClickGuiThemeColors tc) {
-        int background = lerpColor(tc.searchBackground, tc.searchFocusedBackground, searchFocusAlpha);
-        searchBgPaint.setColor(withAlpha(background, ClickGuiThemeColors.panelBackgroundAlpha(alpha)));
-        canvas.drawRRect(RRect.makeXYWH(x, y, width, height, 10f), searchBgPaint);
-        GlassPanel.rim(canvas, x, y, width, height, 10f, tc.rim, alpha, 0.05f);
+        // 与 SettingTextBox 共用同一份输入框底（唯一定义在 GlassPanel#textField），
+        // 侧栏搜索框此前是实心 searchBackground，比同页的霜化玻璃行更暗，像一块贴上去的深色板。
+        GlassPanel.textField(canvas, x, y, width, height, 10f, tc, searchFocusAlpha, alpha);
 
         FontRenderer.drawText(canvas, "\uE8B6", x + 9f, y + 19f, 12f, withAlpha(tc.searchIcon, alpha), FontRenderer.MATERIAL_SYMBOLS);
         float textX = x + 28f;

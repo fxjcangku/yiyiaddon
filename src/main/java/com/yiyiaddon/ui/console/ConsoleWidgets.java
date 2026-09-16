@@ -6,6 +6,7 @@ import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
@@ -33,6 +34,11 @@ import static com.yiyiaddon.ui.console.ConsoleMetrics.TIP_OFFSET_Y;
  * 独立 tooltip」而做的页内构件，**不是**新壳的通用控件：外观、高度、命中口径一字未改，
  * 只把「向宿主登记 tooltip」从内部类改为显式持有宿主窗口引用；宿主类型从具体窗口类
  * 放宽为 {@link ConsoleHost}（构件只需要「登记 tooltip」这一项能力）。</p>
+ *
+ * <p><b>2026-09-16 又收了一次行高</b>（用户原话「控制台里面 也要缩小啊 你只缩小外面的 控制台里面都
+ * 没变」）：抽件时的 36 是旧项目控制台的尺寸，外面这轮统一到 {@link ModuleRow#HEIGHT}（24）之后
+ * 控制台里就成了另一套。收的只是<b>几何</b>（行高 / 图标 / 间距 / 箭头字形），字号、文案、控件与
+ * 命中算法一字未动，见各构件自己的常量注释。</p>
  */
 public final class ConsoleWidgets {
 
@@ -63,14 +69,28 @@ public final class ConsoleWidgets {
      */
     public static final class ConsoleRow implements CompactElement {
 
-        private static final float HEIGHT = 36f;
+        /**
+         * 行高：取外部页面（模块中心 / 设置 / 界面）的那一档（{@link ModuleRow#HEIGHT}）。
+         *
+         * <p>用户 2026-09-16 原话「控制台里面 也要缩小啊 你只缩小外面的 控制台里面都没变」——
+         * 上一轮只把外面的行收到 24，控制台里每一条设置行还是 36，点进来就是两套观感。这里直接
+         * 读外面那一个常量，不再各写一份数字：行内控件（按钮 / 开关 / 输入框 / 分段 / 加减框）本来
+         * 就都不高于 24，正好落在行内居中；字号因此<b>一个都没动</b>（与外层 {@code CompactRow}
+         * 的「13 号标签 + 24 控件」是同一个构造，那一档用户已确认满意）。</p>
+         *
+         * <p>{@link #height()} / {@link #draw()} / {@link #onClick()} 全读这一个值，圆角也由
+         * {@link GlassPanel#rowRadius(float)} 按同一个高度算，因此「看到的」「点到的」「滚动总高」
+         * 同源 —— 行高变矮不会出现点不准或滚动范围不对。</p>
+         */
+        private static final float HEIGHT = ModuleRow.HEIGHT;
         private static final float COMMENT_SIZE = 10f;
-        private static final float CONTROL_GAP = 10f;
+        /** 相邻控件之间的间距：随行高一起收一档（10 → 8），控件组仍整组右对齐。 */
+        private static final float CONTROL_GAP = 8f;
         private static final float HINT_GAP = 12f;
         private static final float HINT_MIN_WIDTH = 24f;
         private static final float HOVER_SMOOTHING = 12f;
-        /** 可选物品图标的绘制边长（{@code null} 图标时该行布局与旧版逐像素一致） */
-        private static final float ICON_SIZE = 18f;
+        /** 可选物品图标的绘制边长：取模块行的图标底框（{@link ModuleRow#ICON_BOX}），行内上下留得出空气 */
+        private static final float ICON_SIZE = ModuleRow.ICON_BOX;
 
         private final ConsoleHost owner;
         private final Supplier<String> label;
@@ -264,7 +284,14 @@ public final class ConsoleWidgets {
      */
     public static final class Note implements CompactElement {
 
-        private static final float HEIGHT = 20f;
+        /**
+         * 默认行高：随控制台整页收窄一档（20 → 18）。
+         *
+         * <p>这一行只有 11 号字、不承载控件，18 仍比外面的纯文字行（{@code TextLine} 默认 22）紧，
+         * 与用户「控制台里面 也要缩小啊」的要求同向；分区标题那种带行高的调用点由调用方传
+         * {@code ConsoleMetrics.SECTION_HEIGHT}，不受这个默认值影响。</p>
+         */
+        private static final float HEIGHT = 18f;
 
         private final ConsoleHost owner;
         private final Supplier<String> text;
@@ -408,10 +435,16 @@ public final class ConsoleWidgets {
      */
     public static final class FoldSection implements CompactElement {
 
-        private static final float HEADER_HEIGHT = 36f;
+        /**
+         * 折叠块标题行高：与同一页的设置行同高（{@link ConsoleRow} / {@link ModuleRow#HEIGHT}）。
+         *
+         * <p>原来是 36：标题比它下面的内容行还高一档，展开后「标题行 + 内容行」两种节奏打架。
+         * 收行高不动字号（标题仍 12），箭头字形跟着收到 13，与模块行 / 选择器分组标题的箭头同值。</p>
+         */
+        private static final float HEADER_HEIGHT = ModuleRow.HEIGHT;
         private static final float CONTENT_GAP = 6f;
         private static final float TITLE_SIZE = 12f;
-        private static final float ARROW_SIZE = 14f;
+        private static final float ARROW_SIZE = 13f;
         private static final float ARROW_SPIN = 90f;
         private static final float ARROW_CENTER_RATIO = 0.36f;
         private static final float HOVER_SMOOTHING = 12f;
@@ -547,7 +580,13 @@ public final class ConsoleWidgets {
     public static final class ButtonStrip implements CompactElement {
 
         public static final float BUTTON_HEIGHT = 24f;
-        public static final float TAB_HEIGHT = 28f;
+        /**
+         * 页签行高：与按钮自身同高（{@link Button.Size#MEDIUM} 的 24）。
+         *
+         * <p>原来是 28：页签按钮只有 24 高，多出来的 4 像素是「看得见点不到」的空白带。
+         * 收成 24 后页签行与底部按钮行、与正文行同一档，绘制矩形与命中矩形重新重合。</p>
+         */
+        public static final float TAB_HEIGHT = 24f;
         private static final float GAP = 6f;
 
         private final ConsoleHost owner;

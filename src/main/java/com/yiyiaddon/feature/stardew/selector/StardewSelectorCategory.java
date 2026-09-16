@@ -6,7 +6,7 @@ import com.yiyiaddon.model.identity.ItemIdentity;
 import java.util.Locale;
 
 /**
- * 星露谷六类物品选择器类别。
+ * 星露谷七类物品选择器类别。
  *
  * <p>分类严格限定在 {@code customcrops} 命名空间内（星露谷 = CustomCrops 盆栽系统），并按
  * 语义家族前缀归类。绝对禁止 {@code contains("magic") / contains("potion") / contains("seed")}
@@ -29,7 +29,9 @@ public enum StardewSelectorCategory {
     /** 水壶 */
     WATERING_CAN("水壶"),
     /** 洒水器 */
-    SPRINKLER("洒水器");
+    SPRINKLER("洒水器"),
+    /** 温室玻璃（放在种植盆上方 5 格内，作物不再因季节变化枯萎，非当季也能种） */
+    SHELTER("温室玻璃");
 
     private final String title;
 
@@ -47,7 +49,7 @@ public enum StardewSelectorCategory {
     }
 
     /**
-     * 把物品身份归类到六类之一；无法归类或非 {@code customcrops} 命名空间返回 null。
+     * 把物品身份归类到七类之一；无法归类或非 {@code customcrops} 命名空间返回 null。
      */
     public static StardewSelectorCategory classify(ItemIdentity id) {
         if (id == null) return null;
@@ -82,6 +84,8 @@ public enum StardewSelectorCategory {
         if (last.startsWith("quality_") || last.startsWith("soil_retain_")
             || last.startsWith("speed_grow_") || last.startsWith("yield_increase_")) return FERTILIZER;
         if (last.startsWith("variation_")) return POTION;
+        // 温室玻璃：官方命名 {@code greenhouse_glass}，两个词同时出现才算，避免把「玻璃花瓶」之类误收
+        if (last.contains("greenhouse") && last.contains("glass")) return SHELTER;
         return null;
     }
 }

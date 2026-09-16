@@ -11,10 +11,10 @@ import com.yiyiaddon.feature.combat.ui.KillAuraConsoleScreen;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleStateColumn;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.render.ItemIconCache;
-import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
@@ -47,8 +47,11 @@ public final class KillAuraGeneralPage {
 
     /** 名单行的「点击选择」按钮（逐字照星露谷 / 挖矿控制台页） */
     private static final String SELECT_LABEL = "点击选择";
-    /** 状态文字字号：与 {@code SettingText} 内部字号一致，用于按文本宽度算列宽 */
-    private static final float STATE_FONT_SIZE = 11f;
+    /**
+     * 状态列的下界：本页状态文字只有「未选择（共 N 项）」与「已选 N / M 项」两种，按 999 项量宽即可
+     * 覆盖（更宽时由 {@link ConsoleStateColumn} 按实测值加宽，列宽本身不回落）。
+     */
+    private static final String STATE_LONGEST = "未选择（共 999 项）";
 
     /** 分段文案：顺序即枚举序数（与 {@link AttackItems} 的声明顺序逐条对应） */
     private static final List<String> ATTACK_ITEMS_LABELS =
@@ -65,6 +68,8 @@ public final class KillAuraGeneralPage {
 
     private final KillAuraConsoleScreen owner;
     private final KillAuraModule module;
+    /** 名单行共用的状态列宽度（见 {@link ConsoleStateColumn}：浮动会把「点击选择」顶得左右移动） */
+    private final ConsoleStateColumn stateColumn = new ConsoleStateColumn(STATE_LONGEST);
 
     public KillAuraGeneralPage(KillAuraConsoleScreen owner, KillAuraModule module) {
         this.owner = owner;
@@ -132,8 +137,8 @@ public final class KillAuraGeneralPage {
                                    Runnable open, Runnable reset) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
-            new Ctl(new SettingText(status,
-                () -> MinecraftText.measure(status.get(), STATE_FONT_SIZE, false)).alignLeft()),
+            // 列宽走共用固定列：按当前文案各自量宽会把「点击选择」顶着左右浮动
+            new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
             new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
     }
 

@@ -11,11 +11,12 @@ import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.component.ButtonRow;
 import com.yiyiaddon.ui.component.CompactElement;
-import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.KeybindBadge;
 import com.yiyiaddon.ui.component.ListRow;
 import com.yiyiaddon.ui.component.ListSection;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.component.ModuleStatusBar;
+import com.yiyiaddon.ui.component.SearchRow;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
@@ -64,7 +65,8 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
     private static final float PAGINATION_HEIGHT = 26f;
     private static final float PAGE_INDICATOR_WIDTH = 72f;
     private static final float PAGE_INDICATOR_SIZE = 11f;
-    private static final float SUMMARY_HEIGHT = 22f;
+    /** 汇总文字行的行高：与模块页里同为纯文字行的其它行取同一档（模块中心的行高，24 → 原 22）。 */
+    private static final float SUMMARY_HEIGHT = ModuleRow.HEIGHT;
     private static final float HEADER_HEIGHT = 24f;
     private static final float TEXT_SIZE = 11f;
 
@@ -129,8 +131,8 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
         // 汇总：旧项目面板原文格式
         addCore(new TextLine(summaryText()).height(SUMMARY_HEIGHT));
 
-        // 搜索：旧项目标签原文（旧项目只有标签与输入框，无额外说明文字）
-        addCore(new CompactRow("§7搜索（中文名 / 技术ID / 坐标）",
+        // 搜索：旧项目标签原文（旧项目只有标签与输入框，无额外说明文字）；输入框铺满标签右侧
+        addCore(new SearchRow("§7搜索（中文名 / 技术ID / 坐标）",
                 new SettingTextBox(() -> search, this::applySearch, 64)));
 
         // 分类筛选：选中态为文字前缀，与旧项目一致

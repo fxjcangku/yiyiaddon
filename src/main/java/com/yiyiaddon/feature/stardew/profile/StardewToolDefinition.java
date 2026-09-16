@@ -9,19 +9,19 @@ import net.minecraft.world.item.ItemStack;
 /**
  * 星露谷「逻辑农场对象」定义（资源层第二层产物）。
  *
- * <p>这是「资源发现 → 语义解析 → 逻辑对象聚合 → 去重 → 六类选择器」里的核心抽象：扫描到的
+ * <p>这是「资源发现 → 语义解析 → 逻辑对象聚合 → 去重 → 七类选择器」里的核心抽象：扫描到的
  * 每一个 Item Model / Block Model 只是 Raw Resource Entry，不能直接变成用户选择项；必须先按
  * 语义家族 + 数字索引聚合成一个 {@link StardewToolDefinition}，再作为 Selector Entry 展示。</p>
  *
  * <p>例如种植盆不会出现 {@code dry_pot_1} / {@code wet_pot_1} 两个选择项，而是聚合成一个
  * {@link PotDefinition}（普通种植盆），内部同时绑定 item 身份 + dry 世界模型 + wet 世界模型。</p>
  *
- * <p>六类选择器持久化的是 {@link #key()}（稳定逻辑键），不持久化临时列表下标或仅中文名。</p>
+ * <p>七类选择器持久化的是 {@link #key()}（稳定逻辑键），不持久化临时列表下标或仅中文名。</p>
  */
 public sealed interface StardewToolDefinition
-    permits PotDefinition, WateringCanDefinition, SprinklerDefinition, SimpleToolDefinition {
+    permits PotDefinition, WateringCanDefinition, SprinklerDefinition, ShelterDefinition, SimpleToolDefinition {
 
-    /** 所属六类选择器类别 */
+    /** 所属七类选择器类别 */
     StardewSelectorCategory category();
 
     /** 稳定逻辑键（跨资源重载稳定，选择器持久化此值） */

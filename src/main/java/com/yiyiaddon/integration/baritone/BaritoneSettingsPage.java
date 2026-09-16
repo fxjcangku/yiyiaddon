@@ -81,7 +81,7 @@ public final class BaritoneSettingsPage extends BasePage {
 
     public BaritoneSettingsPage() {
         Catalog bools = new Catalog("开 / 关", "只有开和关两种状态，点一下切换");
-        Catalog numbers = new Catalog("带小数点的数字", "可以填小数，例如 1.5");
+        Catalog numbers = new Catalog("小数", "可以填小数，例如 1.5");
         Catalog integers = new Catalog("整数", "只能填整数，不能带小数点（刻数 / 距离 / 高度 / 次数）");
         Catalog strings = new Catalog("文字", "填一段文字");
         Catalog colors = new Catalog("颜色", "渲染用颜色，点击色块打开调色板");

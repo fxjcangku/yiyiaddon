@@ -14,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -26,8 +27,19 @@ import java.util.Map;
  */
 final class StardewFarmReporter {
 
+    /**
+     * 「点位方块丢了」的确认时长（tick）：只有连续这么久都判定丢失才报警。
+     *
+     * <p>真实被挖掉 / 被换成别的方块会持续存在；开箱瞬间服务端临时替换方块、或方块实体稍晚同步
+     * 这类瞬时状态不会。真机事故：箱子明明还在，却在开箱那一瞬被判「已被挖掉」，模块当场停机。</p>
+     */
+    private static final int LOST_CONFIRM_TICKS = 40;
+
     /** 已播报过「被挖掉」的点位键：方块恢复或点位重设后自动复位，避免每轮巡检重复刷屏 */
     private final java.util.Set<String> lostPointKeys = new java.util.HashSet<>();
+
+    /** 连续判定丢失的 tick 计数（去抖用）：恢复即清零，不做任何跨会话保留 */
+    private final java.util.Map<String, Integer> lostStreak = new java.util.HashMap<>();
 
     private final StardewCoordinator owner;
 
@@ -41,18 +53,25 @@ final class StardewFarmReporter {
      * <p><b>为什么只判「方块没了」：</b>{@code validationFailure} 里还包含「所在区块尚未加载」
      * 「资源未就绪」这类与玩家操作无关的状态，拿它逐 tick 播报只会变成噪音。这里只认确定性事件
      * ——该坐标已经没有方块、或原本要求是容器而现在不是容器——报一次后记住，方块回来就自动复位。</p>
+     *
+     * <p><b>两类事件的后果不同：</b>方块没了 = 确定失效，直接停机；「读不到原版容器」只是客户端
+     * 视角的事实——自定义容器方块（CraftEngine 系服务器把箱子做成展示实体 + 隐形载体）本来就没有
+     * 原版方块实体，箱子其实还在，因此只提示不停机，真的不可用会在开箱任务里如实报错。</p>
      */
     void watchPointBlocks() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
+        // 开着容器界面时不判定：此刻模块/玩家正在跟箱子交互，服务端可能临时替换方块或卸载方块实体，
+        // 这一刻的读数不能作为「箱子没了」的证据。
+        boolean inContainerScreen = ContainerAccess.openMenu() != null;
         for (StardewPointType type : StardewPointType.values()) {
             if (type == StardewPointType.SPRINKLER) {
                 for (StardewPointManager.StardewPoint point : owner.points.getAll(type)) {
-                    watchPointBlock(mc, type, point);
+                    watchPointBlock(mc, type, point, inContainerScreen);
                 }
             } else {
                 StardewPointManager.StardewPoint point = owner.points.get(type);
-                if (point != null) watchPointBlock(mc, type, point);
+                if (point != null) watchPointBlock(mc, type, point, inContainerScreen);
             }
         }
     }
@@ -60,24 +79,49 @@ final class StardewFarmReporter {
     /** 会话 / 服务器切换时清空「已播报」记录：换服后同一坐标要能重新报警 */
     void forgetLostPoints() {
         lostPointKeys.clear();
+        lostStreak.clear();
     }
 
-    /** 单点位判定；区块未加载 / 非当前维度一律视为「无法判定」，绝不当成被挖掉 */
-    private void watchPointBlock(Minecraft mc, StardewPointType type, StardewPointManager.StardewPoint point) {
+    /** 单点位判定；区块未加载 / 非当前维度 / 界面开着时一律视为「无法判定」，绝不当成被挖掉 */
+    private void watchPointBlock(Minecraft mc, StardewPointType type, StardewPointManager.StardewPoint point,
+                                 boolean inContainerScreen) {
         String key = "POINT_LOST:" + type + ':' + point.pos();
-        if (!point.inCurrentDimension() || mc.level == null || !mc.level.isLoaded(point.pos())) {
-            lostPointKeys.remove(key);
+        if (inContainerScreen || !point.inCurrentDimension() || mc.level == null
+            || !mc.level.isLoaded(point.pos())) {
+            forgetLost(key);
             return;
         }
-        boolean gone = mc.level.getBlockState(point.pos()).isAir()
-            || (type.requiresContainer() && !(mc.level.getBlockEntity(point.pos()) instanceof Container));
-        if (!gone) {
-            lostPointKeys.remove(key);
+        BlockState state = mc.level.getBlockState(point.pos());
+        boolean vanished = state.isAir();
+        boolean notContainer = !vanished && type.requiresContainer()
+            && !(mc.level.getBlockEntity(point.pos()) instanceof Container);
+        if (!vanished && !notContainer) {
+            forgetLost(key);
             return;
         }
+        // 去抖：瞬时状态不算数（见 LOST_CONFIRM_TICKS 说明）
+        if (lostStreak.merge(key, 1, Integer::sum) < LOST_CONFIRM_TICKS) return;
         if (!lostPointKeys.add(key)) return;
-        owner.status.critical(key, type.title() + "已被挖掉",
-            "坐标 X" + point.x() + " Y" + point.y() + " Z" + point.z() + "；请重新设置该点位");
+        String coords = "X" + point.x() + " Y" + point.y() + " Z" + point.z();
+        if (vanished) {
+            owner.status.critical(key, type.title() + "已被挖掉", "坐标 " + coords + "；请重新设置该点位");
+            return;
+        }
+        // 非原版容器：自定义容器方块的服务端本来就不下发原版方块实体，箱子还在，绝不停机
+        owner.status.state(key, type.title() + "读取不到容器内容",
+            "坐标 " + coords + " 的方块仍是 " + blockId(state)
+                + "，但客户端读不到容器方块实体（自定义容器常见）；如开箱异常请重新设置该点位");
+    }
+
+    /** 判定恢复正常：解封播报，允许下次真正丢失时再报一次 */
+    private void forgetLost(String key) {
+        lostStreak.remove(key);
+        lostPointKeys.remove(key);
+    }
+
+    private static String blockId(BlockState state) {
+        var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        return id == null ? "未知方块" : id.toString();
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -122,6 +166,8 @@ final class StardewFarmReporter {
             case UNLOAD -> owner.status.state("UNLOAD:" + cropName, "正在卸货", unloadingCrops(cropName));
             case CLEAR_DEAD -> owner.status.state("DEAD_CLEAR", "发现枯死作物", "正在清理");
             case CLEAR_MISMATCH -> owner.status.state("MISMATCH_CLEAR", "发现错位作物", "正在清理");
+            // 杂物是常规保洁（挡住补种才挖），不占聊天栏，只在状态源里留痕
+            case CLEAR_JUNK -> owner.status.silent("JUNK_CLEAR", "清理盆上杂物", "正在清理", "");
             case RETURN_CENTER -> owner.status.state("RETURN", "返回农田", "正在前往农田中心");
             case FERTILIZE -> owner.status.state("FERTILIZE", "正在施肥", cropName);
             case POTION -> owner.status.state("POTION", "正在使用魔法药剂", cropName);

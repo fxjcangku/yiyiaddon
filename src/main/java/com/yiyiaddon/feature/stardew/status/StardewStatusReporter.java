@@ -145,7 +145,9 @@ public final class StardewStatusReporter {
         for (String item : items) {
             formatter.raw("§8· §f" + item);
         }
-        formatter.status(CommandMessageFormatter.Level.SUCCESS, "照常启动，这些地块会被跳过");
+        // 提醒分两类：① 绑的作物没勾选 → 那块地会被跳过；② 背包没种子但有种子箱 → 启动后自取。
+        // 所以结语写中性的「照常启动」，不把两类都塞进「地块会被跳过」。
+        formatter.status(CommandMessageFormatter.Level.SUCCESS, "照常启动，按上面每条处理即可");
 
         publishFormatted("STARTUP_NOTICE:" + String.join("\u0000", items),
             "启动提醒", "提醒：" + items.size() + " 项", "", false, formatter.render());
@@ -156,13 +158,17 @@ public final class StardewStatusReporter {
      *
      * <p>标题行只放事件标题，作物名必须是独立字段——绝不把作物名拼到模块前缀后面。
      * 同一作物 + 同一季节 + 同一原因的重复播报由协调器侧去重。</p>
+     *
+     * <p><b>季节结论一律 critical：</b>它决定玩家「这季到底能不能种、要不要放温室玻璃」，
+     * 属于必须送达的结论，与启动自检同一口径，不受「状态提示」开关影响；频率由去重键保证。</p>
      */
     public void seasonBlocked(String key, String cropLabel, String seasonLabel) {
         CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, "§e§l季节限制")
             .highlight("作物", cropLabel)
             .field("季节", seasonLabel + "不可播种，已暂时跳过")
+            .field("出路", "在这口盆上方 5 格内放一块温室玻璃，即可照常播种")
             .status(CommandMessageFormatter.Level.WARNING, "等待季节变化");
-        publishFormatted(key, "季节限制", "作物：" + cropLabel, seasonLabel + "不可播种", false, formatter.render());
+        publishFormatted(key, "季节限制", "作物：" + cropLabel, seasonLabel + "不可播种", true, formatter.render());
     }
 
     /** 季节变化后该作物重新允许播种：播一次解除消息，随后由协调器 Replan 自动恢复播种。 */
@@ -171,7 +177,7 @@ public final class StardewStatusReporter {
             .highlight("作物", cropLabel)
             .field("季节", seasonLabel + "允许播种")
             .status(CommandMessageFormatter.Level.SUCCESS, "恢复播种");
-        publishFormatted(key, "季节限制已解除", "作物：" + cropLabel, "恢复播种", false, formatter.render());
+        publishFormatted(key, "季节限制已解除", "作物：" + cropLabel, "恢复播种", true, formatter.render());
     }
 
     /** 没有任何可执行任务且所有待播种作物都被季节阻塞：模块保持运行，只播一次。 */
@@ -180,8 +186,25 @@ public final class StardewStatusReporter {
         CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, "§e§l等待季节")
             .highlight("季节", season)
             .field("任务", "等待季节")
+            .field("提醒", "被季节拦下的盆，在盆上方 5 格内放一块温室玻璃即可照常播种")
             .status(CommandMessageFormatter.Level.RUNNING, "模块保持运行");
-        publishFormatted(key, "等待季节", "季节：" + season, "模块保持运行", false, formatter.render());
+        publishFormatted(key, "等待季节", "季节：" + season, "模块保持运行", true, formatter.render());
+    }
+
+    /**
+     * 温室玻璃已覆盖：非当季照常播种。
+     *
+     * <p>与「季节限制」对称的一条：玩家在盆上方放了玻璃，同一株作物本季不再被拦，
+     * 说清依据（检测到玻璃）比只说「正在播种」更能让玩家确认机制生效。同样按季节结论始终提示。</p>
+     */
+    public void shelterPlanting(String key, String cropLabel, String seasonLabel) {
+        CommandMessageFormatter formatter = CommandMessageFormatter.of(MODULE_NAME, "§a§l温室玻璃已覆盖")
+            .highlight("作物", cropLabel)
+            .field("季节", safe(seasonLabel) + "照常播种")
+            .field("依据", "盆上方 5 格内检测到温室玻璃（作物不会因季节枯萎）")
+            .status(CommandMessageFormatter.Level.SUCCESS, "非当季也可播种");
+        publishFormatted(key, "温室玻璃已覆盖", "作物：" + cropLabel, safe(seasonLabel) + "照常播种",
+            true, formatter.render());
     }
 
     /**
@@ -447,6 +470,8 @@ public final class StardewStatusReporter {
             case "UNLOAD_DONE" -> "产物";
             case "DEAD_CLEAR" -> "任务";
             case "DEAD_DONE" -> "结果";
+            case "JUNK_CLEAR" -> "任务";
+            case "JUNK_DONE" -> "结果";
             case "RETURN", "RETURN_DONE" -> "位置";
             case "FERTILIZE", "POTION", "SPRINKLER" -> "目标";
             case "SEASON" -> "季节";

@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.visuals.EspTestModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.component.ButtonRow;
 import com.yiyiaddon.ui.component.KeybindBadge;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
@@ -25,7 +26,13 @@ import com.yiyiaddon.ui.widget.SettingToggle;
 public final class EspTestPage extends CompactModulePage implements ModulePage {
 
     private static final float SECTION_HEIGHT = 24f;
-    private static final float STATUS_HEIGHT = 22f;
+    /**
+     * 状态文字行的行高：与模块页里同为纯文字行的其它行取同一档（模块中心的行高，24 → 原 22）。
+     *
+     * <p>用户 2026-09-16 点进模块页后说「还有点击进去的时候 模块也要缩小 现在都不对称」——纯文字行
+     * 夹在 24 的卡片行之间时，两种高度会互相错牙；本页只改行高，字号（11）与原渲染尺寸都不动。</p>
+     */
+    private static final float STATUS_HEIGHT = ModuleRow.HEIGHT;
     private static final float FOOTER_HEIGHT = 34f;
     private static final float FOOTER_SIZE = 10f;
 

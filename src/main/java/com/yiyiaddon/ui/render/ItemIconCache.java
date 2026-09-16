@@ -11,15 +11,22 @@ import io.github.humbleui.skija.impl.Library;
 import io.github.humbleui.types.Rect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import org.joml.Matrix3x2fStack;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
@@ -53,6 +60,11 @@ import static org.lwjgl.opengl.GL45.*;
  *
  * <p>缓存的贴图尺寸固定为 {@link #ICON_SIZE} 逻辑像素，缩放由绘制方决定，因此同一物品只需
  * 一份贴图。</p>
+ *
+ * <p><b>实体渲染图</b>（{@link #drawEntityModel}）走的是同一条链路，只是格子里的内容换成原版 GUI 的
+ * 实体通道（{@code GuiGraphicsExtractor#entity}）：截取、反解 alpha、缓存、绘制全部复用，因此实体模型
+ * 图标与物品图标是同一张缓存里的两类条目。注意 {@link #drawEntity} <b>不</b>是实体渲染图 ——
+ * 它画的是刷怪蛋物品图标。</p>
  */
 public final class ItemIconCache {
 
@@ -72,11 +84,42 @@ public final class ItemIconCache {
     private static final int ROWS = 2;
     /** 两行之间留出的空隙，正好让开屏幕正中 15×15 的准星。 */
     private static final float ROW_GAP = 16f;
+    /** 实体模型图标的缓存键前缀：实体模型与物品分开取键（物品键是注册表 id，不会以它开头）。 */
+    private static final String MODEL_KEY_PREFIX = "entity:";
+    /**
+     * 实体模型占用的槽位：物品行的第 0 格（那一帧物品批次顺延一格、少取一个，见 {@link #renderPending}）。
+     *
+     * <p>为什么不另开一格：格子区总宽 12 格刚好用满窗口余量，再往右加一列在窄窗口
+     * （GUI 宽度 &lt; 500 像素）下会被窗口边缘裁掉，截出来的图标会被压扁。</p>
+     */
+    private static final int MODEL_SLOT = 0;
+    /**
+     * 实体模型在格子里的取景系数：包围盒高度占格子边长的比例。
+     *
+     * <p>取自原版 {@code InventoryScreen.extractEntityInInventoryFollowsMouse} 的口径——那里用
+     * {@code size=30} 画 70 逻辑像素高的框（玩家 1.8 格高占框约 77%），这里按包围盒高度归一，
+     * 使得任意体型的生物在 32 像素格子里都占满约八成，不会出现「只看得见一条腿」。</p>
+     */
+    private static final float MODEL_FILL = 0.77f;
+    /** 取景用的最小包围盒高度：防止体型极扁的实体（如岩浆怪）把缩放推到离谱的倍数。 */
+    private static final float MODEL_MIN_BLOCKS = 0.5f;
+    /** 实体拍照时的抬升量：与 {@code InventoryScreen} 一致（1/16 格），让模型在格子里居中。 */
+    private static final float MODEL_Y_OFFSET = 0.0625f;
 
     private final Map<String, Image> icons = new HashMap<>();
     private final Set<String> loading = new HashSet<>();
     private final ArrayDeque<Request> pending = new ArrayDeque<>();
     private final List<Request> rendered = new ArrayList<>();
+    /**
+     * 实体模型请求队列：每帧只取一个。
+     *
+     * <p><b>为什么必须一帧一个：</b>原版 PIP（{@code GuiEntityRenderer}）每种渲染器只有<b>一张</b>
+     * 共用纹理，同帧多个实体状态会依次清屏重画，最终所有 blit 拿到的都是<b>最后一个</b>实体的画面。
+     * 两行（黑白底）画的是同一个实体，互相覆盖也不会画错；不同实体则必须排队一帧一个。</p>
+     */
+    private final ArrayDeque<Request> pendingModels = new ArrayDeque<>();
+    /** 模型路径确实不可用的实体：没有渲染器 / 合成不出实体 / 渲出来整格全透明（如标记实体的空渲染器）。 */
+    private final Set<EntityType<?>> modelUnsupported = new HashSet<>();
 
     private boolean nativeLoaded;
     /** 实体 → 刷怪蛋映射；null 表示尚未构建。 */
@@ -97,7 +140,7 @@ public final class ItemIconCache {
     // ── 抽帧阶段：给隐藏格子铺底并把待加载图标画进去 ──
 
     /**
-     * 在 {@code Screen#extractRenderState} 里调用，把本帧待加载的物品画到隐藏格子。
+     * 在 {@code Screen#extractRenderState} 里调用，把本帧待加载的图标（物品与实体模型）画到隐藏格子。
      *
      * <p><b>底色为什么是「记录绘制指令」而不是擦主帧缓冲：</b>界面背景（原版那层压暗渐变）同样在
      * 抽帧阶段记录、且排在 {@code extractRenderState} 之前，真正落地比本方法早。在世界画完后用
@@ -109,29 +152,51 @@ public final class ItemIconCache {
      */
     public void renderPending(GuiGraphicsExtractor graphics) {
         rendered.clear();
-        if (graphics == null || pending.isEmpty()) return;
+        if (graphics == null || (pending.isEmpty() && pendingModels.isEmpty())) return;
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null) {
             pending.clear();
+            pendingModels.clear();
             return;
         }
 
-        int count = Math.min(BATCH, pending.size());
+        // 实体模型每帧只取一个（原因见 pendingModels）
+        Request model = pendingModels.poll();
+        if (model != null && client.level == null) {
+            // 还没进世界：合成实体要一张地图。放回队首下一帧再试，不记为不可用
+            pendingModels.addFirst(model);
+            model = null;
+        }
+
+        // 实体模型占用物品行的第 0 格，因此<b>取批之前</b>就要按让位算好上限：先按 BATCH 取满再回头减一，
+        // 多出来的那个请求已被 poll 出队、既不入 rendered 也回不了队，而它的 key 早在 request 时就进了
+        // loading —— 那张图标此后一辈子都渲不出来（并白占一个 loading 名额）。
+        if (model != null) model.slot = MODEL_SLOT;
+        int count = Math.min(model == null ? BATCH : BATCH - 1, pending.size());
         List<Request> batch = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             batch.add(pending.poll());
         }
+        int firstItemSlot = model == null ? 0 : 1;
+        // 格子总宽最宽 428 逻辑像素（12 格 × 36 − 4），比面板还宽，两侧会露在面板外；格子里的纯黑/纯白底
+        // 与放大图标也会透过半透明玻璃。备份 + 帧末写回让这段过程对画面完全无痕（详见 saveBackdrop 注释）。
+        int slots = model == null ? count : count + 1;
+        if (slots <= 0) return;
 
-        // 先备份格子要占的整块矩形：格子总宽最宽 428 逻辑像素（12 格 × 36 − 4），比面板还宽，
-        // 两侧会露在面板外；格子里的纯黑/纯白底与放大图标也会透过半透明玻璃。备份 + 帧末写回
-        // 让这段过程对画面完全无痕（详见 saveBackdrop 注释）。只备份本帧真的要用到的那几格。
-        saveBackdrop(client, count);
+        // 备份拿不到（回读不出干净画面 / 建图失败）就整批放回队首，这一帧什么都不画：格子一旦落地就
+        // 必须有一张画面能在帧末把它盖回去，否则屏幕上会留下一片纯黑/纯白方块，要等下一帧世界重画才
+        // 「复原」—— 即用户 2026-09-16 反馈的「偶尔会出现一些黑块 闪一下然后就复原了」。
+        if (!saveBackdrop(client, slots)) {
+            for (int i = batch.size() - 1; i >= 0; i--) pending.addFirst(batch.get(i));
+            if (model != null) pendingModels.addFirst(model);
+            return;
+        }
 
         // 底色用未缩放的 GUI 坐标记录：不管抽帧管线是否对 fill 应用姿态矩阵，两者都落在同一个矩形上
         for (int row = 0; row < ROWS; row++) {
             int color = row == 0 ? 0xFF000000 : 0xFFFFFFFF;
             int top = Math.round(slotY(row, client));
-            for (int slot = 0; slot < count; slot++) {
+            for (int slot = 0; slot < slots; slot++) {
                 int left = Math.round(slotX(slot, client));
                 graphics.fill(left, top, left + ICON_SIZE, top + ICON_SIZE, color);
             }
@@ -141,8 +206,9 @@ public final class ItemIconCache {
         pose.pushMatrix();
         pose.scale(SCALE, SCALE);
         try {
-            for (int slot = 0; slot < count; slot++) {
-                Request request = batch.get(slot);
+            for (int i = 0; i < count; i++) {
+                Request request = batch.get(i);
+                int slot = firstItemSlot + i;
                 request.slot = slot;
                 for (int row = 0; row < ROWS; row++) {
                     graphics.item(request.stack, (int) (slotX(slot, client) / SCALE),
@@ -152,6 +218,15 @@ public final class ItemIconCache {
             }
         } finally {
             pose.popMatrix();
+        }
+
+        if (model != null) {
+            if (renderModel(graphics, model, client)) {
+                rendered.add(model);
+            } else {
+                // 渲不出来（没有渲染器 / 合成不出实体）：永久记为不可用，让调用方退回静态图标
+                failModel(model);
+            }
         }
     }
 
@@ -169,14 +244,21 @@ public final class ItemIconCache {
             return;
         }
         for (Request request : rendered) {
-            Image image = captureIcon(request.slot, client);
-            if (image != null) {
-                if (icons.size() >= CAPACITY) clear();
-                Image previous = icons.put(request.key, image);
-                if (previous != null) previous.close();
-            } else {
+            Capture capture = captureIcon(request.slot, client);
+            if (capture == null) {
                 loading.remove(request.key);
+                continue;
             }
+            if (request.type != null && !capture.visible()) {
+                // 实体模型整格全透明 = 这个实体本来就没画东西（如标记实体的空渲染器）：
+                // 记入不可用并丢弃这张空图，否则列表里会留一个看不见的空图标
+                capture.image().close();
+                failModel(request);
+                continue;
+            }
+            if (icons.size() >= CAPACITY) clear();
+            Image previous = icons.put(request.key, capture.image());
+            if (previous != null) previous.close();
         }
         rendered.clear();
         // 备份的画面不在这里写回：写回需要一个 Skija 画布，统一交给 SkiaGlBackend#begin
@@ -198,12 +280,7 @@ public final class ItemIconCache {
             request(stack, key);
             return false;
         }
-        float width = image.getWidth();
-        float height = image.getHeight();
-        canvas.drawImageRect(image,
-                Rect.makeXYWH(0f, 0f, width, height),
-                Rect.makeXYWH(x, y, size, size),
-                SamplingMode.LINEAR, null, true);
+        drawScaled(canvas, image, x, y, size);
         return true;
     }
 
@@ -239,6 +316,44 @@ public final class ItemIconCache {
         return draw(canvas, egg.getDefaultInstance(), x, y, size);
     }
 
+    /** 该实体是否有刷怪蛋（有则 {@link #drawEntity} 能画出图标；刷怪蛋贴图本身就是按生物形象绘制的）。 */
+    public boolean hasSpawnEgg(EntityType<?> type) {
+        return type != null && spawnEggByEntity().containsKey(type);
+    }
+
+    /** 该实体的模型渲染图确实不可用（没有渲染器 / 合成不出实体 / 渲出来是空的）；调用方据此退回静态图标。 */
+    public boolean isEntityModelUnsupported(EntityType<?> type) {
+        return type != null && modelUnsupported.contains(type);
+    }
+
+    /**
+     * 绘制实体的<b>真实渲染图</b>（原版实体模型 + 贴图本身）。
+     *
+     * <p><b>与 {@link #drawEntity} 的区别：</b>{@code drawEntity} 画的是<b>刷怪蛋物品</b>（遍历物品注册表
+     * 找带 {@code ENTITY_DATA} 的蛋），没有刷怪蛋的实体它直接返回 false —— 巨人、幻术师这类原版不留刷怪蛋的
+     * 生物因此拿不到生物形象。本方法借原版 GUI 的实体渲染通道（{@code GuiGraphicsExtractor#entity}，
+     * 物品栏玩家预览走的就是它）把实体模型画进隐藏格子，再沿用同一条黑白两版截取链路，得到的就是实体自己的样子。</p>
+     *
+     * <p><b>不可用的情况</b>（返回 false 且 {@link #isEntityModelUnsupported} 变为 true）：合成不出实体实例、
+     * 实体没有注册渲染器（如玩家、假人这类只有专用渲染器的实体）、或渲染结果整格全透明（如标记实体的空渲染器）。
+     * 这类实体由调用方退回物品图标；渲染器可用但本帧还没截取好的情况返回 false 而<b>不</b>记入不可用。</p>
+     *
+     * @return true 表示已绘制；false 表示还没有（本帧已入队，下一帧起可绘制）或该实体渲不出来
+     */
+    public boolean drawEntityModel(Canvas canvas, EntityType<?> type, float x, float y, float size) {
+        if (canvas == null || type == null || modelUnsupported.contains(type)) return false;
+        Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (id == null) return false;
+        String key = MODEL_KEY_PREFIX + id + "|" + ICON_SIZE;
+        Image image = icons.get(key);
+        if (image == null) {
+            requestModel(type, key);
+            return false;
+        }
+        drawScaled(canvas, image, x, y, size);
+        return true;
+    }
+
     /**
      * 实体 → 刷怪蛋物品的映射，首次使用时构建一次。
      *
@@ -257,13 +372,20 @@ public final class ItemIconCache {
         return map;
     }
 
-    /** 清空缓存并释放贴图；资源包重载后应调用。 */
+    /**
+     * 清空缓存并释放贴图；资源包重载后应调用。
+     *
+     * <p>一并清掉「模型不可用」的判定：重载会重建实体渲染器，上一轮因为贴图 / 模型还没就绪而渲成空的
+     * 实体有机会恢复正常（真正不可用的那几类最多再试一帧）。</p>
+     */
     public void clear() {
         for (Image image : icons.values()) image.close();
         icons.clear();
         loading.clear();
         pending.clear();
+        pendingModels.clear();
         rendered.clear();
+        modelUnsupported.clear();
         releaseBackdrop();
     }
 
@@ -275,10 +397,98 @@ public final class ItemIconCache {
 
     // ── 内部 ──
 
+    /** 把缓存好的图标贴到目标矩形（物品与实体模型共用）。 */
+    private static void drawScaled(Canvas canvas, Image image, float x, float y, float size) {
+        float width = image.getWidth();
+        float height = image.getHeight();
+        canvas.drawImageRect(image,
+                Rect.makeXYWH(0f, 0f, width, height),
+                Rect.makeXYWH(x, y, size, size),
+                SamplingMode.LINEAR, null, true);
+    }
+
     private void request(ItemStack stack, String key) {
         if (loading.contains(key) || icons.containsKey(key)) return;
         loading.add(key);
-        pending.add(new Request(stack.copy(), key));
+        pending.add(new Request(stack.copy(), null, key));
+    }
+
+    /** 实体模型请求入队（每帧只消费一个，见 {@link #pendingModels}）。 */
+    private void requestModel(EntityType<?> type, String key) {
+        if (loading.contains(key) || icons.containsKey(key)) return;
+        loading.add(key);
+        pendingModels.add(new Request(null, type, key));
+    }
+
+    /** 模型路径判定为不可用：清掉在途标记（不再重试）并记入黑名单，让调用方退回静态图标。 */
+    private void failModel(Request request) {
+        loading.remove(request.key);
+        if (request.type != null) modelUnsupported.add(request.type);
+    }
+
+    /**
+     * 把一个实体模型记录进隐藏格子的两行（黑白底色各一次）。
+     *
+     * <p><b>为什么走 {@code Graphics#entity}：</b>26.1.2 的界面渲染有原版实体通道
+     * （{@code GuiEntityRenderState}，即 PIP 实景渲染），物品栏右下角的玩家预览用的就是它。
+     * 借它渲出来的是实体自己的模型与贴图，而不是刷怪蛋那种物品图标。</p>
+     *
+     * <p><b>取景口径</b>逐字照原版的玩家预览：姿态归零、正对镜头（{@code bodyRot = 180}），
+     * 按包围盒高度定缩放、抬升半个身高使模型居中；带渲染缩放的实体先按 {@code scale} 归一包围盒，
+     * 否则巨人（12 格高）整格只看得见一条腿。</p>
+     *
+     * <p><b>实体实例只现造不缓存：</b>每个实体类型一辈子只会请求一两次（成功即入贴图缓存、失败即记入
+     * {@link #modelUnsupported}），现造一次比留一份缓存更省心——缓存下来的实例会一直引用旧地图对象，
+     * 换世界后既渲染出陈旧数据也拖着整张地图不放。</p>
+     *
+     * <p><b>为什么两行都记同一份状态：</b>截取靠黑白两版反解 alpha，两行必须是同一个实体；
+     * 而原版 PIP 的实体渲染器只有一张共用纹理，同帧多个状态会互相覆盖——这里两行同源，
+     * 覆盖也不会画错，不同实体则必须一帧一个（见 {@link #pendingModels}）。</p>
+     *
+     * @return false 表示这个实体渲不出来，调用方应退回静态图标
+     */
+    private boolean renderModel(GuiGraphicsExtractor graphics, Request request, Minecraft client) {
+        try {
+            Entity entity = request.type.create(client.level, EntitySpawnReason.COMMAND);
+            if (entity == null) return false;
+            EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
+            if (dispatcher == null || dispatcher.getRenderer(entity) == null) return false;
+
+            EntityRenderState state = dispatcher.extractEntity(entity, 1f);
+            if (state == null) return false;
+            // 与玩家预览同一套「拍照」设置：去掉脚下阴影片与发光描边
+            state.shadowPieces.clear();
+            state.outlineColor = EntityRenderState.NO_OUTLINE;
+            if (state instanceof LivingEntityRenderState living) {
+                if (living.scale > 0f) {
+                    living.boundingBoxHeight /= living.scale;
+                    living.boundingBoxWidth /= living.scale;
+                    living.scale = 1f;
+                }
+                living.bodyRot = 180f;
+                living.yRot = 0f;
+                living.xRot = 0f;
+            }
+
+            float blocks = Math.max(MODEL_MIN_BLOCKS, state.boundingBoxHeight);
+            float modelScale = MODEL_FILL * ICON_SIZE / blocks;
+            Vector3f translation = new Vector3f(0f, state.boundingBoxHeight / 2f + MODEL_Y_OFFSET, 0f);
+            Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI);
+            Quaternionf cameraRotation = new Quaternionf();
+
+            int left = Math.round(slotX(MODEL_SLOT, client));
+            for (int row = 0; row < ROWS; row++) {
+                int top = Math.round(slotY(row, client));
+                graphics.entity(state, modelScale, translation, rotation, cameraRotation,
+                        left, top, left + ICON_SIZE, top + ICON_SIZE);
+            }
+            return true;
+        } catch (Throwable error) {
+            // 渲染状态抽取失败（原版会包成 ReportedException）、渲染器内部异常，或第三方模组实体的
+            // 构造/初始化问题（NoClassDefFoundError 之类）：一律判为不可用，交给静态兜底。
+            // 这里必须连 Error 一起拦：列表里含模组实体，一个坏实体不该把界面（乃至整个客户端）带崩
+            return false;
+        }
     }
 
     /**
@@ -343,7 +553,7 @@ public final class ItemIconCache {
      * 收养纹理的 alpha 类型（{@code adoptGLTextureFrom} 只接颜色类型、不接 alpha 类型，
      * 透明区会被当成不透明画成黑块）。</p>
      */
-    private Image captureIcon(int slot, Minecraft client) {
+    private Capture captureIcon(int slot, Minecraft client) {
         if (!ensureContext()) return null;
         byte[][] passes = new byte[ROWS][];
         int width = 1;
@@ -360,6 +570,7 @@ public final class ItemIconCache {
         byte[] dark = passes[0];
         byte[] light = passes[1];
         byte[] out = new byte[width * height * 4];
+        boolean visible = false;
         for (int i = 0; i < out.length; i += 4) {
             int r = dark[i] & 0xFF;
             int g = dark[i + 1] & 0xFF;
@@ -371,6 +582,7 @@ public final class ItemIconCache {
             } else if (a > 255) {
                 a = 255;
             }
+            if (a > 0) visible = true;
             // 预乘格式要求「颜色 ≤ alpha」，相减取整可能让颜色多出 1，夹一下避免越界像素
             if (r > a) r = a;
             if (g > a) g = a;
@@ -380,9 +592,10 @@ public final class ItemIconCache {
             out[i + 2] = (byte) b;
             out[i + 3] = (byte) a;
         }
-        return Image.makeRasterFromBytes(
+        Image image = Image.makeRasterFromBytes(
                 new ImageInfo(width, height, ColorType.RGBA_8888, ColorAlphaType.PREMUL, ColorSpace.getSRGB()),
                 out, width * 4);
+        return new Capture(image, visible);
     }
 
     /**
@@ -493,14 +706,17 @@ public final class ItemIconCache {
      * <p>时机：本方法在抽帧阶段（{@code renderPending}）调用，此时格子还只是绘制指令、尚未落地，
      * 回读到的是干净的场景画面；写回（{@link #paintBackdrop}）发生在面板绘制之前，于是格子存在的
      * 整段时间都被画面自己的备份盖住，玩家完全看不到。</p>
+     *
+     * @return false 表示这一帧没有可用的备份（区域太小、回读失败、建图失败）。调用方此时<b>必须</b>
+     *         放弃本帧画格子，否则格子落地后没有任何东西能盖回去，屏幕上会闪出一片黑块。
      */
-    private void saveBackdrop(Minecraft client, int slots) {
+    private boolean saveBackdrop(Minecraft client, int slots) {
         releaseBackdrop();
         int[] box = backdropBox(client, slots);
-        if (box[2] <= 2 || box[3] <= 2) return;
+        if (box[2] <= 2 || box[3] <= 2) return false;
 
         byte[] pixels = readRegion(box);
-        if (pixels == null) return;
+        if (pixels == null) return false;
         try {
             // 帧内容已是合成后的不透明画面，其 alpha 常为 0（不透明渲染的常见结果），
             // 因此必须按 OPAQUE 建图：按 PREMUL 建会被 alpha=0 抹成纯黑。
@@ -509,7 +725,7 @@ public final class ItemIconCache {
                     pixels, box[2] * 4);
         } catch (RuntimeException error) {
             backdropImage = null;
-            return;
+            return false;
         }
 
         double scale = client.getWindow().getGuiScale();
@@ -520,6 +736,7 @@ public final class ItemIconCache {
                 (float) (box[2] / scale),
                 (float) (box[3] / scale)
         };
+        return true;
     }
 
     /**
@@ -588,15 +805,23 @@ public final class ItemIconCache {
         return SkiaGlBackend.sharedContext() != null;
     }
 
-    /** 本帧被渲染进隐藏格子的请求。 */
+    /** 本帧被渲染进隐藏格子的请求：物品与实体模型共用，靠 {@code stack}/{@code type} 区分。 */
     private static final class Request {
+        /** 物品请求的物品堆；实体模型请求为 {@code null}。 */
         private final ItemStack stack;
+        /** 实体模型请求的实体类型；物品请求为 {@code null}。 */
+        private final EntityType<?> type;
         private final String key;
         private int slot;
 
-        private Request(ItemStack stack, String key) {
+        private Request(ItemStack stack, EntityType<?> type, String key) {
             this.stack = stack;
+            this.type = type;
             this.key = key;
         }
+    }
+
+    /** 一次截取的结果：反解出的预乘位图 + 是否含有可见像素（整格全透明说明这一格什么都没画上）。 */
+    private record Capture(Image image, boolean visible) {
     }
 }

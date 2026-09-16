@@ -15,6 +15,7 @@ import com.yiyiaddon.feature.stardew.recognition.PotState;
 import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
+import com.yiyiaddon.feature.stardew.service.StardewShelterProbe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
@@ -194,6 +195,26 @@ final class StardewTaskPlanner {
         return best != null ? best : fallback;
     }
 
+    /**
+     * 现在还真的有「被季节拦下、且盆上方没有温室玻璃」的空盆吗？
+     *
+     * <p><b>为什么「等待季节」必须以此为准：</b>{@code seasonBlockedCrops} 记的是「本季出现过被拦的格子」，
+     * 玩家随后补上温室玻璃、或自己动手把那几格种上之后，这个集合已经不是现实——只按集合非空播报，会在
+     * 地里早已无事可等时播出一条「等待季节」，看着像模块卡住了。</p>
+     */
+    boolean hasSeasonBlockedEmptyPot() {
+        for (StardewFarmScanner.Cell cell : owner.pending) {
+            if (cell.crop().state() != CropState.EMPTY) continue;
+            CropDefinition crop = cropOf(cell.potPos());
+            if (crop == null) continue;
+            if (owner.seasonService.plantingStatus(crop, owner.inventory.findSeedStack(crop))
+                != StardewSeasonService.PlantingStatus.DISALLOWED) continue;
+            if (StardewShelterProbe.sheltered(cell.potPos(), owner.index, owner.selectedShelterKeys)) continue;
+            return true;
+        }
+        return false;
+    }
+
     /** 这一格是不是落在混种区域里 */
     private boolean isMixedRegionAt(BlockPos potPos) {
         StardewRegionManager.Region region = owner.regionAt(potPos);
@@ -205,20 +226,51 @@ final class StardewTaskPlanner {
      *
      * <p>混种区域恒为 false（那里种什么都算对）；自动清理开关关着时也恒为 false：
      * 那条路归「停机 + 人工清理」，这里绝不偷偷挖掉任何植株。</p>
+     *
+     * <p><b>只认活着的、身份可辨的作物：</b>枯死株（{@link CropState#DEAD}）与认不出的方块
+     * （{@link CropState#UNKNOWN}）都不算错位——它们不是「种错了作物」，而是「这一格需要清扫」。
+     * 冬天冻死的植株身份往往只能落到 {@code xxx_dead}，硬按错位处理会刷出一条
+     * 「区域里的作物不是番茄」的假警报并停机；现在它们走 {@link TaskType#CLEAR_DEAD} /
+     * {@link TaskType#CLEAR_JUNK} 的静默清理链。</p>
      */
     private boolean isRegionMismatchCell(StardewFarmScanner.Cell cell) {
         if (!owner.autoClearMismatch) return false;
         String key = cell.crop().cropKey();
-        if (key == null || cell.crop().state() == CropState.UNKNOWN) return false;
+        if (key == null || !isAliveCrop(cell)) return false;
         StardewRegionManager.Region region = owner.regionAt(cell.potPos());
         return region != null && !region.mixed() && !key.equals(region.cropKey());
+    }
+
+    /**
+     * 这一格上的东西是不是「活着的、身份可辨的作物」。
+     *
+     * <p>枯死株与杂物（认不出的方块）都不属于「错位作物」：错位的前提是「种着另一株活作物」，
+     * 死株 / 杂物要做的是清扫，不是报警。</p>
+     */
+    private static boolean isAliveCrop(StardewFarmScanner.Cell cell) {
+        CropState state = cell.crop().state();
+        return state != CropState.DEAD && state != CropState.UNKNOWN;
+    }
+
+    /**
+     * 这一格是不是分区盆上的「杂物」：盆上方那格不是已识别的作物方块（结构上不是阶段化作物）。
+     *
+     * <p>典型来源是拦在盆上的原版 / 自定义非作物方块（冬季的积雪层、玩家掉落的方块等）。
+     * 它们既不是作物也没有成熟规则，识别层如实报 {@code UNKNOWN}，
+     * 不清理就会一直挡住这一格的补种（实机反馈：区域内出现杂物后那一格再也不种）。
+     * 属于破坏动作，受「自动清理错位作物」总开关约束：关掉就不碰它（它只是挡住一格，
+     * 不报错也不画红框——红框专指「种错了作物」）。</p>
+     */
+    private boolean isJunkCell(StardewFarmScanner.Cell cell) {
+        if (!owner.autoClearMismatch) return false;
+        return cell.crop().state() == CropState.UNKNOWN && owner.regionAt(cell.potPos()) != null;
     }
 
     /**
      * 「某块单一作物区里种了别的作物」的格子。
      *
      * <p>报错详情与世界高亮共用这一份判定，避免两处口径分叉。未分区格子与混种区域都不参与判定
-     * （前者不管，后者种什么都算对）。</p>
+     * （前者不管，后者种什么都算对）；枯死株与杂物同样不算——那两类归清理链，不报警、不画错位框。</p>
      */
     record RegionMismatch(BlockPos pos, StardewRegionManager.Region region, String cropKey) {
     }
@@ -228,7 +280,7 @@ final class StardewTaskPlanner {
         List<RegionMismatch> result = new ArrayList<>();
         for (StardewFarmScanner.Cell cell : owner.pending) {
             String key = cell.crop().cropKey();
-            if (key == null || cell.crop().state() == CropState.UNKNOWN) continue;
+            if (key == null || !isAliveCrop(cell)) continue;
             StardewRegionManager.Region region = owner.regionAt(cell.potPos());
             if (region == null || region.mixed() || key.equals(region.cropKey())) continue;
             result.add(new RegionMismatch(cell.potPos(), region, key));
@@ -327,7 +379,8 @@ final class StardewTaskPlanner {
             case MATURE, SPECIAL -> 1;
             case DEAD -> 2;
             case EMPTY -> 3;
-            default -> 90;
+            // 杂物排在补种之前：不清掉盆上那格，这一格永远种不进去
+            case UNKNOWN -> isJunkCell(cell) ? 4 : 90;
         };
     }
 
@@ -346,8 +399,15 @@ final class StardewTaskPlanner {
         if (isRegionMismatchCell(cell)) return TaskType.CLEAR_MISMATCH;
         // 没选中的作物：不收 / 不清理 / 不播种 / 不施肥 / 不学习。
         // 单一作物区里种了别的作物交给错位处置；混种区域与未分区格子上面已经各自分流过了。
-        if (cell.crop().cropKey() != null && !cropIsManaged(cell.potPos(), cell.crop().cropKey())) return null;
+        //
+        // 枯死株例外：死株的作物身份经常只能落到 {@code xxx_dead} 这类派生键（甚至为空），
+        // 拿它去比「有没有选中 / 是不是本区作物」只会把该清的东西一直留在盆里。分区内的死株
+        // 一律清掉，空出的盆再按本区作物补种——这与错位清理由同一套破坏动作完成。
         CropState state = cell.crop().state();
+        boolean deadInRegion = state == CropState.DEAD;
+        if (!deadInRegion && cell.crop().cropKey() != null && !cropIsManaged(cell.potPos(), cell.crop().cropKey())) {
+            return null;
+        }
         return switch (state) {
             // 普通成熟作物执行右键采摘；特殊变种必须等独立工具规则确认后再处理。
             case MATURE -> needsHarvestLearning(cell.crop().cropKey())
@@ -361,7 +421,9 @@ final class StardewTaskPlanner {
             case DEAD -> TaskType.CLEAR_DEAD;
             case GROWING -> resolveGrowing(cell);
             case EMPTY -> resolveEmptyPot(cell);
-            default -> null;
+            // 认不成作物 = 盆上的杂物（原版方块 / 非阶段化自定义方块）：挖掉这一格才能补种，
+            // 静默执行、不报警（它不是「种错了作物」，报警只会误导）。
+            case UNKNOWN -> isJunkCell(cell) ? TaskType.CLEAR_JUNK : null;
         };
     }
 
@@ -529,10 +591,17 @@ final class StardewTaskPlanner {
             if (crop == null) return null;
             tried.add(crop.cropKey());
             ItemStack seedStack = owner.inventory.findSeedStack(crop);
+            // 季节闸门：当季不允许时，先看这一口盆上方 5 格内有没有已选温室玻璃——
+            // 有罩（物品 lore：防止作物因季节变化枯萎）说明服务器会正常照料这株作物，照常播种；
+            // 没罩才按原口径播报并跳过。判定逐格做，因为服务器是每口盆各算各的。
             if (owner.seasonService.plantingStatus(crop, seedStack) == StardewSeasonService.PlantingStatus.DISALLOWED) {
-                announceSeasonBlock(crop);
-                if (isMixedRegionAt(cell.potPos())) continue;
-                return null;
+                if (StardewShelterProbe.sheltered(cell.potPos(), owner.index, owner.selectedShelterKeys)) {
+                    announceSheltered(crop);
+                } else {
+                    announceSeasonBlock(crop);
+                    if (isMixedRegionAt(cell.potPos())) continue;
+                    return null;
+                }
             }
             // 季节合法性高于一切空盆动作；通过后，干盆必须先完成 WATER，再进入种子检查。
             if (needsSupply(cell)) {
@@ -570,6 +639,25 @@ final class StardewTaskPlanner {
         owner.seasonBlockedCrops.add(crop.cropKey());
         if (owner.announcedSeasonBlocks.add(crop.cropKey() + '\u0000' + label)) {
             owner.status.seasonBlocked(owner.reporter.seasonKey("限制", crop.cropKey(), label), crop.chineseName(), label);
+        }
+    }
+
+    /**
+     * 温室玻璃罩着、当季照常播种：同一作物 + 同一季节只播一次。
+     *
+     * <p>顺便把这种作物从「季节阻塞」集合里摘掉：它此刻确实在种，留着会在整片地种满后
+     * 又播一条「等待季节」，让玩家以为模块卡在季节上。摘掉后若集合已空，
+     * 连「等待季节」的播报去重键一起复位（与 {@code releaseSeasonBlocks} 同一口径）。</p>
+     */
+    private void announceSheltered(CropDefinition crop) {
+        String label = owner.reporter.seasonPlayerLabel();
+        if (owner.seasonBlockedCrops.remove(crop.cropKey())) {
+            owner.announcedSeasonBlocks.removeIf(key -> key.startsWith(crop.cropKey() + '\u0000'));
+            if (owner.seasonBlockedCrops.isEmpty()) owner.waitingSeasonAnnouncedLabel = null;
+        }
+        if (owner.announcedShelterCrops.add(crop.cropKey() + '\u0000' + label)) {
+            owner.status.shelterPlanting(owner.reporter.seasonKey("温室", crop.cropKey(), label),
+                crop.chineseName(), label);
         }
     }
 
@@ -892,11 +980,14 @@ final class StardewTaskPlanner {
     }
 
     /**
-     * 季节已允许、盆已浇湿、背包确实无种子的空盆才构成 Restock Demand。
+     * 季节已允许（或有温室玻璃豁免）、盆已浇湿、背包确实无种子的空盆才构成 Restock Demand。
      *
      * <p><b>混种地例外：</b>混种地会把「缺口最大的那种」排在前面种，缺种子那种的盆可能先被别的作物
      * 占走，于是「空盆的计划作物」这条判据就再也轮不到它——这一种在混种地里会永远消失。只要洞里
      * 还有混种区域、这一种又确实还有配额缺口，就直接构成补货需求；配额种满即自动停止。</p>
+     *
+     * <p><b>温室玻璃必须与播种同一口径：</b>盆上方有玻璃的格子当季就能种，若这里仍按「季节不允许」
+     * 跳过，会出现「播种植得下、却永远不去种子箱取种」的冬季死角（种子在箱子里的常态场景）。</p>
      */
     boolean hasRestockDemand(CropDefinition crop) {
         if (crop == null || owner.inventory.countSeed(crop) > 0
@@ -906,7 +997,8 @@ final class StardewTaskPlanner {
             if (cell.crop().state() != CropState.EMPTY || !potMatchesSelection(cell)
                 || !crop.cropKey().equals(plantCropKey(cell.potPos()))) continue;
             StardewSeasonService.PlantingStatus season = owner.seasonService.plantingStatus(crop, owner.inventory.findSeedStack(crop));
-            if (season == StardewSeasonService.PlantingStatus.DISALLOWED) continue;
+            if (season == StardewSeasonService.PlantingStatus.DISALLOWED
+                && !StardewShelterProbe.sheltered(cell.potPos(), owner.index, owner.selectedShelterKeys)) continue;
             if (needsSupply(cell)) continue;
             return true;
         }

@@ -2,9 +2,9 @@ package com.yiyiaddon.integration.baritone;
 
 import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.ui.component.ButtonRow;
-import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.ListRow;
+import com.yiyiaddon.ui.component.SearchRow;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.screen.PanelScreen;
@@ -77,7 +77,9 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
     private void rebuild() {
         CompactStack stack = content();
         stack.clear();
-        stack.add(new CompactRow("筛选", () -> "按名称或登记名过滤，输入即过滤", search));
+        // 搜索框铺满标签右侧；原来挂在行内的说明改走悬停浮层（铺满后行内已没有空隙摆说明文字）
+        stack.add(new SearchRow("筛选", search)
+            .tooltip(() -> "按名称或登记名过滤，输入即过滤"));
         buildKeys(stack);
         buildSubstitutes(stack);
         stack.add(new ButtonRow(new Button("＋ 添加映射键", this::pickKey)));

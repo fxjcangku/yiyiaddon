@@ -2,6 +2,7 @@ package com.yiyiaddon.ui.page;
 
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.component.ModuleRow;
 import io.github.humbleui.skija.Canvas;
 
 /**
@@ -18,8 +19,15 @@ public abstract class CompactModulePage extends BasePage {
 
     /** 三个区块之间的垂直间距。 */
     protected static final float SECTION_GAP = 14f;
-    /** 区块内行与行之间的间距。 */
-    protected static final float ROW_GAP = 6f;
+    /**
+     * 区块内行与行之间的间距：就是模块中心的行距（{@link ModuleRow#ROW_GAP}）。
+     *
+     * <p>用户 2026-09-16 点进模块页后说「还有点击进去的时候 模块也要缩小 现在都不对称」——
+     * 模块页的行高收到模块中心那一档（24）之后，行距也必须是同一个数，否则同一组行一会儿松一会儿紧。
+     * 行距由 {@code CompactStack} 统一拿它排行，绘制、命中与
+     * {@link #getTotalHeight()}（滚动上限）都靠这一份值，不存在三处各算一遍。</p>
+     */
+    protected static final float ROW_GAP = ModuleRow.ROW_GAP;
 
     private final CompactStack core = new CompactStack(ROW_GAP);
     private final CompactStack footer = new CompactStack(ROW_GAP);

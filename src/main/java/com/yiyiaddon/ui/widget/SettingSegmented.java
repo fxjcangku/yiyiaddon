@@ -4,6 +4,7 @@ import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
@@ -29,7 +30,16 @@ import java.util.function.Supplier;
  */
 public class SettingSegmented extends SettingWidget {
 
-    private static final float SEG_HEIGHT = 28f;
+    /**
+     * 分段控件高度：与按钮（24）/ 开关（24）/ 输入框（24）同一档，也就是行高
+     * （{@link com.yiyiaddon.ui.component.ModuleRow#HEIGHT}）。
+     *
+     * <p>原来是 28——比行还高。用户 2026-09-16 点进模块页后说「还有点击进去的时候 模块也要缩小
+     * 现在都不对称」，而行高统一到模块中心的 24 之后，行内控件高过行就会出现「控件探出卡片、
+     * 探出去的那两像素点不到」；分段是行内控件，高度不许超过行高，故收到 24（控件排布的
+     * 垂直居中由宿主行负责，控制台行 36 里也居中，不受影响）。</p>
+     */
+    private static final float SEG_HEIGHT = ModuleRow.HEIGHT;
     private static final float SEG_GAP = 4f;
     private static final float SEG_RADIUS = 8f;
     private static final float MIN_SEG_WIDTH = 64f;

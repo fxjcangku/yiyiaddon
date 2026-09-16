@@ -31,8 +31,39 @@ public final class StardewStartupCheck {
     private final StardewFarmModule module;
     private final Minecraft mc = Minecraft.getInstance();
 
+    /** 世界数据未就绪时的复核间隔（tick）：进服后区块 / 方块实体是分批到的，等一拍再看 */
+    private static final int WORLD_PENDING_RETRY_TICKS = 20;
+
+    /** 复核上限：15 秒还没等到，就按真实配置问题处理（如实报出「区块尚未加载」） */
+    private static final int WORLD_PENDING_MAX_RETRIES = 15;
+
+    private int worldPendingRetries;
+    private int worldPendingCountdown;
+    private boolean worldPendingDeferred;
+
     public StardewStartupCheck(StardewFarmModule module) {
         this.module = module;
+    }
+
+    /**
+     * 每刻调用：世界数据未就绪时的复核倒计时。
+     *
+     * @return true 表示本次启动仍在等待世界数据同步，这一拍不得进入运行循环
+     */
+    public boolean tickWorldPending() {
+        if (!worldPendingDeferred) return false;
+        if (--worldPendingCountdown > 0) return true;
+        // 复核会按结果重新置位（仍不齐 → 继续等；齐了 → 正常启动；超限 → 按真问题拦下）
+        worldPendingDeferred = false;
+        runStartupCheck();
+        return true;
+    }
+
+    /** 关闭 / 重新启用时清掉等待状态，避免下一次启动沿用上一次的倒计时与次数 */
+    public void resetWorldPending() {
+        worldPendingDeferred = false;
+        worldPendingCountdown = 0;
+        worldPendingRetries = 0;
     }
 
     /**
@@ -62,6 +93,18 @@ public final class StardewStartupCheck {
             if (module.profileAssembler().rebuildIndexForRetry()) missing = collectStartupProblems();
         }
         if (!missing.isEmpty()) {
+            // 「区块 / 容器数据还没同步」是暂时状态，不是配置错误：直接禁止启动等于把时滞判成玩家
+            // 配错（实机事故：什么都没动，重新开关模块就好了）。这里等最多 15 秒复核，期间不启动、
+            // 不播报、不拦人；等不到再按真问题处理，如实报出「区块尚未加载」。
+            if (allWorldPending(missing) && ++worldPendingRetries <= WORLD_PENDING_MAX_RETRIES) {
+                worldPendingDeferred = true;
+                worldPendingCountdown = WORLD_PENDING_RETRY_TICKS;
+                if (worldPendingRetries == 1) {
+                    module.statusReporter().state("STARTUP_WORLD_PENDING", "启动暂缓：等待世界数据同步",
+                        "绑定的容器所在区块 / 方块实体还没到客户端，自动复核中，不需要重新开关模块");
+                }
+                return;
+            }
             module.setStartupStopPending(true);
             module.setSuppressEnableAnnounce(true);
             mc.execute(() -> { if (module.isEnabled()) ModuleManager.setEnabledSilently(StardewFarmModule.MODULE_ID, false); });
@@ -70,6 +113,8 @@ public final class StardewStartupCheck {
                 "§7共 §e" + missing.size() + " §7项问题，已禁止启动：", missing);
             return;
         }
+        worldPendingDeferred = false;
+        worldPendingRetries = 0;
         module.configureCoordinator(ResourceExtractionService.serverKey(), StardewContext.dimension());
         // 统一启动播报已经给出完整自检结论，屏蔽基类紧随其后的重复「已开启」。
         module.setSuppressEnableAnnounce(true);
@@ -80,7 +125,7 @@ public final class StardewStartupCheck {
         if (!notices.isEmpty()) {
             module.statusReporter().startupNotices(notices);
             showNotice("星露谷农场 · 启动提醒",
-                "§7共 §e" + notices.size() + " §7项提醒，这些地块会被跳过：", notices);
+                "§7共 §e" + notices.size() + " §7项提醒，照常启动：", notices);
         }
     }
 
@@ -104,6 +149,12 @@ public final class StardewStartupCheck {
         for (String cropKey : module.cropsPlantableInDimension()) {
             CropDefinition crop = module.index().cropByKey(cropKey);
             if (crop == null || module.inventory().countSeed(crop) > 0) continue;
+            // 背包没种子 ≠ 种不下去：种子本来就可以放在种子箱里，模块启动后会按 RESTOCK 自己走过去取。
+            // 因此「这批种子能不能拿到」在开机这一刻无法判定（读箱子必须先走到箱子跟前开箱等菜单同步，
+            // 自检是同步一次性判定，做不到）；只要该作物开着补货阈值、且种子箱已绑定并通过校验，
+            // 这里就不拦启动，改成启动提醒（见 collectStartupNotices），
+            // 运行时箱里真的没有时由 SEED_EMPTY「缺少X种子」接手。
+            if (module.effectiveLogistics(cropKey).restockTrigger() > 0 && seedBoxUsable()) continue;
             missing.add("背包缺少" + crop.seedDisplayName());
         }
         // 农田范围来源就是种植区域：当前维度一块都没有时无从下手，直接不启动
@@ -118,6 +169,8 @@ public final class StardewStartupCheck {
             // 才停机（实机反馈：三块区域里有一块被换成了别的作物，照样能开机）。
             // 这条与「自动清理错位作物」无关：那条只管开机之后才出现的错位；开机时就存在的错位
             // 一律先拦住，由玩家决定挖掉还是删区域。
+            // 口径与运行中一致：只认活着的、身份可辨的作物——枯死株（冬季冻死一片）与盆上杂物
+            // 不算错位，它们由运行中的清理链静默处理，不在开机时拦启动。
             String mismatch = module.coordinator().startupRegionMismatchProblem();
             if (mismatch != null) missing.add(mismatch);
         }
@@ -169,6 +222,21 @@ public final class StardewStartupCheck {
         return missing;
     }
 
+    /**
+     * 全部问题是否都属于「世界数据还没同步」（区块未加载 / 容器方块实体未到达）。
+     *
+     * <p>只要掺进一条真配置问题（未选作物、未绑点位、区域为空…）就不算「暂时」，立刻按原逻辑拦下，
+     * 不让玩家白等 15 秒。点位类问题带类型前缀（如 {@code 成品箱：…}），因此按后缀判定。</p>
+     */
+    private static boolean allWorldPending(List<String> problems) {
+        for (String problem : problems) {
+            if (problem == null) continue;
+            if (!problem.endsWith(StardewPointManager.PENDING_CHUNK)
+                && !problem.endsWith(StardewPointManager.PENDING_CONTAINER)) return false;
+        }
+        return true;
+    }
+
     /** 非必需点位若已配置且该功能在运行，也检查其维度和真实方块。 */
     private void startupPoint(List<String> missing, StardewPointType type, boolean required) {
         var point = module.pointManager().get(type);
@@ -178,13 +246,31 @@ public final class StardewStartupCheck {
     }
 
     /**
-     * 启动提醒（不拦启动）：绑定的作物已经不在「目标作物」勾选里的单一作物区。
+     * 种子箱此刻能不能当作种子来源：已绑定、且通过点位校验（方块还在、是容器、维度对得上）。
+     *
+     * <p>只判「来源可用」，不去读箱内容——内容要在运行时走到箱子跟前开箱才知道。
+     * 判定的用途是决定「背包没种子」是拦启动还是只提醒。</p>
+     */
+    private boolean seedBoxUsable() {
+        StardewPointManager.StardewPoint box = module.pointManager().get(StardewPointType.SEED_BOX);
+        return box != null
+            && module.pointManager().validationFailure(StardewPointType.SEED_BOX, box, module.index()) == null;
+    }
+
+    /**
+     * 启动提醒（不拦启动）：① 绑定的作物已经不在「目标作物」勾选里的单一作物区；
+     * ② 背包没种子但种子箱可用（模块启动后会自己去箱里取）。
      *
      * <p><b>为什么要提醒：</b>这类地块会被整块跳过（不种也不收），玩家看到的是「模块不管这块地」，
      * 却没有任何解释——实机反馈就是「区域里换了一种作物，模块照常开机，什么都不说」。</p>
      *
      * <p><b>为什么不拦：</b>「取消勾选 = 暂停种它、区域保留，重新勾选自动恢复」是既有设计，
      * 不是故障；所以照常开机，只把出路写清楚（勾回来，或在「管理」里删掉该区域）。</p>
+     *
+     * <p><b>背包没种子为什么不拦：</b>种子放种子箱是正常玩法，模块启动后按补货链路自己走过去取
+     * （实机反馈：冬天清完地要补种，种子全在箱里，却被「背包缺少茄子种子」挡在启动之外）。
+     * 箱里到底有没有，只能运行时开箱才知道——那一步由运行时的「缺少X种子」播报负责。
+     * 只有「没有可用来源」（未开补货 / 种子箱未绑或失效）才由 {@link #collectStartupProblems()} 拦启动。</p>
      */
     private List<String> collectStartupNotices() {
         List<String> notices = new ArrayList<>();
@@ -199,6 +285,15 @@ public final class StardewStartupCheck {
                 : (region.cropName() != null ? region.cropName() : cropKey);
             notices.add("区域 " + region.index() + "（" + name + "）绑的作物不在目标作物里，这块地会被跳过"
                 + " ▸ 把它勾回来，或在「管理」里删掉该区域");
+        }
+        if (seedBoxUsable()) {
+            for (String cropKey : module.cropsPlantableInDimension()) {
+                CropDefinition crop = module.index() == null ? null : module.index().cropByKey(cropKey);
+                if (crop == null || module.inventory().countSeed(crop) > 0) continue;
+                if (module.effectiveLogistics(cropKey).restockTrigger() <= 0) continue;
+                notices.add("背包无" + crop.seedDisplayName() + " ▸ 启动后自动去种子箱取；"
+                    + "箱里没有时会提示「缺少" + crop.seedDisplayName() + "」并暂停这种作物的播种");
+            }
         }
         return notices;
     }

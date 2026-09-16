@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.stardew.ui;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.RuleEvidence;
+import com.yiyiaddon.feature.stardew.profile.StardewCropNameStore;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
@@ -11,9 +12,9 @@ import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
-import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.component.SearchRow;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
@@ -36,7 +37,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * 星露谷单类物品多选界面（六类共用；左侧「可添加」、右侧「已选择」）。
+ * 星露谷单类物品多选界面（七类共用；左侧「可添加」、右侧「已选择」）。
  *
  * <p><b>逐字搬运自旧项目</b> {@code stardew/selector/StardewTargetSelectScreen.java}：
  * 窗口标题 {@code "选择" + 类别中文名}、搜索框（无标签、输入即过滤）、两栏标题
@@ -175,8 +176,12 @@ public final class StardewTargetSelectScreen extends PanelScreen {
     // ── 构建 ──
 
     private void build() {
-        // 搜索框：旧项目该窗为无标签输入框，输入即过滤
-        content().add(new CompactRow("",
+        // 打开界面这一刻先学一遍名字：部分服务器的资源包只翻译了一部分作物（其余 38 种在语言文件里
+        // 根本不存在），中文名只能从服务器下发的物品名 / 阶段名学。学完立刻重建索引，下面构建出来的行
+        // 才用得上中文名——否则界面里会一直显示 chinese_cabbage 这种技术键。
+        StardewCropNameStore.observeNow();
+        // 搜索框：旧项目该窗为无标签输入框，输入即过滤；整栏宽，与下面两栏的整体宽度对齐
+        content().add(new SearchRow(
             new SettingTextBox(() -> filter, this::applyFilter, SEARCH_MAX_LENGTH)));
         if (category == StardewSelectorCategory.WATERING_CAN) {
             content().add(new HintLine(WATER_CAN_HINT, WATER_CAN_HINT_DETAIL));
@@ -412,6 +417,7 @@ public final class StardewTargetSelectScreen extends PanelScreen {
             case POTION -> module.settings().selectedPotionKeys;
             case WATERING_CAN -> module.settings().selectedCanKeys;
             case SPRINKLER -> module.settings().selectedSprinklerKeys;
+            case SHELTER -> module.settings().selectedShelterKeys;
         };
     }
 

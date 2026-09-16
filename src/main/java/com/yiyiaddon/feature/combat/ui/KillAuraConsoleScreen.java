@@ -278,7 +278,8 @@ public final class KillAuraConsoleScreen extends PanelScreen implements ConsoleH
 
     private final class StatusStrip implements CompactElement {
 
-        private static final float ROW_HEIGHT = 20f;
+        /** 状态条每行行高：随控制台整页收窄一档（20 → 18），{@link #height()} 与绘制同读这一个值 */
+        private static final float ROW_HEIGHT = 18f;
         private static final float CELL_PAD = 6f;
         private static final int COLUMNS = 3;
 

@@ -10,6 +10,7 @@ import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.service.resourcepack.ResourcePackCache;
 import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.KeybindBadge;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.MinecraftText;
@@ -45,6 +46,15 @@ import java.util.function.Supplier;
  *
  * <p><b>顶部信息块</b>：与其它模块页同一套壳——状态圆点 / 状态文字 + 快捷键徽章 + 模块开关
  * （旧项目该开关由 Meteor 的 {@code ModuleScreen} 统一画在面板顶部，迁移后由各页注入）。</p>
+ *
+ * <p><b>整页行度量与模块中心同源</b>（2026-09-16，用户看截图后要求「还有点击进去的时候 模块也要
+ * 缩小 现在都不对称」）：顶部信息块（{@link ModuleStatusBar#HEIGHT}）、分组标题
+ * （{@link #GROUP_HEIGHT} / {@link #GROUP_SIZE}）、六个字段行（{@link #FIELD_HEIGHT}）与四个按钮行
+ * （{@link CompactRow#HEIGHT}）全部落在模块中心那一档——行高
+ * {@link ModuleRow#HEIGHT}（24）、行距 {@link ModuleRow#ROW_GAP}（6，由
+ * {@link CompactModulePage#ROW_GAP} 给）、卡片圆角由
+ * {@link com.yiyiaddon.ui.component.GlassPanel#rowRadius(float)} 按同一个行高算。字号一律不降
+ * （分组 11.5 = 分类头、字段仍 11），收的只是行高与留白。行内控件全部不高于 24，因此不会探出卡片。</p>
  */
 public final class StardewResourcePanelPage extends CompactModulePage implements ModulePage {
 
@@ -54,9 +64,24 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
     /** 分组标题（旧项目 Meteor 分组名原文） */
     private static final String GROUP_TITLE = "服务器资源";
 
-    private static final float GROUP_HEIGHT = 26f;
-    private static final float GROUP_SIZE = 12f;
-    private static final float FIELD_HEIGHT = 22f;
+    /**
+     * 分组标题的行高与字号：与模块中心的分类头同一档。
+     *
+     * <p>用户 2026-09-16 点进本页后说「还有点击进去的时候 模块也要缩小 现在都不对称」——分组标题
+     * （「服务器资源」）原来自己写 26 / 12，比模块中心分类头的 24 / 11.5 还大，整页的头号元素反倒
+     * 落在标题上。现在行高与字号都读模块中心的那一份（{@link ModuleRow#HEIGHT} /
+     * {@link ModuleRow#HEADER_TITLE_SIZE}），不再复制字面量。</p>
+     */
+    private static final float GROUP_HEIGHT = ModuleRow.HEIGHT;
+    private static final float GROUP_SIZE = ModuleRow.HEADER_TITLE_SIZE;
+
+    /**
+     * 字段行（标签 + {@code ▶} + 值）的行高：同样是模块中心那一档。
+     *
+     * <p>本行是纯文字行（无卡片底），行高决定的是它占的行距槽位：与上下卡片行同为 24 之后，整页
+     * 就是「每行 24 + 行距 6」一套节奏，不再出现「卡片行 24 / 文字行 22」两种高度互相错牙。</p>
+     */
+    private static final float FIELD_HEIGHT = ModuleRow.HEIGHT;
 
     /**
      * 字段字号：显式设定，保证与 {@link MinecraftText#measure} 的测量完全一致。
@@ -160,6 +185,12 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
      * <p>值与颜色分支在取值时实时计算（旧类每 tick 刷新 LIVE 面板的等价物）；
      * 值列不截断成省略号：{@link TextLine} 不做省略号截断，超长值由内容区自然裁切。</p>
      *
+     * <p><b>两列怎么对齐、列间距为什么收紧：</b>标签一律补齐到最宽标签那一列（{@link #padLabel}），
+     * 于是所有行的 {@code ▶} 与值列起点落在同一条竖线上——用户 2026-09-16 要的「两列对齐」就是它。
+     * 收紧的是标签与值之间那一格：分隔符原来写作 {@code " §8▶ "}（等宽空格 + 字形 + 空格），
+     * 现在贴着标签列直接给 {@code "§8▶ "}，值列整体左移一个空格宽、两列不再显得松散，
+     * 而「标签列宽固定 + 分隔符完全一致」这两条没动，所以行的左右对齐基线仍然整齐。</p>
+     *
      * // TODO 待确认：旧项目值列上限 480、超出换行；新壳 TextLine 是单行文本元素，没有换行能力，
      * // 因此超长值（超长地址 / 指纹等）不会换行、会在内容区右边界被裁切。若必须逐字复刻换行行为，
      * // 需要给新壳补一个「可换行只读文本」元素。
@@ -167,7 +198,7 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
     private void addField(String label, Supplier<String> value) {
         // 构建期量出最宽标签，作为整页共用的固定标签列宽（旧 WFixedCell 的等价物）
         labelColumnWidth = Math.max(labelColumnWidth, MinecraftText.measure(label, FIELD_SIZE, false));
-        addCore(new TextLine(() -> "§7" + padLabel(label) + " §8▶ " + value.get())
+        addCore(new TextLine(() -> "§7" + padLabel(label) + "§8▶ " + value.get())
             .height(FIELD_HEIGHT).size(FIELD_SIZE));
     }
 

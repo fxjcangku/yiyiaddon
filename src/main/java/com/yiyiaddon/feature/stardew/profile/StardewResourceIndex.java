@@ -4,8 +4,11 @@ import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.model.identity.ItemIdentity;
+import com.yiyiaddon.platform.resource.BlockStateModelResolver;
 import com.yiyiaddon.service.identity.IdentityService;
 import net.minecraft.locale.Language;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,6 +34,8 @@ public final class StardewResourceIndex {
     /** 星露谷唯一合法命名空间（CustomCrops 盆栽系统） */
     private static final String STARDEW_NAMESPACE = "customcrops";
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/stardew");
+
     private final IdentityService identityService;
 
     /** 全部作物定义（种子 ↔ 成熟产物 ↔ 变种关联） */
@@ -40,12 +45,26 @@ public final class StardewResourceIndex {
     /**
      * 逐作物的真实阶段清单（cropKey → 资源包里实际存在的 stage 名，如 {@code stage_1..stage_4}）。
      *
-     * <p>来源是同一个资源扫描结果里的方块模型（{@code models/block/crop/tomato/stage_3}），
+     * <p>来源是同一个资源扫描结果里带 {@code _stage_} 的条目（{@code models/block/crop/tomato/stage_3}、
+     * {@code models/item/crops/tomato/stage_3}、{@code items/tomato_stage_3.json} 三种形态取并集），
      * 与 {@code BlockStateModelResolver} 派生语义身份的规则完全一致，因此
      * {@code .stardew 标记成熟 tomato <TAB>} 补全出来的阶段就是世界里真实存在的阶段，
      * 既不生成 {@code stage_1~stage_10} 这种编造值，也不会混入其它作物的阶段。</p>
      */
     private final Map<String, List<String>> stagesByCrop = new LinkedHashMap<>();
+
+    /** 上次重建的失败原因（{@code null} = 正常）；半成品索引必须能被诊断看到 */
+    private volatile String lastFailure;
+
+    /**
+     * 键别名 → 正式定义。
+     *
+     * <p><b>只参与 {@link #entryByKey} 解析，绝不进 {@link #entriesFor} 列表</b>（否则选择器里会出现
+     * 重复条目）。用途：盆的两套命名（无序号 {@code dry_pot} 与序号 {@code dry_pot_1}）归一到同一个
+     * 正式键后，另一套命名仍必须能解析——玩家在别的服务器上保存的选择键就是
+     * {@code customcrops:dry_pot_1}，不能因为命名归一让既有选择失效。</p>
+     */
+    private final Map<String, StardewToolDefinition> toolAliases = new LinkedHashMap<>();
 
     public StardewResourceIndex(IdentityService identityService) {
         this.identityService = identityService;
@@ -60,8 +79,26 @@ public final class StardewResourceIndex {
     public void rebuild() {
         crops.clear();
         toolDefinitions.clear();
+        toolAliases.clear();
         stagesByCrop.clear();
+        try {
+            rebuildInternal();
+            lastFailure = null;
+        } catch (Throwable t) {
+            // 半成品索引比没有索引更危险：某一步抛异常时 crops 会留下「恰好先建成功的那些」，
+            // 表现成「这个服只识别出一种作物」却毫无报错。记录失败位置 + 已完成数量，
+            // `.stardew 诊断` 直接给出，同时把完整堆栈写日志；绝不让它静默降级。
+            StackTraceElement[] trace = t.getStackTrace();
+            String where = trace.length == 0 ? "" : " @ " + trace[0];
+            lastFailure = t.getClass().getSimpleName()
+                + (t.getMessage() == null ? "" : ": " + t.getMessage()) + where
+                + "（失败前已建作物 " + crops.size() + "）";
+            LOGGER.warn("星露谷资源索引重建失败（失败前已建作物 {}）", crops.size(), t);
+        }
+    }
 
+    /** 重建正文；任何步骤异常由 {@link #rebuild()} 统一记录，不在此吞掉 */
+    private void rebuildInternal() {
         // ── 1. 资源包扫描（仅保留 customcrops 命名空间） ──
         List<StardewResourceScanner.ScannedModel> scanned = StardewResourceScanner.scan();
         List<StardewResourceScanner.ScannedModel> stardewModels = new ArrayList<>();
@@ -70,10 +107,10 @@ public final class StardewResourceIndex {
             if (!STARDEW_NAMESPACE.equals(namespaceOf(model.modelId()))) continue;
             stardewModels.add(model);
             scannedByName.putIfAbsent(model.modelName(), model);
-            // 方块模型里带 _stage_ 的即真实存在的作物阶段（与语义身份派生规则一致）
-            if (model.kind() == StardewResourceScanner.Kind.BLOCK_MODEL) {
-                collectStage(model.modelName(), stagesByCrop);
-            }
+            // 带 _stage_ 的资源名即真实存在的作物阶段（与语义身份派生规则一致）。
+            // 三种资源都要看：部分服务器阶段定义在 models/item/ 下、甚至只有 items/<作物>_stage_N.json
+            // 物品定义（世界模型被混淆成 UUID），只看 block 模型会得到「0 种作物有真实阶段」。
+            collectStage(model, stagesByCrop);
         }
         stagesByCrop.replaceAll((key, value) -> normalizeStages(value));
 
@@ -92,6 +129,16 @@ public final class StardewResourceIndex {
 
         // ── 3. 工具类逻辑对象聚合（资源包 + 身份双源） ──
         toolDefinitions.putAll(buildToolDefinitions(stardewModels, identityByModel));
+
+        // 盆的两套命名并存：无序号 dry_pot 与序号 dry_pot_1 是同一个普通盆，canonical 已归一到
+        // dry_pot_-1，这里把另一套命名登记成别名——玩家在其它服务器上存下的选择键
+        //（long.kkwmc.cn 存的就是 customcrops:dry_pot_1）必须继续有效，绝不能因命名归一被清掉。
+        // 别名只参与 entryByKey 解析，不进列表，因此选择器里不会出现重复条目。
+        for (StardewToolDefinition def : toolDefinitions.values()) {
+            if (def instanceof PotDefinition pot && pot.potIndex() == -1) {
+                toolAliases.put("customcrops:dry_pot_1", def);
+            }
+        }
 
         // ── 4. 种子 → 产物 → 变种关联 ──
         buildCrops(scannedByName, identityKeyByModelName);
@@ -227,6 +274,13 @@ public final class StardewResourceIndex {
      * {@code ModelManager.getItemModel} 能查到的键。{@code models/item/**} 的模型引用
      * 与 {@code models/block/**} 的方块模型键只作世界识别与排查，绝不写进 itemModel，
      * 否则必然渲染黑紫。</p>
+     *
+     * <p><b>世界识别模型两个目录都要收：</b>部分服务器把盆 / 洒水器 / 温室玻璃的世界模型放在
+     * {@code models/item/} 下，再让方块 blockstates 直接指向它——世界身份就是从那个 item 模型派生的
+     * （如 {@code customcrops:item/basics/dry_pot} → 身份 {@code customcrops:dry_pot}）。
+     * 若只收 {@code models/block/**}，索引里的盆就没有任何可比模型，
+     * 表现为「地里 普通种植盆 ×8，已选 普通种植盆」左右同名却判定不匹配（真机事故：moexd 启动自检）。
+     * item 模型只做兜底：已经有 block 模型时不覆盖。</p>
      */
     private static void feedModel(Acc acc, StardewSelectorCategory cat, StardewResourceScanner.ScannedModel model) {
         // items/ 物品定义：唯一可渲染进 GUI 的模型键
@@ -234,16 +288,33 @@ public final class StardewResourceIndex {
             if (acc.itemModel == null) acc.itemModel = model.modelId();
             return;
         }
-        if (!model.block()) return; // models/item/** 只作兜底，不参与 itemModel
 
         String last = lastSegment(model.modelName());
+        if (model.block()) {
+            switch (cat) {
+                case POT -> {
+                    if (last.startsWith("dry_pot")) acc.dryModel = model.modelId();
+                    else if (last.startsWith("wet_pot")) acc.wetModel = model.modelId();
+                }
+                case SPRINKLER, SHELTER -> acc.blockModel = model.modelId();
+                default -> { /* 水壶 / 肥料 / 药剂没有方块世界模型 */ }
+            }
+            return;
+        }
+
+        // models/item/**：blockstates 可能直接指向它，因此同样参与世界识别；只在不覆盖已有值时补位
         switch (cat) {
             case POT -> {
-                if (last.startsWith("dry_pot")) acc.dryModel = model.modelId();
-                else if (last.startsWith("wet_pot")) acc.wetModel = model.modelId();
+                if (last.startsWith("dry_pot")) {
+                    if (acc.dryModel == null) acc.dryModel = model.modelId();
+                } else if (last.startsWith("wet_pot")) {
+                    if (acc.wetModel == null) acc.wetModel = model.modelId();
+                }
             }
-            case SPRINKLER -> acc.blockModel = model.modelId();
-            default -> { /* 水壶 / 肥料 / 药剂没有方块世界模型 */ }
+            case SPRINKLER, SHELTER -> {
+                if (acc.blockModel == null) acc.blockModel = model.modelId();
+            }
+            default -> { /* 水壶 / 肥料 / 药剂没有世界模型 */ }
         }
     }
 
@@ -260,7 +331,8 @@ public final class StardewResourceIndex {
                     String last = lastSegment(idModel);
                     if (last.startsWith("dry_pot")) acc.dryModel = idModel;
                     else if (last.startsWith("wet_pot")) acc.wetModel = idModel;
-                } else if (cat == StardewSelectorCategory.SPRINKLER && acc.blockModel == null) {
+                } else if ((cat == StardewSelectorCategory.SPRINKLER || cat == StardewSelectorCategory.SHELTER)
+                    && acc.blockModel == null) {
                     acc.blockModel = idModel;
                 }
             } else if (acc.itemModel == null) {
@@ -289,6 +361,8 @@ public final class StardewResourceIndex {
                 acc.evidence, acc.source, acc.index);
             case SPRINKLER -> new SprinklerDefinition(key, displayName, itemModel, acc.identityKey,
                 acc.evidence, acc.source, acc.index, acc.blockModel);
+            case SHELTER -> new ShelterDefinition(key, displayName, itemModel, acc.identityKey,
+                acc.evidence, acc.source, acc.blockModel);
             case FERTILIZER, POTION -> new SimpleToolDefinition(key, displayName, itemModel, acc.identityKey,
                 acc.evidence, acc.source, cat);
             default -> null;
@@ -307,7 +381,11 @@ public final class StardewResourceIndex {
         String last = lastSegment(name);
         int idx = numericSuffix(last);
         return switch (cat) {
-            case POT -> "dry_pot_" + idx;
+            // 种植盆：无序号与序号 1 是同一个盆型（1 就是普通盆）。资源包常两套命名都留着
+            // （moexd：blockstates 指向 item/basics/dry_pot，同时存在未被引用的 block/misc/dry_pot_1），
+            // 不归一就会出现两个都叫「普通种植盆」的条目，其中一个没有 items/ 物品定义、图标缺失。
+            // 归到 -1（而不是 1）：既有玩家选择（customcrops:dry_pot_-1）继续有效，不会因合并而失效。
+            case POT -> "dry_pot_" + (idx == 1 ? -1 : idx);
             case WATERING_CAN -> "watering_can_" + idx;
             case SPRINKLER -> "sprinkler_" + idx;
             default -> last; // 肥料 / 药剂：末段名本身即逻辑名（含家族前缀）
@@ -351,7 +429,7 @@ public final class StardewResourceIndex {
     /**
      * 文档化兜底名（攻略记载级 DOCUMENTED，非硬编码业务规则）。
      *
-     * <p>仅覆盖 CustomCrops 标准层级（花盆 / 水壶 / 洒水器）；肥料 / 药剂的中文名一律来自
+     * <p>仅覆盖 CustomCrops 标准层级（花盆 / 水壶 / 洒水器 / 温室玻璃）；肥料 / 药剂的中文名一律来自
      * 绑定身份或资源语言文件，绝不在通用 Java 里写死 12 / 3 这种数量语义。</p>
      */
     private static String documentedName(StardewSelectorCategory cat, int index) {
@@ -376,6 +454,8 @@ public final class StardewResourceIndex {
                 case 4 -> "现代洒水器";
                 default -> null;
             };
+            // 温室玻璃只有一种，与等级无关（index 无意义），中文名以资源语言文件为准，这里只做兜底
+            case SHELTER -> "温室玻璃";
             default -> null;
         };
     }
@@ -389,11 +469,11 @@ public final class StardewResourceIndex {
                             Map<String, String> identityKeyByModelName) {
         Set<String> seedModelNames = new LinkedHashSet<>();
         for (String modelName : scannedByName.keySet()) {
-            if (modelName.endsWith("_seeds")) seedModelNames.add(modelName);
+            if (isSeedName(modelName)) seedModelNames.add(modelName);
         }
         // 身份里也允许出现种子（玩家 .id 过但资源包扫描未命中时仍能建档）
         for (String modelName : identityKeyByModelName.keySet()) {
-            if (modelName.endsWith("_seeds")) seedModelNames.add(modelName);
+            if (isSeedName(modelName)) seedModelNames.add(modelName);
         }
 
         for (String seedModelName : seedModelNames) {
@@ -410,7 +490,7 @@ public final class StardewResourceIndex {
             List<String> variantNames = new ArrayList<>();
             List<String> variantKeys = new ArrayList<>();
 
-            addProduce(scannedByName, identityKeyByModelName, stem,
+            String produceName = addProduce(scannedByName, identityKeyByModelName, stem,
                 produceModels, produceNames, produceKeys, false);
             addProduce(scannedByName, identityKeyByModelName, stem + "_silver_star",
                 produceModels, produceNames, produceKeys, false);
@@ -426,9 +506,10 @@ public final class StardewResourceIndex {
             addProduce(scannedByName, identityKeyByModelName, stem + "_variation",
                 variantModels, variantNames, variantKeys, true);
 
-            // 作物名必须来自种子语义去后缀，成熟产物名绝不能覆盖作物名。
-            // 例如 redpacket：作物=摇钱树、种子=摇钱树种子、产物=红包，三者必须始终分离。
-            String chinese = cropNameFromSeed(seedName, stem);
+            // 作物名优先级：种子名去后缀 → 资源包里的成熟产物名 → 从服务器下发物品名学到的 → 技术 stem。
+            // 成熟产物名绝不能顶掉种子给出的作物名（redpacket：作物=摇钱树、种子=摇钱树种子、
+            // 产物=红包，三者必须始终分离），只在种子拿不出名字时兜底。
+            String chinese = cropName(seedName, produceName, stem);
             String evidence = (!produceModels.isEmpty() || !produceKeys.isEmpty())
                 ? RuleEvidence.VERIFIED.displayName() : RuleEvidence.CANDIDATE.displayName();
 
@@ -439,35 +520,83 @@ public final class StardewResourceIndex {
         }
     }
 
-    /** 从真实种子名派生作物名；只剥离明确种子后缀，无法确认时保留技术 stem。 */
+    /**
+     * 资源名是否为一个「种子」逻辑对象（作物建档的唯一入口）。
+     *
+     * <p><b>必须排除带子目录的名字：</b>{@code models/item/crops/<目录>/<作物>_seeds.json} 这类条目
+     * 只是那颗种子物品的<b>外观模型</b>，它的逻辑名带子目录（{@code crops/lentinus/…}）；
+     * 若也当成种子，去掉 {@code _seeds} 后缀就会得到一个带斜杠的假作物键，
+     * 于是「56 种作物的服务器」在索引里凭空多出几十种本服不存在的作物
+     * （真机事故：moexd 索引显示作物 105，资源包里实际只有 56 个种子）。
+     * 物品定义 {@code items/<作物>_seeds.json} 的逻辑名一定扁平，两者天然可分。</p>
+     */
+    private static boolean isSeedName(String modelName) {
+        return modelName != null && !modelName.contains("/") && modelName.endsWith("_seeds");
+    }
+
+    /**
+     * 作物中文名解析（索引层唯一入口）。
+     *
+     * <p>优先级：种子名去后缀 → 资源包里的成熟产物名 → {@link StardewCropNameStore 从服务器下发
+     * 物品名学到的名字} → 技术 stem。任何一步拿不出名字都继续往下找，最后仍没有就如实退技术键——
+     * 绝不编一个名字出来。</p>
+     */
+    private static String cropName(String seedName, String produceName, String stem) {
+        String fromSeed = cropNameFromSeed(seedName, stem);
+        if (fromSeed != null) return fromSeed;
+        String fromProduce = meaningfulName(produceName, stem);
+        if (fromProduce != null) return fromProduce;
+        String learned = StardewCropNameStore.nameOf(stem);
+        return learned == null || learned.isBlank() ? stem : learned;
+    }
+
+    /**
+     * 从真实种子名派生作物名；只剥离明确种子后缀。
+     *
+     * <p>拿不到名字（没有翻译、或名字其实就是技术键）返回 {@code null}，由调用方继续找其它证据。</p>
+     */
     private static String cropNameFromSeed(String seedName, String stem) {
-        if (seedName == null || seedName.isBlank()) return stem;
+        if (seedName == null || seedName.isBlank()) return null;
         String value = seedName.trim();
         if (value.endsWith("种子")) {
             String crop = value.substring(0, value.length() - 2).trim();
-            if (!crop.isBlank()) return crop;
+            if (!crop.isBlank()) return meaningfulName(crop, stem);
         }
         String lower = value.toLowerCase(Locale.ROOT);
-        if (lower.endsWith(" seeds")) return value.substring(0, value.length() - 6).trim();
-        if (lower.endsWith(" seed")) return value.substring(0, value.length() - 5).trim();
-        if (lower.endsWith("_seeds")) return value.substring(0, value.length() - 6);
-        return value.equalsIgnoreCase(stem + "_seeds") ? stem : value;
+        if (lower.endsWith(" seeds")) return meaningfulName(value.substring(0, value.length() - 6), stem);
+        if (lower.endsWith(" seed")) return meaningfulName(value.substring(0, value.length() - 5), stem);
+        if (lower.endsWith("_seeds")) return meaningfulName(value.substring(0, value.length() - 6), stem);
+        return meaningfulName(value, stem);
     }
 
-    /** 把某个逻辑名（产物或变种）关联进作物定义；资源与身份都命中才写入 */
-    private static void addProduce(Map<String, StardewResourceScanner.ScannedModel> scannedByName,
-                                   Map<String, String> identityByModelName, String modelName,
-                                   List<String> models, List<String> names, List<String> keys,
-                                   boolean variant) {
+    /** 过滤掉「名字其实还是技术键」的伪翻译（无语言文件时 label() 回退的就是资源原始末段名） */
+    private static String meaningfulName(String name, String stem) {
+        if (name == null || name.isBlank()) return null;
+        String value = name.trim();
+        if (value.equalsIgnoreCase(stem) || value.equalsIgnoreCase(stem + "_seeds")) return null;
+        return value;
+    }
+
+    /** 把某个逻辑名（产物或变种）关联进作物定义；资源与身份都命中才写入；返回该条目的展示名 */
+    private static String addProduce(Map<String, StardewResourceScanner.ScannedModel> scannedByName,
+                                     Map<String, String> identityByModelName, String modelName,
+                                     List<String> models, List<String> names, List<String> keys,
+                                     boolean variant) {
         StardewResourceScanner.ScannedModel scan = scannedByName.get(modelName);
         String identityKey = identityByModelName.get(modelName);
-        if (scan != null || identityKey != null) {
-            if (scan != null) {
-                models.add(scan.modelId());
-                names.add(scan.displayName());
-            }
-            if (identityKey != null) keys.add(identityKey);
+        if (scan == null && identityKey == null) return null;
+        String label = null;
+        if (scan != null) {
+            models.add(scan.modelId());
+            // 名称一律用 label()（无翻译时退原始末段名）：**绝不能把 null 放进列表**——
+            // 下面 List.copyOf 遇到 null 会抛 NPE，一处翻译缺失就能让整个索引构建中断，
+            // 表现为「这个服 56 种作物一种都没建成」（真机事故：资源包物品无语言文件）。
+            label = scan.label();
+            names.add(label);
         }
+        // 同理：身份键可能为 null（未经 .id 的物品），放进去同样是 List.copyOf 的 NPE
+        if (identityKey != null) keys.add(identityKey);
+        return label;
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -475,19 +604,23 @@ public final class StardewResourceIndex {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     /**
-     * 从方块模型逻辑名收集一个真实阶段。
+     * 从一条资源收集一个真实阶段。
      *
-     * <p>身份派生规则与 {@code BlockStateModelResolver.deriveFromModel} 完全一致：去掉
-     * {@code models/block/} 后的首段类别（crop/misc/...），剩余段用下划线连接
-     * （{@code crop/tomato/stage_3} → {@code tomato_stage_3}），再按 {@code _stage_} 切分。
-     * 只有含该标记的才是阶段化作物，普通方块一律跳过。</p>
+     * <p><b>必须复用语义身份派生规则</b>（{@code BlockStateModelResolver.deriveIdentityPath}）：
+     * 先得到身份路径，再按 {@code _stage_} 切出作物键与阶段名。若这里另写一套「去掉首段后全拼」，
+     * 遇到 {@code item/crops/lentinus/lentinus_edodes_stage_3} 会得到作物键
+     * {@code lentinus_lentinus_edodes}，而世界识别链给的是 {@code lentinus_edodes}——
+     * 阶段清单与作物键对不上，表现为「这种作物没有真实阶段」。两处同源才可能对得上。</p>
+     *
+     * <p>三种资源形态都支持：{@code models/block/crop/tomato/stage_3}、
+     * {@code models/item/crops/tomato/stage_3}、{@code items/tomato_stage_3.json}。
+     * 不含 {@code _stage_} 的资源一律跳过。</p>
      */
-    private static void collectStage(String modelName, Map<String, List<String>> out) {
-        if (modelName == null || modelName.isBlank()) return;
-        String path = modelName;
-        int firstSlash = path.indexOf('/');
-        if (firstSlash >= 0) path = path.substring(firstSlash + 1).replace('/', '_');
-        String lower = path.toLowerCase(java.util.Locale.ROOT);
+    private static void collectStage(StardewResourceScanner.ScannedModel source, Map<String, List<String>> out) {
+        String prefix = source.kind() == StardewResourceScanner.Kind.BLOCK_MODEL ? "block/" : "item/";
+        String identityPath = BlockStateModelResolver.deriveIdentityPath(prefix + source.modelName());
+        if (identityPath == null) return;
+        String lower = identityPath.toLowerCase(Locale.ROOT);
         int idx = lower.indexOf("_stage_");
         if (idx <= 0) return;
         String cropKey = lower.substring(0, idx);
@@ -608,6 +741,11 @@ public final class StardewResourceIndex {
         return List.copyOf(crops);
     }
 
+    /** 上次重建的失败原因；{@code null} 表示构建完整。供 {@code .stardew 诊断} 与状态面板使用 */
+    public String lastFailure() {
+        return lastFailure;
+    }
+
     public CropDefinition cropByKey(String cropKey) {
         for (CropDefinition crop : crops) {
             if (crop.cropKey().equals(cropKey)) return crop;
@@ -618,8 +756,8 @@ public final class StardewResourceIndex {
     /**
      * 某作物在当前服务器资源包里真实存在的阶段（如 {@code [stage_1, stage_2, stage_3, stage_4]}）。
      *
-     * <p>数据来自方块模型扫描，不是编造的区间：资源包没有的阶段绝不会出现在这里，
-     * 也不会混入其它作物的阶段。未发现返回空列表。</p>
+     * <p>数据来自资源扫描（方块模型 / 物品模型 / 物品定义三种形态取并集），不是编造的区间：
+     * 资源包没有的阶段绝不会出现在这里，也不会混入其它作物的阶段。未发现返回空列表。</p>
      */
     public List<String> stagesOf(String cropKey) {
         if (cropKey == null) return List.of();
@@ -637,9 +775,11 @@ public final class StardewResourceIndex {
         return result;
     }
 
-    /** 按稳定键查工具逻辑对象；未找到返回 null */
+    /** 按稳定键查工具逻辑对象；正式键查不到时再查别名（盆的两套命名），未找到返回 null */
     public StardewToolDefinition entryByKey(String key) {
-        return key == null ? null : toolDefinitions.get(key);
+        if (key == null) return null;
+        StardewToolDefinition def = toolDefinitions.get(key);
+        return def != null ? def : toolAliases.get(key);
     }
 
     /**
@@ -678,6 +818,7 @@ public final class StardewResourceIndex {
     public void clear() {
         crops.clear();
         toolDefinitions.clear();
+        toolAliases.clear();
         stagesByCrop.clear();
     }
 

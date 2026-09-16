@@ -173,7 +173,8 @@ public final class StardewStatusCard {
             + module.index().entriesFor(StardewSelectorCategory.FERTILIZER).size() + " / "
             + module.index().entriesFor(StardewSelectorCategory.POTION).size() + " / "
             + module.index().entriesFor(StardewSelectorCategory.WATERING_CAN).size() + " / "
-            + module.index().entriesFor(StardewSelectorCategory.SPRINKLER).size())));
+            + module.index().entriesFor(StardewSelectorCategory.SPRINKLER).size() + " / "
+            + module.index().entriesFor(StardewSelectorCategory.SHELTER).size())));
         return lines;
     }
 
@@ -198,7 +199,8 @@ public final class StardewStatusCard {
             + module.index().entriesFor(StardewSelectorCategory.FERTILIZER).size()
             + module.index().entriesFor(StardewSelectorCategory.POTION).size()
             + module.index().entriesFor(StardewSelectorCategory.WATERING_CAN).size()
-            + module.index().entriesFor(StardewSelectorCategory.SPRINKLER).size();
+            + module.index().entriesFor(StardewSelectorCategory.SPRINKLER).size()
+            + module.index().entriesFor(StardewSelectorCategory.SHELTER).size();
     }
 
     /**

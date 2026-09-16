@@ -111,6 +111,7 @@ public final class BaritoneSettingTranslations {
         entry("replantCrops", "收获后补种", "收获成熟作物后重新种植。"),
         entry("replantNetherWart", "补种地狱疣", "收获后重新种植地狱疣。"),
         entry("farmMaxScanSize", "农场扫描上限", "每轮农场扫描处理的最大方块数量。"),
+        entry("farmUsingSelection", "农场限定选区", "开启后自动农场只在当前选区内作业。"),
         entry("buildInLayers", "分层建造", "完成当前层后再开始下一层。"),
         entry("layerOrder", "层级建造顺序", "切换从下向上或从上向下的层级顺序。"),
         entry("layerHeight", "建造层高", "分层建造时每层包含的方块高度。"),
@@ -197,8 +198,8 @@ public final class BaritoneSettingTranslations {
         entry("breakFromAbove", "允许从上方破坏", "建造过程中允许站在目标方块上方挖掘；此功能为实验性功能。"),
         entry("goalBreakFromAbove", "从上方破坏目标", "为所有待破坏方块设置位于其上方侧面的目标；只能与允许从上方破坏同时启用。"),
         entry("incorrectSize", "错误方块集合上限", "建造器记录的错误方块集合允许达到的最大数量。"),
-        entry("breakCorrectBlockPenaltyMultiplier", "破坏正确方块成本倍数", "以此系数乘算破坏原理图中已正确方块的成本。"),
-        entry("placeIncorrectBlockPenaltyMultiplier", "放置错误方块成本倍数", "以此系数乘算放置不符合原理图方块的成本。"),
+        entry("breakCorrectBlockPenaltyMultiplier", "破坏正确方块倍率", "以此系数乘算破坏原理图中已正确方块的成本。"),
+        entry("placeIncorrectBlockPenaltyMultiplier", "放置错误方块倍率", "以此系数乘算放置不符合原理图方块的成本。"),
         entry("schematicOrientationX", "原理图 X 轴反向", "以原理图最高 X 坐标而非最低 X 坐标作为建造原点。"),
         entry("schematicOrientationY", "原理图 Y 轴反向", "以原理图最高 Y 坐标而非最低 Y 坐标作为建造原点。"),
         entry("schematicOrientationZ", "原理图 Z 轴反向", "以原理图最高 Z 坐标而非最低 Z 坐标作为建造原点。"),
@@ -222,7 +223,7 @@ public final class BaritoneSettingTranslations {
         entry("colorBlocksToPlace", "待放置方块颜色", "待放置方块的渲染颜色。"),
         entry("colorBlocksToWalkInto", "待进入方块颜色", "路径将进入方块的渲染颜色。"),
         entry("colorBestPathSoFar", "当前最佳路径颜色", "路径计算期间当前最佳路径的渲染颜色。"),
-        entry("colorMostRecentConsidered", "最近考虑节点路径颜色", "通往最近一次考虑节点的路径颜色。"),
+        entry("colorMostRecentConsidered", "最近考虑节点颜色", "通往最近一次考虑节点的路径颜色。"),
         entry("colorGoalBox", "目标框颜色", "普通目标框的渲染颜色。"),
         entry("colorInvertedGoalBox", "反向目标框颜色", "反向目标框的渲染颜色。"),
         entry("colorSelection", "选区颜色", "所有选区的渲染颜色。"),
@@ -244,7 +245,13 @@ public final class BaritoneSettingTranslations {
         entry("elytraTimeBetweenCacheCullSecs", "鞘翅缓存清理间隔", "两次清理下界寻路器远距离区块缓存之间的秒数。"),
         entry("elytraCacheCullDistance", "鞘翅缓存清理距离", "下界寻路器区块缓存距离超过此值后会被清理。"),
         entry("elytraAllowLandOnNetherFortress", "允许降落下界要塞", "允许鞘翅寻路器将下界砖视为有效的降落方块。"),
-        entry("elytraChatSpam", "鞘翅详细聊天日志", "在鞘翅模式中向聊天栏输出详细日志。")
+        entry("elytraChatSpam", "鞘翅详细聊天日志", "在鞘翅模式中向聊天栏输出详细日志。"),
+        entry("elytraCustomAllocator", "鞘翅寻路自定义分配器", "鞘翅寻路改用自定义内存分配器，可降低内存占用。"),
+        entry("elytraAllowTightSpaces", "允许狭窄空间飞行", "允许鞘翅寻路在更狭窄的空间里尝试飞行；洞穴中有用，但较危险。"),
+        entry("elytraAllowAboveRoof", "允许飞越下界顶部", "允许鞘翅寻路在下界飞越 Y=128 以上。"),
+        entry("elytraUseCache", "允许读取区块缓存", "允许鞘翅寻路读取 Baritone 的区块缓存以改善寻路。"),
+        entry("elytraAllowAboveBuildLimit", "允许飞越建造高度上限", "允许鞘翅寻路在主世界与末地飞越建造高度上限。"),
+        entry("elytraLongDistanceThreshold", "飞越上限距离门槛", "单次鞘翅航程达到此距离（格）后才会尝试飞越建造高度上限；最小 32，需同时开启「允许飞越建造高度上限」。")
     );
 
     private BaritoneSettingTranslations() {}
