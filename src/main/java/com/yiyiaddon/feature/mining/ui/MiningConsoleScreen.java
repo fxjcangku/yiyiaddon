@@ -43,10 +43,14 @@ import java.util.Set;
  * {@link #switchTab} 延到下一 tick、每秒自动刷新（只在概览页整页重建）、
  * 底部「刷新 / 关闭」、tooltip 悬浮层——全部同一套写法与同一套数值。</p>
  *
- * <p><b>文案与设置项一字未改：</b>六页里的每一行都来自 {@link AutoMinerPage} 的
- * {@code buildTargetGroup / buildCommandGroup / buildThresholdGroup / buildItemsGroup /
- * buildBaritoneGroup}（同一份 {@link MiningSettings} 字段、同一套控件、同一批 tooltip），
- * 控制台只负责「搬到哪一页、按什么顺序排」，不新增任何设置项、指令或播报。</p>
+ * <p><b>文案与设置项一字未改：</b>六页里的每一行都来自旧项目配置页的五个设置分组
+ * （{@code 目标选择 / 传送指令 / 触发条件 / 物品管理 / Baritone调优}；同一份
+ * {@link MiningSettings} 字段、同一套控件、同一批 tooltip），控制台只负责「按什么顺序排到哪一页」，
+ * 不新增任何设置项、指令或播报。</p>
+ *
+ * <p><b>2026-09-16 起设置项只在这里出现一次</b>（用户指令：「已经做进控制台了下面还一堆设置」）：
+ * {@link AutoMinerPage} 已按星露谷模块页形态精简为「控制台入口 + 使用说明 + 三个点位卡片」，
+ * 不再平铺任何设置分组 —— 两份控件写同一份设置，同页并存只会互相看对方为旧值。</p>
  */
 public final class MiningConsoleScreen extends PanelScreen implements ConsoleHost {
 

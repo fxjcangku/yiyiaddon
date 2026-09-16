@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.combat.KillAuraModule;
 import com.yiyiaddon.feature.combat.config.KillAuraSettings;
 import com.yiyiaddon.feature.combat.config.KillAuraSettings.EntityAge;
 import com.yiyiaddon.feature.combat.config.KillAuraTexts;
+import com.yiyiaddon.feature.combat.target.AttackableEntityTypes;
 import com.yiyiaddon.feature.combat.target.SortPriority;
 import com.yiyiaddon.feature.combat.ui.KillAuraConsoleScreen;
 import com.yiyiaddon.ui.component.CompactElement;
@@ -12,6 +13,7 @@ import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.widget.Button;
@@ -30,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
@@ -57,15 +58,7 @@ public final class KillAuraTargetingPage {
     private static final String GROUP_VANILLA_ENTITY = "§a§l▌ 原版实体";
     private static final String GROUP_CUSTOM_ENTITY = "§d§l▌ 自定义实体";
 
-    /**
-     * 不可攻击的实体类型黑名单：蓝本 {@code EntityUtils.isAttackable}
-     * （{@code EntityUtils.java:46-48} 逐字，16 项）。
-     */
-    private static final Set<EntityType<?>> NOT_ATTACKABLE = Set.of(
-        EntityType.AREA_EFFECT_CLOUD, EntityType.ARROW, EntityType.FALLING_BLOCK, EntityType.FIREWORK_ROCKET,
-        EntityType.ITEM, EntityType.LLAMA_SPIT, EntityType.SPECTRAL_ARROW, EntityType.ENDER_PEARL,
-        EntityType.EXPERIENCE_BOTTLE, EntityType.SPLASH_POTION, EntityType.LINGERING_POTION, EntityType.TRIDENT,
-        EntityType.LIGHTNING_BOLT, EntityType.FISHING_BOBBER, EntityType.EXPERIENCE_ORB, EntityType.EGG);
+    // 可攻击实体黑名单已下沉到 feature/combat/target/AttackableEntityTypes（设置层与本页共用一份）
 
     /** 候选排序用：中文显示名（与挖矿选择器同一套口径） */
     private static final Collator COLLATOR = Collator.getInstance(Locale.CHINA);
@@ -214,9 +207,9 @@ public final class KillAuraTargetingPage {
         if (entityEntries == null) {
             List<SelectorScreen.Entry> vanilla = new ArrayList<>();
             List<SelectorScreen.Entry> custom = new ArrayList<>();
-            for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+            for (EntityType<?> type : AttackableEntityTypes.attackable()) {
                 Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-                if (id == null || NOT_ATTACKABLE.contains(type)) continue;
+                if (id == null) continue;
                 SelectorScreen.Entry entry = new EntityEntry(id.toString(), type);
                 ("minecraft".equals(id.getNamespace()) ? vanilla : custom).add(entry);
             }
@@ -286,8 +279,10 @@ public final class KillAuraTargetingPage {
     /**
      * 实体候选条目。
      *
-     * <p>不画图标（实体贴图要走实体渲染栈，选择器只要求一个回调）：{@link SelectorScreen} 只把
-     * {@code drawIcon} 的返回值当绘制结果，返回 false 即纯文字行，不会崩。</p>
+     * <p><b>行图标 = 刷怪蛋</b>（用户 2026-09-16 要求「跟 Meteor 选择器一样有图」）：
+     * 走本项目的 {@link ItemIconCache#drawEntity}——把实体按其刷怪蛋物品渲染并截取成贴图；
+     * 未命中缓存的当帧不画、下一帧起出现（缓存每帧最多加载 12 个，打开后滚动一遍即全部就位）。
+     * 没有刷怪蛋的实体（玩家、投射物、掉落物等）返回 {@code false}，自动回退成纯文字行。</p>
      */
     private record EntityEntry(String key, EntityType<?> type) implements SelectorScreen.Entry {
 
@@ -303,7 +298,7 @@ public final class KillAuraTargetingPage {
 
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
-            return false;
+            return ItemIconCache.getInstance().drawEntity(canvas, type, x, y, size);
         }
     }
 }

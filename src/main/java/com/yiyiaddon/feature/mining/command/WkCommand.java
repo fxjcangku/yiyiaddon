@@ -86,7 +86,7 @@ public final class WkCommand extends ClientCommand {
             case "状态" -> showStatus();
             case "设置" -> bindPoint(context);
             case "移除" -> unbindPoint(context);
-            case "清空" -> clearAll();
+            case "清空" -> clearAllBindings();
             default -> {
                 // 旧项目是 Brigadier 解析失败，没有对应文案；此处沿用本项目其它指令的未知子命令提示
                 context.error("未知子命令：" + context.arg(0));
@@ -134,8 +134,13 @@ public final class WkCommand extends ClientCommand {
         module.bindingService().remove(type, false);
     }
 
-    /** {@code .wk 清空}：整块清空全部绑定（旧 {@code :303-320}） */
-    private void clearAll() {
+    /**
+     * {@code .wk 清空}：整块清空全部绑定（旧 {@code :303-320}）。
+     *
+     * <p><b>唯一实现</b>：挖矿控制台「点位」页的清空二次确认也调这里（GUI 与指令共用同一处清空
+     * 与同一份回执文案），因此本方法公开且静态。</p>
+     */
+    public static void clearAllBindings() {
         AutoMinerModule module = module();
         if (module == null) return;
 

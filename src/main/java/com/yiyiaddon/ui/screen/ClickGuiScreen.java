@@ -20,7 +20,6 @@ import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.HomePage;
 import com.yiyiaddon.ui.page.InterfacePage;
 import com.yiyiaddon.ui.page.ModuleCenterPage;
-import com.yiyiaddon.ui.page.ModuleListPage;
 import com.yiyiaddon.ui.page.SearchResultsPage;
 import com.yiyiaddon.ui.page.SettingsPage;
 import com.yiyiaddon.ui.render.FontRenderer;
@@ -216,12 +215,6 @@ public class ClickGuiScreen extends SkiaScreen {
 
     /** 由可重建标识装配页面（与 {@link ModuleCenterPage} 的进入逻辑一一对应）。 */
     private BasePage pageForToken(String token) {
-        String listCategory = UiNavigationMemory.categoryId(token, UiNavigationMemory.TOKEN_LIST);
-        if (listCategory != null) {
-            ModuleCategory category = CategoryRegistry.byId(listCategory);
-            return category == null || category.page() != null
-                ? null : new ModuleListPage(category, this::openModuleScreen);
-        }
         String ownPageCategory = UiNavigationMemory.categoryId(token, UiNavigationMemory.TOKEN_PAGE);
         if (ownPageCategory != null) {
             ModuleCategory category = CategoryRegistry.byId(ownPageCategory);

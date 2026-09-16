@@ -1,0 +1,738 @@
+{
+    "minecraft_version":  "26.1.2",
+    "source":  "Minecraft 26.1.2 Enchantments.java + tags/enchantment/treasure.json",
+    "generated_at":  "2026-09-01 19:23:00",
+    "enchantments":  [
+                         {
+                             "id":  "minecraft:aqua_affinity",
+                             "name":  "水下速掘",
+                             "max_level":  1,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  1,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  41,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:bane_of_arthropods",
+                             "name":  "节肢杀手",
+                             "max_level":  5,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  25,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "damage"
+                         },
+                         {
+                             "id":  "minecraft:binding_curse",
+                             "name":  "绑定诅咒",
+                             "max_level":  1,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  25,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  true,
+                             "obtainable_from_enchanting_table":  false,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:blast_protection",
+                             "name":  "爆炸保护",
+                             "max_level":  4,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  13,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "armor"
+                         },
+                         {
+                             "id":  "minecraft:breach",
+                             "name":  "破甲",
+                             "max_level":  4,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  15,
+                                              "per_level":  9
+                                          },
+                             "max_cost":  {
+                                              "base":  65,
+                                              "per_level":  9
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "damage"
+                         },
+                         {
+                             "id":  "minecraft:channeling",
+                             "name":  "引雷",
+                             "max_level":  1,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  25,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "riptide"
+                         },
+                         {
+                             "id":  "minecraft:density",
+                             "name":  "致密",
+                             "max_level":  5,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  25,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "damage"
+                         },
+                         {
+                             "id":  "minecraft:depth_strider",
+                             "name":  "深海探索者",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  10,
+                                              "per_level":  10
+                                          },
+                             "max_cost":  {
+                                              "base":  25,
+                                              "per_level":  10
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "boots"
+                         },
+                         {
+                             "id":  "minecraft:efficiency",
+                             "name":  "效率",
+                             "max_level":  5,
+                             "weight":  10,
+                             "min_cost":  {
+                                              "base":  1,
+                                              "per_level":  10
+                                          },
+                             "max_cost":  {
+                                              "base":  51,
+                                              "per_level":  10
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:feather_falling",
+                             "name":  "摔落保护",
+                             "max_level":  4,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  6
+                                          },
+                             "max_cost":  {
+                                              "base":  11,
+                                              "per_level":  6
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:fire_aspect",
+                             "name":  "火焰附加",
+                             "max_level":  2,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  10,
+                                              "per_level":  20
+                                          },
+                             "max_cost":  {
+                                              "base":  60,
+                                              "per_level":  20
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:fire_protection",
+                             "name":  "火焰保护",
+                             "max_level":  4,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  10,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  18,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "armor"
+                         },
+                         {
+                             "id":  "minecraft:flame",
+                             "name":  "火矢",
+                             "max_level":  1,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  20,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:fortune",
+                             "name":  "时运",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  15,
+                                              "per_level":  9
+                                          },
+                             "max_cost":  {
+                                              "base":  65,
+                                              "per_level":  9
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "mining"
+                         },
+                         {
+                             "id":  "minecraft:frost_walker",
+                             "name":  "冰霜行者",
+                             "max_level":  2,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  10,
+                                              "per_level":  10
+                                          },
+                             "max_cost":  {
+                                              "base":  25,
+                                              "per_level":  10
+                                          },
+                             "treasure":  true,
+                             "obtainable_from_enchanting_table":  false,
+                             "exclusive_group":  "boots"
+                         },
+                         {
+                             "id":  "minecraft:impaling",
+                             "name":  "穿刺",
+                             "max_level":  5,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  1,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  21,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "damage"
+                         },
+                         {
+                             "id":  "minecraft:infinity",
+                             "name":  "无限",
+                             "max_level":  1,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  20,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "bow"
+                         },
+                         {
+                             "id":  "minecraft:knockback",
+                             "name":  "击退",
+                             "max_level":  2,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  20
+                                          },
+                             "max_cost":  {
+                                              "base":  55,
+                                              "per_level":  20
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:looting",
+                             "name":  "抢夺",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  15,
+                                              "per_level":  9
+                                          },
+                             "max_cost":  {
+                                              "base":  65,
+                                              "per_level":  9
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:loyalty",
+                             "name":  "忠诚",
+                             "max_level":  3,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  12,
+                                              "per_level":  7
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "riptide"
+                         },
+                         {
+                             "id":  "minecraft:luck_of_the_sea",
+                             "name":  "海之眷顾",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  15,
+                                              "per_level":  9
+                                          },
+                             "max_cost":  {
+                                              "base":  65,
+                                              "per_level":  9
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:lunge",
+                             "name":  "突进",
+                             "max_level":  3,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  25,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:lure",
+                             "name":  "饵钓",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  15,
+                                              "per_level":  9
+                                          },
+                             "max_cost":  {
+                                              "base":  65,
+                                              "per_level":  9
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:mending",
+                             "name":  "经验修补",
+                             "max_level":  1,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  25,
+                                              "per_level":  25
+                                          },
+                             "max_cost":  {
+                                              "base":  75,
+                                              "per_level":  25
+                                          },
+                             "treasure":  true,
+                             "obtainable_from_enchanting_table":  false,
+                             "exclusive_group":  "bow"
+                         },
+                         {
+                             "id":  "minecraft:multishot",
+                             "name":  "多重射击",
+                             "max_level":  1,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  20,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "crossbow"
+                         },
+                         {
+                             "id":  "minecraft:piercing",
+                             "name":  "穿透",
+                             "max_level":  4,
+                             "weight":  10,
+                             "min_cost":  {
+                                              "base":  1,
+                                              "per_level":  10
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "crossbow"
+                         },
+                         {
+                             "id":  "minecraft:power",
+                             "name":  "力量",
+                             "max_level":  5,
+                             "weight":  10,
+                             "min_cost":  {
+                                              "base":  1,
+                                              "per_level":  10
+                                          },
+                             "max_cost":  {
+                                              "base":  16,
+                                              "per_level":  10
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:projectile_protection",
+                             "name":  "弹射物保护",
+                             "max_level":  4,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  3,
+                                              "per_level":  6
+                                          },
+                             "max_cost":  {
+                                              "base":  9,
+                                              "per_level":  6
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "armor"
+                         },
+                         {
+                             "id":  "minecraft:protection",
+                             "name":  "保护",
+                             "max_level":  4,
+                             "weight":  10,
+                             "min_cost":  {
+                                              "base":  1,
+                                              "per_level":  11
+                                          },
+                             "max_cost":  {
+                                              "base":  12,
+                                              "per_level":  11
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "armor"
+                         },
+                         {
+                             "id":  "minecraft:punch",
+                             "name":  "冲击",
+                             "max_level":  2,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  12,
+                                              "per_level":  20
+                                          },
+                             "max_cost":  {
+                                              "base":  37,
+                                              "per_level":  20
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:quick_charge",
+                             "name":  "快速装填",
+                             "max_level":  3,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  12,
+                                              "per_level":  20
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:respiration",
+                             "name":  "水下呼吸",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  10,
+                                              "per_level":  10
+                                          },
+                             "max_cost":  {
+                                              "base":  40,
+                                              "per_level":  10
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:riptide",
+                             "name":  "激流",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  17,
+                                              "per_level":  7
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "riptide"
+                         },
+                         {
+                             "id":  "minecraft:sharpness",
+                             "name":  "锋利",
+                             "max_level":  5,
+                             "weight":  10,
+                             "min_cost":  {
+                                              "base":  1,
+                                              "per_level":  11
+                                          },
+                             "max_cost":  {
+                                              "base":  21,
+                                              "per_level":  11
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "damage"
+                         },
+                         {
+                             "id":  "minecraft:silk_touch",
+                             "name":  "精准采集",
+                             "max_level":  1,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  15,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  65,
+                                              "per_level":  0
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "mining"
+                         },
+                         {
+                             "id":  "minecraft:smite",
+                             "name":  "亡灵杀手",
+                             "max_level":  5,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  25,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  "damage"
+                         },
+                         {
+                             "id":  "minecraft:soul_speed",
+                             "name":  "灵魂疾行",
+                             "max_level":  3,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  10,
+                                              "per_level":  10
+                                          },
+                             "max_cost":  {
+                                              "base":  25,
+                                              "per_level":  10
+                                          },
+                             "treasure":  true,
+                             "obtainable_from_enchanting_table":  false,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:sweeping_edge",
+                             "name":  "横扫之刃",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  9
+                                          },
+                             "max_cost":  {
+                                              "base":  20,
+                                              "per_level":  9
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:swift_sneak",
+                             "name":  "迅捷潜行",
+                             "max_level":  3,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  25,
+                                              "per_level":  25
+                                          },
+                             "max_cost":  {
+                                              "base":  75,
+                                              "per_level":  25
+                                          },
+                             "treasure":  true,
+                             "obtainable_from_enchanting_table":  false,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:thorns",
+                             "name":  "荆棘",
+                             "max_level":  3,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  10,
+                                              "per_level":  20
+                                          },
+                             "max_cost":  {
+                                              "base":  60,
+                                              "per_level":  20
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:unbreaking",
+                             "name":  "耐久",
+                             "max_level":  3,
+                             "weight":  5,
+                             "min_cost":  {
+                                              "base":  5,
+                                              "per_level":  8
+                                          },
+                             "max_cost":  {
+                                              "base":  55,
+                                              "per_level":  8
+                                          },
+                             "treasure":  false,
+                             "obtainable_from_enchanting_table":  true,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:vanishing_curse",
+                             "name":  "消失诅咒",
+                             "max_level":  1,
+                             "weight":  1,
+                             "min_cost":  {
+                                              "base":  25,
+                                              "per_level":  0
+                                          },
+                             "max_cost":  {
+                                              "base":  50,
+                                              "per_level":  0
+                                          },
+                             "treasure":  true,
+                             "obtainable_from_enchanting_table":  false,
+                             "exclusive_group":  null
+                         },
+                         {
+                             "id":  "minecraft:wind_burst",
+                             "name":  "风爆",
+                             "max_level":  3,
+                             "weight":  2,
+                             "min_cost":  {
+                                              "base":  15,
+                                              "per_level":  9
+                                          },
+                             "max_cost":  {
+                                              "base":  65,
+                                              "per_level":  9
+                                          },
+                             "treasure":  true,
+                             "obtainable_from_enchanting_table":  false,
+                             "exclusive_group":  null
+                         }
+                     ]
+}

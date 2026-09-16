@@ -7,11 +7,13 @@ import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingWidget;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.world.item.ItemStack;
 import io.github.humbleui.types.Rect;
 
 import java.util.List;
@@ -67,12 +69,16 @@ public final class ConsoleWidgets {
         private static final float HINT_GAP = 12f;
         private static final float HINT_MIN_WIDTH = 24f;
         private static final float HOVER_SMOOTHING = 12f;
+        /** 可选物品图标的绘制边长（{@code null} 图标时该行布局与旧版逐像素一致） */
+        private static final float ICON_SIZE = 18f;
 
         private final ConsoleHost owner;
         private final Supplier<String> label;
         private final Supplier<String> labelHint;
         private final Supplier<String> comment;
         private final List<Ctl> controls;
+        /** 可选物品图标（{@code null} = 无图标，既有调用点的布局与命中口径一律不变） */
+        private Supplier<ItemStack> icon;
 
         private boolean hovered;
         private float hover;
@@ -83,6 +89,20 @@ public final class ConsoleWidgets {
             this.labelHint = labelHint == null ? null : () -> labelHint;
             this.comment = comment == null ? null : () -> comment;
             this.controls = List.copyOf(controls);
+            this.icon = null;
+        }
+
+        /**
+         * 给本行挂上物品图标（链式）：图标画在标签左侧，标签与行尾注释整体右移一格图标宽。
+         *
+         * <p>图标由 {@link ItemIconCache} 绘制，走全屏统一的「抽帧 + 截取」链路
+         * （{@code SkiaScreen} 已驱动它），未命中缓存的物品当帧不画、下一帧起显示。</p>
+         *
+         * @param icon 每帧取一次；返回 {@code null} 或空物品时既不画、也不占横向空间
+         */
+        public ConsoleRow icon(Supplier<ItemStack> icon) {
+            this.icon = icon;
+            return this;
         }
 
         /**
@@ -127,7 +147,12 @@ public final class ConsoleWidgets {
             }
 
             float centerY = y + HEIGHT / 2f;
-            float cursor = x + PAD_X;
+            ItemStack iconStack = icon == null ? null : icon.get();
+            boolean drawIcon = iconStack != null && !iconStack.isEmpty();
+            float cursor = x + PAD_X + (drawIcon ? ICON_SIZE + HINT_GAP : 0f);
+            if (drawIcon) {
+                ItemIconCache.getInstance().draw(canvas, iconStack, x + PAD_X, centerY - ICON_SIZE / 2f, ICON_SIZE);
+            }
             String labelText = label.get();
             if (labelText != null && !labelText.isEmpty()) {
                 MinecraftText.draw(canvas, labelText, cursor, CardLayout.baseline(centerY, LABEL_SIZE),
@@ -177,10 +202,17 @@ public final class ConsoleWidgets {
             }
             String labelText = label.get();
             if (labelText != null && !labelText.isEmpty()) {
-                float labelEnd = x + PAD_X + MinecraftText.measure(labelText, LABEL_SIZE, false);
+                float labelEnd = x + PAD_X + iconOffset() + MinecraftText.measure(labelText, LABEL_SIZE, false);
                 if (mouseX <= labelEnd + HINT_GAP) return labelHint == null ? null : labelHint.get();
             }
             return null;
+        }
+
+        /** 图标占掉的横向宽度（无图标时为 0，此时整行布局与加图标能力之前逐像素一致） */
+        private float iconOffset() {
+            if (icon == null) return 0f;
+            ItemStack stack = icon.get();
+            return stack == null || stack.isEmpty() ? 0f : ICON_SIZE + HINT_GAP;
         }
 
         /** 第一个控件的左边界（整组控件右对齐） */

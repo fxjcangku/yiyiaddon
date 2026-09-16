@@ -21,13 +21,14 @@ import java.util.function.Supplier;
 /**
  * 自动挖矿控制台「Baritone调优」页：秒破 3 项 + 开关类 19 项 + 数值类 8 项。
  *
- * <p>逐字搬运自 {@code AutoMinerPage.buildBaritoneGroup()}；顺序、设置名、描述、取值域一字未改，
- * 改动后下调 Baritone 的回调体（键名与调用）与配置页逐字一致，可见性联动三处
+ * <p>逐字搬自旧项目配置页的 {@code Baritone调优} 分组；顺序、设置名、描述、取值域一字未改，
+ * 改动后下调 Baritone 的回调体（键名与调用）与旧配置页逐字一致，可见性联动三处
  * （{@code 怪物规避半径} ← {@code 怪物规避}、{@code 暴露矿石检测距离} ← {@code 仅挖暴露矿石}、
- * {@code 合法挖掘高度} ← {@code 合法挖掘模式}）用同一份 {@link #visible} 包一层，
- * 与配置页写法相同。</p>
+ * {@code 合法挖掘高度} ← {@code 合法挖掘模式}）用同一份 {@link #visible} 包一层。</p>
  *
- * <p>不下调 Baritone 的三项同配置页：{@code 寻路物流破坏方块}（只由状态机在物流态压
+ * <p>2026-09-16 起本页是这 30 行的唯一落点（配置页不再平铺设置）。</p>
+ *
+ * <p>不下调 Baritone 的三项同旧配置页：{@code 寻路物流破坏方块}（只由状态机在物流态压
  * {@code allowBreak}）、{@code 岩浆透视} 与 {@code 岩浆透视范围}（模块自用）。</p>
  */
 public final class MiningBaritonePage {

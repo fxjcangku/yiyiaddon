@@ -6,6 +6,7 @@ import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.combat.KillAuraModule;
+import com.yiyiaddon.feature.enchant.EnchantModule;
 import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
@@ -64,6 +65,7 @@ public final class AddonModules {
                 new AutoChestModule(),
                 new StardewFarmModule(IdentityService.shared()),
                 new AutoMinerModule(),
+                new EnchantModule(),
                 new KillAuraModule(),
                 new AutoRespawnModule()
         );

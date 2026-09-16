@@ -15,8 +15,6 @@ import java.util.List;
  */
 public final class UiNavigationMemory {
 
-    /** 模块列表页的标识前缀：{@code list:<分类 id>} */
-    public static final String TOKEN_LIST = "list";
     /** 分类自带页面的标识前缀：{@code page:<分类 id>} */
     public static final String TOKEN_PAGE = "page";
 

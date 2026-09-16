@@ -5,7 +5,7 @@ import com.yiyiaddon.ui.render.FontRenderer;
 /**
  * 卡片清单布局与文本适配。
  *
- * <p>模块中心（单列清单）与模块列表（双列网格）共用同一套列宽、间距与命中判定；列数由页面传入，
+ * <p>模块中心的清单共用同一套列宽、间距与命中判定；列数由页面传入，
  * 因此不存在「两个页面各写一份几何计算」。</p>
  *
  * <p>间距为 14。曾用过 10：卡片自带向外的投影，相邻两排（两列）的投影会糊在一起，
@@ -16,9 +16,6 @@ import com.yiyiaddon.ui.render.FontRenderer;
  * 总高度也不含空行。</p>
  */
 public final class CardLayout {
-
-    /** 模块列表列数：模块名与描述较长，两列可完整显示。 */
-    public static final int MODULE_COLUMNS = 2;
 
     /** 列间距。 */
     public static final float GAP_X = 14f;

@@ -26,14 +26,13 @@ import java.util.function.Predicate;
  * {@code private static}；控制台「目标选择」页 {@code MiningTargetPage} 跨包用不了，便把整份
  * （约 160 行、含三个静态缓存字段）复制了一遍，改一处漏一处的风险由此而来。搬到本类后
  * <b>静态缓存只有这一份</b>（{@code allItems} / {@code allBlocks} / {@code allFoods} /
- * {@code COLLATOR}），两个页面共用同一批候选对象与同一次排序结果，不再各建一份。</p>
+ * {@code COLLATOR}），同一批候选对象与同一次排序结果被控制台各页共用，不再各建一份。</p>
  *
- * <p><b>共用方：</b>{@link AutoMinerPage}（同包，模块页）与
- * {@code com.yiyiaddon.feature.mining.ui.console.MiningTargetPage}（跨包，控制台目标选择页）。
- * 跨包访问决定了本类成员需要 {@code public}。</p>
+ * <p><b>共用方：</b>控制台「目标选择」页 {@code com.yiyiaddon.feature.mining.ui.console.MiningTargetPage}
+ * （跨包）与 {@link MiningTargetControls}；跨包访问决定了本类成员需要 {@code public}。</p>
  *
- * <p><b>行为不变：</b>方法体逐字搬自 {@link AutoMinerPage} 的原实现（与
- * {@code MiningTargetPage} 的复制件逐字一致，仅可见性不同），未改任何取值域、剔除口径与文案。</p>
+ * <p><b>行为不变：</b>方法体逐字搬自模块页的原实现（与 {@code MiningTargetPage} 的复制件逐字一致，
+ * 仅可见性不同），未改任何取值域、剔除口径与文案。2026-09-16 配置页精简后，本类的唯一消费者是控制台。</p>
  */
 public final class MiningRegistry {
 

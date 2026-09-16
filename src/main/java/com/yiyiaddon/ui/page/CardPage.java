@@ -33,9 +33,9 @@ public abstract class CardPage extends BasePage {
     /** 卡片区顶部留白：页面副标题与第一行卡片之间，避免卡片顶边（含投影）贴住标题区。 */
     private static final float TOP_INSET = CardLayout.TOP_INSET;
 
-    private final Spring[] hoverSpring;
-    private final PressState[] pressState;
-    private final int cardCount;
+    private Spring[] hoverSpring;
+    private PressState[] pressState;
+    private int cardCount;
 
     private float lastOriginX;
     private float lastOriginY;
@@ -44,13 +44,33 @@ public abstract class CardPage extends BasePage {
     private float lastMouseY = Float.NaN;
 
     protected CardPage(int cardCount) {
-        this.cardCount = Math.max(0, cardCount);
-        this.hoverSpring = new Spring[this.cardCount];
-        this.pressState = new PressState[this.cardCount];
-        for (int i = 0; i < this.cardCount; i++) {
-            hoverSpring[i] = Spring.critical(HOVER_SETTLE);
-            pressState[i] = new PressState();
+        setCardCount(cardCount);
+    }
+
+    /**
+     * 重建卡片数量（给「按分类展开 / 收起的清单」用）。
+     *
+     * <p>数量变化时重排动画状态数组：同下标的状态原地保留，因此展开一个分组不会让已在过渡中的行
+     * 突然起跳，新增的下标从零开始。数量不变时是空操作。</p>
+     */
+    protected final void setCardCount(int count) {
+        int next = Math.max(0, count);
+        if (hoverSpring != null && next == cardCount) return;
+        int keep = hoverSpring == null ? 0 : Math.min(hoverSpring.length, next);
+        Spring[] springs = new Spring[next];
+        PressState[] presses = new PressState[next];
+        for (int i = 0; i < next; i++) {
+            if (i < keep) {
+                springs[i] = hoverSpring[i];
+                presses[i] = pressState[i];
+            } else {
+                springs[i] = Spring.critical(HOVER_SETTLE);
+                presses[i] = new PressState();
+            }
         }
+        this.cardCount = next;
+        this.hoverSpring = springs;
+        this.pressState = presses;
     }
 
     protected int cardCount() {

@@ -12,14 +12,12 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
+import com.yiyiaddon.ui.console.PointCardGrid.PointCard;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
-import com.yiyiaddon.ui.component.GlassPanel;
-import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
-import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
@@ -27,13 +25,17 @@ import io.github.humbleui.skija.Canvas;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * 星露谷控制台「点位」页：绑定点位 + 显示设置。
  *
  * <p>逐字搬运自 {@code StardewConsoleScreen.buildPoints} 与其 {@code CardGrid} / {@code PointCard}
  * 两个页内构件；方法体、文案与结构一字未改，只把宿主窗口访问改为经字段读取。</p>
+ *
+ * <p>2026-09-16：「点位卡」（原页内 {@code PointCard}）抽为公共件
+ * {@link com.yiyiaddon.ui.console.PointCardGrid.PointCard}，本页与自动挖矿点位页共用；
+ * 本页的引用点只是换了类型名，卡片常量、绘制与命中一字未动。农田卡 + 用法说明 + 卡片网格
+ * 的混合布局（{@link CardGrid}）仍留在这里。</p>
  */
 public final class StardewPointPage {
 
@@ -282,120 +284,6 @@ public final class StardewPointPage {
                     CardLayout.cardY(gridY, cardHeight, COLUMNS, i), cardWidth, button)) {
                     return true;
                 }
-            }
-            return false;
-        }
-
-        @Override
-        public boolean onDrag(float mx, float my, float x, float y, float width) {
-            return false;
-        }
-    }
-
-    /** 单张卡片：标题 / 状态两行 + 若干行按钮（每行 1~2 枚，行数与卡片高度一一对应） */
-    private final class PointCard implements CompactElement {
-
-        private static final float TITLE_HEIGHT = 20f;
-        private static final float INFO_HEIGHT = 18f;
-        private static final float BUTTON_HEIGHT = 24f;
-        private static final float CARD_GAP = 6f;
-        private static final float CARD_PAD = 10f;
-        private static final float TITLE_SIZE = 11f;
-        private static final float INFO_SIZE = 11f;
-        /** 标题与两行信息加留白的固定高度；按钮区从这儿往下排 */
-        private static final float HEAD_HEIGHT = 70f;
-
-        private final String title;
-        private final Supplier<String> info1;
-        private final Supplier<String> info2;
-        private final List<List<Button>> rows;
-
-        /** 固定文案的两行信息（点位卡用：内容不随开关变化，取完就离开本页）。 */
-        private PointCard(String title, String info1, String info2, List<List<Button>> rows) {
-            this(title, () -> info1, () -> info2, rows);
-        }
-
-        /**
-         * 每帧现读的两行信息（农田卡用）。
-         *
-         * <p>卡片只在页面构建时生成一次，写死字符串会让按钮看起来"点了没反应"——
-         * 模式/作物/区域数都必须走 {@link Supplier} 现读。</p>
-         */
-        private PointCard(String title, Supplier<String> info1, Supplier<String> info2, List<List<Button>> rows) {
-            this.title = title;
-            this.info1 = info1;
-            this.info2 = info2;
-            this.rows = rows;
-        }
-
-        @Override
-        public float height() {
-            return HEAD_HEIGHT + rows.size() * (BUTTON_HEIGHT + CARD_GAP);
-        }
-
-        @Override
-        public void update(float dt) {
-            for (List<Button> row : rows) {
-                for (Button button : row) button.update(dt);
-            }
-        }
-
-        @Override
-        public void draw(Canvas canvas, float x, float y, float width, float alpha,
-                         float mouseX, float mouseY) {
-            ClickGuiThemeColors tc = ClickGuiThemeColors.current();
-            float height = height();
-            float radius = GlassPanel.rowRadius(height);
-            float rowAlpha = ClickGuiThemeColors.panelBackgroundAlpha(alpha);
-            GlassPanel.frost(canvas, x, y, width, height, radius, tc.module, 0.70f, rowAlpha);
-            GlassPanel.rim(canvas, x, y, width, height, radius, tc.rim, alpha, 0.10f);
-
-            float centerX = x + width / 2f;
-            float cursorY = y + CARD_GAP;
-            drawCentered(canvas, title, centerX, cursorY, TITLE_HEIGHT, TITLE_SIZE, alpha, true);
-            cursorY += TITLE_HEIGHT;
-            drawCentered(canvas, info1.get(), centerX, cursorY, INFO_HEIGHT, INFO_SIZE, alpha, false);
-            cursorY += INFO_HEIGHT + 2f;
-            drawCentered(canvas, info2.get(), centerX, cursorY, INFO_HEIGHT, INFO_SIZE, alpha, false);
-            cursorY = y + HEAD_HEIGHT;
-
-            for (List<Button> row : rows) {
-                float itemWidth = rowWidth(width, row.size());
-                for (int i = 0; i < row.size(); i++) {
-                    float buttonX = x + CARD_PAD + i * (itemWidth + CARD_GAP);
-                    row.get(i).hover(mouseX, mouseY, buttonX, cursorY, itemWidth);
-                    row.get(i).drawAt(canvas, buttonX, cursorY, itemWidth, alpha);
-                }
-                cursorY += BUTTON_HEIGHT + CARD_GAP;
-            }
-        }
-
-        /** 一行 n 枚按钮时每枚的宽度（并排等分，中间留 CARD_GAP） */
-        private float rowWidth(float cardWidth, int count) {
-            float total = cardWidth - CARD_PAD * 2f;
-            return (total - CARD_GAP * (count - 1)) / count;
-        }
-
-        private void drawCentered(Canvas canvas, String text, float centerX, float y, float rowHeight,
-                                  float size, float alpha, boolean bold) {
-            if (text == null || text.isEmpty()) return;
-            float textWidth = MinecraftText.measure(text, size, bold);
-            MinecraftText.draw(canvas, text, centerX - textWidth / 2f,
-                CardLayout.baseline(y + rowHeight / 2f, size), size,
-                ClickGuiThemeColors.current().primaryText, alpha, bold);
-        }
-
-        @Override
-        public boolean onClick(float mx, float my, float x, float y, float width, int button) {
-            if (button != 0) return false;
-            float cursorY = y + HEAD_HEIGHT;
-            for (List<Button> row : rows) {
-                float itemWidth = rowWidth(width, row.size());
-                for (int i = 0; i < row.size(); i++) {
-                    float buttonX = x + CARD_PAD + i * (itemWidth + CARD_GAP);
-                    if (row.get(i).onClickAt(mx, my, buttonX, cursorY, itemWidth, button)) return true;
-                }
-                cursorY += BUTTON_HEIGHT + CARD_GAP;
             }
             return false;
         }

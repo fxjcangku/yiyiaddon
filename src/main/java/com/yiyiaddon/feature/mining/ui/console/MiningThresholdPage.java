@@ -17,8 +17,8 @@ import java.util.function.Supplier;
 /**
  * 自动挖矿控制台「触发条件」页：满载 / 食物 / 耐久 / 潜影盒打包机。
  *
- * <p>逐字搬运自 {@code AutoMinerPage.buildThresholdGroup()}；顺序、设置名、描述、取值域与
- * 落盘时机一字未改，只把行容器换成本项目的控制台行构件。</p>
+ * <p>逐字搬自旧项目配置页的 {@code 触发条件} 分组；顺序、设置名、描述、取值域与落盘时机一字未改，
+ * 只把行容器换成本项目的控制台行构件。2026-09-16 起本页是这四行的唯一落点（配置页不再平铺设置）。</p>
  */
 public final class MiningThresholdPage {
 

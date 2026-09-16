@@ -25,9 +25,9 @@ import java.util.function.Supplier;
  * 自动挖矿控制台「目标选择」页：采集模式 + 三个单值目标 + 三个名单。
  *
  * <p>行顺序、设置名、描述、状态文案（星露谷口径 {@code 未选择（共 N 项）} / {@code 已选 N / M 项}）、
- * 候选剔除空气的方式、↻ 的清空语义、采集模式切换后置 -1 失效并同步目标的写法——全部与配置页
- * {@code AutoMinerPage.buildTargetGroup()} / {@code buildItemsGroup()} 同源：<b>数据与控制都在
- * {@link MiningTargetControls}</b>，本页只负责把行装进控制台的行构件。</p>
+ * 候选剔除空气的方式、↻ 的清空语义、采集模式切换后置 -1 失效并同步目标的写法——<b>数据与控制都在
+ * {@link MiningTargetControls}</b>，本页只负责把行装进控制台的行构件。{@code 物品管理} 组的三行
+ * 也在本页（页内小节标题），2026-09-16 起它是这三行的唯一落点（配置页不再平铺设置）。</p>
  *
  * <p><b>数据仍是同一份</b>：写的是 {@link MiningSettings} 的字段，改完立即
  * {@link AutoMinerModule#persistSettings()}。</p>

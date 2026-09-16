@@ -14,13 +14,15 @@ import java.util.function.Supplier;
 /**
  * 「目标选择 / 物品管理」两组的共享控制层。
  *
- * <p>配置页 {@code AutoMinerPage}（{@code buildTargetGroup} / {@code buildItemsGroup}）与控制台
- * 「目标选择」页 {@code MiningTargetPage} 是同一份逻辑的两套壳：设置名、说明文案、状态文字口径、
- * 候选剔除空气的表达式、↻ 的清空语义、采集模式切换后的失效与同步——原本各写一份，改一处漏一处。
- * 这里把<b>数据与控制</b>收拢到一处，两个页面只保留各自的「行容器」构造（{@code ListRow} /
- * {@code ConsoleRow}），不再持有任何状态。</p>
+ * <p>唯一使用方是控制台「目标选择」页 {@code MiningTargetPage}（{@code 目标选择} 与
+ * {@code 物品管理} 两组都在那一页）：设置名、说明文案、状态文字口径、候选剔除空气的表达式、
+ * ↻ 的清空语义、采集模式切换后的失效与同步全部收拢在这里，页面只保留「行容器」构造
+ * （{@code ConsoleRow}），不持有任何状态。</p>
  *
- * <p>两块页面共用同一份 {@link MiningSettings}，写回后立即
+ * <p>（历史：本类抽出前，配置页 {@code AutoMinerPage} 与控制台各写一份同逻辑的行，改一处漏一处；
+ * 2026-09-16 配置页精简为只留入口与点位卡片，配置页那份已随之下线。）</p>
+ *
+ * <p>写的是同一份 {@link MiningSettings}（与控制台其余页、模块本身共用），写回后立即
  * {@link AutoMinerModule#persistSettings()}。</p>
  */
 public final class MiningTargetControls {

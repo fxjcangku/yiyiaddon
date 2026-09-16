@@ -1,0 +1,199 @@
+{
+    "minecraft_version":  "26.1.2",
+    "exclusive_groups":  [
+                             {
+                                 "id":  "armor",
+                                 "members":  [
+                                                 "protection",
+                                                 "blast_protection",
+                                                 "fire_protection",
+                                                 "projectile_protection"
+                                             ]
+                             },
+                             {
+                                 "id":  "boots",
+                                 "members":  [
+                                                 "frost_walker",
+                                                 "depth_strider"
+                                             ]
+                             },
+                             {
+                                 "id":  "bow",
+                                 "members":  [
+                                                 "infinity",
+                                                 "mending"
+                                             ]
+                             },
+                             {
+                                 "id":  "crossbow",
+                                 "members":  [
+                                                 "multishot",
+                                                 "piercing"
+                                             ]
+                             },
+                             {
+                                 "id":  "damage",
+                                 "members":  [
+                                                 "sharpness",
+                                                 "smite",
+                                                 "bane_of_arthropods",
+                                                 "impaling",
+                                                 "density",
+                                                 "breach"
+                                             ]
+                             },
+                             {
+                                 "id":  "mining",
+                                 "members":  [
+                                                 "fortune",
+                                                 "silk_touch"
+                                             ]
+                             },
+                             {
+                                 "id":  "riptide",
+                                 "members":  [
+                                                 "loyalty",
+                                                 "channeling"
+                                             ]
+                             }
+                         ],
+    "conflict_pairs":  [
+                           {
+                               "a":  "protection",
+                               "b":  "blast_protection",
+                               "group":  "armor"
+                           },
+                           {
+                               "a":  "protection",
+                               "b":  "fire_protection",
+                               "group":  "armor"
+                           },
+                           {
+                               "a":  "protection",
+                               "b":  "projectile_protection",
+                               "group":  "armor"
+                           },
+                           {
+                               "a":  "blast_protection",
+                               "b":  "fire_protection",
+                               "group":  "armor"
+                           },
+                           {
+                               "a":  "blast_protection",
+                               "b":  "projectile_protection",
+                               "group":  "armor"
+                           },
+                           {
+                               "a":  "fire_protection",
+                               "b":  "projectile_protection",
+                               "group":  "armor"
+                           },
+                           {
+                               "a":  "frost_walker",
+                               "b":  "depth_strider",
+                               "group":  "boots"
+                           },
+                           {
+                               "a":  "infinity",
+                               "b":  "mending",
+                               "group":  "bow"
+                           },
+                           {
+                               "a":  "multishot",
+                               "b":  "piercing",
+                               "group":  "crossbow"
+                           },
+                           {
+                               "a":  "sharpness",
+                               "b":  "smite",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "sharpness",
+                               "b":  "bane_of_arthropods",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "sharpness",
+                               "b":  "impaling",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "sharpness",
+                               "b":  "density",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "sharpness",
+                               "b":  "breach",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "smite",
+                               "b":  "bane_of_arthropods",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "smite",
+                               "b":  "impaling",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "smite",
+                               "b":  "density",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "smite",
+                               "b":  "breach",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "bane_of_arthropods",
+                               "b":  "impaling",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "bane_of_arthropods",
+                               "b":  "density",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "bane_of_arthropods",
+                               "b":  "breach",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "impaling",
+                               "b":  "density",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "impaling",
+                               "b":  "breach",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "density",
+                               "b":  "breach",
+                               "group":  "damage"
+                           },
+                           {
+                               "a":  "fortune",
+                               "b":  "silk_touch",
+                               "group":  "mining"
+                           },
+                           {
+                               "a":  "riptide",
+                               "b":  "loyalty",
+                               "group":  "riptide"
+                           },
+                           {
+                               "a":  "riptide",
+                               "b":  "channeling",
+                               "group":  "riptide"
+                           }
+                       ],
+    "source":  "data/minecraft/tags/enchantment/exclusive_set/*.json",
+    "generated_at":  "2026-09-01 19:23:00"
+}
