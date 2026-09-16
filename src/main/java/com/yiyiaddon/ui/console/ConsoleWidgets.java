@@ -1,6 +1,5 @@
-package com.yiyiaddon.feature.stardew.ui.console;
+package com.yiyiaddon.ui.console;
 
-import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
 import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.CardLayout;
@@ -19,22 +18,23 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import static com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen.LABEL_SIZE;
-import static com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen.NOTE_SIZE;
-import static com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen.PAD_X;
-import static com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen.TIP_OFFSET_X;
-import static com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen.TIP_OFFSET_Y;
+import static com.yiyiaddon.ui.console.ConsoleMetrics.LABEL_SIZE;
+import static com.yiyiaddon.ui.console.ConsoleMetrics.NOTE_SIZE;
+import static com.yiyiaddon.ui.console.ConsoleMetrics.PAD_X;
+import static com.yiyiaddon.ui.console.ConsoleMetrics.TIP_OFFSET_X;
+import static com.yiyiaddon.ui.console.ConsoleMetrics.TIP_OFFSET_Y;
 
 /**
- * 星露谷控制台的页内自造构件（逐字搬运自 {@code StardewConsoleScreen}）。
+ * 控制台窗口的页内自造构件（原为星露谷控制台专用，2026-09-16 抽为通用件；方法体逐字未改）。
  *
  * <p>{@link ConsoleRow} / {@link FoldSection} / {@link Note} 是为「标签解析 §、行内多控件、
  * 独立 tooltip」而做的页内构件，**不是**新壳的通用控件：外观、高度、命中口径一字未改，
- * 只把「向宿主登记 tooltip」从内部类改为显式持有宿主窗口引用。</p>
+ * 只把「向宿主登记 tooltip」从内部类改为显式持有宿主窗口引用；宿主类型从具体窗口类
+ * 放宽为 {@link ConsoleHost}（构件只需要「登记 tooltip」这一项能力）。</p>
  */
-public final class StardewConsoleWidgets {
+public final class ConsoleWidgets {
 
-    private StardewConsoleWidgets() {
+    private ConsoleWidgets() {
     }
 
     /** 行内控件 + 它的 tooltip（tooltip 可为 null） */
@@ -68,7 +68,7 @@ public final class StardewConsoleWidgets {
         private static final float HINT_MIN_WIDTH = 24f;
         private static final float HOVER_SMOOTHING = 12f;
 
-        private final StardewConsoleScreen owner;
+        private final ConsoleHost owner;
         private final Supplier<String> label;
         private final Supplier<String> labelHint;
         private final Supplier<String> comment;
@@ -77,7 +77,7 @@ public final class StardewConsoleWidgets {
         private boolean hovered;
         private float hover;
 
-        public ConsoleRow(StardewConsoleScreen owner, Supplier<String> label, String labelHint, String comment, List<Ctl> controls) {
+        public ConsoleRow(ConsoleHost owner, Supplier<String> label, String labelHint, String comment, List<Ctl> controls) {
             this.owner = owner;
             this.label = label == null ? () -> "" : label;
             this.labelHint = labelHint == null ? null : () -> labelHint;
@@ -91,7 +91,7 @@ public final class StardewConsoleWidgets {
          * <p>用静态工厂而不是重载构造器：构造器的注释参数是 {@code String}，再重载一个
          * {@code Supplier<String>} 会让现有传 {@code null} 的调用点变成二义调用。</p>
          */
-        public static ConsoleRow liveComment(StardewConsoleScreen owner, Supplier<String> label, String labelHint,
+        public static ConsoleRow liveComment(ConsoleHost owner, Supplier<String> label, String labelHint,
                                             Supplier<String> comment, List<Ctl> controls) {
             ConsoleRow row = new ConsoleRow(owner, label, labelHint, (String) null, controls);
             row.commentLive = comment;
@@ -234,29 +234,29 @@ public final class StardewConsoleWidgets {
 
         private static final float HEIGHT = 20f;
 
-        private final StardewConsoleScreen owner;
+        private final ConsoleHost owner;
         private final Supplier<String> text;
         private final String hint;
         private final float height;
         private final float size;
 
-        public Note(StardewConsoleScreen owner, String text) {
+        public Note(ConsoleHost owner, String text) {
             this(owner, () -> text, null, HEIGHT, NOTE_SIZE);
         }
 
-        public Note(StardewConsoleScreen owner, Supplier<String> text) {
+        public Note(ConsoleHost owner, Supplier<String> text) {
             this(owner, text, null, HEIGHT, NOTE_SIZE);
         }
 
-        public Note(StardewConsoleScreen owner, String text, String hint) {
+        public Note(ConsoleHost owner, String text, String hint) {
             this(owner, () -> text, hint, HEIGHT, NOTE_SIZE);
         }
 
-        public Note(StardewConsoleScreen owner, String text, String hint, float height, float size) {
+        public Note(ConsoleHost owner, String text, String hint, float height, float size) {
             this(owner, () -> text, hint, height, size);
         }
 
-        public Note(StardewConsoleScreen owner, Supplier<String> text, String hint, float height, float size) {
+        public Note(ConsoleHost owner, Supplier<String> text, String hint, float height, float size) {
             this.owner = owner;
             this.text = text == null ? () -> "" : text;
             this.hint = hint;
@@ -518,11 +518,11 @@ public final class StardewConsoleWidgets {
         public static final float TAB_HEIGHT = 28f;
         private static final float GAP = 6f;
 
-        private final StardewConsoleScreen owner;
+        private final ConsoleHost owner;
         private final List<Ctl> buttons;
         private final float rowHeight;
 
-        public ButtonStrip(StardewConsoleScreen owner, List<Ctl> buttons, float rowHeight) {
+        public ButtonStrip(ConsoleHost owner, List<Ctl> buttons, float rowHeight) {
             this.owner = owner;
             this.buttons = List.copyOf(buttons);
             this.rowHeight = rowHeight;

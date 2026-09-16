@@ -18,6 +18,14 @@ loom {
             programArgs '--username', 'yiyijia'
             // 开发期窗口尺寸：面板按「窗口像素的一半」做设计空间，窗口太小会让面板整体缩得很难看清
             programArgs '--width', '1920', '--height', '1080'
+            // 开发环境正版登录（DevAuth Neo）：开着才生效，它自己是默认关闭的。
+            // 用系统属性而不是 ~/.dev-auth-neo/config.json —— 属性名是文档里写死的形式，不会猜错；
+            // 令牌缓存在 ~/.dev-auth-neo/microsoft_accounts.json，不进仓库。
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            // 登录流程：用系统浏览器（auth-code-external）。内嵌窗口流程（auth-code-embedded）要下 150MB 的 CEF，
+            // 而且这台机器上 CEF 初始化失败、只弹一个白窗口登不进去，所以不用它。
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
         }
     }
 }
@@ -27,6 +35,18 @@ repositories {
     maven {
         name = 'YiyiAddonLocal'
         url = uri('maven-repo')
+    }
+    // DevAuth Neo 只在 Modrinth 发布（开发环境登录用，见 dependencies 里的 localRuntime）
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'maven.modrinth'
+        }
     }
 }
 
@@ -52,6 +72,10 @@ dependencies {
     include "io.github.humbleui:skija-windows-x64:${project.skija_version}"
     runtimeOnly "io.github.humbleui:skija-windows-arm64:${project.skija_version}"
     include "io.github.humbleui:skija-windows-arm64:${project.skija_version}"
+
+    // 开发环境正版登录（DevAuth Neo，MIT）：只在开发运行时存在，不进发布产物。
+    // 用了 localRuntime 而不是 modLocalRuntime —— 26.1.2 走官方名称体系，不需要再做映射。
+    localRuntime 'maven.modrinth:dev-auth-neo:1.1.1'
 }
 
 java {

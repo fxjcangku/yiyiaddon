@@ -87,6 +87,16 @@ public abstract class Module {
         return enabled;
     }
 
+    /**
+     * 无任何历史记录时是否默认启用；仅供「必须常开」的模块覆写（如自动重生）。
+     *
+     * <p>只在状态文件里没有该模块的任何记录时生效：一旦有记录（玩家手动关过、或已按默认值写入过），
+     * 一律按记录值恢复。默认 {@code false}，既有模块行为不变。</p>
+     */
+    public boolean enabledByDefault() {
+        return false;
+    }
+
     /** 快捷键键名 */
     public final String keybindId() {
         return ModuleKeybinds.BINDING_PREFIX + id;

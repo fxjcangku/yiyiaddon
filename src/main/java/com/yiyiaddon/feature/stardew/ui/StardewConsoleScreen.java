@@ -3,8 +3,6 @@ package com.yiyiaddon.feature.stardew.ui;
 import com.yiyiaddon.core.event.ClientEventBus;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
-import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.ButtonStrip;
-import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.Ctl;
 import com.yiyiaddon.feature.stardew.ui.console.StardewLogPage;
 import com.yiyiaddon.feature.stardew.ui.console.StardewLogisticsPage;
 import com.yiyiaddon.feature.stardew.ui.console.StardewOverviewPage;
@@ -15,6 +13,10 @@ import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.console.ConsoleHost;
+import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
+import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.screen.PanelScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
@@ -53,10 +55,11 @@ import java.util.Set;
  * 入场动画，滚动位置也保持不变（与旧 reload 观感一致）。</p>
  *
  * <p><b>拆分：</b>本类只留骨架（窗口标题、顶部状态条、6 个页签、自动刷新、底部按钮、页面调度），
- * 页内构件落在 {@code ui/console/StardewConsoleWidgets}，六个页各自一个类
- * （{@code ui/console/StardewOverviewPage} 等）；页内方法体原样搬运，只改可见性与调用点。</p>
+ * 页内构件落在通用包 {@code com.yiyiaddon.ui.console.ConsoleWidgets}（2026-09-16 由本窗口专用
+ * 抽为通用件，挖矿控制台复用同一套），六个页各自一个类（{@code ui/console/StardewOverviewPage} 等）；
+ * 页内方法体原样搬运，只改可见性与调用点。</p>
  */
-public final class StardewConsoleScreen extends PanelScreen {
+public final class StardewConsoleScreen extends PanelScreen implements ConsoleHost {
 
     /** 自动刷新的 tick 订阅所有者标识（本窗口独占） */
     private static final String TICK_OWNER = "screen.stardew.console";
@@ -64,16 +67,18 @@ public final class StardewConsoleScreen extends PanelScreen {
     /** 概览页自动刷新间隔：20 tick 一次（旧项目同口径） */
     private static final int AUTO_REFRESH_TICKS = 20;
 
-    public static final float PAD_X = 14f;
+    // 排版常量（值一字未改）：抽为通用件后集中在 {@link ConsoleMetrics}，本类保留同名常量转发，
+    // 页内既有引用（如 {@code StardewConsoleScreen.SECTION_HEIGHT}）不动，两套控制台共用同一套数值。
+    public static final float PAD_X = ConsoleMetrics.PAD_X;
     private static final float LINE_GAP = 6f;
-    public static final float LABEL_SIZE = 13f;
+    public static final float LABEL_SIZE = ConsoleMetrics.LABEL_SIZE;
     private static final float TEXT_SIZE = 11f;
-    public static final float NOTE_SIZE = 11f;
-    public static final float SECTION_HEIGHT = 24f;
-    public static final float SECTION_SIZE = 12f;
+    public static final float NOTE_SIZE = ConsoleMetrics.NOTE_SIZE;
+    public static final float SECTION_HEIGHT = ConsoleMetrics.SECTION_HEIGHT;
+    public static final float SECTION_SIZE = ConsoleMetrics.SECTION_SIZE;
 
     /** 行内「重置」图标：Material Symbols refresh（旧项目此处是图标按钮，不是文字按钮） */
-    public static final String GLYPH_RESET = "\uE5D5";
+    public static final String GLYPH_RESET = ConsoleMetrics.GLYPH_RESET;
 
     /** tooltip 悬浮层（本项目通用控件没有 tooltip 原语，面板内自绘） */
     private static final float TIP_SIZE = 10f;
@@ -81,8 +86,8 @@ public final class StardewConsoleScreen extends PanelScreen {
     private static final float TIP_PAD = 6f;
     private static final float TIP_RADIUS = 6f;
     private static final float TIP_MAX_WIDTH = 320f;
-    public static final float TIP_OFFSET_X = 14f;
-    public static final float TIP_OFFSET_Y = 16f;
+    public static final float TIP_OFFSET_X = ConsoleMetrics.TIP_OFFSET_X;
+    public static final float TIP_OFFSET_Y = ConsoleMetrics.TIP_OFFSET_Y;
     /** tooltip 文字基准色：深色主题白字；浅色主题用主文字色，否则白字压在白玻璃上等于看不见 */
     private static int tipColor(ClickGuiThemeColors tc) {
         return tc != null && !tc.dark ? tc.primaryText : 0xFFFFFF;
@@ -260,6 +265,7 @@ public final class StardewConsoleScreen extends PanelScreen {
     }
 
     /** 登记本帧要显示的 tooltip（页内构件悬停时调用，实现在 {@link Body}） */
+    @Override
     public void tip(String text, float x, float y) {
         body.tip(text, x, y);
     }

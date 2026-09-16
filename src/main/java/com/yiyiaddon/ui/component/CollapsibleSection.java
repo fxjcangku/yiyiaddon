@@ -62,6 +62,18 @@ public final class CollapsibleSection implements CompactElement {
         return content;
     }
 
+    /**
+     * 指定初始展开状态：给「一组默认展开、其余默认收起」的设置分组用。
+     *
+     * <p>直接落定弹簧现值，因此默认展开的那一组进入页面就是展开态，不会先播一次展开动画。
+     * 未调用时行为不变（默认收起）。</p>
+     */
+    public CollapsibleSection expanded(boolean expanded) {
+        this.expanded = expanded;
+        this.expand.set(expanded ? 1f : 0f);
+        return this;
+    }
+
     @Override
     public float height() {
         float contentHeight = content.isEmpty() ? 0f : CONTENT_GAP + expand.value() * content.height();

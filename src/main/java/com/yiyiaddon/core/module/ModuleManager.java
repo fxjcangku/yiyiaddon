@@ -126,7 +126,7 @@ public final class ModuleManager {
             JsonObject settings = ModuleStateConfig.settingsOf(module.id());
             runSafely(module, "载入设置", () -> module.loadSettings(settings));
             if (BROKEN.contains(module.id())) continue;
-            if (!ModuleStateConfig.isEnabled(module.id())) continue;
+            if (!shouldEnableOnRestore(module)) continue;
             switch (tryEnable(module, false)) {
                 case BLOCKED -> PENDING.add(module.id());
                 case FAILED -> {
@@ -136,6 +136,20 @@ public final class ModuleManager {
                 case SUCCESS -> PENDING.remove(module.id());
             }
         }
+    }
+
+    /**
+     * 恢复启用状态时该模块是否应尝试开启。
+     *
+     * <p>有历史记录（状态文件里已有该模块的记录）时按记录值恢复；完全没有记录时才用
+     * {@link Module#enabledByDefault()}，并把该值立刻落盘，使玩家后续的手动关闭能覆盖默认值。
+     * 既有模块未覆写该方法（默认 {@code false}），行为与改动前完全一致。</p>
+     */
+    private static boolean shouldEnableOnRestore(Module module) {
+        if (ModuleStateConfig.ids().contains(module.id())) return ModuleStateConfig.isEnabled(module.id());
+        if (!module.enabledByDefault()) return false;
+        persistEnabled(module, true);
+        return true;
     }
 
     /** 进入世界后开启等待中的模块 */

@@ -10,6 +10,7 @@
     "GpuDeviceAccessor",
     "GuiRendererMixin",
     "ModelManagerReloadMixin",
+    "MultiPlayerGameModeFastBreakMixin",
     "RenderTargetMixin",
     "ResourcePackPushMixin"
   ],

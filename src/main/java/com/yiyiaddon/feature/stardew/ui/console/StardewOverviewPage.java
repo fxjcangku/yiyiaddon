@@ -2,8 +2,8 @@ package com.yiyiaddon.feature.stardew.ui.console;
 
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleData;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
-import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.Note;
-import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.Table;
+import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
+import com.yiyiaddon.ui.console.ConsoleWidgets.Table;
 import com.yiyiaddon.ui.component.CompactStack;
 
 import java.util.ArrayList;

@@ -28,8 +28,14 @@ public final class NetworkInfoProbe {
     private static final Pattern TRACE_LOC = Pattern.compile("loc=([A-Z]{2})");
 
     private static final long CACHE_MILLIS = 10 * 60 * 1000L;
-    private static final Duration SOURCE_TIMEOUT = Duration.ofSeconds(3);
-    private static final Duration TOTAL_TIMEOUT = Duration.ofMillis(2500);
+    private static final Duration SOURCE_TIMEOUT = Duration.ofSeconds(4);
+    /**
+     * 合并等待上限，必须<b>大于</b>单源超时：三路是并行的，但实测出口在境外时单源常在 2～3 秒才回
+     * （本机实测 ip-api.com 2985ms、1.1.1.1 2115ms）。原来这里只等 2500ms，比单源超时还短，
+     * 结果「已经拿到 200 的响应」也会被 {@code getNow(null)} 当成 null 丢掉 ——
+     * 首页就表现为网络地区 / IP 空白、网络状态「异常」，而且每次结果时有时无。
+     */
+    private static final Duration TOTAL_TIMEOUT = Duration.ofMillis(5500);
 
     private static final List<String> VPN_ORG_KEYWORDS = List.of(
             "cloudflare", "amazon", "aws", "google", "microsoft", "azure",
@@ -67,9 +73,11 @@ public final class NetworkInfoProbe {
     public static ClientNetworkInfo resolve(boolean refresh) {
         if (!refresh) return cached == null ? ClientNetworkInfo.unknown() : cached;
         ClientNetworkInfo snapshot = query();
-        cached = snapshot;
+        // 这一轮一个源都没答上（接口被墙 / 限流 / 超时）时不覆盖上一次成功的结果：
+        // 否则首页的地区与 IP 会空着整整一个缓存周期（10 分钟），而网络其实是通的。
+        if (snapshot.ip() != null || cached == null) cached = snapshot;
         cachedAt = System.currentTimeMillis();
-        return snapshot;
+        return cached;
     }
 
     public static void invalidate() {

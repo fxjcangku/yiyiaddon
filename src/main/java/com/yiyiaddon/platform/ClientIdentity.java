@@ -17,6 +17,9 @@ public final class ClientIdentity {
 
     private static final String MOD_ID = "yiyiaddon";
 
+    /** 开发环境正版登录模组 id，仅开发端存在（见 build.gradle 的 localRuntime）。 */
+    private static final String DEV_AUTH_MOD_ID = "dev-auth-neo";
+
     private ClientIdentity() {
     }
 
@@ -50,9 +53,22 @@ public final class ClientIdentity {
         }
     }
 
-    /** 本地正版判定：仅作为展示兜底，最终以后端返回的 {@code is_premium} 为准。 */
+    /**
+     * 本地正版判定：仅作为展示兜底，最终以后端返回的 {@code is_premium} 为准。
+     *
+     * <p>两条判据：</p>
+     * <ol>
+     *   <li>{@code xuid} 非空 —— 原版正版会话一定会带 XUID 属性，离线会话恒为空；</li>
+     *   <li>开发环境加载了 DevAuth Neo —— 它接管会话时只提供 ACCESS_TOKEN / UUID / USERNAME
+     *       （见其 {@code MicrosoftAuthProvider} 的令牌集合），<b>不会填 XUID</b>，
+     *       所以开发端即使真的登录了正版，第 1 条也永远不成立。</li>
+     * </ol>
+     * <p>DevAuth 只在开发环境存在（{@code localRuntime} 依赖，不进发布产物），
+     * 且它只在真正完成微软登录后才接管会话，因此这条兜底不会把离线会话判成正版。</p>
+     */
     public static boolean premium() {
-        return xuid() != null;
+        if (xuid() != null) return true;
+        return FabricLoader.getInstance().isModLoaded(DEV_AUTH_MOD_ID);
     }
 
     /** 本模组版本号，取 fabric.mod.json 中的 version。 */

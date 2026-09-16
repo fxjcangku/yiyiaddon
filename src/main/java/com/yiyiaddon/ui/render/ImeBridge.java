@@ -39,6 +39,7 @@ public final class ImeBridge {
     /** 本次输入会话是否已经确认过输入法真的开着（只用于诊断日志，不参与逻辑） */
     private static boolean imeConfirmed;
     private static boolean preeditSeen;
+    private static boolean committedSeen;
 
     private ImeBridge() {
     }
@@ -79,11 +80,23 @@ public final class ImeBridge {
     private static void forceIme(Minecraft minecraft) {
         long handle = minecraft.getWindow().handle();
         GLFW.glfwSetInputMode(handle, GLFW_IME_MODE, GLFW.GLFW_TRUE);
+        // 让原版重读一次真实状态（notifyIMEChanged 只置一个「缓存已失效」标志）：
+        // 否则 TextInputManager 的 cachedIMEStatus 仍是 false，它离开文本输入状态时
+        // 不会把输入法关回去 —— 关掉面板后中英文输入法会赖着不走，玩游戏时抢按键。
+        minecraft.textInputManager().notifyIMEChanged();
         // 读回一次确认真的开了：这是「中文打不进来」唯一没法静态判断的一环，留一行日志以便核对
         if (!imeConfirmed) {
             imeConfirmed = true;
             LOGGER.info("[yiyiaddon] IME 开关：请求开启，读回模式={}", GLFW.glfwGetInputMode(handle, GLFW_IME_MODE));
         }
+    }
+
+    /** IME 提交出非 ASCII 字符（中文真正进了输入框）：只记第一次，便于诊断时核对 */
+    public static void noteCommitted(int codepoint) {
+        if (committedSeen || codepoint <= 0x7F) return;
+        committedSeen = true;
+        LOGGER.info("[yiyiaddon] IME 已提交非 ASCII 字符：U+{}",
+                Integer.toHexString(codepoint).toUpperCase(java.util.Locale.ROOT));
     }
 
     /** IME 预编辑事件到达（说明输入法确实在工作）：只记第一次，便于诊断时核对 */

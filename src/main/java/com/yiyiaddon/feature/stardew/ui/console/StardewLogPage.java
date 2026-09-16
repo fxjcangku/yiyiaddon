@@ -2,9 +2,9 @@ package com.yiyiaddon.feature.stardew.ui.console;
 
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
-import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.ButtonStrip;
-import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.Ctl;
-import com.yiyiaddon.feature.stardew.ui.console.StardewConsoleWidgets.Note;
+import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
+import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
+import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.widget.Button;
 
