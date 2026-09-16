@@ -3,10 +3,12 @@ package com.yiyiaddon.ui.console;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -38,11 +40,22 @@ public final class PointCardGrid {
         private static final float INFO_SIZE = 11f;
         /** 标题与两行信息加留白的固定高度；按钮区从这儿往下排 */
         private static final float HEAD_HEIGHT = 70f;
+        /** 卡片头图标的绘制边长：取控制台行内图标同一档，标题行高内放得下 */
+        private static final float ICON_SIZE = 14f;
+        /** 图标与标题文字之间的间距 */
+        private static final float TITLE_ICON_GAP = 4f;
 
         private final String title;
         private final Supplier<String> info1;
         private final Supplier<String> info2;
         private final List<List<Button>> rows;
+        /**
+         * 可选卡片头图标（{@code null} = 不画，既有星露谷 / 挖矿调用点外观与命中口径不变）。
+         *
+         * <p>自动农场的六张点位卡按用户拍板 D9 要求「卡片头带图标，未绑定时也要有图标位，
+         * 不留空洞」；图标画在标题行左侧居中，标题行布局为「图标 + 文字」整体居中。</p>
+         */
+        private Supplier<ItemStack> icon;
 
         /** 固定文案的两行信息（点位卡用：内容不随开关变化，取完就离开本页）。 */
         public PointCard(String title, String info1, String info2, List<List<Button>> rows) {
@@ -60,6 +73,18 @@ public final class PointCardGrid {
             this.info1 = info1;
             this.info2 = info2;
             this.rows = rows;
+            this.icon = null;
+        }
+
+        /**
+         * 给卡片头挂图标（链式）：画在标题行左侧，标题文字随之右移半格图标宽。
+         *
+         * <p>图标走 {@link ItemIconCache} 全屏统一链路；返回 {@code null} 或空物品时不画、
+         * 也不占横向空间（与 {@code ConsoleRow.icon} 同一口径）。</p>
+         */
+        public PointCard icon(Supplier<ItemStack> icon) {
+            this.icon = icon;
+            return this;
         }
 
         @Override
@@ -86,7 +111,21 @@ public final class PointCardGrid {
 
             float centerX = x + width / 2f;
             float cursorY = y + CARD_GAP;
-            drawCentered(canvas, title, centerX, cursorY, TITLE_HEIGHT, TITLE_SIZE, alpha, true);
+            // 标题行：无图标时纯文字居中（既有调用点不变）；有图标时「图标 + 文字」整体居中
+            ItemStack iconStack = icon == null ? null : icon.get();
+            boolean drawIcon = iconStack != null && !iconStack.isEmpty();
+            if (drawIcon) {
+                float textWidth = MinecraftText.measure(title, TITLE_SIZE, true);
+                float block = ICON_SIZE + TITLE_ICON_GAP + textWidth;
+                float iconX = centerX - block / 2f;
+                ItemIconCache.getInstance().draw(canvas, iconStack, iconX,
+                    cursorY + (TITLE_HEIGHT - ICON_SIZE) / 2f, ICON_SIZE);
+                MinecraftText.draw(canvas, title, iconX + ICON_SIZE + TITLE_ICON_GAP,
+                    CardLayout.baseline(cursorY + TITLE_HEIGHT / 2f, TITLE_SIZE), TITLE_SIZE,
+                    ClickGuiThemeColors.current().primaryText, alpha, true);
+            } else {
+                drawCentered(canvas, title, centerX, cursorY, TITLE_HEIGHT, TITLE_SIZE, alpha, true);
+            }
             cursorY += TITLE_HEIGHT;
             drawCentered(canvas, info1.get(), centerX, cursorY, INFO_HEIGHT, INFO_SIZE, alpha, false);
             cursorY += INFO_HEIGHT + 2f;

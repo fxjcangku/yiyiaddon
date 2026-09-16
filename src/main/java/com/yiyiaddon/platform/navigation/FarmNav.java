@@ -1,4 +1,4 @@
-package com.yiyiaddon.feature.stardew.navigation;
+package com.yiyiaddon.platform.navigation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;

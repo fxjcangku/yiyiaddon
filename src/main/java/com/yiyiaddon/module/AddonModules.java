@@ -6,6 +6,7 @@ import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.admindetect.AdminDetectorModule;
 import com.yiyiaddon.feature.autochest.AutoChestModule;
+import com.yiyiaddon.feature.autofarm.AutoFarmModule;
 import com.yiyiaddon.feature.combat.KillAuraModule;
 import com.yiyiaddon.feature.enchant.EnchantModule;
 import com.yiyiaddon.feature.identity.IdConfigModule;
@@ -13,6 +14,7 @@ import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.respawn.AutoRespawnModule;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
+import com.yiyiaddon.feature.water.WaterESPModule;
 import com.yiyiaddon.integration.baritone.BaritoneSettingsPage;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
@@ -68,6 +70,8 @@ public final class AddonModules {
                 new AutoMinerModule(),
                 new EnchantModule(),
                 new KillAuraModule(),
+                new AutoFarmModule(),
+                new WaterESPModule(),
                 new AutoRespawnModule(),
                 new AdminDetectorModule()
         );

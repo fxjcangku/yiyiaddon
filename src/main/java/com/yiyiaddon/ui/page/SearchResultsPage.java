@@ -5,6 +5,11 @@ import com.yiyiaddon.ui.widget.SettingModule;
 
 import java.util.Collection;
 
+/**
+ * 模块中心搜索结果页：展示与搜索关键词匹配的模块清单。
+ *
+ * 只复用既有模块列表渲染，不承载任何业务配置。
+ */
 public final class SearchResultsPage extends BasePage {
     private final String query;
 

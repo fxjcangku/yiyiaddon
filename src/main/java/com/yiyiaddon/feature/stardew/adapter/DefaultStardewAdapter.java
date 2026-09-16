@@ -1,6 +1,6 @@
 package com.yiyiaddon.feature.stardew.adapter;
 
-import com.yiyiaddon.feature.stardew.navigation.FarmNav;
+import com.yiyiaddon.platform.navigation.FarmNav;
 import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.platform.identity.ItemIdentityMatcher;
 import com.yiyiaddon.platform.network.BlockPacketSender;

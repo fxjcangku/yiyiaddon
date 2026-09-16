@@ -10,6 +10,12 @@ import io.github.humbleui.types.RRect;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
 
+/**
+ * 设置页颜色预览块：只读展示一个（或左右双色的）颜色值，点击跳转调色板由宿主页面负责。
+ *
+ * 视觉规格对齐本项目既有控件：圆角 8f、边框取主题 border 的 24% 透明度、尺寸 100x24
+ * （开发习惯第 141、153 条）。
+ */
 public class SettingColorPreview extends SettingWidget {
     private final IntSupplier colorSupplier;
     private final IntSupplier secondColorSupplier;

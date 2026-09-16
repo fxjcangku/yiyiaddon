@@ -7,6 +7,13 @@ import java.nio.ByteBuffer;
 
 import static org.lwjgl.opengl.GL45.*;
 
+/**
+ * Skija 绘制前后的 OpenGL 状态快照。
+ *
+ * Skija 直接操作共享 GL 上下文，会把原版渲染管线的状态改掉；
+ * 本类在 Skija 绘制前保存受影响的状态、绘制后原样恢复，
+ * 保证原版后续渲染（世界 / GUI）不受 Skija 污染。
+ */
 final class SkiaGlState {
     private static final int TRACKED_TEXTURE_UNITS = 16;
     private final int glVersion;
