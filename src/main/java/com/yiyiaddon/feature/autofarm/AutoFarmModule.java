@@ -476,9 +476,14 @@ public final class AutoFarmModule extends Module {
         notify(report.toString());
     }
 
-    /** 强调色包裹（旧 highlightText 的等价物：白字加粗） */
+    /** 物品/文本高亮（亮绿色粗体）——旧基类 {@code highlightText :168-170} 逐字，用于物品名、成功值 */
     private static String highlightText(String text) {
-        return "§f§l" + (text == null ? "" : text) + "§r";
+        return "§a§l" + (text == null ? "" : text) + "§r§f§l";
+    }
+
+    /** 功能/模式高亮（亮青色粗体）——旧基类 {@code highlightFunction :173-175} 逐字，用于模式名、状态名 */
+    private static String highlightFunction(String text) {
+        return "§b§l" + (text == null ? "" : text) + "§r§f§l";
     }
 
     // ── 锚点管理（旧 :546-594，供指令与页面调用） ──
@@ -641,8 +646,8 @@ public final class AutoFarmModule extends Module {
         }
         String till = settings.autoTill ? "§a开" : "§c关";
         String mode = settings.harvestMode == HarvestMode.BATCH
-            ? "§f§l批量§r"
-            : "§f§l单个§r";
+            ? highlightFunction("批量")
+            : highlightFunction("单个");
         return "§7作物 §8▸ " + (enabled.isEmpty() ? "§8未选择" : crops.toString())
             + " §8│ §7锄地 §8▸ " + till
             + " §8│ §7收割 §8▸ " + mode;

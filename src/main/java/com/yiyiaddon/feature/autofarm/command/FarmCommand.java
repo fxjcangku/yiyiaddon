@@ -347,7 +347,12 @@ public final class FarmCommand extends ClientCommand {
     }
 
     private static AutoFarmModule module() {
-        return ModuleManager.byId(AutoFarmModule.MODULE_ID) instanceof AutoFarmModule farm ? farm : null;
+        AutoFarmModule module = ModuleManager.byId(AutoFarmModule.MODULE_ID) instanceof AutoFarmModule farm ? farm : null;
+        // 模块未注册的兜底播报（旧 NongChangCommand :294-298 逐字；正常引导下不会触发）
+        if (module == null) {
+            CommandMessageFormatter.sendLine(MODULE_NAME, "§6自动农场模块未注册。");
+        }
+        return module;
     }
 
     // ═══════════════════════════════════════════════════════════════════

@@ -107,6 +107,12 @@ public final class WaterESPModule extends Module {
         ModuleManager.saveSettings(this);
     }
 
+    /** 模块页：薄壳入口，设置项由控制台承载（10 项逐字，51 号第五节） */
+    @Override
+    public com.yiyiaddon.ui.page.ModulePage page() {
+        return new com.yiyiaddon.feature.water.ui.WaterPage(this);
+    }
+
     // ── 生命周期 ──
 
     @Override
