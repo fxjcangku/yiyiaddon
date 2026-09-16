@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.combat.target.SortPriority;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -61,20 +62,38 @@ public final class KillAuraSettings {
     public static final List<String> DEFAULT_ENTITY_TYPES = List.of("minecraft:player");
 
     /**
-     * 本项目默认目标实体名单：全部可攻击实体，按登记 ID 字典序。
+     * 本项目默认目标实体名单：<b>全部怪物</b>（{@code MobCategory.MONSTER}），按登记 ID 字典序。
      *
      * <p><b>可攻击口径复用何处</b>：{@link AttackableEntityTypes#attackable()}——本项目「可攻击实体」
      * 的唯一来源（遍历 {@code BuiltInRegistries.ENTITY_TYPE}，按蓝本 {@code EntityUtils.isAttackable}
-     * 的 16 项黑名单过滤）。界面层的选择器候选同样取自那里，两层口径不会漂移；
-     * 设置层不反向依赖 UI（{@code config} 不 import {@code ui}）。</p>
+     * 的 16 项黑名单过滤），本方法在它之上再按生物分类筛出怪物。界面层的选择器候选同样取自那里，
+     * 两层口径不会漂移；设置层不反向依赖 UI（{@code config} 不 import {@code ui}）。</p>
      *
      * <p><b>顺序</b>：候选表本身按中文显示名排序，这里改按 ID 字典序，保证同一注册表下结果稳定
      * （落盘内容不抖动）。</p>
      *
-     * <p><b>为何偏离蓝本</b>：蓝本 {@code :134} 默认仅玩家；用户 2026-09-16 要求「开启即能打怪」，
-     * 故默认全选。{@link #DEFAULT_ENTITY_TYPES} 保持蓝本原值不动，仅作老配置识别用。</p>
+     * <p><b>为何是怪物而不是全量</b>：用户 2026-09-16 原话「我让你选择怪物就好了」——
+     * 船 / 竹筏 / 盔甲架 / 矿车这类非怪物不该默认进名单（它们既不该被打，也没有对应图标）。
+     * 蓝本 {@code :134} 默认仅玩家的口径仍保留在 {@link #DEFAULT_ENTITY_TYPES}，只作老配置识别用。</p>
      */
     public static List<String> defaultEntityTypes() {
+        List<String> ids = new ArrayList<>();
+        for (EntityType<?> type : AttackableEntityTypes.attackable()) {
+            if (type.getCategory() != MobCategory.MONSTER) continue;
+            Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+            if (id != null) ids.add(id.toString());
+        }
+        ids.sort(Comparator.naturalOrder());
+        return List.copyOf(ids);
+    }
+
+    /**
+     * 上一版默认值（全选可攻击实体）；只用于识别老配置，见 {@link #migrateLegacyEntityTypes()}。
+     *
+     * <p>用户把默认值从「全量」改成「仅怪物」后，改字段初值只对<b>新配置</b>生效：已经按旧默认
+     * 落过盘的配置会原样读回来，界面看上去还是「全选」。所以必须按内容识别这一次。</p>
+     */
+    private static List<String> legacyAllAttackableEntityTypes() {
         List<String> ids = new ArrayList<>();
         for (EntityType<?> type : AttackableEntityTypes.attackable()) {
             Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
@@ -115,7 +134,7 @@ public final class KillAuraSettings {
 
     // ━━━ 目标（蓝本 {@code sgTargeting}，:52 / :130-206） ━━━
 
-    /** 蓝本 {@code entities}，默认见 {@link #defaultEntityTypes()}（本项目全选可攻击实体，偏离蓝本；蓝本原默认见 {@link #DEFAULT_ENTITY_TYPES}）（{@code :130-136}） */
+    /** 蓝本 {@code entities}，默认见 {@link #defaultEntityTypes()}（本项目默认<b>仅怪物</b>，偏离蓝本；蓝本原默认见 {@link #DEFAULT_ENTITY_TYPES}）（{@code :130-136}） */
     public final List<String> entityTypes = new ArrayList<>(defaultEntityTypes());
 
     /** 蓝本 {@code priority}，默认 {@code ClosestAngle}（{@code :138-143}） */
@@ -254,23 +273,31 @@ public final class KillAuraSettings {
     }
 
     /**
-     * 老配置一次性迁移：名单<b>恰好等于蓝本旧默认值</b>时，升级成 {@link #defaultEntityTypes()}。
+     * 老配置一次性迁移：名单为<b>空</b>，或<b>恰好等于某一份旧默认值</b>时，升级成
+     * {@link #defaultEntityTypes()}（全部怪物）。
      *
-     * <p><b>为什么这样判断</b>：旧版本落盘的默认值就是 {@code ["minecraft:player"]}（字段初值
-     * {@code DEFAULT_ENTITY_TYPES}，用户没动过就原样写进配置）。改字段初值只对「新配置」生效，
-     * 已存着这份旧值的配置不受影响，所以必须按内容识别这一次。</p>
+     * <p><b>触发条件</b>：① 空名单（用户清空过，或旧版本落过空默认）；② 蓝本
+     * {@link #DEFAULT_ENTITY_TYPES}（{@code ["minecraft:player"]}）；③ 本项目上一版
+     * {@link #legacyAllAttackableEntityTypes()}（全选可攻击实体，用户 2026-09-16 看到的
+     * 「没让你全选实体」那份名单）。</p>
      *
-     * <p><b>为什么安全</b>：条件是「内容逐项等于 {@code DEFAULT_ENTITY_TYPES}」——用户加过 / 减过 /
-     * 换成别的实体，列表就不等于它，一律原样尊重；空列表（用户清空）同样不碰；配置里没有
-     * {@code entityTypes} 键时 {@link #readStrings} 保留字段当前值（= 新默认值，长度 &gt; 1），也不进分支。
-     * 迁移后列表长度远大于 1，不会再命中，故是真正的一次性。</p>
+     * <p><b>为什么安全</b>：只要用户<b>自己挑过</b>——加过、减过、换成别的组合——列表就不等于以上三者，
+     * 一律原样尊重；配置里没有 {@code entityTypes} 键时 {@link #readStrings} 保留字段当前值
+     * （= 新默认值，非空），也不进分支。</p>
      *
-     * <p><b>影响面（诚实记录）</b>：恰好只勾了「玩家」一项、且存过盘的配置会被升级成全量一次——
-     * 这种情况与「从未改过」在配置里无法区分（本模块设置块没有版本号字段，也不为此新增字段、
-     * 不动落盘结构），用户重新勾回即可。</p>
+     * <p><b>影响面（诚实记录）</b>：① 用户若恰好手动选出与旧默认值完全一致的组合，会被升级一次；
+     * ② 用 ↻ 清空后<b>重启会回到怪物默认</b>——这是为了堵住「空名单静默哑火」，属于有意取舍
+     * （本模块设置块没有版本号字段，不为此新增字段、不动落盘结构）。两处都登记在迁移记录里。</p>
      */
     private void migrateLegacyEntityTypes() {
-        if (!entityTypes.equals(DEFAULT_ENTITY_TYPES)) return;
+        // 空名单也一并填回默认：空名单 = 一个目标都不打（includesEntityTypeId 就是 contains），
+        // 模块会静默失效；用户 2026-09-16 的要求是「我只要怪物」= 打开就能打怪，不是打开什么都不打。
+        // 代价：↻ 清空后重启会回到怪物默认，这是有意选择（空默认是个哑火陷阱），登记在迁移记录里。
+        if (!entityTypes.isEmpty()
+                && !entityTypes.equals(DEFAULT_ENTITY_TYPES)
+                && !entityTypes.equals(legacyAllAttackableEntityTypes())) {
+            return;
+        }
         entityTypes.clear();
         entityTypes.addAll(defaultEntityTypes());
     }

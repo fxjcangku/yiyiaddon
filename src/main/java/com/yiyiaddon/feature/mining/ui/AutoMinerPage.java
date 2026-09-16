@@ -2,13 +2,9 @@ package com.yiyiaddon.feature.mining.ui;
 
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
-import com.yiyiaddon.feature.mining.model.MiningPoint;
-import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.module.ModuleEntry;
-import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.KeybindBadge;
-import com.yiyiaddon.ui.component.ListRow;
 import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
@@ -19,34 +15,27 @@ import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
 /**
- * 自动挖矿模块页：只留入口与点位卡片，**全部设置项都在控制台里**。
+ * 自动挖矿模块页：只留控制台入口与使用说明，**全部设置与点位都在控制台里**。
  *
  * <p><b>形态照星露谷模块页</b>（{@code StardewResourcePanelPage}，用户 2026-09-16 指令
- * 「跟星露谷物语天差地别…已经做进控制台了下面还一堆设置」）：顶部信息块 → 控制台入口 →
- * 使用说明 → 旧项目本页原有的内容（三个点位卡片）。模块的 5 个设置分组
- * （{@code 目标选择 / 传送指令 / 触发条件 / 物品管理 / Baritone调优}）**只在控制台出现一次**，
- * 本页不再平铺 —— 两份控件写同一份 {@code MiningSettings}，同页并存只会互相看对方为旧值。</p>
+ * 「跟星露谷物语天差地别…已经做进控制台了下面还一堆设置」）：顶部信息块 → 控制台入口 → 使用说明。
+ * 模块的 5 个设置分组（{@code 目标选择 / 传送指令 / 触发条件 / 物品管理 / Baritone调优}）
+ * 与三个点位卡片**只在控制台出现一次**，本页不再平铺 —— 两份控件写同一份 {@code MiningSettings}，
+ * 同页并存只会互相看对方为旧值。</p>
  *
  * <p><b>用户交互资产（逐字，禁止改写）：</b>按钮 {@code §b打开控制台} / {@code §e查看使用说明}、
- * 三个点位名（{@code 矿物箱} / {@code 食物箱} / {@code 挂机修复点}）、点位卡片文案（{@code §a设置} /
- * {@code §8设置} / {@code §c删除} / {@code §8暂未绑定} / {@code §8-} 与坐标串）、帮助页 8 个章节的
- * 全部正文，全部来自旧项目原文（{@code AutoMinerModule.getWidget} + {@code buildLocationCard} +
+ * 帮助页 8 个章节的全部正文，来自旧项目原文（{@code AutoMinerModule.getWidget} +
  * {@code buildHelpContent}，{@code :1503-1683}）。</p>
  *
- * <p><b>设置项的去处</b>：名称、描述、默认值、范围、可见性联动、落盘时机与 Baritone 同键下调
- * 全部在 {@link MiningConsoleScreen} 的六页里（详见 {@link com.yiyiaddon.feature.mining.ui.console}），
- * 本页不复制任何一项。</p>
- *
- * <p><b>点位绑定：</b>三行卡片与控制台点位页、{@code .wk} 指令共用唯一实现
+ * <p><b>点位绑定：</b>控制台点位页与 {@code .wk} 指令共用唯一实现
  * {@link com.yiyiaddon.feature.mining.service.MiningBindingService}（GUI 路径的文案多「请重新设置」、
- * 解绑回执带 {@code §c§l✗}，与指令路径两套并存，禁止统一）。卡片状态在页面构建时读一次，
- * 每次重新进入页面都是一个新实例，因此删除 / 绑定后重开必然同步（旧项目靠每次 getWidget 重读）。</p>
+ * 解绑回执带 {@code §c§l✗}，与指令路径两套并存，禁止统一）。</p>
  *
  * <p><b>与旧项目差异（登记）：</b>{@code 检测假矿} 按钮<b>不落地</b>（随种子模式留白，用户裁定）；
  * 帮助页「指令系统」章节里 {@code §8> §3.wk 检测假矿…} 那一行按同一裁定留白不写，但「种子挖矿」
- * 章节标题与逐字正文作为帮助文案资产完整保留。旧项目「一行三列卡片」在本项目没有对应控件，
- * 改为三行 {@link ListRow}（用户 2026-09-16 拍板）：卡片六段文案一字不改，坐标行与维度行合并到
- * 同一行明细里（原两行之间用两个空格分隔）。</p>
+ * 章节标题与逐字正文作为帮助文案资产完整保留。用户 2026-09-16 指令「没打开控制台之前的那个界面的
+ * 点位删掉」，故本页原有的三行点位卡片已删除，「准备工作」「点位设置」两节帮助文案里指向旧卡片的
+ * 句子同步改写成指向控制台点位页。</p>
  */
 public final class AutoMinerPage extends CompactModulePage implements ModulePage {
 
@@ -56,9 +45,6 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
     private static final String CONSOLE_HINT = "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / Baritone调优";
     private static final String HELP_BUTTON = "§e查看使用说明";
     private static final String HELP_HINT = "打开自动挖矿的完整使用说明";
-    private static final String BTN_SET_BOUND = "§a设置";
-    private static final String BTN_SET_UNBOUND = "§8设置";
-    private static final String BTN_DELETE = "§c删除";
 
     /** 帮助页 8 个章节（旧 {@code buildHelpContent :1618-1683} 逐字；框线与 {@code [#]} 格式由 HelpPanelScreen 生成） */
     private static final HelpPanelScreen.HelpSection[] HELP_SECTIONS = {
@@ -67,11 +53,11 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
             "  §8├─ §f准备好武器 §7(修补耐久时用)",
             "  §8├─ §f放置矿物箱、食物箱 §7(装满食物)",
             "  §8├─ §f选好挂机修复点 §7(安全区域，怪物可到达)",
-            "  §8└─ §f配置页面顶部点击卡片按钮设置三个点位"
+            "  §8└─ §f在控制台「点位」页设置三个点位"
         ),
         new HelpPanelScreen.HelpSection("点位设置 §7(两种方式)",
-            "  §b▸ §e方式1 §8- §f配置页面按钮",
-            "    §7准星对准箱子 §8→ §f点击卡片中的设置按钮",
+            "  §b▸ §e方式1 §8- §f控制台点位页",
+            "    §7准星对准箱子 §8→ §f点击「设置」按钮",
             "    §7箱子类型：矿物箱、食物箱自动检测容器",
             "    §7挂机修复点：直接站在目标位置即可绑定",
             "",
@@ -179,49 +165,6 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
         // ② 使用说明（与上一行同一形态；「检测假矿」按钮随种子模式留白，不落地）
         addCore(new CompactRow("", () -> HELP_HINT,
             new Button(HELP_BUTTON, this::openHelp)).centeredControl());
-
-        // ③ 三行点位卡片（旧 :1529-1535 的三张卡片；设置项一律在控制台里）
-        for (MiningPointType type : MiningPointType.values()) addCore(pointRow(type));
-    }
-
-    /**
-     * 点位卡片行：标题 + 坐标与维度明细 + 「设置」「删除」。
-     *
-     * <p>已绑定时坐标与维度名逐字照旧（{@code §7X§f%d §7Y§f%d §7Z§f%d} / {@code §7维度名}），
-     * 未绑定时两段占位为 {@code §8暂未绑定} 与 {@code §8-}；删除按钮无条件显示，条件门控在点击回调内
-     * （旧 {@code :1601-1608}）。明细每帧现读：换维度 / 换服务器后不必重建整页就能看到本维度实况。</p>
-     */
-    private ListRow pointRow(MiningPointType type) {
-        boolean bound = module.pointStore().has(type);
-
-        return new ListRow(pointTitleColor(type) + type.displayName())
-            .detail(() -> pointDetail(type))
-            .action(new Button(bound ? BTN_SET_BOUND : BTN_SET_UNBOUND, () -> {
-                // 绑定失败（准星未命中 / 非容器 / 该类型已绑）时留在页面：错误已经播报，玩家可当场重设
-                if (module.bindingService().bind(type, true)) closeToGame();
-            }))
-            .action(new Button(BTN_DELETE, () -> {
-                if (module.bindingService().remove(type, true)) closeToGame();
-            }));
-    }
-
-    /**
-     * 点位明细：已绑给坐标 + 维度名，未绑给 {@code §8暂未绑定  §8-}（与控制台点位页逐字同源）。
-     */
-    private String pointDetail(MiningPointType type) {
-        MiningPoint point = module.pointStore().get(type);
-        if (point == null) return "§8暂未绑定  §8-";
-        return String.format("§7X§f%d §7Y§f%d §7Z§f%d  §7%s", point.x(), point.y(), point.z(),
-            WorldIdentity.dimensionDisplayName(point.dimension()));
-    }
-
-    /** 卡片标题配色（旧 {@code :1561-1566}）：矿物箱金 / 食物箱绿 / 挂机修复点粉 */
-    private static String pointTitleColor(MiningPointType type) {
-        return switch (type) {
-            case MINERAL -> "§6";
-            case FOOD -> "§2";
-            case AFK -> "§d";
-        };
     }
 
     // ── 界面跳转 ──
@@ -239,11 +182,5 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
         client.setScreen(new MiningConsoleScreen(client.screen, module));
-    }
-
-    /** 执行后直接回到游戏（旧项目 {@code mc.setScreen(null)}） */
-    private void closeToGame() {
-        Minecraft client = Minecraft.getInstance();
-        if (client != null) client.setScreen(null);
     }
 }

@@ -213,6 +213,7 @@ public class SettingTextBox extends SettingWidget {
     }
 
     public static boolean charTyped(CharacterEvent event) {
+        ImeBridge.noteCharArrived("SettingTextBox", focused != null, event.codepoint());
         if (focused == null) return false;
         ImeBridge.noteCommitted(event.codepoint());
         focused.preedit = null;

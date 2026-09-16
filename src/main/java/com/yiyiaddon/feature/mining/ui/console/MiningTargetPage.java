@@ -12,11 +12,14 @@ import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
+import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingSegmented;
 import com.yiyiaddon.ui.widget.SettingText;
+import com.yiyiaddon.ui.widget.SettingWidget;
+import io.github.humbleui.skija.Canvas;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -51,10 +54,16 @@ public final class MiningTargetPage {
     private static final String SELECT_LABEL = "点击选择";
     /** 状态文字字号：与 {@code SettingText} 内部字号一致，用于按文本宽度算列宽 */
     private static final float STATE_FONT_SIZE = 11f;
+    /** 行内图标的字号口径：{@code IconButton} 取自身边长的 0.58 倍（{@code IconButton#resolvedIconSize}） */
+    private static final float ICON_GLYPH_RATIO = 0.58f;
+    /** Material Symbols 图标网格的内缩：墨迹在 1 em 的 advance 里左右各留 1/6（量法见 {@link #measureIconInkInset()}） */
+    private static final float ICON_INK_MARGIN = 1f / 6f;
 
     private final MiningConsoleScreen owner;
     private final AutoMinerModule module;
     private final MiningTargetControls controls;
+    /** ↻ 图标的字形内缩量：本页构建时量一次（见 {@link #measureIconInkInset()}） */
+    private final float iconInkInset = measureIconInkInset();
 
     public MiningTargetPage(MiningConsoleScreen owner, AutoMinerModule module) {
         this.owner = owner;
@@ -68,10 +77,13 @@ public final class MiningTargetPage {
         MiningSettings settings = module.settings();
         controls.refreshTotals();
 
+        // 采集模式行只有分段控件一个控件，它的右缘落在行右内边距线上；下面各行的最右是 ↻ 图标按钮，
+        // 字形居中于命中框、可见右缘还要往里退 iconInkInset，两套控件的右边界于是错开
+        // （用户 2026-09-16：「两套控件的右边界不在同一条竖线上」）。补上等量空白后两者同线。
         stack.add(new ConsoleRow(owner, () -> "采集模式",
             "精准采集：目标选择器显示原矿；时运：目标选择器显示掉落物（粗铁/粗金/粗铜等）。切换模式时自动同步目标",
-            null, List.of(new Ctl(new SettingSegmented(LOOT_MODE_LABELS,
-                () -> settings.lootMode.ordinal(), controls::pickLootMode)))));
+            null, List.of(new Ctl(insetRight(new SettingSegmented(LOOT_MODE_LABELS,
+                () -> settings.lootMode.ordinal(), controls::pickLootMode), iconInkInset)))));
 
         stack.add(selectorRow(TITLE_OVERWORLD,
             "时运模式选掉落物（粗铁/粗金/粗铜等），精准采集选原矿（铁矿石等）",
@@ -111,6 +123,92 @@ public final class MiningTargetPage {
             controls::placeStatus,
             () -> controls.openPlaceSelector(TITLE_PLACE),
             controls::clearPlaceList));
+    }
+
+    // ── 右基线对齐 ──
+
+    /**
+     * ↻ 图标按钮的「可见墨迹右缘」相对 24×24 命中框的内缩量。
+     *
+     * <p><b>为什么要量这个数：</b>控制台行内控件是整组右对齐的（{@code ConsoleRow#controlsStartX}），
+     * 但 {@code IconButton} 把字形居中画在命中框里，字形两侧各留一段空白，因此 ↻ 的<b>可见</b>右缘
+     * 比命中框右缘更靠里；而分段控件的玻璃是实心的，右缘正好压在命中框右缘上。两者并排即错位
+     * ——正是用户 2026-09-16 截图里的「分段控件与 ↻ 图标不在同一条竖线上」。</p>
+     *
+     * <p><b>量法</b>（26.1.2 自带 {@code MaterialSymbolsRounded.ttf} 实测）：图标 advance = 1 em
+     * （960/960 网格），刷新图标 U+E5D5 的墨迹 xMin/xMax = 160/800，即左右各留 1/6 em。
+     * 命中框 24、字号 0.58×24 时：{@code (24 − 13.92)/2 + 13.92/6 ≈ 7.36}。
+     * {@code IconButton} 的字号口径若变动，这里量出来的值会跟着变（不写死数字）。</p>
+     */
+    private static float measureIconInkInset() {
+        float box = IconButton.DEFAULT_SIZE;
+        float advance = FontRenderer.measureTextWidth(ConsoleMetrics.GLYPH_RESET, box * ICON_GLYPH_RATIO,
+            FontRenderer.MATERIAL_SYMBOLS);
+        return (box - advance) / 2f + advance * ICON_INK_MARGIN;
+    }
+
+    /** 右侧补白包装：内层控件照旧画在自己的左上角，只在自身宽度上加 {@code inset}（见 {@link RightInset}）。 */
+    private static SettingWidget insetRight(SettingWidget inner, float inset) {
+        return new RightInset(inner, inset);
+    }
+
+    /**
+     * 行尾补白控件：把内层控件整体左移固定像素，用于「让实心控件的可见右缘与 ↻ 图标的可见右缘同线」。
+     *
+     * <p><b>为什么不加一个「占位控件」了事：</b>{@code ConsoleRow} 在相邻控件之间固定插
+     * {@code CONTROL_GAP = 10} 的间距，补白只有 7.36 像素时占位控件反而会把分段控件推过头、还会多一条
+     * 10 像素的隐形间隙；把补白直接算进本控件的宽度里，间距与命中口径都与原来一致（补白区不可点，
+     * 但那段本来也是 ↻ 命中框内部的空白，用户点不到任何东西）。</p>
+     */
+    private static final class RightInset extends SettingWidget {
+
+        private final SettingWidget inner;
+        private final float inset;
+
+        private RightInset(SettingWidget inner, float inset) {
+            this.inner = inner;
+            this.inset = Math.max(0f, inset);
+        }
+
+        @Override
+        public float getWidth() {
+            return inner.getWidth() + inset;
+        }
+
+        @Override
+        public float getHeight() {
+            return inner.getHeight();
+        }
+
+        @Override
+        public void draw(Canvas canvas, float x, float y, float alpha) {
+            inner.draw(canvas, x, y, alpha);
+        }
+
+        @Override
+        public void update(float dt) {
+            inner.update(dt);
+        }
+
+        @Override
+        public boolean isAnimating() {
+            return inner.isAnimating();
+        }
+
+        @Override
+        public void hover(float mouseX, float mouseY, float x, float y, float width) {
+            inner.hover(mouseX, mouseY, x, y, inner.getWidth());
+        }
+
+        @Override
+        public boolean onClick(float mx, float my, float x, float y, int button) {
+            return inner.onClick(mx, my, x, y, button);
+        }
+
+        @Override
+        public boolean onDrag(float mx, float my, float x, float y) {
+            return inner.onDrag(mx, my, x, y);
+        }
     }
 
     // ── 选择器行 ──

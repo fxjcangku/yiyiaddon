@@ -20,7 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import org.joml.Matrix3x2fStack;
-import org.lwjgl.system.MemoryStack;
+import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
@@ -82,6 +82,11 @@ public final class ItemIconCache {
     /** 实体 → 刷怪蛋映射；null 表示尚未构建。 */
     private Map<EntityType<?>, Item> spawnEggByEntity;
 
+    /** 本帧备份下来的格子区域画面；由 {@link #paintBackdrop} 画回后立即释放。 */
+    private Image backdropImage;
+    /** 备份区域在 GUI 逻辑坐标下的位置与尺寸。 */
+    private float[] backdropGuiBox;
+
     private ItemIconCache() {
     }
 
@@ -116,6 +121,11 @@ public final class ItemIconCache {
         for (int i = 0; i < count; i++) {
             batch.add(pending.poll());
         }
+
+        // 先备份格子要占的整块矩形：格子总宽最宽 428 逻辑像素（12 格 × 36 − 4），比面板还宽，
+        // 两侧会露在面板外；格子里的纯黑/纯白底与放大图标也会透过半透明玻璃。备份 + 帧末写回
+        // 让这段过程对画面完全无痕（详见 saveBackdrop 注释）。只备份本帧真的要用到的那几格。
+        saveBackdrop(client, count);
 
         // 底色用未缩放的 GUI 坐标记录：不管抽帧管线是否对 fill 应用姿态矩阵，两者都落在同一个矩形上
         for (int row = 0; row < ROWS; row++) {
@@ -169,6 +179,8 @@ public final class ItemIconCache {
             }
         }
         rendered.clear();
+        // 备份的画面不在这里写回：写回需要一个 Skija 画布，统一交给 SkiaGlBackend#begin
+        // 在开始画主帧缓冲时调用 paintBackdrop（那个时机正好在面板绘制之前）。
     }
 
     // ── 绘制 ──
@@ -252,6 +264,7 @@ public final class ItemIconCache {
         loading.clear();
         pending.clear();
         rendered.clear();
+        releaseBackdrop();
     }
 
     /** 释放全部原生资源；渲染后端销毁时调用。 */
@@ -432,8 +445,10 @@ public final class ItemIconCache {
             );
 
             glBindFramebuffer(GL_READ_FRAMEBUFFER, framebufferId);
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                ByteBuffer pixels = stack.malloc(rowBytes * height);
+            {
+                // 必须用堆外内存而不是 MemoryStack：LWJGL 的栈每个线程只有 64 KB，而备份整块格子
+                // 区域时这里要一次拿到 1 MB 以上，用 stack.malloc 会直接 OutOfMemoryError（曾崩过一次）。
+                ByteBuffer pixels = BufferUtils.createByteBuffer(rowBytes * height);
                 glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
                 byte[] flipped = new byte[rowBytes * height];
@@ -463,6 +478,100 @@ public final class ItemIconCache {
                 glDisable(GL_FRAMEBUFFER_SRGB);
             }
         }
+    }
+
+    // ── 隐藏格子矩形备份（让抽帧过程对画面无痕） ──
+
+    /**
+     * 在隐藏格子落地之前，把它占的整块矩形回读成一张位图备份。
+     *
+     * <p><b>为什么必须备份：</b>格子画在屏幕正中、总宽 428 逻辑像素（12 格 × 36 − 4），比面板还宽；
+     * 格子里的纯黑/纯白底与放大到 32 逻辑像素的物品图标，一部分会露在面板之外的场景上，另一部分
+     * 会透过半透明玻璃显形。没有待加载图标时格子根本不存在（看不到），可一旦滚动列表（每帧都有新
+     * 图标入队）就会持续闪出放大的物品图标 —— 即用户 2026-09-16 反馈的「UI 滚动时图标贴图闪烁」。</p>
+     *
+     * <p>时机：本方法在抽帧阶段（{@code renderPending}）调用，此时格子还只是绘制指令、尚未落地，
+     * 回读到的是干净的场景画面；写回（{@link #paintBackdrop}）发生在面板绘制之前，于是格子存在的
+     * 整段时间都被画面自己的备份盖住，玩家完全看不到。</p>
+     */
+    private void saveBackdrop(Minecraft client, int slots) {
+        releaseBackdrop();
+        int[] box = backdropBox(client, slots);
+        if (box[2] <= 2 || box[3] <= 2) return;
+
+        byte[] pixels = readRegion(box);
+        if (pixels == null) return;
+        try {
+            // 帧内容已是合成后的不透明画面，其 alpha 常为 0（不透明渲染的常见结果），
+            // 因此必须按 OPAQUE 建图：按 PREMUL 建会被 alpha=0 抹成纯黑。
+            backdropImage = Image.makeRasterFromBytes(
+                    new ImageInfo(box[2], box[3], ColorType.RGBA_8888, ColorAlphaType.OPAQUE, ColorSpace.getSRGB()),
+                    pixels, box[2] * 4);
+        } catch (RuntimeException error) {
+            backdropImage = null;
+            return;
+        }
+
+        double scale = client.getWindow().getGuiScale();
+        int windowH = client.getWindow().getHeight();
+        backdropGuiBox = new float[]{
+                (float) (box[0] / scale),
+                (float) ((windowH - box[1] - box[3]) / scale),
+                (float) (box[2] / scale),
+                (float) (box[3] / scale)
+        };
+    }
+
+    /**
+     * 把备份的画面画回格子矩形。
+     *
+     * <p>由 {@code SkiaGlBackend#begin} 在开始绘制主帧缓冲时调用：那个时机正好在面板绘制之前，
+     * 写回之后面板玻璃采样到的就是干净画面；写回到 MSAA 主帧缓冲只能靠绘制（{@code glBlitFramebuffer}
+     * 不允许「单采样 → 多采样」），所以这里走 Skija 而不是 GL blit。</p>
+     */
+    public void paintBackdrop(Canvas canvas) {
+        Image image = backdropImage;
+        float[] box = backdropGuiBox;
+        backdropImage = null;
+        backdropGuiBox = null;
+        if (image == null) return;
+        try {
+            if (canvas == null || box == null) return;
+            canvas.drawImageRect(image,
+                    Rect.makeXYWH(0f, 0f, image.getWidth(), image.getHeight()),
+                    Rect.makeXYWH(box[0], box[1], box[2], box[3]),
+                    SamplingMode.DEFAULT, null, true);
+        } finally {
+            image.close();
+        }
+    }
+
+    /** 释放尚未写回的备份。 */
+    private void releaseBackdrop() {
+        if (backdropImage != null) {
+            backdropImage.close();
+            backdropImage = null;
+        }
+        backdropGuiBox = null;
+    }
+
+    /** 隐藏格子整体的 Framebuffer 像素区域：{@code [x, y（自下往上）, 宽, 高]}。 */
+    private int[] backdropBox(Minecraft client, int slots) {
+        double scale = client.getWindow().getGuiScale();
+        int windowW = client.getWindow().getWidth();
+        int windowH = client.getWindow().getHeight();
+        if (scale <= 0) return new int[]{0, 0, 1, 1};
+
+        float left = slotX(0, client);
+        float top = slotY(0, client);
+        float total = Math.max(1, slots) * (ICON_SIZE + SLOT_GAP) - SLOT_GAP;
+        float blockHeight = ROWS * ICON_SIZE + ROW_GAP;
+
+        int x0 = Math.max(0, (int) Math.round(left * scale));
+        int y0 = Math.max(0, (int) Math.round(top * scale));
+        int x1 = Math.min(windowW, (int) Math.round((left + total) * scale));
+        int y1 = Math.min(windowH, (int) Math.round((top + blockHeight) * scale));
+        return new int[]{x0, Math.max(0, windowH - y1), Math.max(1, x1 - x0), Math.max(1, y1 - y0)};
     }
 
     /**

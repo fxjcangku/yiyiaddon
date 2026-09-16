@@ -116,6 +116,11 @@ public final class SkiaGlBackend {
             canvas.save();
             canvas.scale((float) window.getGuiScale(), (float) window.getGuiScale());
             drawing = true;
+            // 主帧缓冲开始绘制：若本帧有隐藏格子的画面备份，先画回去，格子对玩家彻底不可见
+            // （时机正好在面板绘制之前，面板玻璃采样到的也就是干净画面）。
+            if (targetFramebufferId == mainFramebufferId()) {
+                ItemIconCache.getInstance().paintBackdrop(canvas);
+            }
             return canvas;
         } catch (RuntimeException e) {
             state.pop();

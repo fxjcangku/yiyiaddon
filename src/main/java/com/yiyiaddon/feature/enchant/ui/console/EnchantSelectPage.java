@@ -9,6 +9,7 @@ import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
@@ -16,6 +17,7 @@ import com.yiyiaddon.ui.widget.SettingText;
 import io.github.humbleui.skija.Canvas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
@@ -120,9 +122,26 @@ public final class EnchantSelectPage {
 
     /**
      * 词条候选项：键与标题都是词条名（旧项目 {@code EnchantmentSelectSetting} 的候选就是 189 个词条名），
-     * 不分组、无图标（旧窗口是纯文字列表）。
+     * 不分组。
+     *
+     * <p><b>行图标</b>：词条本身没有专属物品（附魔不是物品），因此统一用附魔书做图标 —— 旧窗口这里是
+     * 纯文字列表，本项目按「列表行要有物品图」的统一口径补上；不按词条区分图标，是因为原版没有任何
+     * 词条到物品的映射，硬编一张表只会出现与真实物品不符的假图。</p>
      */
-    private record EnchantEntry(String key) implements SelectorScreen.Entry {
+    private static final class EnchantEntry implements SelectorScreen.Entry {
+
+        private final String key;
+        /** 惰性构造：构建物品栈需要注册表已绑定，不能在设置载入期做 */
+        private ItemStack iconStack;
+
+        private EnchantEntry(String key) {
+            this.key = key;
+        }
+
+        @Override
+        public String key() {
+            return key;
+        }
 
         @Override
         public String title() {
@@ -136,7 +155,8 @@ public final class EnchantSelectPage {
 
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
-            return false;
+            if (iconStack == null) iconStack = new ItemStack(Items.ENCHANTED_BOOK);
+            return ItemIconCache.getInstance().draw(canvas, iconStack, x, y, size);
         }
     }
 }

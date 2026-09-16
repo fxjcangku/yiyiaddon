@@ -24,6 +24,19 @@ public final class AutoRespawnModule extends Module {
     /** 模块 ID，同时作为状态文件键、快捷键键名后缀 */
     public static final String MODULE_ID = "autorespawn";
 
+    /**
+     * 模块卡片图标：Material 符号 {@code auto_awesome}（星光，表示「自动」）。
+     *
+     * <p>码点 U+E65F 取自 {@code EnchantModule} 里已用 cmap 子表验真的备选集合（第 140 条），
+     * 不再另做验真；此前本模块没有 icon() 覆盖，模块中心里图标位是空的（用户 2026-09-16 截图）。</p>
+     */
+    private static final String ICON = "\uE65F";
+
+    @Override
+    public String icon() {
+        return ICON;
+    }
+
     private final Minecraft mc = Minecraft.getInstance();
 
     public AutoRespawnModule() {

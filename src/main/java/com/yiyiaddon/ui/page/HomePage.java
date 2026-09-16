@@ -17,6 +17,7 @@ import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.PlayerFaceCache;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
@@ -25,7 +26,9 @@ import io.github.humbleui.types.RRect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.PlayerSkin;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -36,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 首页仪表盘：全部内容都是本次会话的真实状态。
@@ -73,6 +77,10 @@ public final class HomePage extends BasePage {
     /** 顶部两张键值卡的列数与高度（4 列 × 2 行）。 */
     private static final int DATA_COLUMNS = 4;
     private static final float DATA_H = 96f;
+
+    /** 后端数据卡顶部的账户条：头像 + 玩家名 + 会话 ID + 正版/离线徽标。 */
+    private static final float ACCOUNT_H = 46f;
+    private static final float ACCOUNT_AVATAR = 32f;
 
     /** 模块开关卡：标题高度、每行高度、列数。 */
     private static final float SWITCH_HEADER_H = 30f;
@@ -149,7 +157,7 @@ public final class HomePage extends BasePage {
 
     @Override
     public float getTotalHeight() {
-        return TOP_INSET + DATA_H + SECTION_GAP + DATA_H + SECTION_GAP + switchCardH()
+        return TOP_INSET + dataCardH() + SECTION_GAP + DATA_H + SECTION_GAP + switchCardH()
                 + SECTION_GAP + bottomCardH() + SECTION_GAP + ACTIVITY_H + PAD_BOTTOM;
     }
 
@@ -177,9 +185,14 @@ public final class HomePage extends BasePage {
         return pageY + TOP_INSET - scrollOffset;
     }
 
+    /** 后端数据卡总高：账户条 + 键值网格。 */
+    private float dataCardH() {
+        return ACCOUNT_H + DATA_H;
+    }
+
     /** 当前状态卡顶部。 */
     private float statusCardY(float pageY, float scrollOffset) {
-        return dataCardY(pageY, scrollOffset) + DATA_H + SECTION_GAP;
+        return dataCardY(pageY, scrollOffset) + dataCardH() + SECTION_GAP;
     }
 
     /** 模块开关卡顶部。 */
@@ -226,15 +239,17 @@ public final class HomePage extends BasePage {
         drawActivityCard(canvas, x, activityCardY(y, scrollOffset), contentW, alpha, tc);
     }
 
-    /** 后端数据卡：账户 / 排名 / 人数 / 后端 / 地区 / 网络 / IP / 同步时间，4 列两行。 */
+    /** 后端数据卡：账户条 + 账户 / 排名 / 人数 / 后端 / 地区 / 网络 / IP / 同步时间，4 列两行。 */
     private void drawDataCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc) {
-        drawCardBg(canvas, x, y, w, DATA_H, alpha, tc);
+        drawCardBg(canvas, x, y, w, dataCardH(), alpha, tc);
 
         boolean premium = HomeStats.premium();
         boolean backend = HomeStats.backendOnline();
         boolean network = HomeStats.networkReachable();
         int rank = HomeStats.rank();
         int totalUsers = HomeStats.totalUsers();
+
+        drawAccountStrip(canvas, x, y, w, alpha, tc, premium);
 
         int labelC = GlassPanel.withAlpha(tc.secondaryText, alpha);
         int valueC = GlassPanel.withAlpha(tc.primaryText, alpha);
@@ -264,8 +279,55 @@ public final class HomePage extends BasePage {
         };
 
         float rowW = w - CARD_PAD * 2f;
-        drawCellRow(canvas, x + CARD_PAD, y + 12f, rowW, labels, values, colors, labelC, 0);
-        drawCellRow(canvas, x + CARD_PAD, y + 12f + CELL_ROW_H, rowW, labels, values, colors, labelC, DATA_COLUMNS);
+        float gridY = y + ACCOUNT_H;
+        drawCellRow(canvas, x + CARD_PAD, gridY + 12f, rowW, labels, values, colors, labelC, 0);
+        drawCellRow(canvas, x + CARD_PAD, gridY + 12f + CELL_ROW_H, rowW, labels, values, colors, labelC, DATA_COLUMNS);
+    }
+
+    /**
+     * 账户条：头像 + 玩家名 + 会话 ID + 正版/离线徽标。
+     *
+     * <p>身份一律取<b>会话账户</b>（{@link ClientIdentity}）而不是玩家实体 —— 正版链路下服务器会重写
+     * 实体 UUID，用实体 UUID 会跟后端统计口径对不上（同 {@code ClientIdentity} 的既有约定）。
+     * 头像走 {@link PlayerFaceCache}：只画皮肤贴图的脸与帽子层，是 2D 头像，不需要 3D 模型与联网。</p>
+     */
+    private void drawAccountStrip(Canvas canvas, float x, float y, float w, float alpha,
+                                  ClickGuiThemeColors tc, boolean premium) {
+        int nameC = GlassPanel.withAlpha(tc.primaryText, alpha);
+        int idC = GlassPanel.withAlpha(tc.secondaryText, alpha);
+        int badgeC = GlassPanel.withAlpha(premium ? 0x22C55E : 0xEF4444, alpha);
+
+        float avatarX = x + CARD_PAD;
+        float avatarY = y + (ACCOUNT_H - ACCOUNT_AVATAR) / 2f;
+        PlayerFaceCache.draw(canvas, localSkin(), avatarX, avatarY, ACCOUNT_AVATAR);
+
+        float textX = avatarX + ACCOUNT_AVATAR + 10f;
+        String name = ClientIdentity.name();
+        FontRenderer.drawTextBold(canvas, name == null || name.isBlank() ? UNKNOWN : name,
+                textX, CardLayout.baseline(y + 8f, 13f), 13f, nameC);
+
+        String uuid = ClientIdentity.uuidString();
+        FontRenderer.drawText(canvas, UiText.t("ID", "ID") + " " + (uuid == null ? UNKNOWN : uuid),
+                textX, CardLayout.baseline(y + 24f, 10f), 10f, idC);
+
+        String badge = premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline");
+        FontRenderer.drawText(canvas, badge,
+                x + w - CARD_PAD - FontRenderer.measureTextWidth(badge, 11f),
+                CardLayout.baseline(y + (ACCOUNT_H - 11f) / 2f, 11f), 11f, badgeC);
+    }
+
+    /**
+     * 会话账户的皮肤：在世界里直接取本地玩家实体上已解析好的那一份（不发任何网络请求），
+     * 不在世界时退回原版按 UUID 派生的默认皮肤。
+     */
+    private static PlayerSkin localSkin() {
+        Minecraft client = Minecraft.getInstance();
+        if (client != null && client.player != null) {
+            PlayerSkin skin = client.player.getSkin();
+            if (skin != null) return skin;
+        }
+        UUID id = ClientIdentity.uuid();
+        return id == null ? DefaultPlayerSkin.getDefaultSkin() : DefaultPlayerSkin.get(id);
     }
 
     /** 当前状态卡：服务器 / 维度 / 坐标 / 帧率 / 延迟 / 在线时长 / 客户端版本 / 服务器资源。 */

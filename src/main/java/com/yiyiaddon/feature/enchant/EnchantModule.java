@@ -69,6 +69,11 @@ public final class EnchantModule extends Module {
      */
     private static final String ICON = "\uE663";
 
+    @Override
+    public String icon() {
+        return ICON;
+    }
+
     private final EnchantSettings settings = new EnchantSettings();
     private final EnchantPointStore pointStore = new EnchantPointStore();
 

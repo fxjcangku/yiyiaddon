@@ -36,7 +36,11 @@ import java.util.function.Consumer;
  * <p>自带设置页的分类（{@code category.page() != null}，例如 Baritone设置）仍排在自己分类的
  * 第一行，右侧写「点击进入」，点它直接进该分类自己的页面。</p>
  *
- * <p>折叠状态存在 {@link #COLLAPSED} 静态集合里：本页每次导航都会重建对象，状态不能随对象丢。</p>
+ * <p><b>分类头外观</b>：不铺底色、图标不带底框的「章节标签」形态，靠左侧强调条与悬停反馈辨识；
+ * 模块行才是卡片。详见 {@link #drawGroupHeader}。</p>
+ *
+ * <p>展开状态存在 {@link #EXPANDED} 静态集合里（<b>默认全部收起</b>）：本页每次导航都会重建对象，
+ * 状态不能随对象丢。</p>
  */
 public final class ModuleCenterPage extends CardPage {
 
@@ -45,7 +49,6 @@ public final class ModuleCenterPage extends CardPage {
 
     private static final float HEADER_PAD_X = 10f;
     private static final float HEADER_ICON_BOX = 22f;
-    private static final float HEADER_ICON_RADIUS = 6f;
     private static final float HEADER_ICON_GLYPH = 15f;
     private static final float HEADER_GAP = 8f;
     private static final float HEADER_TITLE_SIZE = 12.5f;
@@ -53,12 +56,25 @@ public final class ModuleCenterPage extends CardPage {
     private static final float HEADER_ARROW_GLYPH = 14f;
     private static final float HEADER_ARROW_INSET = 15f;
 
+    /** 分类头左侧的强调条：左内缩、宽、上下内缩（章节的起头标记）。 */
+    private static final float HEADER_BAR_INSET = 4f;
+    private static final float HEADER_BAR_WIDTH = 3f;
+    private static final float HEADER_BAR_MARGIN = 9f;
+
+    /** 标题往强调色偏的比重：让分类名读起来是「章节标签」，不是又一个可点的模块名。 */
+    private static final float HEADER_TITLE_ACCENT = 0.30f;
+
     /** 分类头的展开 / 收起箭头（Material 符号，均已验真存在于 MaterialSymbolsRounded.ttf）。 */
     private static final String ARROW_EXPANDED = "\uE5CF";
     private static final String ARROW_COLLAPSED = "\uE5CC";
 
-    /** 已收起的分类 id；静态保存，本页重建后仍保持。 */
-    private static final Set<String> COLLAPSED = new HashSet<>();
+    /**
+     * 已展开的分类 id；静态保存，本页重建后仍保持。
+     *
+     * <p><b>默认全部收起</b>（用户 2026-09-16 要求「模块中心的展开 默认能不能关掉」）：
+     * 存「已展开」而不是「已收起」，空集合即「全部收起」，不需要在初始化时预填任何东西。</p>
+     */
+    private static final Set<String> EXPANDED = new HashSet<>();
 
     /** 清单里的一行：分类头（{@code module == null && !pageEntry}）、页面入口（{@code pageEntry}）或模块行。 */
     private record Row(ModuleCategory category, ModuleEntry module, boolean pageEntry) {
@@ -93,7 +109,7 @@ public final class ModuleCenterPage extends CardPage {
 
             rows.add(new Row(category, null, false));
             remaining.removeAll(entries);
-            if (COLLAPSED.contains(category.id())) continue;
+            if (!EXPANDED.contains(category.id())) continue;
             if (pageEntry) rows.add(new Row(category, null, true));
             for (ModuleEntry entry : entries) rows.add(new Row(category, entry, false));
         }
@@ -153,7 +169,7 @@ public final class ModuleCenterPage extends CardPage {
         }
         // 分类头：收起 / 展开
         String id = row.category().id();
-        if (!COLLAPSED.remove(id)) COLLAPSED.add(id);
+        if (!EXPANDED.remove(id)) EXPANDED.add(id);
         rebuildRows();
     }
 
@@ -164,20 +180,34 @@ public final class ModuleCenterPage extends CardPage {
 
     // ── 分类头 ──
 
+    /**
+     * 分类头：<b>「章节标签」形态</b>——不铺底色、图标不带底框，只有左侧强调条 + 悬停时的一层淡反馈。
+     *
+     * <p><b>为什么不铺底色</b>：模块行是卡片（{@code tc.module} 素底 + 描边），分类头若也用卡片底，
+     * 五个分类一展开就是一排大色块，跟模块行抢视线、整页糊成一片（用户 2026-09-16：「也太丑了吧」
+     * 「展开跟合并的样式太像了 没有鲜明的对比 然后看花眼」）。改成「静章节 + 亮卡片」两级对比后，
+     * 分类一眼可辨，视觉重心落在真正可点的模块行上。</p>
+     *
+     * <p><b>图标为什么不带底框</b>：模块行的图标是「底框 + 字形」，分类头不给底框、字号略小、
+     * 颜色偏弱，两者就不会长成同一个东西。文字起始位置仍按 {@link #HEADER_ICON_BOX} 推进，
+     * 保证分类名与模块名左对齐。</p>
+     */
     private void drawGroupHeader(Canvas canvas, ModuleCategory category, float x, float y, float w,
                                  float alpha, float hover, ClickGuiThemeColors tc) {
         float radius = ClickGuiThemeManager.current().metrics().moduleRadius();
-        GlassPanel.frost(canvas, x, y, w, ROW_HEIGHT, radius,
-                GlassPanel.mix(tc.module, tc.surfaceHover, hover * 0.7f), 0.62f, alpha);
-        GlassPanel.rim(canvas, x, y, w, ROW_HEIGHT, radius, tc.rim, alpha, 0.08f + 0.10f * hover);
+        // 只有悬停时给一层很淡的反馈，标明「这一行可点」
+        if (hover > 0.01f) {
+            GlassPanel.frost(canvas, x, y, w, ROW_HEIGHT, radius, tc.surfaceHover, 0.30f * hover, alpha);
+        }
+        // 左侧强调条：章节的起头标记，悬停时更亮
+        GlassPanel.fill(canvas, x + HEADER_BAR_INSET, y + HEADER_BAR_MARGIN,
+                HEADER_BAR_WIDTH, ROW_HEIGHT - HEADER_BAR_MARGIN * 2f,
+                HEADER_BAR_WIDTH / 2f, tc.accent, alpha * (0.55f + 0.45f * hover));
 
         float centerY = y + ROW_HEIGHT / 2f;
         float cursor = x + HEADER_PAD_X;
-        float iconY = centerY - HEADER_ICON_BOX / 2f;
-        GlassPanel.fill(canvas, cursor, iconY, HEADER_ICON_BOX, HEADER_ICON_BOX, HEADER_ICON_RADIUS,
-                tc.accent, alpha * 0.18f);
         CardIcons.drawCentered(canvas, category.icon(), cursor + HEADER_ICON_BOX / 2f, centerY,
-                HEADER_ICON_GLYPH, GlassPanel.withAlpha(tc.accent, alpha));
+                HEADER_ICON_GLYPH, GlassPanel.withAlpha(GlassPanel.mix(tc.accent, tc.primaryText, 0.25f), alpha));
         cursor += HEADER_ICON_BOX + HEADER_GAP;
 
         int moduleCount = ModuleRegistry.byCategory(category.id()).size();
@@ -199,11 +229,14 @@ public final class ModuleCenterPage extends CardPage {
         FontRenderer.drawTextBold(canvas,
                 CardLayout.ellipsize(category.displayName(), titleMax, HEADER_TITLE_SIZE), cursor,
                 CardLayout.baseline(centerY, HEADER_TITLE_SIZE), HEADER_TITLE_SIZE,
-                GlassPanel.withAlpha(tc.primaryText, alpha));
+                GlassPanel.withAlpha(GlassPanel.mix(tc.primaryText, tc.accent, HEADER_TITLE_ACCENT), alpha));
 
-        boolean collapsed = COLLAPSED.contains(category.id());
-        CardIcons.drawCentered(canvas, collapsed ? ARROW_COLLAPSED : ARROW_EXPANDED, arrowX, centerY,
+        // 箭头颜色随状态走：收起 = 强调色（招手让你点），展开 = 弱色（已经打开了）
+        boolean expanded = EXPANDED.contains(category.id());
+        CardIcons.drawCentered(canvas, expanded ? ARROW_EXPANDED : ARROW_COLLAPSED, arrowX, centerY,
                 HEADER_ARROW_GLYPH,
-                GlassPanel.withAlpha(GlassPanel.mix(tc.labelTertiary, tc.accent, hover), alpha));
+                GlassPanel.withAlpha(expanded
+                        ? GlassPanel.mix(tc.labelTertiary, tc.accent, hover)
+                        : GlassPanel.mix(tc.accent, tc.primaryText, hover * 0.6f), alpha));
     }
 }

@@ -809,6 +809,7 @@ public class ClickGuiScreen extends SkiaScreen {
         }
         String typed = event.codepointAsString();
         if (typed != null && !typed.isEmpty()) {
+            ImeBridge.noteCharArrived("ClickGuiScreen.search", searchFocused, event.codepoint());
             searchText += typed;
             applySearch();
         }

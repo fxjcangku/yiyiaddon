@@ -4,6 +4,7 @@ import com.yiyiaddon.command.CommandManager;
 import com.yiyiaddon.core.event.EventDispatcher;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
+import com.yiyiaddon.feature.admindetect.AdminDetectorModule;
 import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.combat.KillAuraModule;
 import com.yiyiaddon.feature.enchant.EnchantModule;
@@ -67,7 +68,8 @@ public final class AddonModules {
                 new AutoMinerModule(),
                 new EnchantModule(),
                 new KillAuraModule(),
-                new AutoRespawnModule()
+                new AutoRespawnModule(),
+                new AdminDetectorModule()
         );
     }
 
@@ -78,6 +80,7 @@ public final class AddonModules {
 
     private static void registerCategories() {
         // 只登记「真的有模块」或「有自带页面」的分类：空分类不会出现在模块中心
+        CategoryRegistry.register(new ModuleCategory("utility", "工具", "管理通用工具功能", "\uE869", 10));
         CategoryRegistry.register(new ModuleCategory("assist", "辅助", "管理辅助工具功能", "\uEF76", 20));
         CategoryRegistry.register(new ModuleCategory("automation", "自动化", "管理全自动挂机功能", "\uE5D5", 30));
         // 两类「配置页面」归到左侧「设置」导航：它们是设置页，不是功能模块（实机反馈：混在模块中心里）
