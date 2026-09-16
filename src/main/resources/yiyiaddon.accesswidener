@@ -3,3 +3,9 @@ accessWidener v2 official
 # Skija 需要把 Minecraft 主 RenderTarget 的 GL Framebuffer 名字交给
 # BackendRenderTarget.makeGL 使用，因此必须能引用到包私有的 GlDevice。
 accessible class com/mojang/blaze3d/opengl/GlDevice
+
+# 「Missing sampler」崩溃兜底需要读 GlRenderPass 已绑定的采样器表，
+# 并在绑定时校验；这两个类与 samplers 字段在 26.1.2 里都是包私有的。
+accessible class com/mojang/blaze3d/opengl/GlCommandEncoder
+accessible class com/mojang/blaze3d/opengl/GlRenderPass
+accessible field com/mojang/blaze3d/opengl/GlRenderPass samplers Ljava/util/HashMap;
