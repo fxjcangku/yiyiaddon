@@ -8,6 +8,7 @@
     "yiyiaddon"
   ],
   "license": "See LICENSE",
+  "icon": "assets/yiyiaddon/icon.png",
   "environment": "client",
   "entrypoints": {
     "main": [

@@ -44,6 +44,11 @@ public final class PanelFrame {
 
     private boolean closing;
 
+    /** 最近一帧调用过 {@link #applyTransform} 的帧；自绘输入框换算输入法锚点坐标时要用它。 */
+    private static PanelFrame rendering;
+    private int renderScreenWidth;
+    private int renderScreenHeight;
+
     /** 主界面尺寸的面板。 */
     public PanelFrame() {
     }
@@ -136,9 +141,27 @@ public final class PanelFrame {
 
     /** 把画布坐标系变换到设计空间；调用方负责配对的 canvas.save()/restore()。 */
     public void applyTransform(Canvas canvas, int screenWidth, int screenHeight) {
+        renderScreenWidth = screenWidth;
+        renderScreenHeight = screenHeight;
+        rendering = this;
         canvas.translate(screenWidth / 2f, screenHeight / 2f);
         canvas.scale(scale, scale);
         canvas.translate(-designWidth * 0.5f, -designHeight * 0.5f);
+    }
+
+    /** 最近一帧正在绘制的帧；没有界面在绘制时为 null。 */
+    public static PanelFrame rendering() {
+        return rendering;
+    }
+
+    /** 设计空间横坐标 → 本帧的 GUI 逻辑坐标（输入法锚点等原版控件要用这个坐标系）。 */
+    public float renderX(float designX) {
+        return toScreenX(designX, renderScreenWidth);
+    }
+
+    /** 设计空间纵坐标 → 本帧的 GUI 逻辑坐标。 */
+    public float renderY(float designY) {
+        return toScreenY(designY, renderScreenHeight);
     }
 
     /** GUI 逻辑坐标 → 设计空间横坐标。 */

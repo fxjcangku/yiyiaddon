@@ -2,6 +2,7 @@ package com.yiyiaddon.ui.render;
 
 import com.yiyiaddon.config.AddonConfig;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -29,6 +30,10 @@ public abstract class SkiaScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        // 输入法锚点（ImeBridge 的隐形原版输入框）必须每帧真的走到绘制阶段：
+        // 输入法接管模组用「这一帧渲染过没有」判断文本框是否还在界面上，跳过绘制就等于告诉它
+        // 「输入框已经不在了」，它会立刻把焦点和输入法一起收走。
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         frameMouseX = mouseX;
         frameMouseY = mouseY;
         frameDelta = partialTick;
@@ -38,6 +43,17 @@ public abstract class SkiaScreen extends Screen {
             ItemIconCache.getInstance().renderPending(graphics);
         }
         // 局部玻璃在帧末只采样面板区域；这里不再模糊整屏，否则折射边缘与主体失去差异。
+    }
+
+    /** 挂上输入法锚点：只进 renderables、不进 children —— 它不接收事件，只参与焦点体系。 */
+    void attachImeSink(AbstractWidget widget) {
+        removeWidget(widget);
+        addRenderableOnly(widget);
+    }
+
+    /** 摘下输入法锚点。 */
+    void detachImeSink(AbstractWidget widget) {
+        removeWidget(widget);
     }
 
     /**

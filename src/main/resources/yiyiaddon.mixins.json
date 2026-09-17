@@ -10,11 +10,9 @@
     "GpuDeviceAccessor",
     "GlCommandEncoderMixin",
     "GuiRendererMixin",
-    "KeyboardHandlerProbeMixin",
-    "MinecraftTextInputAccessor",
-    "TextInputManagerProbeMixin",
     "ModelManagerReloadMixin",
     "MultiPlayerGameModeFastBreakMixin",
+    "PreeditCaptureMixin",
     "RenderTargetMixin",
     "ResourcePackPushMixin"
   ],

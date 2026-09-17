@@ -1,149 +1,140 @@
 package com.yiyiaddon.ui.render;
 
-import com.mojang.blaze3d.platform.TextInputManager;
-import com.mojang.logging.LogUtils;
-import com.yiyiaddon.mixin.client.MinecraftTextInputAccessor;
+import com.yiyiaddon.ui.component.PanelFrame;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import org.lwjgl.glfw.GLFW;
-import org.slf4j.Logger;
+import net.minecraft.network.chat.Component;
 
 /**
- * IME / 文本输入焦点桥。
+ * 自绘输入框 ↔ 游戏的「正在文本输入」焦点桥。
  *
- * <p>26.1.2 自带文本输入管理：{@code Minecraft#onTextInputFocusChange} 会切换文本输入模式，
- * 并在焦点变化时把上一次的 IME 预编辑事件重投给目标元素。界面侧只需要在获得 / 失去文本框焦点时
- * 调这里，其余一律不要插手。</p>
+ * <p><b>为什么必须有一个真输入框：</b>输入法开关这件事不由界面决定，而由游戏自己的文本输入状态机
+ * （{@code TextInputManager}）与输入法接管模组（IMBlocker 等）决定，而这两者的判定口径完全一致 ——
+ * <b>只看原版 GUI 控件的焦点</b>：{@code AbstractWidget#setFocused} 之后 {@code EditBox#canConsumeInput()}
+ * 为真，才算「有文本输入」。本项目所有输入框都是 Skija 自绘的，在这套体系里根本不存在，于是被恒判为
+ * 「没有文本输入」：自绘输入框里按中英切换键不生效、输入法每 tick 被关掉，表现就是
+ * 「搜索框打不进中文，聊天框可以」。</p>
  *
- * <p><b>IME 开关一律交给原版，只做一件事：把「正在文本输入」这个事实告诉它。</b>
- * 2026-09-16 实测定性：{@code TextInputManager} 只在 {@code textInputEnabled} 为真时才停止
- * {@code tickOutsideTextInput()} 里每 tick 的 {@code setIMEInputMode(false)}；不告诉它，输入法就被
- * 每 tick 关一次，玩家按切换键也起不来（当日日志：读回恒为 {@code 0}、全程零条预编辑 / 提交事件）。</p>
+ * <p><b>为什么不能自己去开 IME：</b>直接推 {@code glfwSetInputMode(GLFW_IME, TRUE)} 是徒劳的 ——
+ * 状态机每 tick 都会按自己的判定把结论改回来（项目 2026-09-16 的实测日志正是「推上去立刻掉回 0」）。
+ * 任何绕过焦点判定的强推都会和它互相打架。</p>
  *
- * <p><b>但禁止自己去调 {@code glfwSetInputMode(handle, 208903, GLFW_TRUE)}</b>：原版
- * {@code startTextInput()} 里那一次已经够了，我们再补一次会把玩家已经切好的输入法重置为关闭
- * （同日 19:19 日志：读回由 {@code 1} 掉回 {@code 0}，此后拼音只能打出英文字母）。</p>
+ * <p><b>做法：</b>放一个真正参与焦点体系的原版 {@link EditBox} 作为锚点。它铺在自绘输入框的位置上，
+ * 不描边、文字与光标全透明（{@code textColor} 的 alpha 为 0），既不接收事件也不显示任何东西，
+ * 只负责让状态机与输入法接管模组看到「有一个文本框正在输入」，并把光标矩形交给它们定位候选窗与
+ * 预编辑串。自绘输入框获得焦点时调 {@link #focus}、失去焦点时调 {@link #blur}、每帧调 {@link #move}
+ * 跟随滚动，其余一律不插手。</p>
+ *
+ * <p><b>锚点必须每帧真的被绘制：</b>输入法接管模组用「这一帧渲染过没有」判断文本框是否还在界面上
+ * （离开绘制即视为不可见并交还焦点）。因此锚点只在 {@code renderables} 里、不在 {@code children} 里，
+ * 由 {@link SkiaScreen#extractRenderState} 每帧带过一遍。</p>
  */
 public final class ImeBridge {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
-
-    /** 原版硬编码的 GLFW IME 输入模式（{@code TextInputManager:39}） */
-    private static final int GLFW_IME_MODE = 208903;
-
-    private static boolean active;
-    /** 上一次真正推给原版的界面：换界面后即使开关状态相同也要重推（新界面收不到旧界面的预编辑事件） */
-    private static Screen pushed;
-    private static boolean preeditSeen;
-    private static boolean committedSeen;
-    /** TODO 临时排障字段 */
-    private static boolean asciiSeen;
-    private static boolean nonAsciiSeen;
+    /** 与自绘输入框一一对应的隐形原版输入框；全项目共用同一个。 */
+    private static EditBox sink;
+    /** 锚点当前挂在哪个界面上；换界面要重新挂。 */
+    private static Screen host;
+    /** 当前输入法组合串（拼音等）；由 GLFW 回调线程写入，故为 volatile。 */
+    private static volatile String preedit;
 
     private ImeBridge() {
     }
 
-    public static void setTextInputActive(boolean value) {
-        Minecraft minecraft = Minecraft.getInstance();
-        Screen screen = minecraft == null ? null : minecraft.screen;
-        // TODO 临时排障：定位「搜索框打不进中文」后删除
-        LOGGER.info("[yiyiaddon] [临时] 文本输入开关调用：value={}，screen={}，短路={}",
-                value, screen == null ? "null" : screen.getClass().getSimpleName(),
-                active == value && pushed == screen);
-        if (active == value && pushed == screen) {
-            return;
-        }
-        active = value;
-        pushed = screen;
-        if (minecraft == null || screen == null) {
-            return;
-        }
-        // 原本只调原版入口，但它在自绘界面上不生效（MinecraftTextInputAccessor 注释里有日志证据）：
-        // 推 true 之后 startTextInput 从未被调用，textInputEnabled 恒为 false，于是
-        // tickOutsideTextInput() 会在玩家刚切到中文（读回 1）的下一 tick 把 IME 关掉 ——
-        // 表现就是「搜索框里怎么切输入法都只能打英文」。这里补上直驱，保证状态机真的进入
-        // 「正在文本输入」；原版入口保留，因为预编辑事件重投递还要靠它。
-        minecraft.onTextInputFocusChange(screen, value);
-        if (minecraft instanceof MinecraftTextInputAccessor accessor) {
-            TextInputManager manager = accessor.yiyiaddon$textInputManager();
-            if (manager != null) {
-                if (value) {
-                    manager.startTextInput();
-                } else {
-                    manager.stopTextInput();
-                }
-            }
-        }
-        if (value) {
-            preeditSeen = false;
-            forceImeOn();
-        }
+    /**
+     * 记录当前预编辑串。两个来源都走这里：原版派发（无输入法接管模组时）与
+     * {@code PreeditCaptureMixin}（接管模组 cancel 掉原版派发时）。
+     */
+    public static void setPreedit(String text) {
+        preedit = text == null || text.isEmpty() ? null : text;
+    }
+
+    /** 清空预编辑串：提交、失去焦点、换输入框。 */
+    public static void clearPreedit() {
+        preedit = null;
+    }
+
+    /** 当前预编辑串；没有正在组合的内容时为 null。 */
+    public static String preeditText() {
+        return preedit;
     }
 
     /**
-     * 聚焦时显式把窗口输入法打开一次。
+     * 自绘输入框获得焦点。
      *
-     * <p>2026-09-16 定性的最终结论：这台机器上 {@code setIMEInputMode(false)} 是无效操作
-     * （聊天框里原版每 tick 都在调它，中文照样输入），中文能不能打<b>只取决于 GLFW 的 IME 读回值
-     * 是否为 1</b>。而玩家进入自绘输入框时读回恒为 {@code 0} 且切不上去（同日 19:43 / 19:48 日志），
-     * 于是拼音只能出字母。{@code GLFW_IME} 置真会让 Mojang 的 GLFW 补丁关联并打开窗口输入法，
-     * 因此这里补一次 —— 这与原版 {@code startTextInput()} 在 {@code imeRequested} 为真时做的事相同，
-     * 只是本环境里那个前置条件永远不成立。</p>
+     * @param screen  宿主界面；不是自绘界面时不挂锚点
+     * @param designX 输入框左上角（设计空间横坐标）
+     * @param designY 输入框左上角（设计空间纵坐标）
+     * @param designW 输入框宽度（设计空间单位）
+     * @param designH 输入框高度（设计空间单位）
      */
-    private static void forceImeOn() {
+    public static void focus(Screen screen, float designX, float designY, float designW, float designH) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft == null || minecraft.getWindow() == null) {
+        if (minecraft == null || !(screen instanceof SkiaScreen)) {
+            blur();
             return;
         }
-        long handle = minecraft.getWindow().handle();
-        GLFW.glfwSetInputMode(handle, GLFW_IME_MODE, GLFW.GLFW_TRUE);
-        int mode = GLFW.glfwGetInputMode(handle, GLFW_IME_MODE);
-        // 原版 EditBox 获得焦点时还会设置「预编辑光标矩形」（glfwSetPreeditCursorRectangle）。
-        // 聊天框里能切中文、自绘输入框里连候选条都不出现（用户 2026-09-16 实测），差别正在这一步：
-        // 该 GLFW 调用会顺带把 IME context 关联回窗口，之后玩家的中英切换键才会生效。
-        if (minecraft instanceof MinecraftTextInputAccessor accessor) {
-            TextInputManager manager = accessor.yiyiaddon$textInputManager();
-            if (manager != null) {
-                manager.setTextInputArea(0, 0, 1, 1);
+        if (host != screen) {
+            detach();
+            host = screen;
+        }
+        if (sink == null) {
+            sink = new EditBox(minecraft.font, 0, 0, 1, 1, Component.literal("yiyiaddon-ime"));
+            sink.setBordered(false);
+            // 文字与光标共用这一份颜色，置成全透明即整块不可见（空串时只剩光标，同样被透明掉）
+            sink.setTextColor(0x00000000);
+            sink.setValue("");
+        }
+        // 先摆位再聚焦：聚焦那一刻状态机就会按锚点几何算一次光标矩形，先聚焦会算出 (0,0)
+        move(designX, designY, designW, designH);
+        sink.setFocused(true);
+    }
+
+    /**
+     * 每帧跟随自绘输入框（滚动、窗口变化、动画缩放都会移动它）。
+     *
+     * <p>顺带把锚点重新登记进绘制列表：界面重建控件列表时会把锚点一起清掉，而锚点一旦不在
+     * 绘制列表里，输入法接管模组就会认为输入框已经不可见。</p>
+     */
+    public static void move(float designX, float designY, float designW, float designH) {
+        if (sink == null) return;
+        if (host instanceof SkiaScreen skia) {
+            skia.attachImeSink(sink);
+        }
+        PanelFrame frame = PanelFrame.rendering();
+        if (frame == null) return;
+        int x = Math.round(frame.renderX(designX));
+        int y = Math.round(frame.renderY(designY));
+        int width = Math.max(1, Math.round(frame.toScreenLength(designW)));
+        int height = Math.max(1, Math.round(frame.toScreenLength(designH)));
+        if (sink.getX() == x && sink.getY() == y && sink.getWidth() == width && sink.getHeight() == height) {
+            return;
+        }
+        sink.setX(x);
+        sink.setY(y);
+        sink.setWidth(width);
+        sink.setHeight(height);
+    }
+
+    /** 自绘输入框失去焦点：交还焦点，输入法随之交回状态机判定。 */
+    public static void blur() {
+        detach();
+    }
+
+    /** 界面销毁时强制复位，避免锚点残留在已关闭的界面上。 */
+    public static void reset() {
+        detach();
+    }
+
+    private static void detach() {
+        if (sink != null) {
+            sink.setFocused(false);
+            if (host instanceof SkiaScreen skia) {
+                skia.detachImeSink(sink);
             }
         }
-        // TODO 临时排障：确认补设后输入法是否真的打开（定位后删）
-        LOGGER.info("[yiyiaddon] [临时] 聚焦：补设 IME=TRUE + 预编辑光标区，读回={}", mode);
-    }
-
-    /** IME 提交出非 ASCII 字符（中文真正进了输入框）：只记第一次，便于诊断时核对 */
-    public static void noteCommitted(int codepoint) {
-        if (committedSeen || codepoint <= 0x7F) return;
-        committedSeen = true;
-        LOGGER.info("[yiyiaddon] IME 已提交非 ASCII 字符：U+{}",
-                Integer.toHexString(codepoint).toUpperCase(java.util.Locale.ROOT));
-    }
-
-    /** TODO 临时排障：字符事件是否到达界面、到达时有没有焦点（定位「搜索框打不进中文」后删除） */
-    public static void noteCharArrived(String host, boolean hasFocus, int codepoint) {
-        String hex = Integer.toHexString(codepoint).toUpperCase(java.util.Locale.ROOT);
-        if (codepoint > 0x7F && !nonAsciiSeen) {
-            nonAsciiSeen = true;
-            LOGGER.info("[yiyiaddon] [临时] 非 ASCII 字符到达：host={}，U+{}，有焦点={}", host, hex, hasFocus);
-        } else if (codepoint <= 0x7F && !asciiSeen) {
-            asciiSeen = true;
-            LOGGER.info("[yiyiaddon] [临时] ASCII 字符到达：host={}，有焦点={}", host, hasFocus);
-        }
-    }
-
-    /** IME 预编辑事件到达（说明输入法确实在工作）：只记第一次，便于诊断时核对 */
-    public static void notePreedit() {
-        if (preeditSeen) return;
-        preeditSeen = true;
-        LOGGER.info("[yiyiaddon] IME 预编辑事件已到达（输入法处于工作状态）");
-    }
-
-    public static boolean isTextInputActive() {
-        return active;
-    }
-
-    /** 界面销毁时强制复位，避免焦点残留。 */
-    public static void reset() {
-        setTextInputActive(false);
+        host = null;
+        preedit = null;
     }
 }

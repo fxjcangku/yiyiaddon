@@ -154,6 +154,11 @@ public class ClickGuiScreen extends SkiaScreen {
     private float searchFocusAlpha = 0f;
     private float searchTextOffset = 0f;
     private float searchCursorTime = 0f;
+    /** 上一次绘制时的搜索框设计矩形；聚焦时用它把输入法锚点一次摆到位。 */
+    private float searchBoxX;
+    private float searchBoxY;
+    private float searchBoxW;
+    private float searchBoxH;
     private long lastRenderMs = 0;
 
     // —— 动画状态：滚动缓动、导航指示块弹簧、按压 ——
@@ -684,6 +689,14 @@ public class ClickGuiScreen extends SkiaScreen {
     }
 
     private void drawSearchBox(Canvas canvas, float x, float y, float width, float height, float alpha, float dt, ClickGuiThemeColors tc) {
+        searchBoxX = x;
+        searchBoxY = y;
+        searchBoxW = width;
+        searchBoxH = height;
+        if (searchFocused) {
+            // 输入法锚点跟随搜索框（滚动、窗口缩放、开合动画都会让它移位）
+            ImeBridge.move(x, y, width, height);
+        }
         // 与 SettingTextBox 共用同一份输入框底（唯一定义在 GlassPanel#textField），
         // 侧栏搜索框此前是实心 searchBackground，比同页的霜化玻璃行更暗，像一块贴上去的深色板。
         GlassPanel.textField(canvas, x, y, width, height, 10f, tc, searchFocusAlpha, alpha);
@@ -706,6 +719,7 @@ public class ClickGuiScreen extends SkiaScreen {
             float cursorX = textX + Math.min(textW - 1f, Math.max(0f, realTextWidth - searchTextOffset));
             searchLinePaint.setColor(withAlpha(tc.searchCursor, alpha * cursorPulse));
             canvas.drawRect(Rect.makeXYWH(cursorX, y + 7f, 1f, 14f), searchLinePaint);
+            drawSearchPreedit(canvas, cursorX, textX + textW, y, height, alpha, tc);
         }
         canvas.restore();
 
@@ -715,6 +729,26 @@ public class ClickGuiScreen extends SkiaScreen {
 
         // 搜索框获得焦点时描一圈强调色焦点环
         GlassPanel.focusRing(canvas, x, y, width, height, 10f, tc.accent, alpha * searchFocusAlpha);
+    }
+
+    /**
+     * 绘制输入法组合串（拼音等）：接在光标后面，带下划线。
+     *
+     * <p>组合串由 {@link ImeBridge} 统一持有 —— 输入法接管模组会 cancel 掉原版派发并改画它自己的
+     * 全屏浮层，那个浮层位于 GUI 阶段、会被帧末叠加的面板盖住，所以自绘输入框一律自己画。</p>
+     */
+    private void drawSearchPreedit(Canvas canvas, float cursorX, float limitX, float y, float height, float alpha, ClickGuiThemeColors tc) {
+        String composition = ImeBridge.preeditText();
+        if (composition == null) return;
+        float maxWidth = limitX - cursorX;
+        if (maxWidth <= 1f) return;
+        canvas.save();
+        canvas.clipRect(Rect.makeXYWH(cursorX, y + 2f, maxWidth, height - 4f));
+        FontRenderer.drawText(canvas, composition, cursorX, y + 18.5f, 10f, withAlpha(tc.searchText, alpha));
+        float underline = Math.min(maxWidth, FontRenderer.measureTextWidth(composition, 10f));
+        searchLinePaint.setColor(withAlpha(tc.accent, alpha * 0.85f));
+        canvas.drawRect(Rect.makeXYWH(cursorX, y + height - 5f, underline, 1f), searchLinePaint);
+        canvas.restore();
     }
 
     // —— 搜索 ——
@@ -767,7 +801,11 @@ public class ClickGuiScreen extends SkiaScreen {
             return;
         }
         searchFocused = focused;
-        ImeBridge.setTextInputActive(focused);
+        if (focused) {
+            ImeBridge.focus(this, searchBoxX, searchBoxY, searchBoxW, searchBoxH);
+        } else {
+            ImeBridge.blur();
+        }
     }
 
     // —— 输入 ——
@@ -813,7 +851,7 @@ public class ClickGuiScreen extends SkiaScreen {
         }
         String typed = event.codepointAsString();
         if (typed != null && !typed.isEmpty()) {
-            ImeBridge.noteCharArrived("ClickGuiScreen.search", searchFocused, event.codepoint());
+            ImeBridge.clearPreedit();
             searchText += typed;
             applySearch();
         }
@@ -822,7 +860,6 @@ public class ClickGuiScreen extends SkiaScreen {
 
     @Override
     public boolean preeditUpdated(PreeditEvent event) {
-        if (event != null) ImeBridge.notePreedit();
         SettingTextBox.onPreedit(event);
         return true;
     }

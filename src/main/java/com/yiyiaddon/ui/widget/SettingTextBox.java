@@ -37,8 +37,9 @@ public class SettingTextBox extends SettingWidget {
     private float cursorTime;
     private int cursor;
     private int selectionAnchor = -1;
-    /** 当前 IME 预编辑串（拼音等），失去焦点或提交时清空。 */
-    private PreeditEvent preedit;
+    /** 上一次绘制时的设计空间左上角；聚焦时用它把输入法锚点一次摆到位。 */
+    private float lastX;
+    private float lastY;
 
     public SettingTextBox(Supplier<String> valueSupplier, Consumer<String> valueConsumer, int maxLength) {
         this.valueSupplier = valueSupplier;
@@ -58,6 +59,12 @@ public class SettingTextBox extends SettingWidget {
     @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
         boolean active = focused == this;
+        lastX = x;
+        lastY = y;
+        if (active) {
+            // 输入法锚点跟随本框（滚动、窗口缩放、开合动画都会让它移位）
+            ImeBridge.move(x, y, getWidth(), getHeight());
+        }
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         // 输入框与同页的行共用一套玻璃语言（ListRow / CompactRow 的 frost + 1px 高光内描边），
@@ -111,9 +118,8 @@ public class SettingTextBox extends SettingWidget {
 
     /** 绘制 IME 预编辑串（拼音组合等）：跟随光标位置，带下划线。 */
     private void drawPreedit(Canvas canvas, float textX, float y, float textW, float cursorX, float alpha, ClickGuiThemeColors tc) {
-        if (preedit == null) return;
-        String composition = preedit.fullText();
-        if (composition == null || composition.isEmpty()) return;
+        String composition = ImeBridge.preeditText();
+        if (composition == null) return;
         float maxWidth = textX + textW - cursorX;
         if (maxWidth <= 1f) return;
         float size = 10f;
@@ -214,30 +220,26 @@ public class SettingTextBox extends SettingWidget {
     }
 
     public static boolean charTyped(CharacterEvent event) {
-        ImeBridge.noteCharArrived("SettingTextBox", focused != null, event.codepoint());
         if (focused == null) return false;
-        ImeBridge.noteCommitted(event.codepoint());
-        focused.preedit = null;
+        ImeBridge.clearPreedit();
         focused.insert(event.codepointAsString());
         return true;
     }
 
     /**
-     * 转发 IME 预编辑事件。只有当前聚焦的文本框接收；预编辑串在提交或取消时清空。
-     * 由界面在 {@code preeditUpdated} 中调用。
+     * 转发 IME 预编辑事件（拼音组合串）。
+     *
+     * <p>组合串是「当前唯一的」一份，存放在 {@link ImeBridge} 里：无输入法接管模组时由原版派发
+     * 到这里，有接管模组时由 {@code PreeditCaptureMixin} 直接写入，两条路都落到同一处，
+     * 输入框只管画。</p>
      */
     public static void onPreedit(PreeditEvent event) {
-        if (event != null) ImeBridge.notePreedit();
-        if (focused == null) return;
-        focused.preedit = event;
+        ImeBridge.setPreedit(event == null ? null : event.fullText());
     }
 
     public static void clearFocus() {
-        if (focused != null) {
-            focused.preedit = null;
-        }
         focused = null;
-        ImeBridge.setTextInputActive(false);
+        ImeBridge.blur();
     }
 
     public static boolean isFocused() {
@@ -246,9 +248,12 @@ public class SettingTextBox extends SettingWidget {
 
     private static void focus(SettingTextBox box) {
         focused = box;
-        box.preedit = null;
         box.cursorTime = 0f;
-        ImeBridge.setTextInputActive(true);
+        ImeBridge.clearPreedit();
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null) {
+            ImeBridge.focus(minecraft.screen, box.lastX, box.lastY, box.getWidth(), box.getHeight());
+        }
     }
 
     private void deletePrevious() {
