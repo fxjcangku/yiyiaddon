@@ -1,11 +1,9 @@
 package com.yiyiaddon.ui.keybind;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.ui.screen.ClickGuiScreen;
 import com.yiyiaddon.ui.widget.SettingModule;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.input.KeyEvent;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -34,8 +32,8 @@ public final class ModuleKeybindManager {
     /** 模块快捷键键名前缀，与模块状态配置共用 */
     public static final String MODULE_PREFIX = "module.";
 
-    /** 鼠标按键以 {@code MOUSE_KEY_OFFSET - button} 编码进同一张键位表 */
-    private static final int MOUSE_KEY_OFFSET = -1000;
+    /** 鼠标按键以 {@code MOUSE_KEY_OFFSET - button} 编码进同一张键位表（编码与名称统一在 {@link KeyInputs}） */
+    private static final int MOUSE_KEY_OFFSET = KeyInputs.MOUSE_KEY_OFFSET;
 
     private static final Map<String, Integer> KEYBINDS = new LinkedHashMap<>();
     private static final Map<String, SettingModule> MODULES = new LinkedHashMap<>();
@@ -186,20 +184,11 @@ public final class ModuleKeybindManager {
     }
 
     private static String keyName(int key) {
-        if (key <= MOUSE_KEY_OFFSET) {
-            int button = MOUSE_KEY_OFFSET - key;
-            if (button == GLFW.GLFW_MOUSE_BUTTON_4) return "Mouse Back";
-            if (button == GLFW.GLFW_MOUSE_BUTTON_5) return "Mouse Forward";
-            return "Mouse " + (button + 1);
-        }
-        return InputConstants.getKey(new KeyEvent(key, 0, 0)).getDisplayName().getString();
+        return KeyInputs.name(key);
     }
 
     private static boolean isKeyDown(Minecraft client, int key) {
-        if (key <= MOUSE_KEY_OFFSET) {
-            return GLFW.glfwGetMouseButton(client.getWindow().handle(), MOUSE_KEY_OFFSET - key) == GLFW.GLFW_PRESS;
-        }
-        return key != GLFW.GLFW_KEY_UNKNOWN && InputConstants.isKeyDown(client.getWindow(), key);
+        return KeyInputs.down(client, key);
     }
 
     private static void trigger(Minecraft client, String id) {

@@ -14,6 +14,7 @@ import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.respawn.AutoRespawnModule;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
+import com.yiyiaddon.feature.villager.AutoVillagerTradeModule;
 import com.yiyiaddon.feature.water.WaterESPModule;
 import com.yiyiaddon.integration.baritone.BaritoneSettingsPage;
 import com.yiyiaddon.service.identity.IdentityService;
@@ -72,6 +73,7 @@ public final class AddonModules {
                 new KillAuraModule(),
                 new AutoFarmModule(),
                 new WaterESPModule(),
+                new AutoVillagerTradeModule(),
                 new AutoRespawnModule(),
                 new AdminDetectorModule()
         );
