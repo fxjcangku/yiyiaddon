@@ -12,6 +12,7 @@ package com.yiyiaddon.core.event;
  *     <li>{@link #JOIN_SERVER} / {@link #DISCONNECT}：无载荷；</li>
  *     <li>{@link #PACKET_RECEIVE} / {@link #PACKET_SEND}：载荷为数据包类名（字符串，不携带包对象）；</li>
  *     <li>{@link #SERVER_TEXT}：载荷为 {@link ServerTextEvent}（抽取后的只读文本，仍不携带包对象）；</li>
+ *     <li>{@link #CLIENT_COMMAND}：载荷为指令原文（字符串，不含前导斜杠，已在主线程派发时抽出）；</li>
  *     <li>{@link #SCREEN_OPEN} / {@link #SCREEN_CLOSE}：载荷为界面类名（字符串）。</li>
  * </ul>
  *
@@ -38,6 +39,9 @@ public enum ClientEventType {
 
     /** 收到服务器文本（标题 / 动作栏 / 聊天 / 玩家列表 / 记分板 / BOSS 栏的原文） */
     SERVER_TEXT("服务器文本"),
+
+    /** 客户端发出服务器指令（聊天栏敲的 /xxx 原文，不含前导斜杠） */
+    CLIENT_COMMAND("发出指令"),
 
     /** 打开界面 */
     SCREEN_OPEN("打开界面"),

@@ -132,6 +132,9 @@ public final class AutoMinerModule extends Module {
     /** 挖掘进度 ESP 的世界渲染层标识（与点位层分开注册，互不覆盖） */
     private static final String BREAK_LAYER_ID = MODULE_ID + ":break";
 
+    /** 事件订阅所有者标识（与其他模块同一命名：{@code module.<模块ID>}） */
+    private static final String EVENT_OWNER = "module." + MODULE_ID;
+
     /** 播报前缀使用的模块名：旧项目 {@code AutoMinerModule} 的模块名为 {@code 自动挖矿} */
     public static final String MESSAGE_MODULE = "自动挖矿";
 
@@ -224,7 +227,43 @@ public final class AutoMinerModule extends Module {
         soundNotifier.setVolume(1.0f);
         // 修补联动战斗真实现（批次 4）：进入修补时开杀戮光环、离开时只关我们自己开的那一个
         fsm.setRepairCombat(new KillAuraRepairHook());
+        // 玩家自己敲的服务器指令（用户 2026-09-18 需求）走 subscribedEvents() 声明式订阅，见那里的注释
         syncColorsFromSettings();
+    }
+
+    /**
+     * 玩家自己敲的服务器指令 → 交给状态机做「按结果判」的手动传送判定（用户 2026-09-18 口径）。
+     *
+     * <p>用户原话：<i>「我在挖矿的途中，我输入了 /spawn，然后脚本他就会寻路 spawn 附近接着挖，
+     * 包括 /home 也是，能不能检测一下」</i>、<i>「我的意思是让他不要挖，我传送回家的时候会把家里挖烂，
+     * 包括 spawn」</i>、以及追问 <i>「要是我要跟别人私聊怎么办 /w」</i> 之后的拍板：<b>按结果判</b>
+     * ——敲指令先不动，看它有没有真的把位置挪走。</p>
+     *
+     * <p><b>为什么不能只靠位置跳变</b>（{@code MiningStateMachine#manualTeleportDetected()}）：
+     * 那条判据只在 {@code MINING} 态生效（卸货 / 补给 / 修补 / 前往野外都是我们自己发传送指令的地方，
+     * 判了会误伤自己），玩家在打怪、进食、卸货途中敲 /spawn 就漏了；就算在挖矿态，我方传送的宽限窗
+     * 也可能把玩家这一跳当成「我方落地」消费掉。结果就是人到了家/出生点、脚本在他落地的地方继续凿。</p>
+     *
+     * <p><b>现在的口径</b>：从发包出口拿原文（{@code ClientEventType#CLIENT_COMMAND}），
+     * 只要不是本模块自己发的（{@link ServerCommandRunner#isOwnCommand}，含前往挖矿 / 卸货 / 补给 /
+     * 挂机修复 / 死亡返回）就交给 {@link MiningStateMachine#onPlayerCommand} 记下窗口；
+     * 窗口内位置真的跳变才<b>暂停挖矿</b>（不在这里挖、也不去别处挖）。这样
+     * {@code /w}、{@code /msg}、{@code /ping} 这类不改位置的指令不打断挖矿，
+     * {@code /home}、{@code /spawn}、{@code /tpa} 一律停。</p>
+     *
+     * <p>播报走 {@code error} 而不是 {@code info/warning}：后两者会被「状态播报」开关静默，
+     * 而这个暂停必须让你看见原因。纯客户端指令（{@code .wk} 之类）不会产生这个包，因此不会误报。</p>
+     *
+     * <p><b>订阅方式</b>：写在 {@link #subscribedEvents()} 里由事件桥在启用时挂上，
+     * <b>不能</b>在构造函数里 {@code subscribe}（会被 {@code ModuleEventBridge#attach} 的
+     * {@code unsubscribeAll} 清掉且不再恢复，见该方法的注释）。</p>
+     */
+    private void onClientCommand(ClientEvent event) {
+        if (!isEnabled()) return;
+        String command = event.payload();
+        if (command == null || command.isBlank()) return;
+        if (cmdManager.isOwnCommand(command)) return;
+        fsm.onPlayerCommand(command);
     }
 
     @Override
@@ -705,9 +744,20 @@ public final class AutoMinerModule extends Module {
 
     // ── 事件 ──
 
+    /**
+     * 声明本模块订阅的事件类型（{@code ModuleEventBridge} 在启用时按这份清单订阅、关闭时整体退订）。
+     *
+     * <p><b>{@link ClientEventType#CLIENT_COMMAND} 必须写在这里，不能在构造函数里订阅</b>：
+     * 事件桥 {@code attach} 的第一件事就是 {@code unsubscribeAll("module." + id)}
+     * （{@code ModuleEventBridge#attach :31}），而本模块的 {@code EVENT_OWNER} 正是这个所有者；
+     * 构造函数只在模块注册时跑一次，所以「构造期订阅 + 桥的启用期重订阅」会被第一次启用清掉，
+     * 且永远不会挂回来。用户 2026-09-18 实机「我输入了还是在寻路」的根因就是这个：
+     * 出包口的指令事件根本没送到本模块（日志里 01:22:34 敲 /home 时模块毫无反应）。</p>
+     */
     @Override
     public Set<ClientEventType> subscribedEvents() {
-        return Set.of(ClientEventType.TICK, ClientEventType.SCREEN_OPEN, ClientEventType.DISCONNECT);
+        return Set.of(ClientEventType.TICK, ClientEventType.SCREEN_OPEN, ClientEventType.DISCONNECT,
+                ClientEventType.CLIENT_COMMAND);
     }
 
     /**
@@ -718,6 +768,7 @@ public final class AutoMinerModule extends Module {
      *       剩下的清理由 {@code onDisable} 走完。先作废点位视图与装载上下文，避免关模块过程中
      *       再按上一个服务器的数据落盘。</li>
      *   <li>{@code SCREEN_OPEN} ← 旧 {@code onOpenScreen :1172-1182}：静默容器。</li>
+     *   <li>{@code CLIENT_COMMAND}：玩家敲的服务器指令（见 {@link #onClientCommand}）。</li>
      * </ul>
      */
     @Override
@@ -731,6 +782,7 @@ public final class AutoMinerModule extends Module {
                 if (isEnabled()) ModuleManager.setEnabled(MODULE_ID, false);
             }
             case SCREEN_OPEN -> onOpenScreen(event);
+            case CLIENT_COMMAND -> onClientCommand(event);
             default -> {
             }
         }

@@ -16,6 +16,8 @@ import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.network.protocol.game.ClientboundTabListPacket;
+import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
+import net.minecraft.network.protocol.game.ServerboundChatCommandSignedPacket;
 import net.minecraft.world.BossEvent;
 
 import java.util.Collections;
@@ -33,7 +35,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *     <li>每刻 / 进服 / 断线：Fabric 生命周期事件，主线程直接派发；</li>
  *     <li>打开界面 / 关闭界面：Fabric 界面事件，主线程直接派发；</li>
  *     <li>收包 / 发包：由 Mixin 在网络线程入队，主线程每刻出队派发；收包时另派生
- *         {@link ClientEventType#SERVER_TEXT}，把界面文本类包的原文交给订阅者。</li>
+ *         {@link ClientEventType#SERVER_TEXT}，把界面文本类包的原文交给订阅者，
+ *         发包时另派生 {@link ClientEventType#CLIENT_COMMAND}，把聊天指令原文交给订阅者。</li>
  * </ul>
  *
  * <p><b>为什么收发包要过队列：</b>网络读写发生在 Netty 线程上，若直接在网络线程回调模块，
@@ -113,7 +116,35 @@ public final class EventDispatcher {
             ClientEventBus.publish(ClientEvent.of(
                     packet.inbound() ? ClientEventType.PACKET_RECEIVE : ClientEventType.PACKET_SEND,
                     packet.packetName()));
-            if (packet.inbound()) publishServerText(packet.packet());
+            if (packet.inbound()) {
+                publishServerText(packet.packet());
+            } else {
+                publishClientCommand(packet.packet());
+            }
+        }
+    }
+
+    // ── 客户端指令抽取（模块拿不到包对象，只拿到指令原文） ──
+
+    /**
+     * 把客户端发出的聊天指令抽取为 {@link ClientEventType#CLIENT_COMMAND}；非指令包不做任何事。
+     *
+     * <p>两个包都要覆盖：{@code ClientPacketListener#sendCommand}（{@code :2654-2668}）在指令
+     * <b>没有参数</b>时发无签名的 {@link ServerboundChatCommandPacket}（{@code /home}、{@code /spawn}
+     * 这类），<b>带参数</b>时发 {@link ServerboundChatCommandSignedPacket}（{@code /res tp 矿区} 这类）。
+     * 只认前者会漏掉一大半手动指令。</p>
+     *
+     * <p>只包含玩家（和模块自己）真正发给服务端的指令：纯客户端指令（{@code .wk} 之类）在
+     * 进聊天栏时就被客户端指令系统拦下，不会产生这两个包，因此不会误报。</p>
+     *
+     * <p>「是玩家敲的」还是「模块自己发的」不在这里区分——那要问发起方（自动挖矿用
+     * {@code ServerCommandRunner#isOwnCommand}），核心层不认识任何业务。</p>
+     */
+    private static void publishClientCommand(Packet<?> packet) {
+        if (packet instanceof ServerboundChatCommandPacket p) {
+            ClientEventBus.publish(ClientEvent.of(ClientEventType.CLIENT_COMMAND, p.command()));
+        } else if (packet instanceof ServerboundChatCommandSignedPacket p) {
+            ClientEventBus.publish(ClientEvent.of(ClientEventType.CLIENT_COMMAND, p.command()));
         }
     }
 

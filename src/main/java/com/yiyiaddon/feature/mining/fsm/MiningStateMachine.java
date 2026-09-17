@@ -9,6 +9,7 @@ import com.yiyiaddon.feature.mining.model.MiningPoint;
 import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.feature.mining.service.MiningContainer;
 import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
+import com.yiyiaddon.feature.mining.service.WardenWarningGuard;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
@@ -393,6 +394,39 @@ public final class MiningStateMachine {
     private BlockPos lastWatchPos = null;
     private static final double MANUAL_TELEPORT_DISTANCE_SQR = 32.0 * 32.0;
 
+    /** 玩家自己敲的最后一条服务器指令原文（不含前导斜杠，仅用于播报）与它的 tick */
+    private String playerCommandText = "";
+    private int playerCommandTick = -100000;
+
+    /**
+     * 「玩家指令后这一跳算玩家的」窗口（刻，5 秒）。
+     *
+     * <p>用户 2026-09-18 选择<b>按结果判</b>（而非「一敲就停」）：敲了指令先不动，
+     * 看它在窗口内有没有真的把位置挪走——{@code /w}、{@code /msg}、{@code /ping} 这类
+     * 不改位置的指令不该打断挖矿，{@code /home}、{@code /spawn}、{@code /tpa} 才该停。
+     * 服务器瞬移通常一两刻就到，插件排队也是秒级，5 秒足够；窗口过期自动失效。</p>
+     */
+    private static final int PLAYER_COMMAND_WINDOW_TICKS = 100;
+
+    /**
+     * 玩家指令窗口内认定的跳变阈值（格）：比常规的 32 格小得多。
+     *
+     * <p>为什么能小：这条线索的前提是「玩家刚敲了一条服务器指令」，剩下的只是确认它有没有挪动位置
+     * ——服务器瞬移也可能只挪几格（{@code /home} 就在附近、{@code /tpa} 到身边的人、插件小位移）。
+     * 存活状态下单刻位移远达不到 8 格（自由落体极限约 3.9 格/刻、鞘翅约 1.5 格/刻），
+     * 所以这条线索上用 8 格不会误判成传送。</p>
+     */
+    private static final double PLAYER_COMMAND_DISTANCE_SQR = 8.0 * 8.0;
+
+    /**
+     * 坚守者预警守卫（本项目新增，用户 2026-09-18 需求；检测口径与源码依据见
+     * {@link WardenWarningGuard} 的类注释）。
+     *
+     * <p>远古城市里挖到尖啸体一响就往野外跑：守卫每刻查「身边 32 格内有没有尖啸体正在尖叫」，
+     * 命中即由 {@link #escapeFromWardenWarning()} 走既有的「前往野外」传送链路逃离。</p>
+     */
+    private final WardenWarningGuard wardenGuard;
+
     /** 开箱允许的最大「眼到方块中心」距离的平方（4.0 格，与容器层同一口径） */
     private static final double CONTAINER_OPEN_DISTANCE_SQR = 16.0;
 
@@ -427,6 +461,7 @@ public final class MiningStateMachine {
         this.mc = Minecraft.getInstance();
         this.combat = new MiningCombat(module);
         this.waterBreaker = new WaterEscapeBreaker(module);
+        this.wardenGuard = new WardenWarningGuard();
     }
 
     /**
@@ -498,6 +533,9 @@ public final class MiningStateMachine {
         lavaEscapeCooldown = 0;
         diedInLava = false;
         combat.reset();
+        wardenGuard.reset();
+        playerCommandText = "";
+        playerCommandTick = -100000;
         combatReturnState = MinerState.MINING;
     }
 
@@ -578,6 +616,11 @@ public final class MiningStateMachine {
         if (mc.player == null || mc.level == null) return;
 
         refreshInventoryTrustWindow();
+
+        // 坚守者预警（本项目新增，用户 2026-09-18 需求）：地下古城里尖啸体一响就往野外跑。
+        // 排在手动传送检测之前、且不受当前状态限制——4.5 秒的逃生窗口不能被别分支吃掉
+        WardenWarningGuard.Alarm wardenAlarm = wardenGuard.tick();
+        if (wardenAlarm != WardenWarningGuard.Alarm.NONE && escapeFromWardenWarning(wardenAlarm)) return;
 
         // 手动传送检测（用户 2026-09-17：挖矿途中敲 /home、/spawn 之类回家，模块还在原地继续挖）
         if (manualTeleportDetected()) return;
@@ -761,6 +804,8 @@ public final class MiningStateMachine {
             module.getBaritone().updateSetting("avoidance", module.settings().mobAvoidance);
             // 交回寻路视角（战斗期间让给了 MiningCombat 的转视角）
             module.getBaritone().setCombatViewHold(false);
+            // 清敌情记录（含苦力怕了结锁定）：离开战斗态就重新算，别带着上一场的实体引用
+            combat.reset();
         }
     }
 
@@ -1317,34 +1362,96 @@ public final class MiningStateMachine {
     }
 
     /**
+     * 坚守者预警逃离：播报 + 走「前往野外」那条既有传送链路（本项目新增，用户 2026-09-18 需求）。
+     *
+     * <p><b>触发时机</b>：{@link WardenWarningGuard} 在幽匿尖啸体开始尖叫（且该尖啸体会召唤坚守者）时
+     * 命中，此刻距坚守者钻出地面还有 90 刻（4.5 秒）。用户明确要求在「准备复活」阶段就动手——
+     * 等它出来就跑不掉了。第二种警报是「坚守者已经在场」的兜底（尖啸漏检 / 别人叫出来的），
+     * 同样立刻走，只是播报说实话。</p>
+     *
+     * <p><b>范围口径</b>：玩家自身附近 15×15 格（{@link WardenWarningGuard#SCAN_SIZE}，
+     * 用户 2026-09-18：「32太大了」）。</p>
+     *
+     * <p><b>为什么切 GO_WILD 而不是另发一条指令</b>：GO_WILD 就是「前往矿区」那条链路本身
+     * （{@code executeOwnTeleport(module.getWildCommand(), true)}，含 RTP 弹窗自动点选与
+     * 我方传送宽限窗），落地后照常进 MINING 继续挖：逃离与正常换区是同一条路，不另造第二套
+     * 指令发送逻辑（开发习惯第 169 条：同源逻辑只留一份）。</p>
+     *
+     * <p><b>两个必须显式处理的点：</b></p>
+     * <ul>
+     *   <li>{@code teleportCooldownTicks} 清零：那是「传送没生效、等服务器冷却后重试」用的等待窗，
+     *       逃离是救命动作，不能因为上一轮留下的冷却在原地干等几十秒；</li>
+     *   <li>先 {@code baritone.stop()}：从 COMBAT / 物流态切走时 {@code onStateExit} 不会停寻路
+     *       （只有离开 MINING 才停），不停就会出现「一边打架一边被传送」。</li>
+     * </ul>
+     *
+     * <p><b>播报用 {@code error} 而不是 {@code info/warning}</b>：后两者会被「状态播报」开关静默
+     * （见 {@code AutoMinerModule#broadcastBlocked} 的三道闸门），而这是安全告警，必须让玩家看到。</p>
+     *
+     * <p><b>两种状态不触发</b>：已经在 GO_WILD（正逃离，重复触发无意义）、死亡流程里
+     * （DEATH_HANDLING / RESPAWN_WAIT，人已经死了，跑不掉也不必跑）。</p>
+     *
+     * @param alarm 警报类型：尖啸（准备出现）还是坚守者已在场
+     * @return true 表示已切走状态（调用方结束本刻）
+     */
+    private boolean escapeFromWardenWarning(WardenWarningGuard.Alarm alarm) {
+        if (state == MinerState.GO_WILD || state == MinerState.DEATH_HANDLING || state == MinerState.RESPAWN_WAIT) {
+            return false;
+        }
+        module.error(alarm == WardenWarningGuard.Alarm.SUMMONING
+            ? "§6⚠ 附近有坚守者准备复活 §8▸ 立刻传送逃离"
+            : "§6⚠ 附近已有坚守者 §8▸ 立刻传送逃离");
+        teleportCooldownTicks = 0;
+        module.getBaritone().stop();
+        transitionTo(MinerState.GO_WILD);
+        return true;
+    }
+
+    /**
      * 手动传送检测（用户 2026-09-17 需求：「挖矿状态下输入了 /home 回家，模块还在继续挖」；
      * 2026-09-18 补宽限窗）。
      *
      * <p>判据：玩家位置在<b>单刻内</b>跳变超过 {@link #MANUAL_TELEPORT_DISTANCE_SQR}（32 格）。
      * 正常移动/跌落单刻最多几格，只有服务器传送类指令（/home、/spawn、/tpa…）能达到这个量级。</p>
      *
-     * <p>基准位置每刻都更新（所有状态），但只有 {@code MINING} 才判定：卸货 / 补给 / 修补三态是我们
-     * 自己发传送指令的地方，判了会误伤自己。检测到就按用户裁定<b>立刻停机并播报</b>——
-     * 最安全：绝不会在家里、别人基地里继续挖。</p>
+     * <p>基准位置每刻都更新，<b>所有状态都判定</b>（死亡/重生流程除外：重生本身就会跳变，
+     * 且返回流程有它自己发的传送指令）。卸货 / 补给 / 修补三态我们自己也会发传送指令，那些跳变
+     * 由 {@link #ownTeleportPendingTicks} / {@link #ownTeleportSettleTicks} 认领掉，不会误判。</p>
      *
-     * <p><b>我方传送的处理</b>（用户 2026-09-18：「我第一次启动传送 给我停机了」与
-     * 「挖矿途中手动 /home 还是会在家里挖」两条并存）：{@link #executeOwnTeleport} 发指令时置位
-     * {@link #ownTeleportPendingTicks}，检测到<b>第一次</b>大跳变就把它消费掉（那是我方落地），
-     * 随后 {@link #OWN_TELEPORT_SETTLE_TICKS} 刻内的跳变算落地修正；窗口过后立刻恢复判定。
-     * 因此既不会把自家 RTP 当成手动传送，也不会像固定 20 秒宽限窗那样把玩家的 /home 一起挡掉。</p>
+     * <p><b>用户 2026-09-18 拍板「换一种办法检测」</b>：不依赖指令内容，就看<b>位置瞬移了多远</b>
+     * ——「玩家突然瞬移到多少格去了……一般回家都隔得很远」。玩家敲的指令（{@link #onPlayerCommand}）
+     * 只是把阈值降到 8 格、把判定放开得更早，两者走<b>同一条处置</b>：
+     * 非我方原因的位置跳变 → <b>暂停挖矿</b>（不在这里挖、也不去别处挖，避免在家 / 出生点 / 别人基地凿）。</p>
      *
-     * @return true 表示本刻检测到手动传送并已停机（调用方直接结束本刻）
+     * <p>因此菜单、GUI 点击、插件触发这些<b>没有指令线索</b>的传送同样会被抓住——这正是只靠指令
+     * 事件做不到的那一半（第 86 号报告 7.4）。</p>
+     *
+     * @return true 表示本刻命中并已处理（调用方直接结束本刻）
      */
     private boolean manualTeleportDetected() {
         if (mc.player == null) return false;
         BlockPos current = mc.player.blockPosition();
 
-        boolean jumped = lastWatchPos != null
-            && state == MinerState.MINING
-            && current.distSqr(lastWatchPos) > MANUAL_TELEPORT_DISTANCE_SQR;
+        boolean playerCommandWindow = mc.player.tickCount - playerCommandTick <= PLAYER_COMMAND_WINDOW_TICKS;
+        // 死亡流程里不判：重生本身就会跳变，返回流程有它自己发的传送指令
+        boolean deathFlow = state == MinerState.DEATH_HANDLING || state == MinerState.RESPAWN_WAIT;
 
-        // 我方传送的落地跳变（以及落地后的位置修正）：消费掉，绝不当成玩家手动传送
-        if (jumped && (ownTeleportPendingTicks > 0 || ownTeleportSettleTicks > 0)) {
+        double distanceSqr = lastWatchPos == null ? 0.0 : current.distSqr(lastWatchPos);
+        // 玩家指令窗口内阈值放低：要确认的只是「这条指令挪没挪动位置」，几格的瞬移也算
+        double threshold = playerCommandWindow ? PLAYER_COMMAND_DISTANCE_SQR : MANUAL_TELEPORT_DISTANCE_SQR;
+        boolean jumped = lastWatchPos != null && !deathFlow && distanceSqr > threshold;
+
+        // 这一跳算不算「我方传送」：
+        // · 正在等自己落地（pending）——一律认领，玩家指令窗口内也认领。RTP 插件是<b>两段传送</b>
+        //   （「請勿移動」几秒后才是「你已被隨機傳送」），第一段被 pending 收掉后进 MINING，
+        //   第二段落在 MINING 里；玩家这时要是敲了句 /w，不认领就会白停一次（2026-09-18 实机）。
+        // · 落地后的修正窗（settle）——玩家指令窗口内<b>不</b>认领：那一跳是你的传送，
+        //   吞掉就回到「在家里继续挖」（第 86 号 7.4 实测）。窗口外照旧认领（落地位置修正、
+        //   插件第二段传送都发生在这里）。
+        boolean ownLanding = jumped
+            && (ownTeleportPendingTicks > 0
+                || (!playerCommandWindow && ownTeleportSettleTicks > 0));
+        if (ownLanding) {
             ownTeleportPendingTicks = 0;
             ownTeleportSettleTicks = OWN_TELEPORT_SETTLE_TICKS;
             lastWatchPos = current;
@@ -1357,16 +1464,35 @@ public final class MiningStateMachine {
         lastWatchPos = current;
         if (!jumped) return false;
 
+        // 窗口只认一次：处理完立刻关掉，免得我们随后自己那一跳又被算成玩家的
+        playerCommandTick = -100000;
+
         module.getSoundNotifier().notifyStuck();
         module.getBaritone().stop();
-        // 用户 2026-09-18 裁定「自动重新去野外挖」（此前是 `setEnabled(false)` 直接关掉模块，
-        // 用户实机表现为「传送之后秒破跟连锁都失效，重启模块才恢复」——chatlog 19:48:21 那条
-        // 「✗ 检测到手动传送 ▸ 已停止挖矿」就是它）：
-        // 任何来源的传送都意味着「当前位置不是我们选定的矿区」，所以复位到 GO_WILD 重走一遍传送流程，
-        // 在新矿区继续挖。既保住原来「不在主城/家里乱挖」的诉求，也不用玩家手动重开模块。
-        module.info("§e⚠ 检测到传送 §8▸ 重新前往野外挖矿");
-        transitionTo(MinerState.GO_WILD);
+        // 用户 2026-09-18 口径：不管有没有指令线索，只要不是我们自己传的，就暂停挖矿
+        // （此前无指令线索的走「重新前往野外挖矿」= 第 72 号裁定；用户要求改成按位置判之后，
+        //  两条路合并：在人家家里原地挖和把人家传走都不对，「停」才是他要的）
+        module.error(playerCommandWindow
+            ? "§c✗ 检测到手动指令 §8/" + playerCommandText + " §8▸ 已暂停挖矿（避免在新位置继续挖）"
+            : "§c✗ 检测到传送 §8▸ 已暂停挖矿（避免在新位置继续挖）");
+        if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
         return true;
+    }
+
+    /**
+     * 记录玩家自己敲了一条服务器指令（由模块从 {@code ClientEventType#CLIENT_COMMAND} 事件转来）。
+     *
+     * <p>只记录、不当场动作（用户 2026-09-18 口径「按结果判」）：指令本身不是判据，
+     * 真正决定的是它有没有把位置挪走——{@code /w}、{@code /msg}、{@code /ping} 这类不动的指令
+     * 不打断挖矿。有了它，这条线索的阈值能从 32 格降到 8 格、并且当场就能认账
+     * （不必等同状态那 32 格才反应）。</p>
+     *
+     * @param command 指令原文（不含前导斜杠），仅用于播报
+     */
+    public void onPlayerCommand(String command) {
+        if (mc.player == null) return;
+        playerCommandText = command;
+        playerCommandTick = mc.player.tickCount;
     }
 
     /**

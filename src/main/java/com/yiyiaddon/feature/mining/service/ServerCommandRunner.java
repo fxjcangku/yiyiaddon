@@ -58,6 +58,16 @@ public final class ServerCommandRunner {
     private int guiWaitTicks = 0;
     private static final int GUI_MAX_WAIT_TICKS = 100; // 5秒超时
 
+    /** 本模块最后发出的服务器指令原文（不含前导斜杠）与它的 tick */
+    private String lastOwnCommand = "";
+    private int lastOwnCommandTick = -100000;
+
+    /**
+     * 「自己发的指令」认定窗口（刻）：发包观测到指令的时机与这里记录的时机最多差一刻
+     * （网络线程入队 → 主线程每刻出队），留 5 刻已经绰绰有余。
+     */
+    private static final int OWN_COMMAND_WINDOW_TICKS = 5;
+
     public ServerCommandRunner(AutoMinerModule module) {
         this.module = module;
         this.mc = Minecraft.getInstance();
@@ -133,6 +143,7 @@ public final class ServerCommandRunner {
         }
         
         // 去掉前缀/后发送
+        markOwnCommand(cmd.substring(1));
         mc.player.connection.sendCommand(cmd.substring(1));
 
         // 从模块获取传送等待时长（秒转tick）
@@ -156,6 +167,30 @@ public final class ServerCommandRunner {
             waitingForGui = true;
             guiWaitTicks = 0;
         }
+    }
+
+    /**
+     * 记下「这条指令是我们自己发的」（发送前调用）。
+     *
+     * <p>用途：{@code CLIENT_COMMAND} 事件对所有出站指令一视同仁，模块得把自家指令（前往挖矿 /
+     * 卸货 / 补给 / 挂机 / 死亡返回）从「玩家手动指令」里摘出去；否则自己发一条就被自己判成
+     * 手动干预，两边无限互相触发。</p>
+     */
+    private void markOwnCommand(String command) {
+        lastOwnCommand = command;
+        lastOwnCommandTick = mc.player == null ? -100000 : mc.player.tickCount;
+    }
+
+    /**
+     * 这条指令是不是我们自己刚发出的（原文完全相同 + {@link #OWN_COMMAND_WINDOW_TICKS} 刻窗口内）。
+     *
+     * <p>比原文而不是「窗口内一律算自己的」：玩家完全可能在我们发指令的同一秒敲 /spawn，
+     * 只按时间窗口会把它一起吞掉——那正是用户报的那个 bug（「输入了 /spawn 脚本还在那边挖」）。</p>
+     */
+    public boolean isOwnCommand(String command) {
+        if (command == null || mc.player == null) return false;
+        if (!command.equals(lastOwnCommand)) return false;
+        return mc.player.tickCount - lastOwnCommandTick <= OWN_COMMAND_WINDOW_TICKS;
     }
 
     /**

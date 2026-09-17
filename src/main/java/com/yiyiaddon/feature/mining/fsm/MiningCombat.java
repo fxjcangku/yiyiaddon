@@ -14,6 +14,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
@@ -38,7 +39,9 @@ import java.util.function.Predicate;
  *       「检测实体进入 6 格范围就提前杀死，防止我被打掉血」）；最近被打过时（远程怪）扫描半径放宽到
  *       {@link #HURT_SCAN_RADIUS} 并同样主动靠近。
  *       <b>墙后的怪不算</b>（用户 2026-09-18：「检测怪物在墙后面不管」，见 {@link #hasClearSight}）——
- *       打不到它、它也不该把我们拖进战斗态。</li>
+ *       打不到它、它也不该把我们拖进战斗态。
+ *       <b>坚守者永远不算威胁</b>（用户 2026-09-18：「把坚守者排除，不然去打他，不传送就糟糕了」，
+ *       见 {@link #isAutoCombatTarget}）：它由坚守者预警链路负责逃离，不是战斗目标。</li>
  *   <li><b>贴近</b>：距离大于 {@link #ATTACK_RANGE} 时用 Baritone 自定义目标点寻路，目标是
  *       「怪物附近」（{@code GoalNear} 到 {@link #CHASE_STOP_DISTANCE} 格内即停，不走到它脸上），
  *       并按它的速度预判 {@link #CHASE_LEAD_TICKS} 刻后的落点；
@@ -54,7 +57,9 @@ import java.util.function.Predicate;
  *   <li><b>苦力怕走位（与其他怪物唯一的区别）</b>：见 {@link #tickCreeper}——贴到出手距离就砍，
  *       砍完立刻拉开等冷却；引信一旦点燃就撤到熄灭距离（依据 26.1.2 原版
  *       {@code SwellGoal} / {@code Creeper#tick} 的引信熄灭条件，逐条写在 {@link #CREEPER_DEFUSE_DISTANCE}）。</li>
- *   <li><b>收工</b>：连续 {@link #CLEAR_TICKS} 刻没有威胁 → 判定安全，交回状态机继续挖矿。</li>
+ *   <li><b>收工</b>：连续 {@link #CLEAR_TICKS} 刻没有威胁 → 判定安全，交回状态机继续挖矿。
+ *       <b>苦力怕例外</b>（用户 2026-09-18）：它是「锁定目标」，必须确认被击杀或自爆（{@link #lockedCreeper}）
+ *       才收工——它的走位常把自己放到 6 格威胁半径之外，按「扫不到就算安全」会在它还在旁边时就回去挖矿。</li>
  * </ul>
  *
  * <p>播报：进入战斗 / 引信点燃时各一条，带怪物名与距离
@@ -138,6 +143,25 @@ public final class MiningCombat {
 
     /** 当前锁定的威胁（最近的怪物）；无威胁为 null */
     private LivingEntity target;
+
+    /**
+     * 正在了结的苦力怕（用户 2026-09-18 需求）。
+     *
+     * <p>用户原话：<i>「现在挖矿途中自动杀怪 苦力怕的机制写的挺好 的 就是我要加一个点 必须把苦力怕
+     * 被玩家杀死 或者没杀死自爆了 才进入挖矿 现在躲避完了之后 又去挖矿了」</i>。</p>
+     *
+     * <p><b>原来为什么会提前回挖矿</b>：威胁扫描半径只有 {@link #THREAT_RADIUS}（6 格）且要求有视线，
+     * 而苦力怕的走位本来就是「贴到 3.2 格砍一刀就退」、「引信点燃撤到 8 格」——
+     * 后撤动作自己就会把它推出 6 格威胁半径，于是 {@link #scanThreat()} 当刻返回 null，
+     * 连续 {@link #CLEAR_TICKS}（30 刻）没威胁就判定安全、交回状态机继续挖矿：<b>它还在旁边、只是我们主动
+     * 退开了</b>，等于「躲开就算完」，人一低头挖矿它就贴上来点引信。</p>
+     *
+     * <p><b>现在的口径</b>：一旦开始处理某只苦力怕就把它<b>锁住</b>——锁定期间不管威胁扫描有没有扫到它
+     * （被后撤推出半径、或被方块挡住视线），都继续按 {@link #tickCreeper} 的走位处理它；
+     * 只有当它被杀死或自爆（实体不再存活／已从世界移除，见 {@link #creeperResolved}）才解除锁定，
+     * 状态机这时才回挖矿。锁定只针对苦力怕，其他怪物的口径一字未动。</p>
+     */
+    private Creeper lockedCreeper;
     /** 最近一次被怪物打过的 tick（{@code -100000} 表示没有） */
     private int lastHurtTick = -100000;
     /** 无威胁连续刻数 */
@@ -181,10 +205,27 @@ public final class MiningCombat {
     /** 安全后清空敌情记录（状态机回到挖矿时调用） */
     public void reset() {
         target = null;
+        lockedCreeper = null;
         threatFreeTicks = 0;
         chaseTicks = 0;
         lastRepathTick = 0;
         lastPathKind = null;
+    }
+
+    /**
+     * 苦力怕是否已经「了结」：被杀死，或者自己炸了。
+     *
+     * <p>客户端判据（两条都要，缺一会漏一种死法）：</p>
+     * <ul>
+     *   <li>{@code !isAlive()} 血量归零（被砍死那一刻就会变）；</li>
+     *   <li>{@code isRemoved()} 实体已从世界移除——自爆是这一种：爆炸后服务端直接把它删掉，
+     *       客户端收到移除包，实体不再存在（也就没有「尸体」可等）。</li>
+     * </ul>
+     *
+     * <p>实体引用为空（换世界 / 实体表被清）也算已了结，避免拿一个空引用把状态机钉在战斗态。</p>
+     */
+    private static boolean creeperResolved(Creeper creeper) {
+        return creeper == null || !creeper.isAlive() || creeper.isRemoved();
     }
 
     /** 每刻刷新「最近被怪物打过」的记忆窗口 */
@@ -192,9 +233,30 @@ public final class MiningCombat {
         if (mc.player == null || mc.level == null) return;
         if (mc.player.hurtTime <= 0) return;
         LivingEntity attacker = mc.player.getLastHurtByMob();
-        if (attacker instanceof Monster && attacker.isAlive()) {
+        // 坚守者打的那一下不算「被打过」：它已经在坚守者预警那条链路上处理（用户 2026-09-18）
+        if (attacker instanceof Monster && attacker.isAlive() && isAutoCombatTarget(attacker)) {
             lastHurtTick = mc.player.tickCount;
         }
+    }
+
+    /**
+     * 该怪物是否参与自动战斗。
+     *
+     * <p><b>坚守者永久排除</b>（用户 2026-09-18：「自动击杀附近怪物的功能把坚守者排除，
+     * 不然复活去打他，不传送就糟糕了」）。两条理由：</p>
+     * <ul>
+     *   <li>打不赢也没必要打：坚守者伤害极高、血极厚，挖矿装备上去打就是送；</li>
+     *   <li>它一出现就应该是<b>逃离信号</b>，不是战斗目标。把它选成目标会立刻抢占状态机
+     *       （进 {@code COMBAT} 态去贴身），恰好把「坚守者预警」那条链路挤掉，人就钉在远古城市里了
+     *       —— 见 {@code WardenWarningGuard} 与 {@code MiningStateMachine#escapeFromWardenWarning()}。</li>
+     * </ul>
+     *
+     * <p>排除同时作用于两处：扫描选目标（{@link #scanThreat(boolean)}）与挨打记忆
+     * （{@link #refreshHurtMemory()}）—— 否则被它打一下就会把 {@code COMBAT} 态一直吊着，
+     * 同样走不到逃离。</p>
+     */
+    private static boolean isAutoCombatTarget(LivingEntity entity) {
+        return !(entity instanceof Warden);
     }
 
     private boolean hurtRecently() {
@@ -227,6 +289,7 @@ public final class MiningCombat {
         List<Monster> monsters = mc.level.getEntitiesOfClass(Monster.class,
             player.getBoundingBox().inflate(radius),
             monster -> monster.isAlive() && !monster.isRemoved() && !monster.isInvulnerable()
+                && isAutoCombatTarget(monster)
                 && isThreat(monster, player)
                 && hasClearSight(player, monster));
 
@@ -281,6 +344,18 @@ public final class MiningCombat {
 
         refreshHurtMemory();
         target = scanThreat();
+
+        // 苦力怕了结锁定（用户 2026-09-18）：它还没死、没自爆就不算威胁解除。
+        // 扫描没扫到（后撤把自己推到 6 格外 / 被方块挡视线）也照样继续处理它——
+        // 这正是「躲避完又去挖矿」的根因，见 lockedCreeper 的注释
+        if (lockedCreeper != null) {
+            if (creeperResolved(lockedCreeper)) {
+                lockedCreeper = null;
+            } else {
+                target = lockedCreeper;
+            }
+        }
+
         if (target == null) {
             // 没扫到怪但仍处于挨打窗口内：保持警戒，别刚被打完就低头挖矿
             if (hurtRecently()) return true;
@@ -289,13 +364,17 @@ public final class MiningCombat {
         }
         threatFreeTicks = 0;
 
-        // 追击超时：目标跑出威胁半径后只在限定时间内继续追（避免被远程怪一路引到岩浆 / 怪堆里）
-        if (player.distanceTo(target) > THREAT_RADIUS) {
+        // 追击超时：目标跑出威胁半径后只在限定时间内继续追（避免被远程怪一路引到岩浆 / 怪堆里）。
+        // 苦力怕用 CHASE_RADIUS 作上限：它的走位本来就要站到 5~8 格（熄引信 8 格 > 6 格威胁半径），
+        // 拿 6 格去累计放弃计时会在正常走位里把它「放弃」掉，那就等于没锁（用户 2026-09-18）
+        double chaseLimit = target instanceof Creeper ? CHASE_RADIUS : THREAT_RADIUS;
+        if (player.distanceTo(target) > chaseLimit) {
             chaseTicks++;
             if (chaseTicks > CHASE_GIVE_UP_TICKS) {
                 module.getBaritone().stop();
                 module.info("§e⚠ 追不上 " + target.getName().getString() + " §8▸ 放弃追击，返回挖矿");
                 target = null;
+                lockedCreeper = null;
                 chaseTicks = 0;
                 return false;
             }
@@ -306,6 +385,8 @@ public final class MiningCombat {
         ensureWeapon();
         turnTowards(target);
         if (target instanceof Creeper creeper) {
+            // 锁住它：它没了结之前，状态机不接挖矿（用户 2026-09-18 要求）
+            lockedCreeper = creeper;
             tickCreeper(player, creeper);
         } else {
             tickMelee(player, target);
