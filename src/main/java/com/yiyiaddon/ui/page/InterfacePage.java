@@ -47,7 +47,8 @@ public final class InterfacePage extends BasePage {
                             }
                         })));
 
-        modules.add(new SettingModule(UiText.t("界面大小", "GUI Size"), UiText.t("调整面板整体缩放", "Adjusts the overall panel scale"), new SettingCycle(List.of("75%", "100%", "125%"), () -> AddonConfig.uiScale, index -> {
+        // 行说明末尾接可见提示（第 213 条）：循环控件看不出能点
+        modules.add(new SettingModule(UiText.t("界面大小", "GUI Size"), UiText.t("调整面板整体缩放", "Adjusts the overall panel scale") + HINT_CYCLE, new SettingCycle(List.of("75%", "100%", "125%"), () -> AddonConfig.uiScale, index -> {
             AddonConfig.uiScale = index;
             AddonConfig.save();
         })).icon(ICON_SCALE));

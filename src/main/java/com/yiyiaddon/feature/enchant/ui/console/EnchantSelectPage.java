@@ -22,6 +22,7 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 自动附魔控制台的多选词条页：<b>原版附魔分类</b>（BOOK 的 8 组）与 <b>自动附魔分类</b>
@@ -85,7 +86,12 @@ public final class EnchantSelectPage {
             new Ctl(new SettingText(
                 () -> "已选择 " + module.settings().selectedCount(group.entries()) + " 项",
                 STATE_WIDTH).alignLeft()),
-            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, () -> reset(group)))))
+            // 空态禁用：判据来自本组已选计数（与 reset(group) 的整组置 false 同源），逐帧求值见
+            // IconButton#disabledWhen(Supplier)；悬停说明按组名给出（本行的行尾注释已经是
+            // 「选择需要收集的附魔属性」，故说明只写清空的对象，不重复那句）
+            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, () -> reset(group))
+                .disabledWhen(() -> module.settings().selectedCount(group.entries()) == 0),
+                "清空本组已选" + group.title())))
             // 控件入口行的物品图标：旧 EnchantmentSelectSetting:55 用附魔书（Items.ENCHANTED_BOOK）
             .icon(() -> Items.ENCHANTED_BOOK.getDefaultInstance());
     }

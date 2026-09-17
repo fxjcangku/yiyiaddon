@@ -23,6 +23,7 @@ import com.yiyiaddon.ui.widget.SettingToggle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 /**
  * 星露谷控制台「后勤」页：简化后勤开关 + 逐作物配置块。
@@ -180,11 +181,15 @@ public final class StardewLogisticsPage {
                 }));
 
             String resetTooltip = resetTooltip(crop);
+            // 空态禁用：判据来自本作物当前的数量方案与后勤参数（与下面重置动作写入的两个 store 同源，
+            // 都是 CropPlan.DEFAULT / CropLogistics.DEFAULT；两者已是默认值时按钮禁用），
+            // 逐帧求值见 IconButton#disabledWhen(Supplier)
             IconButton reset = new IconButton(StardewConsoleScreen.GLYPH_RESET, () -> {
                 putPlan(cropKey, StardewCropPlanStore.CropPlan.DEFAULT);
                 StardewLogisticsStore.put(serverKey(), fingerprint(), cropKey,
                     StardewLogisticsStore.CropLogistics.DEFAULT);
-            });
+            }).disabledWhen(() -> cropPlan(cropKey).equals(StardewCropPlanStore.CropPlan.DEFAULT)
+                && logistics(cropKey).equals(StardewLogisticsStore.CropLogistics.DEFAULT));
             content.add(new ConsoleRow(owner, () -> "§7恢复默认", resetTooltip, "§7还原本作物参数",
                 List.of(new Ctl(reset, resetTooltip))));
         }

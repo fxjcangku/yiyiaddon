@@ -117,12 +117,12 @@ public final class ModuleRow {
         return x + ICON_BOX + ICON_GAP;
     }
 
-    /** 模块行：图标 / 名称 / 描述 / 启用状态都取自模块注册表 */
+    /** 模块行：图标 / 名称 / 描述 / 启用状态都取自模块注册表（状态色：启用绿、未启用红，第 141 条色槽） */
     public static void draw(Canvas canvas, ModuleEntry entry, float x, float y, float w,
                             float alpha, float hover, ClickGuiThemeColors tc) {
         boolean enabled = entry.enabled();
         drawEntry(canvas, entry.icon(), entry.displayName(), entry.description(),
-                enabled ? "已启用" : "未启用", enabled ? tc.accent : tc.labelTertiary,
+                enabled ? "已启用" : "未启用", enabled ? tc.stateOn : tc.stateOff,
                 x, y, w, alpha, hover, tc);
     }
 
@@ -207,7 +207,7 @@ public final class ModuleRow {
         String stateText = enabled ? "已启用" : "未启用";
         float badgeWidth = StatusBadge.width(stateText);
         float badgeX = Math.max(cursor, x + w - PAD_X - badgeWidth);
-        StatusBadge.draw(canvas, badgeX, centerY, stateText, enabled ? tc.accent : tc.labelTertiary, alpha);
+        StatusBadge.draw(canvas, badgeX, centerY, stateText, enabled ? tc.stateOn : tc.stateOff, alpha);
 
         String name = entry.displayName();
         String description = entry.description();

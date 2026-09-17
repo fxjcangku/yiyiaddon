@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * 「原版装备附魔配置」独立窗口。
@@ -93,9 +94,14 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         GearEnchantData.GearDefinition gear = GearEnchantData.get().gear(gearId == null ? "" : gearId);
 
         // ── 装备选择（旧 :95-160 的三级下拉，本项目换成一次分组列表）──
+        // 空态禁用：判据来自 gearEnchantConfig（与 resetConfig() 的清空读的是同一份数据）
         stack.add(new ConsoleRow(this, () -> "装备", GEAR_DESCRIPTION, null, List.of(
             new Ctl(new Button(gear == null ? "点击选择" : gear.name, this::openGearPicker)),
-            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, this::resetConfig)))));
+            // 空态禁用：判据来自 gearEnchantConfig（与 resetConfig 读同一份），逐帧求值见
+            // IconButton#disabledWhen(Supplier)
+            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, this::resetConfig)
+                .disabledWhen(() -> module.settings().gearEnchantConfig.isEmpty()),
+                "清空装备附魔配置"))));
 
         if (gear == null) {
             stack.add(new Note(this, "§7当前未选择装备：点上面的按钮挑一件，即可配置极品方案与目标附魔。"));

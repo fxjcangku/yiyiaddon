@@ -16,6 +16,7 @@ import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingText;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 星露谷控制台「种植」页：七类选择器（点击打开各自的选择页）。
@@ -69,12 +70,15 @@ public final class StardewPlantingPage {
         for (SelectorDef def : SELECTORS) {
             Button select = new Button("点击选择",
                 () -> owner.client().setScreen(new StardewTargetSelectScreen(owner.client().screen, module, def.category)));
+            // 空态禁用：判据来自 module.selection(def.category).selectedKeys()（与下面的清空动作同源，
+            // 见 selectionKeys：它返回的就是这份选中的内存镜像，与模块运行时同一个 List 实例）；
+            // 逐帧求值见 IconButton#disabledWhen(Supplier)
             IconButton reset = new IconButton(StardewConsoleScreen.GLYPH_RESET, () -> {
                 List<String> keys = module.selection(def.category).selectedKeys();
                 if (keys.isEmpty()) return;
                 clearSelection(def.category);
                 module.selection(def.category).persist();
-            });
+            }).disabledWhen(() -> selectionKeys(def.category).isEmpty());
             stack.add(new ConsoleRow(owner, () -> def.name, def.description, null, List.of(
                 new Ctl(select, "点击打开「" + def.category.title() + "」选择器"),
                 // 状态文字左对齐 + 列宽按「同列最宽文本」：控件是整组右对齐的，列宽若用 SettingText
@@ -83,7 +87,7 @@ public final class StardewPlantingPage {
                 // 紧挨成一组贴在行的右侧，且六行都成一条竖线。
                 new Ctl(new SettingText(() -> selectorCountText(def.category), this::stateColumnWidth)
                     .alignLeft()),
-                new Ctl(reset))));
+                new Ctl(reset, "清空本行已选" + def.name))));
         }
         stack.add(new Note(owner, "§8肥料 / 药剂只表示「用哪个」，要真正生效还得在「运行」页打开自动施肥 / 自动用药剂"));
     }

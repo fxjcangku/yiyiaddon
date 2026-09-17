@@ -118,7 +118,8 @@ public final class KillAuraTargetingPage {
         KillAuraSettings settings = module.settings();
 
         stack.add(listRow(KillAuraTexts.NAME_ENTITY_TYPES, KillAuraTexts.DESC_ENTITY_TYPES,
-            this::entityStatusText, this::openEntitySelector, this::clearEntityTypes));
+            this::entityStatusText, this::openEntitySelector, this::clearEntityTypes,
+            () -> module.settings().entityTypes.isEmpty()));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_PRIORITY,
             KillAuraTexts.DESC_PRIORITY, null,
@@ -165,14 +166,20 @@ public final class KillAuraTargetingPage {
 
     // ── 行构件 ──
 
-    /** 名单行（行样式照星露谷 / 挖矿控制台页）：名称 + 说明 …… [点击选择] [状态文字] [↻] */
+    /**
+     * 名单行（行样式照星露谷 / 挖矿控制台页）：名称 + 说明 …… [点击选择] [状态文字] [↻]。
+     *
+     * @param empty ↻ 的空态判据；与 {@link #clearEntityTypes()} 读的是同一份名单
+     */
     private CompactElement listRow(String title, String description, Supplier<String> status,
-                                   Runnable open, Runnable reset) {
+                                   Runnable open, Runnable reset, Supplier<Boolean> empty) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
             // 列宽走共用固定列：按当前文案各自量宽会把「点击选择」顶着左右浮动
             new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
-            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
+            // 空态禁用：判据与 clearEntityTypes() 读同一份名单，逐帧求值见 IconButton#disabledWhen(Supplier)
+            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset).disabledWhen(empty),
+                "清空本行已选" + title)));
     }
 
     /** 开关行：改动落盘 */

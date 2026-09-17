@@ -1,41 +1,39 @@
 package com.yiyiaddon.feature.villager.ui;
 
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.villager.AutoVillagerTradeModule;
 import com.yiyiaddon.feature.villager.config.VillagerTradeSettings;
 import com.yiyiaddon.feature.villager.ui.console.VillagerConsoleScreen;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.component.CompactRow;
-import com.yiyiaddon.ui.component.KeybindBadge;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.TextLine;
-import com.yiyiaddon.ui.console.PointCardGrid;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
-import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
 /**
- * 自动村民交易模块页：旧配置页的元素一个不少 —— 使用说明按钮（旧 {@code :693-695}）、多任务模式说明行
- * （旧 {@code :699-700} 逐字）、两张点位卡片（旧 {@code :704-713}），外加本项目新增的控制台入口
- * （第 182 条：入口必须排在「查看使用说明」上面）与一行状态摘要。
+ * 自动村民交易模块页：本页只做「入口」——使用说明按钮（旧 {@code :693-695} 文案逐字）、多任务模式说明行
+ * （旧 {@code :699-700} 逐字）、控制台入口（第 182 条：入口必须排在「查看使用说明」上面）与一行状态摘要。
  *
  * <p><b>元素顺序（与旧行号对位）</b></p>
  * <ol>
- *   <li>顶部信息块 {@link ModuleStatusBar}（本项目统一壳件，等价旧框架的模块标题行 / 启用开关）；</li>
  *   <li>状态行 {@link TextLine}：状态机状态中文名 + 模式 / 职业 / 价格上限（旧页面无此行，形态照
- *       {@code AutoFarmPage} 的 {@code TextLine} 摘要与 {@code AutoFarmModule.statusSummary}）；</li>
+ *       {@code AutoFarmPage} 的 {@code TextLine} 摘要与 {@code AutoFarmModule.statusSummary}）；
+ *       <b>本页没有顶部信息块</b>——状态文字 / 快捷键徽章 / 模块开关三件已统一搬进村民交易控制台顶栏
+ *       （用户 2026-09-17 口径，见 {@link com.yiyiaddon.ui.console.ConsoleHeaderBar}）；</li>
  *   <li>控制台入口 {@link CompactRow} + {@code §b打开控制台}（本项目新增壳件，文案与形态照
  *       {@code WaterPage} / {@code AutoFarmPage}）；</li>
- *   <li>使用说明 {@link CompactRow} + {@code §e查看使用说明}（旧 {@code :693} 文案逐字，
- *       点击弹 {@link HelpPanelScreen}，标题由它拼成「自动村民交易 - 使用说明」）；</li>
- *   <li>多任务模式说明行（旧 {@code :699-700} 逐字，全宽一行）；</li>
- *   <li>两张点位卡片 {@link PointCardGrid.Grid}（旧 {@code :704-713} 两列布局，卡片本体走
- *       {@link VillagerPointCards}，与控制台「点位」页共用同一份实现）。</li>
+ *   <li>使用说明正文（{@link AutoVillagerTradeHelpContent} 七章节逐字）：<b>内嵌在控制台入口正下方</b>，
+ *       不再单摆「查看使用说明」按钮（用户 2026-09-17 口径），超出时由模块页自身滚动条上下查看；</li>
+ *   <li>多任务模式说明行（旧 {@code :699-700} 逐字，全宽一行）。</li>
  * </ol>
+ *
+ * <p><b>两张点位卡不在本页</b>（用户 2026-09-17 口径：「控制台里面已经有点位了 为什么控制台外面还有」）：
+ * 旧项目点位卡挂在配置页（旧 {@code :704-713} 两列布局），本项目点位设置已由控制台「点位」页承载
+ * （{@link VillagerPointCards} 同一份实现），同一份设置不在两处重复摆；功能与文案一字未减，
+ * 只是承载位置收敛到控制台（登记 D-14-16）。</p>
  *
  * <p><b>状态行的中文名来源</b>：旧项目状态机 {@code State} 枚举（旧 {@code :1178-1197}）没有中文名，
  * 旧模块页也没有状态行；中文名逐条取自旧项目自己的用词（状态枚举注释、状态日志与帮助正文），
@@ -53,11 +51,17 @@ public final class AutoVillagerTradePage extends CompactModulePage implements Mo
     /** 控制台入口按钮（逐字照既有模块页口径） */
     private static final String CONSOLE_BUTTON = "§b打开控制台";
     /** 控制台入口提示：村民交易控制台承载内容（不虚构页签名） */
-    private static final String CONSOLE_HINT = "整屏承载全部设置项、两张点位卡与运行日志";
-    /** 使用说明按钮（旧 {@code :693} 逐字） */
-    private static final String HELP_BUTTON = "§e查看使用说明";
-    /** 使用说明提示（与其它模块页同形：模块名替换） */
-    private static final String HELP_HINT = "打开自动村民交易的完整使用说明";
+    private static final String CONSOLE_HINT = "整屏承载全部设置项、点位与运行日志";
+
+    /**
+     * 内嵌说明行（去掉窗口外框三行）：本页把使用说明直接铺在「打开控制台」入口下方
+     * （用户 2026-09-17 口径：不再单摆「查看使用说明」按钮，超出可上下滚动查看）。
+     *
+     * <p>章节标题与正文来自 {@link AutoVillagerTradeHelpContent}（旧 {@code :721-765} 七章节逐字），
+     * 此处只去掉独立窗口的外框三行（{@code §8┏━┓ / §8┃ 使用说明 ┃ / §8┗━┛}），一格文案未改。</p>
+     */
+    private static final String[] HELP_LINES =
+        HelpPanelScreen.inlineContent(HelpPanelScreen.buildHelpContent(AutoVillagerTradeHelpContent.SECTIONS));
 
     /**
      * 多任务模式说明行（旧 {@code :699-700} 两段字符串拼接后逐字）。
@@ -99,13 +103,6 @@ public final class AutoVillagerTradePage extends CompactModulePage implements Mo
     // ── 构建（顺序见类注释的对位表） ──
 
     private void build() {
-        setHeader(new ModuleStatusBar(
-            () -> module.isEnabled() ? "运行中" : "未启用",
-            module::isEnabled,
-            new KeybindBadge(module.keybindId()),
-            new SettingToggle(module::isEnabled,
-                value -> ModuleManager.setEnabled(module.id(), value))));
-
         // 状态摘要（TextLine 现读，未启用时给灰字）
         addCore(new TextLine(this::statusLine));
 
@@ -113,15 +110,11 @@ public final class AutoVillagerTradePage extends CompactModulePage implements Mo
         addCore(new CompactRow("", () -> CONSOLE_HINT,
             new Button(CONSOLE_BUTTON, this::openConsole)).centeredControl());
 
-        // 使用说明（旧 :693-695）
-        addCore(new CompactRow("", () -> HELP_HINT,
-            new Button(HELP_BUTTON, this::openHelp)).centeredControl());
+        // 使用说明内嵌在控制台入口下方（用户 2026-09-17 口径），章节标题与正文逐字不变
+        for (String line : HELP_LINES) addCore(new TextLine(line));
 
         // 多任务模式说明（旧 :699-700）
         addCore(new TextLine(MULTI_TASK_LINE));
-
-        // 两张点位卡（旧 :704-713；与控制台「点位」页共用 VillagerPointCards）
-        addCore(new PointCardGrid.Grid(VillagerPointCards.all()));
     }
 
     // ── 状态摘要 ──
@@ -147,14 +140,6 @@ public final class AutoVillagerTradePage extends CompactModulePage implements Mo
     }
 
     // ── 界面跳转 ──
-
-    /** 打开使用说明（旧 {@code :694}）：窗口标题为「自动村民交易 - 使用说明」 */
-    private void openHelp() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) return;
-        client.setScreen(new HelpPanelScreen(AutoVillagerTradeModule.MESSAGE_MODULE,
-            HelpPanelScreen.buildHelpContent(AutoVillagerTradeHelpContent.SECTIONS), client.screen));
-    }
 
     /** 打开控制台（整屏分页）；ESC 回来 */
     private void openConsole() {

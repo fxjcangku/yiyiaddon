@@ -3,6 +3,8 @@ package com.yiyiaddon.ui.screen;
 import com.yiyiaddon.ui.component.TextLine;
 import net.minecraft.client.gui.screens.Screen;
 
+import java.util.Arrays;
+
 /**
  * 通用「使用说明」独立窗口（对应旧项目 {@code ui/HelpScreen}）。
  *
@@ -21,8 +23,13 @@ import net.minecraft.client.gui.screens.Screen;
  *   正文行…
  * </pre>
  *
- * <p>底部固定一条分隔线与满宽「关闭」按钮；关闭行为与旧项目一致，直接回到游戏
- * （{@link PanelScreen#exitToGame()}），而不是返回上级窗口。</p>
+ * <p><b>关闭 / 返回行为（用户 2026-09-17 口径）</b>：不再直接回到游戏，而是<b>回到打开它的那个界面</b>
+ * ——左上返回箭头与底部「关闭」都走 {@link PanelScreen#requestClose()} → {@link SkiaScreen#closing()}
+ * → {@code setScreen(parent)}。用户原话「剩下的模块点击查看按钮之后，点返回会直接关掉 gui，
+ * 我想返回还是查看按钮的那个界面」。旧项目该窗口是 {@code setScreen(null)}（连同整个 GUI 关掉），
+ * 这里的改动已登记为差异；调用方一律传模块页 / 控制台作为 parent。</p>
+ *
+ * <p>底部固定一条分隔线与满宽「关闭」按钮（按钮文字仍为旧项目原文）。</p>
  */
 public class HelpPanelScreen extends PanelScreen {
 
@@ -45,11 +52,10 @@ public class HelpPanelScreen extends PanelScreen {
     /**
      * @param moduleName 模块中文名（与模块面板标题一致）
      * @param helpContent 说明内容行；空字符串渲染为一条分隔线
-     * @param parent      上级屏幕（本窗口关闭后直接回游戏，parent 仅用于 GUI 栈）
+     * @param parent      上级屏幕（关闭 / 返回时回到它，见类注释的关闭行为说明）
      */
     public HelpPanelScreen(String moduleName, String[] helpContent, Screen parent) {
         super(moduleName + TITLE_SUFFIX, parent);
-        exitToGame();
         buildContent(helpContent);
     }
 
@@ -96,5 +102,28 @@ public class HelpPanelScreen extends PanelScreen {
 
     /** 说明章节：标题 + 若干正文行。 */
     public record HelpSection(String title, String... lines) {
+    }
+
+    /** 窗口外框占的行数：{@link #buildHelpContent} 的前三行（上框 / 标题行 / 下框） */
+    public static final int FRAME_LINES = 3;
+
+    /**
+     * 内嵌到模块页用的说明行：去掉窗口外框三行，章节标题与正文逐字保留。
+     *
+     * <p><b>为什么去掉外框</b>：{@code §8┏━…┓ / §8┃ 使用说明 ┃ / §8┗━…┛} 是这个独立窗口的窗框，
+     * 页面里已经有自己的面板与标题栏，再画一圈 51 字宽的框只会串行。
+     * 章节标题（{@code §3[§b#§3] §f…}）与全部正文一字未改。</p>
+     *
+     * <p>用法（模块页把说明铺在「打开控制台」下方，超出时由模块页自身的滚动条上下查看）：</p>
+     * <pre>
+     * private static final String[] HELP_LINES =
+     *     HelpPanelScreen.inlineContent(HelpPanelScreen.buildHelpContent(HELP_SECTIONS));
+     * …
+     * for (String line : HELP_LINES) addCore(new TextLine(line));
+     * </pre>
+     */
+    public static String[] inlineContent(String[] panelContent) {
+        if (panelContent == null || panelContent.length <= FRAME_LINES) return new String[0];
+        return Arrays.copyOfRange(panelContent, FRAME_LINES, panelContent.length);
     }
 }

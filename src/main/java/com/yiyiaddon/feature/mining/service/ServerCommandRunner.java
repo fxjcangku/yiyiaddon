@@ -36,6 +36,12 @@ public final class ServerCommandRunner {
     private int executeTick = 0;
     private int maxWaitTicks = 600; // 动态设置，默认30秒
     private int stationaryTicks = 0; // 位置静止累计tick（真正的「静止超过5 tick」检测）
+    /** 瞬移类指令：不等九宫格区块加载，位置跳变 + 落地稳定即视为传送完成 */
+    private boolean quickTeleport = false;
+    /** 瞬移类指令的落地稳定计数 */
+    private int landedTicks = 0;
+    /** 瞬移类指令：是否已经看到位置跳变（没跳变过就不允许解除阻塞） */
+    private boolean teleportedSeen = false;
 
     // 区块加载检测
     private BlockPos lastPlayerPos = BlockPos.ZERO;
@@ -67,6 +73,9 @@ public final class ServerCommandRunner {
         rapidFallTicks = 0;
         waitingForGui = false;
         guiWaitTicks = 0;
+        quickTeleport = false;
+        landedTicks = 0;
+        teleportedSeen = false;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -81,6 +90,22 @@ public final class ServerCommandRunner {
      * 自动补斜杠、去多斜杠、修正「/ rtp」这种斜杠后带空格的写法。
      */
     public void executeCommand(String command) {
+        executeCommand(command, false);
+    }
+
+    /**
+     * 执行聊天指令（如 /rtp, /home kuang）
+     *
+     * <p>发送后进入阻塞状态，直到传送完成并满足安全条件。
+     * 标点归一：全角空格/全角斜杠（中文输入法常见）→ 半角，自动补斜杠、去多斜杠、
+     * 修正「/ rtp」这种斜杠后带空格的写法。</p>
+     *
+     * @param allowGuiClick 是否启用 RTP 的 GUI 自动点击。只有 RTP 需要（插件会弹选单，得等它出现
+     *                      再点关键词槽位）；/home、/res tp 这类是瞬移，等 GUI 纯属白等
+     *                      （用户 2026-09-18：「传送回去卸货站在原地的时间太久了」——
+     *                       旧实现无条件进 GUI 分支，每次卸货固定白站 {@code GUI_MAX_WAIT_TICKS} 刻）
+     */
+    public void executeCommand(String command, boolean allowGuiClick) {
         if (mc.player == null || command == null) {
             return;
         }
@@ -120,9 +145,14 @@ public final class ServerCommandRunner {
         lastY = mc.player.getY();
         chunksLoadedCount = 0;
         rapidFallTicks = 0;
-        
+        // 瞬移类指令（/home、/res tp）落地即到，跳过「九宫格区块加载」这道为 RTP 远距离传送
+        // 准备的门槛：卸货点就在家，周围区块一直加载着，等它只是白等（见方法注释）
+        quickTeleport = !allowGuiClick;
+        landedTicks = 0;
+        teleportedSeen = false;
+
         // 如果启用RTP GUI自动点击，进入GUI等待状态
-        if (module.isRtpGuiEnabled()) {
+        if (allowGuiClick && module.isRtpGuiEnabled()) {
             waitingForGui = true;
             guiWaitTicks = 0;
         }
@@ -150,6 +180,26 @@ public final class ServerCommandRunner {
 
         // 前 6 tick 等待服务器响应
         if (executeTick < 6) {
+            return true;
+        }
+
+        // 瞬移类指令（/home、/res tp、挂机点）：位置跳变过 + 落地稳定 2 刻即算传送完成。
+        // 不再等「九宫格区块加载」——那是给 RTP 远距离传送准备的（落地处可能还没加载），
+        // 而卸货点就在家里、区块一直加载着，等它纯属白等（见方法参数注释）
+        if (quickTeleport) {
+            BlockPos now = mc.player.blockPosition();
+            if (!now.equals(lastPlayerPos)) {
+                lastPlayerPos = now;
+                teleportedSeen = true;
+                landedTicks = 0;
+                return true; // 刚落点，给它 2 刻稳定（位置修正 / 客户端世界重建）
+            }
+            // 还没跳过位置：指令可能还在路上，继续等（绝不提前解除，否则会在旧位置往箱子那边走）
+            if (!teleportedSeen) return true;
+            if (checkLandingSafe() && ++landedTicks >= 2) {
+                executing = false;
+                return false;
+            }
             return true;
         }
 

@@ -126,6 +126,18 @@ public final class AutoVillagerTradeModule extends Module {
     public static final String MESSAGE_MODULE = "自动村民交易";
 
     /**
+     * 模块卡片图标：Material 符号 {@code storefront}（带遮阳棚的店面，对应「与村民做买卖」）。
+     *
+     * <p><b>验真（开发习惯第 140 条）</b>：旧项目没有模块图标可搬（该模块在旧项目里也是中文名 + 文字卡片），
+     * 故按本项目既有做法自选一个码点。U+EA12 的验真方式是本机实测而非查表：
+     * 用 {@code java.awt.Font.createFont} 直接加载本模组打包的
+     * {@code assets/yiyiaddon/fonts/MaterialSymbolsRounded.ttf}，{@code canDisplay(0xEA12)} 返回 true，
+     * 并把该字形渲染成 PNG 目视确认是「店面」而非豆腐块。此前本项目无任何位置占用该码点
+     * （既有模块图标见 {@code WaterESPModule}/{@code AutoFarmModule} 等，无一使用 U+EA12）。</p>
+     */
+    private static final String ICON = "\uEA12";
+
+    /**
      * 状态播报流水上限：控制台「日志」页只看得到最近这么多条
      */
     private static final int LOG_CAPACITY = 80;
@@ -175,6 +187,12 @@ public final class AutoVillagerTradeModule extends Module {
     @Override
     public int order() {
         return 30;
+    }
+
+    /** 模块卡片图标（{@link #ICON}）；此前本模块没有这条覆盖，模块中心里图标位是空的 */
+    @Override
+    public String icon() {
+        return ICON;
     }
 
     // ── 访问器（供控制台页面、指令与渲染层调用） ──

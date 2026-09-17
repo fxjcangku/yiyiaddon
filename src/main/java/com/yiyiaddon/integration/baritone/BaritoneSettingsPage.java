@@ -65,6 +65,17 @@ public final class BaritoneSettingsPage extends BasePage {
     private static final float LIST_BOX_WIDTH = 320f;
     /** 只读值最多显示多少字符（超出截断，避免一行把整页排版撑坏）。 */
     private static final int READONLY_MAX_LENGTH = 120;
+
+    /**
+     * 可见提示（第 213 条）：循环项 / 色块看不出能点。
+     *
+     * <p>本页子项走紧凑行，只画标题、说明整段在悬停浮层里（{@code SettingModule} 的紧凑布局），
+     * 所以提示只能拼在标题末尾；控制台行有独立注释位，那边用
+     * {@code ConsoleWidgets.COMMENT_CYCLE} / {@code COMMENT_COLOR}。</p>
+     */
+    private static final String HINT_CYCLE = " · 点击切换";
+    /** 同上，颜色块类（{@code SettingColorPicker}） */
+    private static final String HINT_COLOR = " · 点击色块打开调色板";
     /**
      * 名单 / 映射入口按钮的宽度。
      *
@@ -121,7 +132,9 @@ public final class BaritoneSettingsPage extends BasePage {
             } else if (value instanceof Color color) {
                 EspColor display = new EspColor(color.getRGB() & 0xFFFFFF, color.getAlpha());
                 colorBindings.add(new ColorBinding(display, setting));
-                colors.add(label, description, new SettingColorPicker(label, display));
+                // 行尾可见提示（第 213 条）：色块看不出能点；提示拼在标题上（与枚举项同一原因），
+                // 调色板窗口的标题仍用不带提示的原名
+                colors.add(label + HINT_COLOR, description, new SettingColorPicker(label, display));
             } else if (value instanceof List<?> && listElementType(setting) == Block.class) {
                 blockLists.add(label, description, listButton(label, BaritoneChoices.Kind.BLOCK, setting));
             } else if (value instanceof List<?> && listElementType(setting) == Item.class) {
@@ -131,7 +144,9 @@ public final class BaritoneSettingsPage extends BasePage {
             } else if (value instanceof Map<?, ?> && isBlockSubstituteMap(setting)) {
                 maps.add(label, description, mapButton(label, setting));
             } else if (value instanceof Enum<?> constant) {
-                misc.add(label, description, enumCycle(setting, constant));
+                // 行尾可见提示（第 213 条）：循环项看不出能点；本页子项走紧凑行、只画标题，
+                // 说明整段只在悬停浮层里，故提示只能拼在标题上
+                misc.add(label + HINT_CYCLE, description, enumCycle(setting, constant));
             } else if (value instanceof Vec3i) {
                 misc.add(label, description, vec3Box(setting));
             } else {

@@ -26,7 +26,10 @@ import java.util.function.Supplier;
  *   <li>录制中收到输入，经 {@link AddonKeybind#canBindTo} 通过即写入并结束录制
  *       （旧 {@code WKeybind#onAction}）；不通过（{@code ESC} / 修饰键本身 / 鼠标左右键）则结束录制、不落绑定
  *       —— {@code ESC} 在本项目控制台还是「退出界面」，必须吃掉这一键，不能漏给屏幕；</li>
- *   <li>右键清空绑定（旧 {@code WKeybind#onClear} → {@code keybind.reset()}；本项目右键是「清空」的既有语义）。</li>
+ *   <li><b>清空不在本控件里</b>：旧 {@code WKeybind} 的清空是外部调的 {@code onClear()}
+ *       （由屏幕/行构件提供的清除动作），控件自身只负责录制。本项目同形：控制台设置页在键位块旁边
+ *       摆一个「清空」按钮（因为行构件 {@code ConsoleRow#onClick} 只把左键转给控件，右键到不了这里，
+ *       控件内嗅右键等于做了个点不到的交互）。</li>
  * </ul>
  *
  * <p><b>静态转发</b>：录制态是「当前唯一的」，与 {@link SettingTextBox} 的焦点同一手法——
@@ -107,24 +110,13 @@ public class SettingKeybind extends SettingWidget {
         return !press.isIdle();
     }
 
-    /** 左键进入录制；右键清空绑定（录制中则取消录制） */
+    /** 左键进入录制（清空由宿主页面的显式按钮承担，见类 javadoc） */
     @Override
     public boolean onClick(float mx, float my, float x, float y, int button) {
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            press.pulse();
-            capturing = this;
-            return true;
-        }
-        if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-            press.pulse();
-            if (capturing == this) {
-                capturing = null;
-            } else {
-                setter.accept(AddonKeybind.none());
-            }
-            return true;
-        }
-        return false;
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false;
+        press.pulse();
+        capturing = this;
+        return true;
     }
 
     // ── 静态转发（界面按键/点击时先问这里） ──

@@ -4,6 +4,7 @@ import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.ui.component.BackButton;
 import com.yiyiaddon.ui.component.ButtonRow;
+import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
@@ -30,6 +31,8 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.function.Supplier;
 
 /**
  * 通用独立面板窗口：本项目全部「独立小窗口」的统一骨架。
@@ -65,6 +68,12 @@ public abstract class PanelScreen extends SkiaScreen {
     private static final float BACK_Y = 16f;
     private static final float TITLE_X = BACK_X + BackButton.SIZE + 12f;
     private static final float TITLE_Y = 27f;
+    private static final float TITLE_SIZE = 19f;
+    /** 副标题（模块说明）纵坐标与字号：与模块页 {@code ModuleScreen#SUBTITLE_Y} 同一档，两个窗口的标题区看起来是一套。 */
+    private static final float SUBTITLE_Y = 44f;
+    private static final float SUBTITLE_SIZE = 11f;
+    /** 副标题最多占用的宽度 = 内容宽 − 这个留白（与 {@code ModuleScreen} 同一算式） */
+    private static final float SUBTITLE_RESERVED_W = 120f;
     private static final float PAGE_INSET_X = 10f;
     /** 页面左右为滚动条等预留的宽度；子类要算「一行到底有多宽」时需要它（如整栏宽的搜索框）。 */
     protected static final float PAGE_RESERVED_W = 40f;
@@ -80,6 +89,8 @@ public abstract class PanelScreen extends SkiaScreen {
     private static final float ENTER_RISE = 16f;
 
     private final String windowTitle;
+    /** 副标题（窗口标题下方那行灰字）；null = 不画（多数面板窗口没有副标题）。 */
+    private Supplier<String> subtitle;
     private final CompactStack content = new CompactStack(LINE_GAP).enterAnimation(true);
     private final PanelFrame frame = new PanelFrame();
     private final ScrollViewport scroll = new ScrollViewport();
@@ -98,6 +109,19 @@ public abstract class PanelScreen extends SkiaScreen {
     }
 
     // ── 内容构建助手 ──
+
+    /**
+     * 设置标题下方那行说明（副标题）。控制台窗口用它显示**所属模块的说明**，与模块页标题下那行
+     * 同源同度量（{@code module::description}，位置 44、字号 11、次要文字色、超宽省略号）。
+     *
+     * <p><b>用户 2026-09-17 口径</b>：「控制台外面的模块标题下面有说明 但是控制台里面没有 修复一下
+     * 所有带控制台的都要」—— 9 个控制台一律调用本方法，说明文案不另写一份。</p>
+     *
+     * @param subtitle 说明来源；传 {@code null} 表示不显示（默认不显示）
+     */
+    protected final void setSubtitle(Supplier<String> subtitle) {
+        this.subtitle = subtitle;
+    }
 
     /** 内容容器；子类在此追加任意 {@link CompactElement}。 */
     protected final CompactStack content() {
@@ -210,6 +234,24 @@ public abstract class PanelScreen extends SkiaScreen {
         }
     }
 
+    /**
+     * 画标题下方那行说明（未调用 {@link #setSubtitle} 时什么都不画）。
+     *
+     * <p>度量与模块页副标题逐项相同（{@code ModuleScreen#drawHeader}）：x = 标题 x、y = {@link #SUBTITLE_Y}、
+     * 字号 {@link #SUBTITLE_SIZE}、次要文字色、超宽按 {@code contentW − SUBTITLE_RESERVED_W} 省略号截断，
+     * 保证「模块页 → 控制台」两处说明看起来是同一行字。</p>
+     */
+    private void drawSubtitle(Canvas canvas, float cardX, float cardY, float contentW, float alpha,
+                              ClickGuiThemeColors tc) {
+        if (subtitle == null) return;
+        String text = subtitle.get();
+        if (text == null || text.isEmpty()) return;
+        FontRenderer.drawText(canvas,
+                CardLayout.ellipsize(text, contentW - SUBTITLE_RESERVED_W, SUBTITLE_SIZE),
+                cardX + TITLE_X, cardY + SUBTITLE_Y, SUBTITLE_SIZE,
+                GlassPanel.withAlpha(tc.secondaryText, alpha));
+    }
+
     private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY) {
         TooltipLayer.beginFrame();
         long now = System.currentTimeMillis();
@@ -271,8 +313,9 @@ public abstract class PanelScreen extends SkiaScreen {
                 GlassPanel.ambientGlow(canvas, cardX, cardY, cardW, cardH, tc, alpha, 0.46f);
                 GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.26f);
                 backButton.draw(canvas, cardX + BACK_X, cardY + BACK_Y, alpha, tc, backVisible);
-                FontRenderer.drawTextBold(canvas, windowTitle, cardX + TITLE_X, cardY + TITLE_Y, 19f,
+                FontRenderer.drawTextBold(canvas, windowTitle, cardX + TITLE_X, cardY + TITLE_Y, TITLE_SIZE,
                         GlassPanel.withAlpha(tc.primaryText, alpha));
+                drawSubtitle(canvas, cardX, cardY, contentW, alpha, tc);
 
                 // 滚动偏移并入元素起点，不做画布平移——与既有 BasePage 体系一致
                 // （BasePage 的 onDraw/onClick 同样是「宿主把偏移算进 y」，避免两套滚动语义并存）

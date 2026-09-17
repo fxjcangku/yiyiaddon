@@ -1,6 +1,5 @@
 package com.yiyiaddon.feature.identity.ui;
 
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.model.identity.BlockIdentity;
 import com.yiyiaddon.model.identity.EntityIdentity;
@@ -11,11 +10,9 @@ import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.component.ButtonRow;
 import com.yiyiaddon.ui.component.CompactElement;
-import com.yiyiaddon.ui.component.KeybindBadge;
 import com.yiyiaddon.ui.component.ListRow;
 import com.yiyiaddon.ui.component.ListSection;
 import com.yiyiaddon.ui.component.ModuleRow;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.SearchRow;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
@@ -27,7 +24,6 @@ import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingTextBox;
-import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -115,13 +111,6 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
     // ── 构建 ──
 
     private void build() {
-        setHeader(new ModuleStatusBar(
-                () -> module.isEnabled() ? "运行中" : "未启用",
-                module::isEnabled,
-                new KeybindBadge(module.keybindId()),
-                new SettingToggle(module::isEnabled,
-                        value -> ModuleManager.setEnabled(module.id(), value))));
-
         // 头部动作区：旧项目面板的四个满宽按钮
         addCore(new ButtonRow(new Button("识别物品（主手→副手）", this::identifyItem)));
         addCore(new ButtonRow(new Button("识别准星方块", this::identifyBlock)));

@@ -6,7 +6,6 @@ import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.KeyValueRow;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.widget.SettingText;
 
 import java.util.List;
@@ -14,8 +13,10 @@ import java.util.List;
 /**
  * 模块独立页面占位实现。
  *
- * <p>模块尚未接入自己的 {@link ModulePage} 时使用本页，视觉与真实模块页保持同一套紧凑三段布局：
- * 顶部状态块、中间注册信息、底部接入提示。模块名与说明由所在屏幕的头部给出，此处不重复。</p>
+ * <p>模块尚未接入自己的 {@link ModulePage} 时使用本页，视觉与真实模块页保持同一套紧凑两段布局：
+ * 中间注册信息、底部接入提示。模块名与说明由所在屏幕的头部给出，此处不重复；
+ * 状态文字 / 快捷键徽章 / 模块开关三件已统一搬进各模块自己的控制台顶栏
+ * （用户 2026-09-17 口径），<b>模块页不再有顶部状态块</b>。</p>
  */
 public final class ModuleDetailPage extends CompactModulePage {
 
@@ -26,12 +27,6 @@ public final class ModuleDetailPage extends CompactModulePage {
     public ModuleDetailPage(ModuleEntry entry) {
         this.entry = entry;
         ModuleCategory category = CategoryRegistry.byId(entry.categoryId());
-
-        setHeader(new ModuleStatusBar(
-                () -> entry.enabled() ? "运行中" : "未启用",
-                entry::enabled,
-                null,
-                null));
 
         addCore(new CompactRow("模块 ID", null, new SettingText(entry::id, VALUE_WIDTH)));
         addCore(new CompactRow("英文名", null,

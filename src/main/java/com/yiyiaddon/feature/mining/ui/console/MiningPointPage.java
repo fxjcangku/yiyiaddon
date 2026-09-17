@@ -20,16 +20,20 @@ import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingColorPicker;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
+import com.yiyiaddon.ui.widget.SettingToggle;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
 
 /**
  * 自动挖矿控制台「点位」页：三点点位的绑定 / 删除 + 显示与颜色。
  *
  * <p><b>样式与星露谷点位页同款</b>（用户 2026-09-16 指令「自动挖矿箱子esp 点位 给我跟星露谷点位设置
  * 带我那个一样」）：小节标题行 → 2 列卡片网格 → 「清空全部点位」按钮 + 二次确认 →
- * 「显示与颜色」小节（三行颜色 + 一行字牌大小）→ 底部指令提示。卡片本体是公共件
+ * 「显示与颜色」小节（三行颜色 + 一行字牌大小 + 容器标签的字号倍率 / 文字颜色两行
+ * + 挖掘进度 ESP 的开关 / 两个颜色三行）→ 底部指令提示。卡片本体是公共件
  * {@link com.yiyiaddon.ui.console.PointCardGrid.PointCard}（由星露谷点位页抽出），卡片外观、
  * 等高口径与命中算法两处完全一致。</p>
  *
@@ -43,7 +47,8 @@ import java.util.List;
  *
  * <p><b>颜色与字牌大小接的是模块既有机制：</b>调色板关窗回调 {@code module::syncColorsToSettings}
  * （把载体 ARGB 写回 {@code settings.*Color} 并落盘，与自动箱子渲染页同一构造），
- * 字牌大小走 {@code module.persistSettings()}。</p>
+ * 字牌大小走 {@code module.persistSettings()}；容器标签的两项（字号倍率 / 文字颜色）同样只读写
+ * {@link MiningSettings} 并由 {@code persistSettings()} 落盘，不新增第二套持久化。</p>
  */
 public final class MiningPointPage {
 
@@ -57,11 +62,29 @@ public final class MiningPointPage {
     private static final String DESC_AFK_COLOR = "默认 (255,100,255)";
     private static final String NAME_ESP_SCALE = "ESP 字号倍率";
     private static final String DESC_ESP_SCALE = "默认 2.0";
+    private static final String NAME_CONTAINER_TEXT_SCALE = "容器标签字号倍率";
+    private static final String DESC_CONTAINER_TEXT_SCALE = "矿物箱/食物箱头顶文字在「ESP 字号倍率」之上再乘的系数（默认 1.0）";
+    private static final String NAME_CONTAINER_TEXT_COLOR = "容器标签文字颜色";
+    private static final String DESC_CONTAINER_TEXT_COLOR = "默认跟随各点位颜色";
+
+    // ── 「显示与颜色」里挖掘进度 ESP 三行（用户 2026-09-18 追加，独立开关 + 两个颜色） ──
+
+    private static final String NAME_BREAK_PROGRESS = "挖掘进度显示";
+    private static final String DESC_BREAK_PROGRESS = "自动挖矿时在被挖的方块上显示百分比 + 收缩框（纯显示，关掉不影响挖矿）";
+    private static final String NAME_BREAK_BUSY_COLOR = "挖掘进度颜色（挖掘中）";
+    private static final String DESC_BREAK_BUSY_COLOR = "默认 (204,32,32) 红";
+    private static final String NAME_BREAK_READY_COLOR = "挖掘进度颜色（已完成）";
+    private static final String DESC_BREAK_READY_COLOR = "默认 (32,204,80) 绿";
 
     /** 字号倍率取值域 / 步长（与设置默认值同一口径） */
     private static final double ESP_SCALE_MIN = 0.5;
     private static final double ESP_SCALE_MAX = 8.0;
     private static final double ESP_SCALE_STEP = 0.5;
+
+    /** 容器标签字号倍率取值域 / 步长（与 {@link MiningSettings#espContainerTextScale} 的读取裁剪同一口径） */
+    private static final double CONTAINER_TEXT_SCALE_MIN = 0.5;
+    private static final double CONTAINER_TEXT_SCALE_MAX = 4.0;
+    private static final double CONTAINER_TEXT_SCALE_STEP = 0.5;
 
     private final MiningConsoleScreen owner;
     private final AutoMinerModule module;
@@ -85,6 +108,11 @@ public final class MiningPointPage {
         stack.add(colorRow(NAME_FOOD_COLOR, DESC_FOOD_COLOR, module.foodColor()));
         stack.add(colorRow(NAME_AFK_COLOR, DESC_AFK_COLOR, module.afkColor()));
         stack.add(labelSizeRow());
+        stack.add(containerTextScaleRow());
+        stack.add(containerTextColorRow());
+        stack.add(breakProgressToggleRow());
+        stack.add(breakProgressColorRow(NAME_BREAK_BUSY_COLOR, DESC_BREAK_BUSY_COLOR, false));
+        stack.add(breakProgressColorRow(NAME_BREAK_READY_COLOR, DESC_BREAK_READY_COLOR, true));
         stack.add(new Note(owner, "§8也可以用指令：§f.wk 设置 … §8/ §f.wk 移除 …"));
     }
 
@@ -147,9 +175,11 @@ public final class MiningPointPage {
      *
      * <p>只传 {@code persistSettings} 是不行的：颜色还没同步进 {@code settings.*Color}，
      * 存下去的是旧值（与自动箱子渲染页同一构造）。</p>
+     *
+     * <p>行尾带可见提示（第 213 条）：色块本身只是纯色底，看不出能点。</p>
      */
     private ConsoleRow colorRow(String name, String description, EspColor color) {
-        return new ConsoleRow(owner, () -> name, description, null,
+        return new ConsoleRow(owner, () -> name, description, COMMENT_COLOR,
             List.of(new Ctl(new SettingColorPicker(name, color, module::syncColorsToSettings))));
     }
 
@@ -163,6 +193,84 @@ public final class MiningPointPage {
                 module.persistSettings();
             });
         return new ConsoleRow(owner, () -> NAME_ESP_SCALE, DESC_ESP_SCALE, null, List.of(new Ctl(box)));
+    }
+
+    /** 容器标签字号倍率：矿物箱/食物箱头顶文字在整体字号之上再乘的系数（改动落盘） */
+    private CompactElement containerTextScaleRow() {
+        MiningSettings settings = module.settings();
+        SettingNumberBox box = new SettingNumberBox(CONTAINER_TEXT_SCALE_MIN, CONTAINER_TEXT_SCALE_MAX,
+            CONTAINER_TEXT_SCALE_STEP, "%.1f",
+            () -> settings.espContainerTextScale,
+            value -> {
+                settings.espContainerTextScale = value;
+                module.persistSettings();
+            });
+        return new ConsoleRow(owner, () -> NAME_CONTAINER_TEXT_SCALE, DESC_CONTAINER_TEXT_SCALE, null,
+            List.of(new Ctl(box)));
+    }
+
+    /**
+     * 容器标签文字颜色：调色板改的是本行自带的临时载体，关窗时按「与打开时不同」判改动再写设置。
+     *
+     * <p><b>为什么要判改动</b>：设置项 {@code 0} 表示「跟随各点位颜色」（默认，观感与旧项目一致）。
+     * 调色板关窗一定会回调，若照三行点位颜色那样无条件写盘，「点开看一眼再关掉」就会把跟随态钉成固定色
+     * —— 那不是用户的操作意图。</p>
+     *
+     * <p>跟随态下色块显示矿物箱当前的颜色，作为「此刻文字主色」的可视锚点（两个容器颜色不同，
+     * 单一色块只能取其中一个代表）。</p>
+     */
+    private ConsoleRow containerTextColorRow() {
+        MiningSettings settings = module.settings();
+        int current = settings.espContainerTextColor;
+        EspColor carried = current != 0
+            ? new EspColor(current & 0xFFFFFF, (current >>> 24) & 0xFF)
+            : new EspColor(module.mineralColor().rgb(), module.mineralColor().alpha());
+        SettingColorPicker picker = new SettingColorPicker(NAME_CONTAINER_TEXT_COLOR, carried, () -> {
+            int picked = ((carried.alpha() & 0xFF) << 24) | (carried.rgb() & 0xFFFFFF);
+            if (picked == current) return;
+            settings.espContainerTextColor = picked;
+            module.persistSettings();
+        });
+        return new ConsoleRow(owner, () -> NAME_CONTAINER_TEXT_COLOR, DESC_CONTAINER_TEXT_COLOR, COMMENT_COLOR,
+            List.of(new Ctl(picker)));
+    }
+
+    /**
+     * 挖掘进度 ESP 独立开关（用户 2026-09-18）：默认开，纯显示项，关掉不影响秒破与挖矿行为。
+     *
+     * <p>与「秒破」开关刻意解耦：秒破关着也允许显示（此进度只反映正在被破坏的方块），
+     * 想安静时直接关这一行即可。</p>
+     */
+    private ConsoleRow breakProgressToggleRow() {
+        MiningSettings settings = module.settings();
+        SettingToggle toggle = new SettingToggle(() -> settings.breakProgressEsp, value -> {
+            settings.breakProgressEsp = value;
+            module.persistSettings();
+        });
+        return new ConsoleRow(owner, () -> NAME_BREAK_PROGRESS, DESC_BREAK_PROGRESS, null, List.of(new Ctl(toggle)));
+    }
+
+    /**
+     * 挖掘进度框颜色（{@code ready=false} 挖掘中 / {@code true} 已完成）。
+     *
+     * <p>设置项存 <b>RGB</b>，透明度由渲染层固定（面 40 / 描边 255），所以这里把调色板的 alpha 丢掉
+     * —— 否则用户把 alpha 调到 0 会得到一个看不见的进度框。</p>
+     */
+    private ConsoleRow breakProgressColorRow(String name, String description, boolean ready) {
+        MiningSettings settings = module.settings();
+        int current = ready ? settings.breakProgressReadyColor : settings.breakProgressBusyColor;
+        EspColor carried = new EspColor(current & 0xFFFFFF, 255);
+        SettingColorPicker picker = new SettingColorPicker(name, carried, () -> {
+            int picked = carried.rgb() & 0xFFFFFF;
+            if (picked == current) return;
+            if (ready) {
+                settings.breakProgressReadyColor = picked;
+            } else {
+                settings.breakProgressBusyColor = picked;
+            }
+            module.persistSettings();
+        });
+        return new ConsoleRow(owner, () -> name, description, COMMENT_COLOR, List.of(new Ctl(picker)));
     }
 
     /** 执行后直接回到游戏（旧项目 {@code mc.setScreen(null)}） */

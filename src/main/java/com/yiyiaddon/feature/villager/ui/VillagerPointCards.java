@@ -1,6 +1,5 @@
 package com.yiyiaddon.feature.villager.ui;
 
-import com.yiyiaddon.feature.villager.AutoVillagerTradeModule;
 import com.yiyiaddon.feature.villager.command.CunminCommand;
 import com.yiyiaddon.feature.villager.repository.VillagerBindingStore;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
@@ -14,8 +13,12 @@ import net.minecraft.world.level.Level;
 import java.util.List;
 
 /**
- * 自动村民交易两张点位卡的唯一构建处：模块页与控制台（点位页）共用同一份数据与同一套按钮行为
+ * 自动村民交易两张点位卡的唯一构建处：控制台「点位」页用它铺两张卡
  * （旧 {@code AutoVillagerTradeModule.buildLocationCard :770-826} 逐字换壳）。
+ *
+ * <p><b>模块页不再摆这两张卡</b>（用户 2026-09-17：「控制台里面已经有点位了 为什么控制台外面还有」）：
+ * 旧项目把卡挂在配置页，本项目点位统一由控制台承载，故本类只被
+ * {@code VillagerPointPage} 调用一处，不存在两份卡片。</p>
  *
  * <p><b>用户交互资产（逐字，禁止改写）</b>：标题 {@code 绿宝石箱}（{@code §a}）/
  * {@code 成品交易箱}（{@code §6}）（旧 {@code :780-783}）、未绑定两行 {@code §8暂未绑定} /
@@ -51,16 +54,6 @@ public final class VillagerPointCards {
         return List.of(
             card("绿宝石箱", KEY_EMERALD, "§a"),
             card("成品交易箱", KEY_UNLOAD, "§6"));
-    }
-
-    /**
-     * 与 {@code FarmPointCards.all(module)} 同形签名的重载，供控制台按同一写法调用。
-     *
-     * <p>村民两箱绑定不在模块实例上（见类注释），参数只用于与既有调用点保持一致的写法，
-     * 不读模块的任何状态；两张卡与 {@link #all()} 完全同一份实现，不是第二套卡片。</p>
-     */
-    public static List<PointCardGrid.PointCard> all(AutoVillagerTradeModule module) {
-        return all();
     }
 
     /**

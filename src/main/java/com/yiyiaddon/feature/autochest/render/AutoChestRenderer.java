@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.autochest.render;
 import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.autochest.config.AutoChestSettings;
 import com.yiyiaddon.model.autochest.ChestTarget;
+import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
@@ -38,6 +39,8 @@ public final class AutoChestRenderer {
 
     /** 每帧渲染（由模块注册到世界渲染层驱动） */
     public void render(EspRenderer renderer) {
+        // 全局「各模块 ESP」总闸（用户 2026-09-18）：与模块自己的 renderEsp 是「全局优先」关系
+        if (!EspGlobalSettings.get().layerEnabled(EspGlobalSettings.Layer.AUTO_CHEST)) return;
         AutoChestSettings settings = module.settings();
         if (!settings.renderEsp) return;
         if (mc.player == null || mc.level == null) return;

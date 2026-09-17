@@ -17,6 +17,7 @@ import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.console.ConsoleHeaderBar;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
@@ -129,6 +130,8 @@ public final class EnchantConsoleScreen extends PanelScreen implements ConsoleHo
     public EnchantConsoleScreen(Screen parent, EnchantModule module) {
         super("自动附魔控制台", parent);
         this.module = module;
+        // 标题下的模块说明：与模块页标题下那行同源（用户 2026-09-17 口径：控制台里也要有说明）
+        setSubtitle(module::description);
         // 先同步页签再建正文：第一次打开时页签还不存在，不同步就会画出一排空页签
         syncTabs();
         content().add(body);
@@ -273,6 +276,8 @@ public final class EnchantConsoleScreen extends PanelScreen implements ConsoleHo
     // ── 页面装配 ──
 
     private void buildInto(CompactStack stack) {
+        // 顶栏：状态文字 / 快捷键徽章 / 模块开关，压缩右对齐（用户 2026-09-17 口径；模块页那条已撤掉）
+        stack.add(new ConsoleHeaderBar(module));
         stack.add(new StatusStrip());
         buildTabs(stack);
 
@@ -378,22 +383,9 @@ public final class EnchantConsoleScreen extends PanelScreen implements ConsoleHo
         }
 
         private void drawCell(Canvas canvas, String text, float x, float y, float maxWidth, float alpha) {
-            MinecraftText.draw(canvas, fit(text, maxWidth), x,
+            MinecraftText.draw(canvas, MinecraftText.fit(text, TEXT_SIZE, maxWidth), x,
                 CardLayout.baseline(y + ROW_HEIGHT / 2f, TEXT_SIZE),
                 TEXT_SIZE, ClickGuiThemeColors.current().primaryText, alpha);
-        }
-
-        /** 按可见宽度截断（保留颜色码），超宽补省略号；测量不含颜色码字符 */
-        private static String fit(String text, float maxWidth) {
-            if (text == null || text.isEmpty()) return "";
-            if (maxWidth <= 0f) return "";
-            if (MinecraftText.measure(text, TEXT_SIZE, false) <= maxWidth) return text;
-            for (int end = text.length() - 1; end > 0; end--) {
-                if (text.charAt(end - 1) == '§') continue; // 不要把颜色码切一半
-                String candidate = text.substring(0, end) + "…";
-                if (MinecraftText.measure(candidate, TEXT_SIZE, false) <= maxWidth) return candidate;
-            }
-            return "…";
         }
 
         @Override

@@ -88,7 +88,8 @@ public final class KillAuraGeneralPage {
         // 武器白名单：只在「持械攻击 = 武器」时加入（对应蓝本 .visible(attackWhenHolding == Weapons)）
         if (settings.attackWhenHolding == AttackItems.WEAPONS) {
             stack.add(listRow(KillAuraTexts.NAME_WEAPONS, KillAuraTexts.DESC_WEAPONS,
-                this::weaponStatusText, this::openWeaponSelector, this::clearWeapons));
+                this::weaponStatusText, this::openWeaponSelector, this::clearWeapons,
+                () -> module.settings().weapons.isEmpty()));
         }
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_ROTATION,
@@ -131,15 +132,18 @@ public final class KillAuraGeneralPage {
     /**
      * 名单行（行样式照星露谷 / 挖矿控制台页）：名称 + 说明 …… [点击选择] [状态文字] [↻]。
      *
-     * <p>↻ 的图标与动作与星露谷一致——清空本行已选，空则静默。</p>
+     * <p>↻ 的图标与动作与星露谷一致——清空本行已选；{@code empty} 为空态判据（与清空动作读同一份
+     * 名单），空态时按钮为禁用态。</p>
      */
     private CompactElement listRow(String title, String description, Supplier<String> status,
-                                   Runnable open, Runnable reset) {
+                                   Runnable open, Runnable reset, Supplier<Boolean> empty) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
             // 列宽走共用固定列：按当前文案各自量宽会把「点击选择」顶着左右浮动
             new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
-            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
+            // 空态禁用：判据与 clearWeapons() 读同一份名单，逐帧求值见 IconButton#disabledWhen(Supplier)
+            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset).disabledWhen(empty),
+                "清空本行已选" + title)));
     }
 
     /** 开关行：改动落盘；{@code reload} 为真时重建本页（下一行的可见性依赖它） */
@@ -181,21 +185,37 @@ public final class KillAuraGeneralPage {
     // ── 武器白名单（候选 / 选择器 / 显示名） ──
 
     /**
-     * 武器白名单候选：蓝本 {@code FILTER}（{@code KillAura.java:264}）的 8 个登记 ID，显示名用物品的
-     * hoverName。候选表惰性构建并缓存（提前取会把翻译键缓存进静态表），且必须在用户点开选择器时
-     * 才取——页面可能在客户端初始化阶段被构造。
+     * 武器白名单候选：蓝本 {@code FILTER}（{@code KillAura.java:264}）的 8 个登记 ID。
+     *
+     * <p><b>显示名与图标走 {@link KillAuraTexts#WEAPON_LABELS}</b>（用户 2026-09-17 口径）：
+     * 名字是**类别**（剑 / 斧 / 镐 / 锹 / 锄 / 重锤 / 矛 / 三叉戟），不再写「钻石剑」这种品质名
+     * ——键仍是原登记 ID，匹配照旧走物品标签（{@code KillAuraModule#acceptableWeapon}），
+     * 所以拿任何品质的同类别武器都算命中；图标统一贴下界合金品质（重锤 / 三叉戟用原物品），
+     * 图标 ID 解析不到时退回该键自身的物品。</p>
+     *
+     * <p>候选表惰性构建并缓存（提前取会把翻译键缓存进静态表），且必须在用户点开选择器时才取
+     * ——页面可能在客户端初始化阶段被构造。</p>
      */
     public static List<SelectorScreen.Entry> weaponCandidates() {
         if (weaponEntries == null) {
             List<SelectorScreen.Entry> entries = new ArrayList<>();
             for (String itemId : KillAuraSettings.WEAPON_FILTER) {
-                Identifier id = Identifier.tryParse(itemId);
-                Item item = id == null ? null : BuiltInRegistries.ITEM.getValue(id);
-                if (item != null) entries.add(new WeaponEntry(itemId, item));
+                Item item = itemOf(itemId);
+                if (item == null) continue;
+                KillAuraTexts.WeaponLabel label = KillAuraTexts.weaponLabel(itemId);
+                String name = label == null ? item.getDefaultInstance().getHoverName().getString() : label.label();
+                Item icon = label == null ? null : itemOf(label.iconId());
+                entries.add(new WeaponEntry(itemId, name, icon == null ? item : icon));
             }
             weaponEntries = List.copyOf(entries);
         }
         return weaponEntries;
+    }
+
+    /** 按登记 ID 解析物品；解析不到返回 {@code null} */
+    private static Item itemOf(String itemId) {
+        Identifier id = Identifier.tryParse(itemId);
+        return id == null ? null : BuiltInRegistries.ITEM.getValue(id);
     }
 
     /** 候选总数（= 蓝本 FILTER 的 8 项）：不触发候选表构建 */
@@ -203,10 +223,18 @@ public final class KillAuraGeneralPage {
         return KillAuraSettings.WEAPON_FILTER.size();
     }
 
-    /** 武器显示名（登记 ID → 物品 hoverName；认不出的 ID 原样显示，不猜） */
+    /**
+     * 武器显示名（登记 ID → **类别名**，用户 2026-09-17 口径）。
+     *
+     * <p>名单上写的是「剑 / 斧 / 三叉戟」这种类别，不写「钻石剑」——玩家手里是下界合金剑时，
+     * 写品质会让人以为「只认钻石剑」（其实按物品标签匹配，任何品质都吃）。
+     * 不在 {@link KillAuraTexts#WEAPON_LABELS} 里的 ID（老配置里的自定义项）回退物品 hoverName，
+     * 连物品都认不出就原样显示 ID，不猜。</p>
+     */
     public static String weaponDisplayName(String itemId) {
-        Identifier id = Identifier.tryParse(itemId);
-        Item item = id == null ? null : BuiltInRegistries.ITEM.getValue(id);
+        KillAuraTexts.WeaponLabel label = KillAuraTexts.weaponLabel(itemId);
+        if (label != null) return label.label();
+        Item item = itemOf(itemId);
         return item == null ? itemId : item.getDefaultInstance().getHoverName().getString();
     }
 
@@ -243,12 +271,19 @@ public final class KillAuraGeneralPage {
         persist();
     }
 
-    /** 武器候选条目：贴图走物品图标缓存（与挖矿 / 身份选择器同一形态） */
-    private record WeaponEntry(String key, Item item) implements SelectorScreen.Entry {
+    /**
+     * 武器候选条目：名字是类别名（剑 / 斧 / …），图标是下界合金品质的代表物品
+     * （贴图走物品图标缓存，与挖矿 / 身份选择器同一形态）。
+     *
+     * @param key  落盘用的登记 ID（匹配判据，永远是蓝本 FILTER 里那一份）
+     * @param name 列表上显示的名字（类别名）
+     * @param icon 贴图用的物品
+     */
+    private record WeaponEntry(String key, String name, Item icon) implements SelectorScreen.Entry {
 
         @Override
         public String title() {
-            return item.getDefaultInstance().getHoverName().getString();
+            return name;
         }
 
         @Override
@@ -258,7 +293,7 @@ public final class KillAuraGeneralPage {
 
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
-            return ItemIconCache.getInstance().draw(canvas, item.getDefaultInstance(), x, y, size);
+            return ItemIconCache.getInstance().draw(canvas, icon.getDefaultInstance(), x, y, size);
         }
     }
 }

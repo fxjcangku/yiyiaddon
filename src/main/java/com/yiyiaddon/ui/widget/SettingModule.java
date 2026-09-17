@@ -458,7 +458,7 @@ public class SettingModule {
 
     public void draw(Canvas canvas, float x, float y, float contentW, float alpha, float viewportTop, float viewportBottom, float mouseX, float mouseY) {
         ModuleKeybindManager.registerModule(this);
-        drawStaticContent(canvas, x, y, contentW, alpha, viewportTop, viewportBottom, expandProgress);
+        drawStaticContent(canvas, x, y, contentW, alpha, viewportTop, viewportBottom, expandProgress, mouseX, mouseY);
         // 紧凑模式的表头说明走悬停浮层；子项稍后登记，鼠标在子项上时后者覆盖前者（同一帧只留最后一条）
         if (compactLayout() && mouseY >= y && mouseY <= y + headerHeight()
                 && mouseX >= x && mouseX <= x + contentW) {
@@ -569,7 +569,7 @@ public class SettingModule {
         boolean bound = ModuleKeybindManager.hasBinding(id);
         boolean capturing = ModuleKeybindManager.isCapturing(id);
         keybindHover += ((hovered ? 1f : 0f) - keybindHover) * 0.2f;
-        keybindRed += ((bound && hovered && !capturing && !ModuleKeybindManager.ACTION_CLICK_GUI.equals(id) ? 1f : 0f) - keybindRed) * 0.2f;
+        keybindRed += ((bound && hovered && !capturing ? 1f : 0f) - keybindRed) * 0.2f;
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         int baseGray = tc.keybindBackground;
         int hoverGray = tc.keybindHoverBackground;
@@ -610,7 +610,7 @@ public class SettingModule {
         FontRenderer.drawText(canvas, icon, x + (width - iconW) / 2f, y + KEYBIND_H / 2f + 6.2f, 12f, withAlpha(0xFFFFFF, alpha), FontRenderer.MATERIAL_SYMBOLS);
     }
 
-    private void drawStaticContent(Canvas canvas, float x, float y, float contentW, float alpha, float viewportTop, float viewportBottom, float progress) {
+    private void drawStaticContent(Canvas canvas, float x, float y, float contentW, float alpha, float viewportTop, float viewportBottom, float progress, float mouseX, float mouseY) {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float rowAlpha = ClickGuiThemeColors.panelBackgroundAlpha(alpha);
         float headH = headerHeight();
@@ -634,8 +634,18 @@ public class SettingModule {
             FontRenderer.drawTextBold(canvas, label, x + PAD_X, y + headH / 2f + 5f, 14f,
                     withAlpha(tc.primaryText, alpha));
         } else {
-            FontRenderer.drawTextBold(canvas, title, x + PAD_X, y + 24f, 14f, withAlpha(tc.primaryText, alpha));
-            FontRenderer.drawText(canvas, subtitle, x + PAD_X, y + 43f, 11f, withAlpha(tc.labelTertiary, alpha));
+            // 经典表头也要与右侧控件分栏：标题 / 说明原来无宽度上限，长文案会一路铺到控件底下
+            // （控件在垂向上与两行文字重叠，量到就是「字压在按钮上」）。标题优先整份显示，同图标行。
+            float textW = Math.max(24f, rowTextRight(x, contentW) - (x + PAD_X));
+            float titleMax = Math.min(FontRenderer.measureTextWidthBold(title, 14f), textW);
+            String titleText = CardLayout.ellipsize(title, titleMax, 14f);
+            String descText = subtitle == null ? "" : CardLayout.ellipsize(subtitle, textW, 11f);
+            FontRenderer.drawTextBold(canvas, titleText, x + PAD_X, y + 24f, 14f, withAlpha(tc.primaryText, alpha));
+            FontRenderer.drawText(canvas, descText, x + PAD_X, y + 43f, 11f, withAlpha(tc.labelTertiary, alpha));
+            if (mouseX >= x && mouseX <= x + contentW && mouseY >= y && mouseY <= y + headH) {
+                String hint = truncatedHint(title, titleText, subtitle, descText);
+                if (hint != null) TooltipLayer.show(hint, mouseX, mouseY);
+            }
         }
         // 紧凑模式的子项底板由 drawCompactCells 画（它同时还要画控件与标题），这里只画经典模式的
         if (progress > 0.01f && !compactLayout()) {
@@ -648,12 +658,7 @@ public class SettingModule {
                     GlassPanel.frost(canvas, x + 8f, sy, contentW - 8f, SUB_H - 6f, 12f, tc.subModule, 0.55f,
                             ClickGuiThemeColors.panelBackgroundAlpha(subAlpha));
                     GlassPanel.rim(canvas, x + 8f, sy, contentW - 8f, SUB_H - 6f, 12f, tc.rim, subAlpha, 0.05f);
-                    if (sub.subtitle == null || sub.subtitle.isEmpty()) {
-                        FontRenderer.drawText(canvas, sub.title, x + PAD_X + 8f, sy + (SUB_H - 6f) / 2f + 4.5f, 13f, withAlpha(tc.subModuleText, subAlpha));
-                    } else {
-                        FontRenderer.drawText(canvas, sub.title, x + PAD_X + 8f, sy + 16f, 13f, withAlpha(tc.subModuleText, subAlpha));
-                        FontRenderer.drawText(canvas, sub.subtitle, x + PAD_X + 8f, sy + 30f, 11f, withAlpha(tc.labelTertiary, subAlpha));
-                    }
+                    drawClassicSubText(canvas, x, sy, contentW, 8f, sub, subAlpha, mouseX, mouseY);
                     if (sub.group && sub.hasVisibleChildren()) {
                         String arrow = sub.childProgress > 0.5f ? ARROW_EXPANDED : ARROW_COLLAPSED;
                         float aw = FontRenderer.measureTextWidth(arrow, 12f, FontRenderer.MATERIAL_SYMBOLS);
@@ -670,12 +675,7 @@ public class SettingModule {
                             GlassPanel.frost(canvas, x + 16f, sy, contentW - 16f, SUB_H - 6f, 12f, tc.subModule, 0.55f,
                                     ClickGuiThemeColors.panelBackgroundAlpha(subAlpha));
                             GlassPanel.rim(canvas, x + 16f, sy, contentW - 16f, SUB_H - 6f, 12f, tc.rim, subAlpha, 0.05f);
-                            if (child.subtitle == null || child.subtitle.isEmpty()) {
-                                 FontRenderer.drawText(canvas, child.title, x + PAD_X + 16f, sy + (SUB_H - 6f) / 2f + 4.5f, 13f, withAlpha(tc.subModuleText, subAlpha));
-                            } else {
-                                FontRenderer.drawText(canvas, child.title, x + PAD_X + 16f, sy + 16f, 13f, withAlpha(tc.subModuleText, subAlpha));
-                                FontRenderer.drawText(canvas, child.subtitle, x + PAD_X + 16f, sy + 30f, 11f, withAlpha(tc.labelTertiary, subAlpha));
-                            }
+                            drawClassicSubText(canvas, x, sy, contentW, 16f, child, subAlpha, mouseX, mouseY);
                         }
                         sy += SUB_H;
                     }
@@ -746,6 +746,63 @@ public class SettingModule {
     }
 
     /**
+     * 经典子项的两行文字（标题 + 灰色说明），必要时截断并登记悬停浮层。
+     *
+     * <p><b>为什么必须限宽：</b>这两行原来是「从行内左缩进起、不设上限」直接画的，说明稍长就一路铺到
+     * 右侧控件底下——实机看到的是「说明文字钻进数字框 / 开关 / 循环框里，一直压到按钮下面」。
+     * 现在按右侧控件的左边界截断，被省略的原文交给悬停浮层，口径同 {@link ModuleRow}：
+     * <b>省略号必须配全文</b>，不出现「只剩省略号、看不到内容」。</p>
+     *
+     * <p>宽度每帧现算（控件宽度是动态的），表达式与 {@link #draw} 摆控件用的是同一组；
+     * 左边界、基线、字号与改动前逐字一致，本轮只补一个右边界。</p>
+     *
+     * @param indent 行内缩进：子项 8、子项的子项 16（与底板缩进同源）
+     */
+    private void drawClassicSubText(Canvas canvas, float x, float sy, float contentW, float indent,
+                                    SubEntry sub, float alpha, float mouseX, float mouseY) {
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        float textX = x + indent + PAD_X;
+        float textW = classicTextWidth(contentW, sub, indent);
+        String titleText = CardLayout.ellipsize(sub.title, textW, 13f);
+        String descText = sub.subtitle == null ? "" : CardLayout.ellipsize(sub.subtitle, textW, 11f);
+        if (descText.isEmpty()) {
+            FontRenderer.drawText(canvas, titleText, textX, sy + (SUB_H - 6f) / 2f + 4.5f, 13f,
+                    withAlpha(tc.subModuleText, alpha));
+        } else {
+            FontRenderer.drawText(canvas, titleText, textX, sy + 16f, 13f, withAlpha(tc.subModuleText, alpha));
+            FontRenderer.drawText(canvas, descText, textX, sy + 30f, 11f, withAlpha(tc.labelTertiary, alpha));
+        }
+        if (mouseX < x || mouseX > x + contentW || mouseY < sy || mouseY > sy + SUB_H - 6f) return;
+        String hint = truncatedHint(sub.title, titleText, sub.subtitle, descText);
+        if (hint != null) TooltipLayer.show(hint, mouseX, mouseY);
+    }
+
+    /**
+     * 经典子项里文字可用的宽度（相对页面内容左边界）：从行内缩进 + {@link #PAD_X} 起，
+     * 到右侧控件（或分组展开箭头）的左边再让出 {@link #LABEL_GAP}。
+     */
+    private static float classicTextWidth(float contentW, SubEntry sub, float indent) {
+        float right;
+        if (sub.group && sub.hasVisibleChildren()) {
+            // 分组行的右端是展开箭头而不是控件：按箭头的左边界让位（表达式同 drawStaticContent 里的箭头）
+            right = contentW - EXPAND_ARROW_INSET
+                    - FontRenderer.measureTextWidth(ARROW_COLLAPSED, EXPAND_ARROW_SIZE, FontRenderer.MATERIAL_SYMBOLS);
+        } else {
+            right = contentW - PAD_X;
+        }
+        if (sub.widget != null) right -= sub.widget.getWidth();
+        return Math.max(40f, right - LABEL_GAP - (indent + PAD_X));
+    }
+
+    /** 悬停浮层文案：标题或说明被省略时给出全文；两者都完整时返回 {@code null}（没有要补的内容）。 */
+    private static String truncatedHint(String title, String shownTitle, String subtitle, String shownDesc) {
+        boolean titleCut = title != null && !title.isEmpty() && !title.equals(shownTitle);
+        boolean descCut = subtitle != null && !subtitle.isEmpty() && !subtitle.equals(shownDesc);
+        if (!titleCut) return descCut ? subtitle : null;
+        return descCut ? title + "\n§7" + subtitle : title;
+    }
+
+    /**
      * 紧凑模式下某个子项控件的摆放框。
      *
      * <p>绘制与命中读同一份几何——紧凑模式最典型的 bug 就是「看到的」与「点到的」错开一行，
@@ -776,7 +833,9 @@ public class SettingModule {
                 float keybindX = widgetX - 8f - keybindWidth;
                 float keybindY = y + (headerHeight() - KEYBIND_H) / 2f + 1.5f;
                 if (mx >= keybindX && mx <= keybindX + keybindWidth && my >= keybindY && my <= keybindY + KEYBIND_H) {
-                    if (ModuleKeybindManager.hasBinding(id) && !ModuleKeybindManager.ACTION_CLICK_GUI.equals(id)) {
+                    // 已绑定的按一下就是清空（与模块页徽章同一套交互；界面快捷键同样可清，
+                    // 判据见 ModuleKeybindManager 的显式清空标记）
+                    if (ModuleKeybindManager.hasBinding(id)) {
                         ModuleKeybindManager.clearBinding(id);
                     } else {
                         ModuleKeybindManager.beginCapture(id);

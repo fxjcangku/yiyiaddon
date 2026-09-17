@@ -7,9 +7,11 @@ import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -38,6 +40,19 @@ public final class ModuleKeybindManager {
     private static final Map<String, Integer> KEYBINDS = new LinkedHashMap<>();
     private static final Map<String, SettingModule> MODULES = new LinkedHashMap<>();
     private static final Map<String, Boolean> LAST_DOWN = new LinkedHashMap<>();
+
+    /**
+     * 「显式清空」标记值：写在持久化串里表示玩家主动解绑过这一项。
+     *
+     * <p>缺了它分不清「从未绑定」与「已清空」——读盘时会给没绑的项套默认键
+     * （{@link #applyDefaultBindings()}），清空就会在下次启动被悄悄撤销（第 214 条：
+     * 能取消的东西必须真的取消得掉）。取值用 {@code GLFW_KEY_UNKNOWN}（-1），
+     * 与鼠标编码（{@code KeyInputs.MOUSE_KEY_OFFSET} 起）不冲突。</p>
+     */
+    private static final int CLEARED_MARK = GLFW.GLFW_KEY_UNKNOWN;
+
+    /** 被玩家显式清空、禁止再套默认键的键位 id */
+    private static final Set<String> CLEARED = new HashSet<>();
 
     /** 每刻遍历用的键名快照；绑定变化时失效重建，避免逐刻分配 */
     private static volatile String[] tickIds;
@@ -91,6 +106,7 @@ public final class ModuleKeybindManager {
         String id = captureId;
         captureId = "";
         if (key == GLFW.GLFW_KEY_UNKNOWN) return true;
+        CLEARED.remove(id);
         if (isModuleBinding(id)) {
             ModuleKeybindStore store = moduleStore;
             if (store != null) store.bind(id, key);
@@ -119,17 +135,23 @@ public final class ModuleKeybindManager {
             invalidateTickIds();
             return true;
         }
-        boolean removed = KEYBINDS.remove(id) != null;
+        KEYBINDS.remove(id);
         LAST_DOWN.remove(id);
-        if (removed) saveBindings();
+        // 记下「显式清空」：不记的话下次启动 applyDefaultBindings() 会把默认键套回来，
+        // 界面快捷键这种有默认值的项就等于清不掉（第 214 条）
+        CLEARED.add(id);
+        saveBindings();
         invalidateTickIds();
-        return removed;
+        // 即使原本没有绑定（例如有默认值的项），这次调用本身也算「已处理」，故恒为 true
+        return true;
     }
 
     /** 清空界面快捷键并恢复默认；模块快捷键不在此范围内 */
     public static void clearAll(boolean save) {
         KEYBINDS.clear();
         LAST_DOWN.clear();
+        // 「重置界面设置」要的正是回默认：连显式清空标记一起抹掉，默认键才会重新套上
+        CLEARED.clear();
         captureId = "";
         applyDefaultBindings();
         storeBindings();
@@ -213,7 +235,13 @@ public final class ModuleKeybindManager {
                 if (split <= 0 || split >= entry.length() - 1) continue;
                 try {
                     int key = Integer.parseInt(entry.substring(split + 1));
-                    if (key != GLFW.GLFW_KEY_UNKNOWN) KEYBINDS.put(entry.substring(0, split), key);
+                    String id = entry.substring(0, split);
+                    if (key == CLEARED_MARK) {
+                        // 玩家主动清空过：记下标记，别在 applyDefaultBindings() 里把默认键套回来
+                        CLEARED.add(id);
+                    } else if (key != GLFW.GLFW_KEY_UNKNOWN) {
+                        KEYBINDS.put(id, key);
+                    }
                 } catch (NumberFormatException ignored) {
                 }
             }
@@ -223,7 +251,9 @@ public final class ModuleKeybindManager {
     }
 
     private static void applyDefaultBindings() {
-        KEYBINDS.putIfAbsent(ACTION_CLICK_GUI, GLFW.GLFW_KEY_RIGHT_SHIFT);
+        if (CLEARED.contains(ACTION_CLICK_GUI)) return;
+        // 默认打开键：G（用户 2026-09-17 指令；此前自建默认是右键 Shift）
+        KEYBINDS.putIfAbsent(ACTION_CLICK_GUI, GLFW.GLFW_KEY_G);
     }
 
     private static void saveBindings() {
@@ -236,6 +266,12 @@ public final class ModuleKeybindManager {
         for (Map.Entry<String, Integer> entry : KEYBINDS.entrySet()) {
             if (out.length() > 0) out.append(';');
             out.append(entry.getKey()).append('=').append(entry.getValue());
+        }
+        // 显式清空的项写成 {@code CLEARED_MARK}（-1），读盘时据此跳过默认键套用
+        for (String id : CLEARED) {
+            if (KEYBINDS.containsKey(id)) continue;
+            if (out.length() > 0) out.append(';');
+            out.append(id).append('=').append(CLEARED_MARK);
         }
         AddonConfig.moduleKeybinds = out.toString();
     }

@@ -18,6 +18,9 @@ import com.yiyiaddon.ui.widget.SettingToggle;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_CYCLE;
+
 /**
  * 控制台「设置」页：16 个可视静态项按旧项目四个分组展开
  * （分组名与默认收起状态逐字照旧项目，见 51 号第二节）。
@@ -79,11 +82,11 @@ public final class FarmSettingsPage {
         AutoFarmSettings settings = module.settings();
         FoldSection section = new FoldSection("运行参数", "settings:logistics", host.collapsedSections());
 
-        // 收割模式（旧 onChanged 的中文提示保留：切换即播报）
+        // 收割模式（旧 onChanged 的中文提示保留：切换即播报）；行尾可见提示见第 213 条
         section.content().add(new ConsoleRow(host,
             () -> "收割模式",
             "单个收割：每次只处理一个成熟目标；批量收割：一次性锁定全部成熟目标瞬间暴力破坏",
-            null,
+            COMMENT_CYCLE,
             List.of(new Ctl(cycleOf(HarvestMode.values(), () -> settings.harvestMode.ordinal(),
                 index -> {
                     settings.harvestMode = HarvestMode.values()[index];
@@ -93,7 +96,7 @@ public final class FarmSettingsPage {
         section.content().add(new ConsoleRow(host,
             () -> "补种模式",
             "顺序优先：按作物枚举顺序种满一种再种下一种；均匀轮转：启用作物轮流种保持均衡；就近跟随：空耕地种回周围已有作物的同类，保持混种分区",
-            null,
+            COMMENT_CYCLE,
             List.of(new Ctl(cycleOf(PlantMode.values(), () -> settings.plantMode.ordinal(),
                 index -> {
                     settings.plantMode = PlantMode.values()[index];
@@ -161,9 +164,9 @@ public final class FarmSettingsPage {
             }))));
     }
 
-    /** 颜色行：调色板直接改传入的 EspColor，关闭窗口即生效（第 151 条），改动即写盘 */
+    /** 颜色行：调色板直接改传入的 EspColor，关闭窗口即生效（第 151 条），改动即写盘；行尾带可见提示（第 213 条） */
     private ConsoleRow colorRow(String label, com.yiyiaddon.ui.render.world.EspColor color) {
-        return new ConsoleRow(host, () -> label, null, null,
+        return new ConsoleRow(host, () -> label, null, COMMENT_COLOR,
             List.of(new Ctl(new SettingColorPicker(label, color, module::persistSettings))));
     }
 

@@ -27,10 +27,24 @@ import java.util.Set;
  *       "启用": true,
  *       "快捷键": 82,
  *       "设置": { "识别模式": "自动保存" }
+ *     },
+ *     "mining": {
+ *       "启用": false,
+ *       "设置": { ...全局模板（同时是新服务器 / 新存档的初始值）... },
+ *       "服务器设置": {
+ *         "server_520mc.cc_25565": { ...这台服务器自己的一套... },
+ *         "singleplayer_新的世界 (1)": { ...这个单人存档自己的一套... }
+ *       }
  *     }
  *   }
  * }
  * </pre>
+ *
+ * <p><b>服务器设置</b>（用户 2026-09-18 要求：自动挖矿的设置按服务器隔离）只对声明了隔离键的模块
+ * （{@code Module#settingsScope()} 非 {@code null}）出现；未声明的模块永远只有 {@code 设置} 一个桶，
+ * 行为与旧档完全一致。读取口径见 {@link #settingsOf(String, String)}：
+ * <b>该键没有独立记录时回落全局模板</b>，保证新服务器 / 新存档继承玩家最近用的一套配置，
+ * 升级到本版本也不会丢已有配置。</p>
  *
  * <p>容错：文件缺失按全部未启用处理；文件损坏按默认值处理且不删除原文件；字段缺失或类型不符
  * 按该字段默认值处理。任何情况都不阻断客户端启动。</p>
@@ -43,6 +57,8 @@ public final class ModuleStateConfig {
     private static final String KEY_ENABLED = "启用";
     private static final String KEY_KEYBIND = "快捷键";
     private static final String KEY_SETTINGS = "设置";
+    /** 按隔离键分区的设置容器（服务器 / 单人存档各一套，只对声明了隔离键的模块出现） */
+    private static final String KEY_SETTING_SCOPES = "服务器设置";
 
     /** 模块 ID → 原始记录对象；未写入过的模块不出现在这里 */
     private static final Map<String, JsonObject> RECORDS = new LinkedHashMap<>();
@@ -146,6 +162,47 @@ public final class ModuleStateConfig {
     public static synchronized void putSettings(String moduleId, JsonObject settings) {
         if (settings == null) return;
         record(moduleId).add(KEY_SETTINGS, settings.deepCopy());
+    }
+
+    // ── 模块设置：按隔离键分区（服务器 / 单人存档各一套） ──
+
+    /**
+     * 按隔离键取模块设置。
+     *
+     * <p><b>回落口径</b>：键为空（模块不隔离，或玩家在主菜单等未进入世界的场景）时取全局模板；
+     * 该键还没有独立记录时<b>同样取全局模板</b> —— 新服务器 / 新存档因此继承玩家最近用的一套配置，
+     * 从旧版本升级上来也不会出现「配置全空」。</p>
+     *
+     * @param scopeKey 隔离键（本项目用 {@code WorldIdentity.fileSafeServer()}）；空 = 不隔离
+     */
+    public static synchronized JsonObject settingsOf(String moduleId, String scopeKey) {
+        if (scopeKey == null || scopeKey.isBlank()) return settingsOf(moduleId);
+        JsonObject record = RECORDS.get(moduleId);
+        if (record == null) return new JsonObject();
+        JsonObject scopes = asObject(record.get(KEY_SETTING_SCOPES));
+        JsonObject scoped = scopes == null ? null : asObject(scopes.get(scopeKey));
+        return scoped == null ? settingsOf(moduleId) : scoped.deepCopy();
+    }
+
+    /**
+     * 覆盖某个隔离键下的模块设置（只写该键，不动全局模板）。
+     *
+     * <p>隔离键为空时不写：没有服务器身份的场合不存在「这台服务器的设置」，写下去就是污染。</p>
+     */
+    public static synchronized void putSettings(String moduleId, String scopeKey, JsonObject settings) {
+        if (settings == null || scopeKey == null || scopeKey.isBlank()) return;
+        JsonObject record = record(moduleId);
+        JsonObject scopes = asObject(record.get(KEY_SETTING_SCOPES));
+        if (scopes == null) {
+            scopes = new JsonObject();
+            record.add(KEY_SETTING_SCOPES, scopes);
+        }
+        scopes.add(scopeKey, settings.deepCopy());
+    }
+
+    /** 某个 JSON 元素是否是对象；不是则返回 {@code null}（容错：类型不符按缺项处理） */
+    private static JsonObject asObject(JsonElement element) {
+        return element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
     }
 
     // ── 诊断 ──

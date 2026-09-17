@@ -1,19 +1,15 @@
 package com.yiyiaddon.feature.visuals.ui;
 
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.visuals.EspTestModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.component.ButtonRow;
-import com.yiyiaddon.ui.component.KeybindBadge;
 import com.yiyiaddon.ui.component.ModuleRow;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import com.yiyiaddon.ui.widget.Button;
-import com.yiyiaddon.ui.widget.SettingToggle;
 
 /**
  * ESP 渲染测试页面。
@@ -59,13 +55,6 @@ public final class EspTestPage extends CompactModulePage implements ModulePage {
     }
 
     private void build() {
-        setHeader(new ModuleStatusBar(
-                () -> module.isEnabled() ? "运行中" : "未启用",
-                module::isEnabled,
-                new KeybindBadge(module.keybindId()),
-                new SettingToggle(module::isEnabled,
-                        value -> ModuleManager.setEnabled(module.id(), value))));
-
         addCore(new TextLine("§b§l▌ 渲染测试项 §8▸ §e点击点亮，进入世界后观察").height(SECTION_HEIGHT));
 
         addCore(new ButtonRow(test("玩家线框盒（3D）", EspTestModule.T_PLAYER_BOX)));

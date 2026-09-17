@@ -20,6 +20,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_CYCLE;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -66,10 +68,10 @@ public final class EnchantGearPage {
     public void build(CompactStack stack) {
         EnchantSettings settings = module.settings();
 
-        // ── 合成策略（旧 :460-462）──
+        // ── 合成策略（旧 :460-462）──；行尾可见提示见第 213 条（循环控件看不出能点）
         stack.add(new ConsoleRow(owner, () -> "合成策略",
             "铁砧装备+装备合并排序策略：简单=贡献优先、节能=低惩罚+低成本优先、快速=提升优先少步骤，用于对比经验消耗",
-            null, List.of(new Ctl(new SettingCycle(STRATEGY_LABELS,
+            COMMENT_CYCLE, List.of(new Ctl(new SettingCycle(STRATEGY_LABELS,
                 () -> settings.anvilStrategy.ordinal(),
                 index -> {
                     settings.anvilStrategy = AnvilStrategy.values()[index];

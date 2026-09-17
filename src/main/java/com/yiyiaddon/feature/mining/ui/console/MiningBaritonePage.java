@@ -19,7 +19,7 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /**
- * 自动挖矿控制台「Baritone调优」页：秒破 3 项 + 开关类 19 项 + 数值类 8 项。
+ * 自动挖矿控制台「Baritone调优」页：秒破 3 项 + 开关类 20 项 + 数值类 8 项。
  *
  * <p>逐字搬自旧项目配置页的 {@code Baritone调优} 分组；顺序、设置名、描述、取值域一字未改，
  * 改动后下调 Baritone 的回调体（键名与调用）与旧配置页逐字一致，可见性联动三处
@@ -27,6 +27,10 @@ import java.util.function.Supplier;
  * {@code 合法挖掘高度} ← {@code 合法挖掘模式}）用同一份 {@link #visible} 包一层。</p>
  *
  * <p>2026-09-16 起本页是这 30 行的唯一落点（配置页不再平铺设置）。</p>
+ *
+ * <p><b>本项目追加（旧项目没有对应项）</b>：连锁挖矿折叠段 5 行（用户 2026-09-17）、
+ * 「刷怪笼优先破坏」1 行（用户 2026-09-18，放在「怪物规避」之前——两条逻辑相邻：
+ * 关掉怪物规避才不会被 Baritone 连刷怪笼一起绕开）。</p>
  *
  * <p>不下调 Baritone 的三项同旧配置页：{@code 寻路物流破坏方块}（只由状态机在物流态压
  * {@code allowBreak}）、{@code 岩浆透视} 与 {@code 岩浆透视范围}（模块自用）。</p>
@@ -66,16 +70,57 @@ public final class MiningBaritonePage {
                 value -> settings.bypassAnticheat = value, null)))));
 
         fastBreakRows.add(new ConsoleRow(owner, () -> "秒破间隔（tick）",
-            "服务端确认方块变化后，开始下一块前的最小等待 tick；不会用于提前重复发送 STOP",
+            "发完破坏请求后开始下一块前的最小等待；实测最慢的一项自耗，想最快就设 0（模块仍强制留 1 刻保险）",
             null, List.of(new Ctl(intBox(0, 20, () -> settings.breakInterval,
                 value -> settings.breakInterval = value, null)))));
         stack.add(fastBreak);
+
+        // ── 连锁挖矿（用户 2026-09-17 追加）：一项总开关 + 4 项配置，复用秒破的单槽发包通道 ──
+        FoldSection vein = new FoldSection("§7§l连锁挖矿 §8(点标题可收起)",
+            "baritone:vein", owner.collapsedSections());
+        CompactStack veinRows = vein.content();
+
+        veinRows.add(new ConsoleRow(owner, () -> "连锁挖矿",
+            "挖到一个矿物时自动把与它连着的同类矿物一起挖掉；每一块都走秒破的发包流程（需要开启秒破）",
+            null, List.of(new Ctl(toggle(() -> settings.veinMiner,
+                value -> settings.veinMiner = value, null)))));
+
+        veinRows.add(new ConsoleRow(owner, () -> "连锁最大方块数",
+            "单次连锁最多挖多少块，防止一条巨型矿脉长时间卡住挖矿流程", null,
+            List.of(new Ctl(intBox(1, 128, () -> settings.veinMaxBlocks,
+                value -> settings.veinMaxBlocks = value, null)))));
+
+        veinRows.add(new ConsoleRow(owner, () -> "连锁搜索距离",
+            "以首个方块为中心最多向外连多少格（够不到的方块不会排队，交给 Baritone 走过去挖）", null,
+            List.of(new Ctl(intBox(1, 8, () -> settings.veinRange,
+                value -> settings.veinRange = value, null)))));
+
+        veinRows.add(new ConsoleRow(owner, () -> "连锁对角相邻",
+            "把斜向相邻的矿物也算连在一起（关闭后只连上下左右前后 6 个面）", null,
+            List.of(new Ctl(toggle(() -> settings.veinDiagonal,
+                value -> settings.veinDiagonal = value, null)))));
+
+        veinRows.add(new ConsoleRow(owner, () -> "连锁仅同类矿物",
+            "只连锁同一种矿物（深板岩钻石矿与原版钻石矿算同类）；关闭后旁边任何矿物都会被连锁", null,
+            List.of(new Ctl(toggle(() -> settings.veinFamilyOnly,
+                value -> settings.veinFamilyOnly = value, null)))));
+        stack.add(vein);
 
         FoldSection toggles = new FoldSection("§7§lBaritone 开关 §8(点标题可收起)",
             "baritone:toggles", owner.collapsedSections());
         CompactStack toggleRows = toggles.content();
 
         // ── 开关类（除寻路物流破坏方块 / 岩浆透视外，逐项同键下调 Baritone） ──
+        toggleRows.add(new ConsoleRow(owner, () -> "寻路视角跟随",
+            "视角跟着男中音的寻路方向走（能看见它在往哪走、挖哪块）；关闭后视角完全由你自己控制。"
+                + "开启期间战斗中的视角仍归战斗逻辑（盯着怪打），不影响走位",
+            null, List.of(new Ctl(new SettingToggle(() -> settings.pathViewFollow, value -> {
+                settings.pathViewFollow = value;
+                module.persistSettings();
+                // 模块没开着就不碰男中音：设置已落盘，下次启用时由 applySettings 统一下发
+                if (module.isEnabled()) module.getBaritone().applyViewFollow();
+            })))));
+
         toggleRows.add(new ConsoleRow(owner, () -> "破坏阻挡方块",
             "挖掘时允许破坏阻挡路径的方块（石头、泥土等）", null,
             List.of(new Ctl(toggle(() -> settings.allowBreak, value -> settings.allowBreak = value,
@@ -114,6 +159,16 @@ public final class MiningBaritonePage {
             "透视岩浆的扫描半径（格）", null,
             List.of(new Ctl(intBox(2, 16, () -> settings.lavaEspRange,
                 value -> settings.lavaEspRange = value, null)))));
+
+        toggleRows.add(new ConsoleRow(owner, () -> "岩浆安全距离",
+            "透视到岩浆进入这个距离（格）就停止挖矿并撤离，避免擦着岩浆边走被烧", null,
+            List.of(new Ctl(intBox(1, 4, () -> settings.lavaAvoidRadius,
+                value -> settings.lavaAvoidRadius = value, null)))));
+
+        toggleRows.add(new ConsoleRow(owner, () -> "刷怪笼优先破坏",
+            "寻路途中发现附近有刷怪笼就先挖掉它，再继续打怪/挖矿，避免越打越多怪", null,
+            List.of(new Ctl(toggle(() -> settings.breakSpawner,
+                value -> settings.breakSpawner = value, null)))));
 
         toggleRows.add(new ConsoleRow(owner, () -> "怪物规避",
             "提高怪物附近路径代价，尽量绕开危险区域", null,

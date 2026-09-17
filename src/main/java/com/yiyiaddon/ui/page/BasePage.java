@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.page;
 
+import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.widget.SettingModule;
 import io.github.humbleui.skija.Canvas;
@@ -12,6 +13,20 @@ public abstract class BasePage {
 
     /** 模块之间的垂直间距（像素）。滚动上限与绘制都按此值计算。 */
     public static final float MODULE_GAP = 8f;
+
+    /**
+     * 可见提示：循环项（第 213 条）。
+     *
+     * <p>循环控件（{@code SettingCycle}）画的是输入域色底 + 居中文字，没有箭头也没有悬停高亮，
+     * 与只读数值框同族，新用户看不出能点；故在行说明末尾接一句灰字提示。
+     * 控制台行用 {@code ConsoleWidgets.COMMENT_CYCLE}（那里有独立的注释位），
+     * 这里是 ClickGui 设置页的行说明（{@code SettingModule} 的 description）末尾拼接。</p>
+     *
+     * <p><b>这里不能写 § 颜色码</b>（用户 2026-09-18 实机截图：行尾直接显示出 `§7点击切换` 字面）：
+     * 设置页的行说明走 {@code ModuleRow.drawEntry} → {@code FontRenderer.drawText}，是<b>纯文本</b>渲染，
+     * 不解析 {@code §}。只有控制台（{@code ConsoleWidgets}）与独立窗口（{@code PanelScreen} 系）才支持颜色码。</p>
+     */
+    protected static final String HINT_CYCLE = UiText.t("　· 点击切换", " · click to switch");
 
     /**
      * 卡片区顶部留白：页面副标题与第一张卡片之间。

@@ -44,7 +44,11 @@ public final class SettingsPage extends BasePage {
                     AddonConfig.save();
                 }, 1)).icon(ICON_PREFIX));
 
-        modules.add(new SettingModule(UiText.t("GUI 快捷键", "GUI Keybind"), UiText.t("点击右侧按键块后按下任意键完成录入", "Click the key block, then press any key to bind"), null)
+        // 说明里写明「已绑定时点击即清空」：界面快捷键过去只能重录、清不掉（第 214 条），
+        // 现在可清；提示逐字写清交互，避免玩家找不到取消入口
+        modules.add(new SettingModule(UiText.t("GUI 快捷键", "GUI Keybind"),
+                UiText.t("点击右侧按键块后按下任意键完成录入；已绑定时点击即清空（本键是打开界面的唯一快捷键）",
+                        "Click the key block, then press any key to bind; clicking while bound clears it (this is the only hotkey that opens the GUI)"), null)
                 .keybindAction(ModuleKeybindManager.ACTION_CLICK_GUI).icon(ICON_KEYBIND));
 
         modules.add(new SettingModule(UiText.t("Baritone 汉化", "Baritone Localisation"), UiText.t("把 Baritone 的命令与提示显示为中文", "Shows Baritone commands and messages in Chinese"), new SettingToggle(() -> AddonConfig.baritoneChinese, value -> {

@@ -23,7 +23,8 @@ import java.util.Objects;
  *       鼠标走按键状态；调用方若要「只触发一次」需自己保存上一刻状态（旧项目模块在 tick 里
  *       判一次就 toggle，等效只生效一次）；</li>
  *   <li>{@link #canBindTo(boolean, int, int)} 照旧源码：修饰键本身不能作为主键、
- *       {@code ESC} 不可绑、鼠标左右键不可绑（左键要留给界面点击，右键留给「清空」）；</li>
+ *       {@code ESC} 不可绑、鼠标左右键不可绑（左键要留给界面点击；**右键不再是清空入口**，
+ *       清空走键位块同行的「§c清空」按钮，见 {@code ConsoleWidgets#CLEAR_BUTTON}）；</li>
  *   <li>{@link #displayName()} 照旧源码 {@code toString()}：未绑定 <b>{@code None}</b>、
  *       带修饰键时前缀顺序 Control → Cmd → Alt → Shift → Caps Lock → Num Lock（英文写法不变），
  *       键名取原版本地化名（{@link KeyInputs}）。</li>

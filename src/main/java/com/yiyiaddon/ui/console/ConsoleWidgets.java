@@ -42,6 +42,27 @@ import static com.yiyiaddon.ui.console.ConsoleMetrics.TIP_OFFSET_Y;
  */
 public final class ConsoleWidgets {
 
+    /**
+     * 行尾可见提示：循环 / 选择类控件（第 213 条：没有按钮外观的控件必须在行尾给可见灰字提示）。
+     *
+     * <p>循环控件的外观与只读数值框同族（{@code SettingCycle} 只画输入域色底 + 居中文字，
+     * 没有箭头也没有 hover 高亮），新玩家不看 tooltip 就看不出「点了会变」；
+     * 因此凡是循环行都带这句提示。旧项目的设置描述仍逐字留在 tooltip 里，两者并存。</p>
+     */
+    public static final String COMMENT_CYCLE = "§7点击切换";
+
+    /** 行尾可见提示：颜色块类控件（色块只是纯色底，同样看不出能点） */
+    public static final String COMMENT_COLOR = "§7点击色块打开调色板";
+
+    /** 行尾可见提示：键位类控件（清空由同行的 {@link #CLEAR_BUTTON} 承担，键位块本身只负责录制） */
+    public static final String COMMENT_KEYBIND = "§7点击后按任意键绑定";
+
+    /** 键位行的清空按钮文案（与点位卡 {@code §c删除} 同族：红字动作） */
+    public static final String CLEAR_BUTTON = "§c清空";
+
+    /** 键位行清空按钮的悬停说明（未绑定时按钮为禁用态，不存在点了没反应的悬案） */
+    public static final String CLEAR_HINT = "清空绑定，恢复未绑定状态";
+
     private ConsoleWidgets() {
     }
 
@@ -183,12 +204,17 @@ public final class ConsoleWidgets {
             float controlsX = controlsStartX(x, width);
             String commentText = commentLive != null ? commentLive.get() : (comment == null ? null : comment.get());
             if (commentText != null && !commentText.isEmpty()) {
-                float available = Math.max(0f, controlsX - cursor - HINT_GAP);
+                // 行尾注释右对齐：终点贴住控件组左边界（不留 HINT_GAP 会与控件粘在一起），
+                // 这样标签长短不一的各行，注释在视觉上对齐成一列，且一眼能看出注释是对右边控件的说明。
+                // 起点最多退到标签末尾 cursor，退不过去说明剩余空间太窄，此时宁可不画也不压到标签上。
+                float available = Math.max(0f, controlsX - HINT_GAP - cursor);
                 if (available >= HINT_MIN_WIDTH) {
-                    MinecraftText.draw(canvas,
-                        CardLayout.ellipsize(MinecraftText.strip(commentText), available, COMMENT_SIZE),
-                        cursor, CardLayout.baseline(centerY, COMMENT_SIZE), COMMENT_SIZE,
-                        tc.labelTertiary, alpha);
+                    String commentShown = CardLayout.ellipsize(
+                        MinecraftText.strip(commentText), available, COMMENT_SIZE);
+                    float commentX = Math.max(cursor,
+                        controlsX - HINT_GAP - MinecraftText.measure(commentShown, COMMENT_SIZE, false));
+                    MinecraftText.draw(canvas, commentShown, commentX,
+                        CardLayout.baseline(centerY, COMMENT_SIZE), COMMENT_SIZE, tc.labelTertiary, alpha);
                 }
             }
 

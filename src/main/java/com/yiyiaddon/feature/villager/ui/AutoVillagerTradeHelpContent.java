@@ -48,7 +48,7 @@ public final class AutoVillagerTradeHelpContent {
             "  §8> §3.cunmin 设置 成品交易箱 §8— §7准星对准箱子绑定",
             "  §8> §3.cunmin 状态 §8— §7查看绑定状态",
             "  §8> §3.cunmin 移除 绿宝石箱 §8— §7解绑",
-            "  §7§o也可直接点击配置页底部卡片中的「设置」按钮"
+            "  §7§o也可在控制台「点位」页直接点击卡片中的「设置」按钮"
         ),
         new HelpPanelScreen.HelpSection("状态反馈",
             "  §a✓ §f每笔交易成功播报 + 村民交易提示音",

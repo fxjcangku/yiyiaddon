@@ -1,28 +1,34 @@
 package com.yiyiaddon.feature.enchant.ui;
 
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.enchant.EnchantModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.component.CompactRow;
-import com.yiyiaddon.ui.component.KeybindBadge;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
+import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
-import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
 /**
- * 自动附魔模块页：② 打开控制台 → ④ 查看使用说明（顺序照开发习惯第 182 条，不可颠倒）。
+ * 自动附魔模块页：② 打开控制台 → 使用说明正文内嵌在入口下方（用户 2026-09-17 口径）。
  *
- * <p>全部设置项与点位按钮都在控制台里（按用途分页），本页只留两个入口，不再平铺任何设置分组 ——
- * 两份控件写同一份 {@code EnchantSettings}，同页并存只会互相看对方为旧值。</p>
+ * <p>全部设置项与点位按钮都在控制台里（按用途分页），本页只留控制台一个入口 + 紧随其后的说明正文，
+ * 不再平铺任何设置分组 —— 两份控件写同一份 {@code EnchantSettings}，同页并存只会互相看对方为旧值。
+ * 说明超出一屏时由本页自身的滚动条上下查看。</p>
  *
- * <p><b>用户交互资产（逐字，禁止改写）：</b>按钮 {@code §b打开控制台} / {@code §e查看使用说明}，
+ * <p><b>用户交互资产（逐字，禁止改写）：</b>按钮 {@code §b打开控制台}，
  * 以及帮助页 8 个章节的全部正文，全部来自旧项目 {@code AutoEnchantBook.buildHelpContent()}（{@code :773-847}）。
- * 说明正文里的「装备箱」「重设六个点位」等与实现不一致之处照抄原文，不做「修正」。</p>
+ * 说明正文按旧原文照抄，例外只有两处（用户 2026-09-17 口径「使用说明必须是最新的」）：
+ * <ol>
+ *   <li>「点击<b>下方卡片</b>／<b>配置页面</b>卡片按钮」→「控制台「点位」页卡片」：
+ *       本项目点位卡在控制台「点位」页（{@code EnchantPointPage}），模块页已无卡片，旧措辞会指到不存在的元素；</li>
+ *   <li>{@code .fumo 设置} 的节点清单里「装备箱」→「工具护甲箱」：指令字面量取自
+ *       {@code EnchantPointType#node()}，其中并没有「装备箱」这个节点，照抄会让玩家照着打却报错。
+ *       （正文里的「装备箱」「重设六个点位」等描述性措辞仍照抄原文 —— 前者的实现侧显示名同样是「装备箱」，
+ *       后者指纯附魔模式的六个点位，均与实现一致。）</li>
+ * </ol></p>
  */
 public final class EnchantPage extends CompactModulePage implements ModulePage {
 
@@ -30,14 +36,12 @@ public final class EnchantPage extends CompactModulePage implements ModulePage {
 
     private static final String CONSOLE_BUTTON = "§b打开控制台";
     private static final String CONSOLE_HINT = "按用途分页：概览 / 点位 / 基础设置 / 模式专属设置";
-    private static final String HELP_BUTTON = "§e查看使用说明";
-    private static final String HELP_HINT = "打开自动附魔的完整使用说明";
 
     /** 帮助页 8 个章节（旧 {@code buildHelpContent :773-847} 逐字；框线与 {@code [#]} 由 HelpPanelScreen 生成） */
     private static final HelpPanelScreen.HelpSection[] HELP_SECTIONS = {
         new HelpPanelScreen.HelpSection("首次配置",
             "  §8├─ §f先在要使用的服务器和维度执行 §e.fumo 清空 §7(清空旧点位)",
-            "  §8├─ §f准星对准对应方块，点击下方卡片「设置」按钮依次绑定：",
+            "  §8├─ §f准星对准对应方块，到控制台「点位」页点卡片「设置」按钮依次绑定：",
             "  §8│    §7书 / 青晶石 / 成品箱 / 附魔台 / 砂轮",
             "  §8│    §7原版装备模式：装备箱 / 青晶石 / 附魔台 / 砂轮 / 铁砧 / 铁砧箱 / 成品箱",
             "  §8├─ §f挂机循环模式站在刷怪点调好杀怪视角，再绑定「挂机位」 §7(纯附魔模式不需要)",
@@ -46,14 +50,14 @@ public final class EnchantPage extends CompactModulePage implements ModulePage {
             "  §8└─ §f书箱放空白书、青金石箱放青金石、成品箱预留空间"
         ),
         new HelpPanelScreen.HelpSection("点位设置 §7(两种方式)",
-            "  §b▸ §e方式1 §8- §f配置页面卡片按钮",
+            "  §b▸ §e方式1 §8- §f控制台「点位」页卡片按钮",
             "    §7准星对准方块 §8→ §f点击对应卡片「设置」",
             "    §7书/青晶石/成品箱：必须是箱子/桶/潜影盒",
             "    §7附魔台/砂轮：必须对准对应方块",
             "    §7挂机位：直接站在目标位置即可绑定 §7(含视角)",
             "",
             "  §b▸ §e方式2 §8- §f指令系统",
-            "    §8> §3.fumo 设置 <节点> §8— §7节点：书/青晶石/成品箱/附魔台/砂轮/挂机位/装备箱/铁砧/铁砧箱",
+            "    §8> §3.fumo 设置 <节点> §8— §7节点：书/青晶石/成品箱/附魔台/砂轮/挂机位/工具护甲箱/铁砧/铁砧箱",
             "    §8> §3.fumo 移除 <节点> §8— §7删除单个点位",
             "    §8> §3.fumo 状态 §8— §7查看坐标与当前地点匹配",
             "    §8> §3.fumo 清空 §8— §7清空全部点位"
@@ -103,6 +107,15 @@ public final class EnchantPage extends CompactModulePage implements ModulePage {
         )
     };
 
+    /**
+     * 内嵌说明行（去掉窗口外框三行）：本页把使用说明直接铺在「打开控制台」入口下方
+     * （用户 2026-09-17 口径：不再单摆「查看使用说明」按钮，超出可上下滚动查看）。
+     *
+     * <p>声明在 {@link #HELP_SECTIONS} 之后，静态初始化顺序才保证读到的不是 null。</p>
+     */
+    private static final String[] HELP_LINES =
+        HelpPanelScreen.inlineContent(HelpPanelScreen.buildHelpContent(HELP_SECTIONS));
+
     private final EnchantModule module;
 
     /** 页面内容是否已构建（见 {@link #createPage(ModuleEntry)} 的时序说明） */
@@ -142,31 +155,15 @@ public final class EnchantPage extends CompactModulePage implements ModulePage {
     // ── 构建 ──
 
     private void build() {
-        setHeader(new ModuleStatusBar(
-                () -> module.isEnabled() ? "运行中" : "未启用",
-                module::isEnabled,
-                new KeybindBadge(module.keybindId()),
-                new SettingToggle(module::isEnabled,
-                        value -> ModuleManager.setEnabled(module.id(), value))));
-
         // ① 控制台入口（提示行 + 居中按钮）
         addCore(new CompactRow("", () -> CONSOLE_HINT,
             new Button(CONSOLE_BUTTON, this::openConsole)).centeredControl());
 
-        // ② 使用说明（顺序：入口在前、说明在后，开发习惯第 182 条）
-        addCore(new CompactRow("", () -> HELP_HINT,
-            new Button(HELP_BUTTON, this::openHelp)).centeredControl());
+        // ② 使用说明内嵌在控制台入口下方（用户 2026-09-17 口径），章节标题与正文逐字不变
+        for (String line : HELP_LINES) addCore(new TextLine(line));
     }
 
     // ── 界面跳转 ──
-
-    /** 打开使用说明：窗口标题为「自动附魔 - 使用说明」，底部按钮「关闭」 */
-    private void openHelp() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) return;
-        client.setScreen(new HelpPanelScreen(EnchantModule.MESSAGE_MODULE,
-            HelpPanelScreen.buildHelpContent(HELP_SECTIONS), client.screen));
-    }
 
     /** 打开控制台（整屏分页）；父屏是当前模块页，ESC 回来 */
     private void openConsole() {

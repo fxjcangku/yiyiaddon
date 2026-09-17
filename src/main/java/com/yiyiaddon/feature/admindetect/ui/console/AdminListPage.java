@@ -69,26 +69,36 @@ public final class AdminListPage {
 
         stack.add(listRow(AdminDetectorTexts.NAME_WHITELIST, AdminDetectorTexts.DESC_WHITELIST,
             () -> statusText(settings.whitelist),
-            () -> openSelector(true), () -> clear(settings.whitelist)));
+            () -> openSelector(true), () -> clear(settings.whitelist),
+            () -> settings.whitelist.isEmpty(), "清空本行已选白名单"));
 
         stack.add(listRow(AdminDetectorTexts.NAME_BLACKLIST, AdminDetectorTexts.DESC_BLACKLIST,
             () -> statusText(settings.blacklist),
-            () -> openSelector(false), () -> clear(settings.blacklist)));
+            () -> openSelector(false), () -> clear(settings.blacklist),
+            () -> settings.blacklist.isEmpty(), "清空本行已选黑名单"));
 
         stack.add(new Note(owner, CANDIDATE_NOTE));
     }
 
     // ── 行构件 ──
 
-    /** 名单行（行样式照本项目其它控制台页）：名称 + 说明 …… [点击选择] [状态文字] [↻] */
+    /**
+     * 名单行（行样式照本项目其它控制台页）：名称 + 说明 …… [点击选择] [状态文字] [↻]。
+     *
+     * @param empty     ↻ 的空态判据；与 {@link #clear(List)} 读的是同一份名单
+     * @param clearHint ↻ 的悬停说明（空态禁用时仍可悬停看到「清空什么」）
+     */
     private CompactElement listRow(String title, String description, Supplier<String> status,
-                                   Runnable open, Runnable reset) {
+                                   Runnable open, Runnable reset,
+                                   Supplier<Boolean> empty, String clearHint) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
             // 列宽走两行共用的固定列（`已选 10 项` 与 `未选择` 各自量宽会把「点击选择」顶得左右浮动）；
             // ↻ 是最后一个控件，仍然贴行右边界，位置不变
             new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
-            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
+            // 空态禁用：判据与 clear(List) 同源（同一份名单），逐帧求值见 IconButton#disabledWhen(Supplier)；
+            // 空名单时按钮是禁用态，而不是「点了没反应」
+            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset).disabledWhen(empty), clearHint)));
     }
 
     /** 名单状态文字：未选 → {@code 未选择}；已选 → {@code 已选 N 项} */

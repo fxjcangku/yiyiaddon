@@ -123,7 +123,9 @@ public final class ModuleManager {
 
     private static void restoreStates() {
         for (Module module : BY_ID.values()) {
-            JsonObject settings = ModuleStateConfig.settingsOf(module.id());
+            // 装配期通常还没进世界，隔离模块的 settingsScope() 返回 null，读到的就是全局模板；
+            // 进世界后由模块自己调 reloadScopedSettings 换成那一份（见 Module#settingsScope()）。
+            JsonObject settings = ModuleStateConfig.settingsOf(module.id(), module.settingsScope());
             runSafely(module, "载入设置", () -> module.loadSettings(settings));
             if (BROKEN.contains(module.id())) continue;
             if (!shouldEnableOnRestore(module)) continue;
@@ -393,7 +395,9 @@ public final class ModuleManager {
     /** 保存单个模块的设置；模块自身只需实现字段写入 */
     public static boolean saveSettings(Module module) {
         if (module == null) return false;
-        JsonObject settings = ModuleStateConfig.settingsOf(module.id());
+        // 隔离键取一次（同一时刻只可能有一个）：同时决定「读哪一份、往哪一份写」
+        String scope = module.settingsScope();
+        JsonObject settings = ModuleStateConfig.settingsOf(module.id(), scope);
         try {
             module.saveSettings(settings);
         } catch (Throwable error) {
@@ -401,9 +405,27 @@ public final class ModuleManager {
             ClientChat.send(module.displayName(), "§c设置保存失败：" + describe(error));
             return false;
         }
+        // 全局模板照常更新：它同时是「新服务器 / 新存档的初始值」（玩家最近用过的一套）
         ModuleStateConfig.putSettings(module.id(), settings);
+        // 声明了隔离键的模块（如自动挖矿）再往本服务器 / 本存档的桶写一份
+        ModuleStateConfig.putSettings(module.id(), scope, settings);
         ModuleStateConfig.save();
         return true;
+    }
+
+    /**
+     * 按模块当前的隔离键重读它的设置（换服 / 进世界时由模块自己触发）。
+     *
+     * <p>设置只在模块装配时读过一次，那时还没有服务器身份；隔离模块（{@code settingsScope()} 非空）
+     * 必须在自己「进世界 / 换服」的入口调用本方法，否则会把上一个服务器的配置带进新服务器。
+     * 该方法与启停无关：模块关着也要能读到正确的一套配置（配置页显示的就是它）。</p>
+     *
+     * @return 是否成功执行了载入
+     */
+    public static boolean reloadScopedSettings(Module module) {
+        if (module == null) return false;
+        JsonObject settings = ModuleStateConfig.settingsOf(module.id(), module.settingsScope());
+        return runSafely(module, "载入设置", () -> module.loadSettings(settings));
     }
 
     // ── 查询 ──

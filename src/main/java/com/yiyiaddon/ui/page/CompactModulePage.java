@@ -37,7 +37,14 @@ public abstract class CompactModulePage extends BasePage {
     private float coreTop;
     private float footerTop;
 
-    /** 顶部信息块：模块名由屏幕头部给出，这里放状态、开关与快捷键。 */
+    /**
+     * 顶部信息块（可选）：模块名由屏幕头部给出，这里原本放状态、开关与快捷键。
+     *
+     * <p><b>目前无调用</b>：这三件已按用户 2026-09-17 口径统一搬进各模块自己的控制台顶栏
+     * （{@link com.yiyiaddon.ui.console.ConsoleHeaderBar}），13 个模块页不再设头部；
+     * 布局这一段（{@link #computeTops} / {@link #getTotalHeight()}）在 header 为 null 时
+     * 自动按「无头部」排版，故保留该能力备壳件复用，不另删。</p>
+     */
     protected final void setHeader(CompactElement element) {
         this.header = element;
     }

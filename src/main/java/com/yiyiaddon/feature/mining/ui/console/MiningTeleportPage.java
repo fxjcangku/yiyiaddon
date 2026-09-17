@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.mining.ui.MiningConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
+import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
@@ -78,15 +79,32 @@ public final class MiningTeleportPage {
             "复活后返回挂机点", null,
             List.of(new Ctl(textBox(() -> settings.respawnCommand, value -> settings.respawnCommand = value)))));
 
+        // 下面三行的行下注释（用户 2026-09-18：「没懂啊 能不能加下面加中文注释」）：
+        // 白话讲清「这两个数在什么时候起作用、出问题该往哪边调」。
+        // 注意 Note 是单行不换行的构件（超出面板宽度会被直接裁掉），所以每条都拆成两行短句。
         stack.add(new ConsoleRow(owner, () -> "传送等待时长",
-            "执行传送指令后等待秒数", null,
+            "发出传送指令后等多少秒：这段时间内位置没变化就算「传送未生效」", null,
             List.of(new Ctl(intBox(1, 120, () -> settings.teleportDelay,
                 value -> settings.teleportDelay = value, null)))));
+        stack.add(new Note(owner, "§8人还在原地没动，就认为这次传送没生效"));
+        stack.add(new Note(owner, "§8服务器传得慢（比如 RTP 要排队几秒）就把这个数调大"));
 
         stack.add(new ConsoleRow(owner, () -> "RTP冷却时长",
-            "服务器 RTP 传送冷却秒数：传送失败后等这么久再重试，避免冷却期空发指令", null,
+            "判定「传送未生效」后等多久才重发指令：等服务器 RTP 冷却过去，避免冷却期空发", null,
             List.of(new Ctl(intBox(1, 3600, () -> settings.rtpCooldown,
                 value -> settings.rtpCooldown = value, null)))));
+        stack.add(new Note(owner, "§8判定「没生效」之后，等这么久才再发一次指令"));
+        stack.add(new Note(owner, "§8为了躲开服务器自己的传送冷却；只在下面开关打开时才会用到"));
+
+        // 用户 2026-09-18 追加：服务器自身有传送冷却 / RTP 排队延迟时，重发会造成「已经传过去了又被传一次」
+        stack.add(new ConsoleRow(owner, () -> "传送失败自动重试",
+            "关掉后：超时不再重发传送指令，只继续等传送生效", null,
+            List.of(new Ctl(new SettingToggle(() -> settings.teleportRetryEnabled, value -> {
+                settings.teleportRetryEnabled = value;
+                module.persistSettings();
+            })))));
+        stack.add(new Note(owner, "§8关掉后：超时也不再帮你发指令，就一直等你传过去"));
+        stack.add(new Note(owner, "§8服务器有传送冷却 / RTP 排队时建议关掉，免得「传走了又被传一次」"));
     }
 
     /** 整数设置框：步进 1、无滑块（旧项目全部 {@code noSlider}），改动落盘并可按旧键下调 Baritone */

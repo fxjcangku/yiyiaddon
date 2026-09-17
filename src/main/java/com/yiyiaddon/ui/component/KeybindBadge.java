@@ -67,7 +67,7 @@ public final class KeybindBadge {
         boolean bound = ModuleKeybindManager.hasBinding(bindingId);
         boolean capturing = ModuleKeybindManager.isCapturing(bindingId);
         hover += ((hovered ? 1f : 0f) - hover) * HOVER_SMOOTHING;
-        unbind += ((bound && hovered && !capturing && !ModuleKeybindManager.ACTION_CLICK_GUI.equals(bindingId) ? 1f : 0f)
+        unbind += ((bound && hovered && !capturing ? 1f : 0f)
                 - unbind) * HOVER_SMOOTHING;
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
@@ -94,7 +94,8 @@ public final class KeybindBadge {
     public boolean onClick(float mx, float my, float x, float y) {
         if (!active()) return false;
         if (mx < x || mx > x + width || my < y || my > y + HEIGHT) return false;
-        if (ModuleKeybindManager.hasBinding(bindingId) && !ModuleKeybindManager.ACTION_CLICK_GUI.equals(bindingId)) {
+        // 已绑定则解绑（界面快捷键同样可解，清空后由 ModuleKeybindManager 的显式清空标记保证不再套默认键）
+        if (ModuleKeybindManager.hasBinding(bindingId)) {
             ModuleKeybindManager.clearBinding(bindingId);
         } else {
             ModuleKeybindManager.beginCapture(bindingId);

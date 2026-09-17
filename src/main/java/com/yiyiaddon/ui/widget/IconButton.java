@@ -9,6 +9,8 @@ import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.Paint;
 import io.github.humbleui.types.RRect;
 
+import java.util.function.Supplier;
+
 /**
  * 方形图标按钮。
  *
@@ -38,6 +40,8 @@ public class IconButton extends SettingWidget {
     private boolean danger;
     private boolean ghost = true;
     private boolean disabled;
+    /** 空态禁用判据；非 null 时每帧重算 {@link #disabled} */
+    private Supplier<Boolean> disabledSupplier;
 
     private float hover;
     private boolean hovered;
@@ -79,6 +83,19 @@ public class IconButton extends SettingWidget {
         return this;
     }
 
+    /**
+     * 空态禁用（判据逐帧求值）。
+     *
+     * <p>行构件只在切页签 / 手动刷新时重建，而按钮被按下后并不重建；用构建期快照
+     * （{@link #disabledWhen(boolean)}）会把禁用态停在旧值上，正是第 214 条要消灭的
+     * 「点了没反应的悬案」。所以这里收判据本身，每帧在 {@link #update(float)} 里重算：
+     * 判据必须与动作读取同一份数据，且要实时（通常是 {@code list::isEmpty} 之类）。</p>
+     */
+    public IconButton disabledWhen(Supplier<Boolean> disabled) {
+        this.disabledSupplier = disabled;
+        return this;
+    }
+
     // ── 尺寸与测量 ──
 
     @Override
@@ -113,6 +130,7 @@ public class IconButton extends SettingWidget {
 
     @Override
     public void update(float dt) {
+        if (disabledSupplier != null) disabled = disabledSupplier.get();
         press.update(dt);
         hover += ((hovered ? 1f : 0f) - hover)
                 * (1f - (float) Math.exp(-Math.max(0f, dt) * HOVER_SMOOTHING));

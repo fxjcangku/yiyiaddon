@@ -35,14 +35,35 @@ public final class ConfirmPanelScreen extends PanelScreen {
      */
     public ConfirmPanelScreen(String windowTitle, List<String> lines, String confirmLabel,
                               Runnable onConfirm, Screen parent) {
-        this(windowTitle, lines, confirmLabel, onConfirm, parent, false, null);
+        this(windowTitle, lines, confirmLabel, onConfirm, parent, false, null, true);
+    }
+
+    /**
+     * 原地二次确认：确认或返回后<b>回到上级窗口</b>，不退出整个界面（{@link #ConfirmPanelScreen} 的默认语义是回游戏）。
+     *
+     * <p><b>为什么要它</b>（用户 2026-09-18：「点击删除不要关闭我的ui 是保持在这个页面」）：
+     * 配置记录窗里点「删除」→ 确认 → 应当回到记录窗看到列表刷新；默认构造器走的是
+     * {@code exitToGame()}，确认完直接关掉整个界面回到游戏，把玩家刚在看的页面一起关了。</p>
+     *
+     * @param parent 上级窗口（确认后回到它；它自己负责刷新内容）
+     */
+    public static ConfirmPanelScreen inPlace(String windowTitle, List<String> lines, String confirmLabel,
+                                             Runnable onConfirm, Screen parent) {
+        return new ConfirmPanelScreen(windowTitle, lines, confirmLabel, onConfirm, parent, false, null, false);
+    }
+
+    /**
+     * 原地只读提示窗：点掉后回到上级窗口，不退出整个界面（{@link #notice} 的原地版）。
+     */
+    public static ConfirmPanelScreen noticeInPlace(String windowTitle, List<String> lines, Screen parent) {
+        return new ConfirmPanelScreen(windowTitle, lines, "§a§l知道了", null, parent, true, null, false);
     }
 
     private ConfirmPanelScreen(String windowTitle, List<String> lines, String confirmLabel,
                                Runnable onConfirm, Screen parent, boolean notice,
-                               Supplier<Screen> settingsTarget) {
+                               Supplier<Screen> settingsTarget, boolean closeToGame) {
         super(windowTitle, parent);
-        exitToGame();
+        if (closeToGame) exitToGame();
         this.lines = lines == null ? List.of() : List.copyOf(lines);
         this.confirmLabel = confirmLabel == null ? "确认" : confirmLabel;
         this.onConfirm = onConfirm;
@@ -58,7 +79,7 @@ public final class ConfirmPanelScreen extends PanelScreen {
      * 后续消息刷走，这里用项目现成的面板窗与按钮再摆一份到屏幕中间，点掉即回游戏。</p>
      */
     public static ConfirmPanelScreen notice(String windowTitle, List<String> lines, Screen parent) {
-        return new ConfirmPanelScreen(windowTitle, lines, "§a§l知道了", null, parent, true, null);
+        return new ConfirmPanelScreen(windowTitle, lines, "§a§l知道了", null, parent, true, null, true);
     }
 
     /**
@@ -103,7 +124,7 @@ public final class ConfirmPanelScreen extends PanelScreen {
                 lines.add("§8\u3000§c§l" + plain(text.substring(cut + 3)));
             }
         }
-        return new ConfirmPanelScreen(windowTitle, lines, "§a§l知道了", null, parent, true, settingsTarget);
+        return new ConfirmPanelScreen(windowTitle, lines, "§a§l知道了", null, parent, true, settingsTarget, true);
     }
 
     /** 剥掉 §x 颜色码：弹窗里统一红色加粗，原文配色不参与叠加（文字内容不动） */

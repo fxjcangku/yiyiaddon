@@ -68,6 +68,12 @@ public final class ClickGuiThemeColors {
     public final int keybindHoverBackground;
     public final int keybindUnbindBackground;
 
+    // —— 派生色：模块启用状态（用户 2026-09-17：「模块启用变成绿色 没启用变成红色」） ——
+    /** 模块「已启用 / 运行中」的状态色（绿）：模块中心的圆点与文字、模块页顶部状态条共用 */
+    public final int stateOn;
+    /** 模块「未启用」的状态色（红）：与 {@link #stateOn} 同一组语义的两个取值 */
+    public final int stateOff;
+
     // —— 派生色：调色板 ——
     /** 透明度棋盘格的浅格 */
     public final int checkerLight;
@@ -90,6 +96,7 @@ public final class ClickGuiThemeColors {
             int searchCursor, int searchText, int searchTextPlaceholder,
             int dangerHoverBackground, int dangerHoverText,
             int keybindBackground, int keybindHoverBackground, int keybindUnbindBackground,
+            int stateOn, int stateOff,
             int checkerLight, int checkerDark, int pickerIndicator,
             boolean dark) {
         this.window = window;
@@ -128,6 +135,8 @@ public final class ClickGuiThemeColors {
         this.keybindBackground = keybindBackground;
         this.keybindHoverBackground = keybindHoverBackground;
         this.keybindUnbindBackground = keybindUnbindBackground;
+        this.stateOn = stateOn;
+        this.stateOff = stateOff;
         this.checkerLight = checkerLight;
         this.checkerDark = checkerDark;
         this.pickerIndicator = pickerIndicator;
@@ -198,6 +207,11 @@ public final class ClickGuiThemeColors {
         int keybindHoverBackground = dark ? 0x949494 : 0x777777;
         int keybindUnbindBackground = dark ? 0xE14D4D : 0xCC3333;
 
+        // 模块启用状态：语义沿用第 114 条的「成功绿 / 失败红」，按明暗自适应 ——
+        // 暗色底取亮一档（霜化玻璃会压暗文字），浅色底取压深一档（亮色在上面不可读）。
+        int stateOn = dark ? 0x5BD37A : 0x1E8E4A;
+        int stateOff = dark ? 0xFF6B6B : 0xCC2222;
+
         // 调色板：棋盘格用于表现透明度，按明暗自适应；拾色游标取与底色高对比的一端
         int checkerLight = dark ? 0x8A8A8A : 0xC9C9C9;
         int checkerDark = dark ? 0x5C5C5C : 0xA8A8A8;
@@ -225,6 +239,7 @@ public final class ClickGuiThemeColors {
                 searchCursor, searchText, searchTextPlaceholder,
                 dangerHoverBackground, dangerHoverText,
                 keybindBackground, keybindHoverBackground, keybindUnbindBackground,
+                stateOn, stateOff,
                 checkerLight, checkerDark, pickerIndicator,
                 dark);
     }

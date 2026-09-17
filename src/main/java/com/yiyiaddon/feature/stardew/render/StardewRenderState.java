@@ -13,6 +13,7 @@ import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.task.StardewCoordinator;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
@@ -179,6 +180,9 @@ public final class StardewRenderState {
 
     /** 每帧绘制：3D 图形 + 2D 字牌；{@code nearbyOnly} 为真时只画玩家附近 */
     private void draw(EspRenderer renderer, boolean nearbyOnly) {
+        // 全局「各模块 ESP」总闸（用户 2026-09-18，ESP 全局设置页 ▸ 各模块 ESP）：
+        // 放在 draw 而不是两个 public 入口，这样 render（整片农田）与 renderNearby（预览层）一并拦住
+        if (!EspGlobalSettings.get().layerEnabled(EspGlobalSettings.Layer.STARDEW)) return;
         List<StardewPointActions.NearbySprinkler> preview =
             nearbySprinklerPreview == null ? List.of() : nearbySprinklerPreview.get();
         onRender3D(renderer, preview, nearbyOnly);

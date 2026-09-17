@@ -13,6 +13,8 @@ import com.yiyiaddon.service.RemoteConfigService;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
+import com.yiyiaddon.ui.render.world.BlockOutlineRenderer;
+import com.yiyiaddon.ui.render.world.WorldOverlay;
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -54,5 +56,8 @@ public final class YiyiAddonClient implements ClientModInitializer {
         // 它要订阅资源的就绪 / 失效事件，且模块启用前收到的服务器季节组件也不能丢
         // （旧项目 AddonTemplate 里两者同样是先后相邻的两次 init）
         StardewSeasonService.init();
+
+        // 瞄准方块高亮：全局常驻渲染层（不随任何模块开关，开关在「ESP 全局设置 ▸ 外观」里，默认开）
+        WorldOverlay.register(BlockOutlineRenderer.LAYER_ID, BlockOutlineRenderer::render);
     }
 }

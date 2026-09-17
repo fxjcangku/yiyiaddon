@@ -169,6 +169,62 @@ public final class MiningPointStore {
         loadedServer = null;
     }
 
+    // ── 配置记录用：整份点位快照 / 整体替换 ──
+
+    /**
+     * 当前三点位的整份快照（键名与点位文件一致：{@code mineral / food / afk}）。
+     *
+     * <p>「一键保存全部配置」要把点位与设置一起存下来（用户 2026-09-18：「包括设置 跟坐标点位懂吗」）。
+     * 取快照只读内存，不落盘、不改任何状态。</p>
+     */
+    public JsonObject snapshot() {
+        JsonObject root = new JsonObject();
+        for (MiningPointType type : MiningPointType.values()) {
+            MiningPoint point = points.get(type);
+            if (point == null) continue;
+            root.add(type.node(), writePoint(point));
+        }
+        return root;
+    }
+
+    /**
+     * 用一份快照<b>整体替换</b>当前服务器的点位并立即落盘（「配置记录」的读取 / 导入）。
+     *
+     * <p>语义是整体替换而不是合并：记录里没有的类型就是未绑定 —— 否则「读取了 A 服的记录，
+     * 结果还留着本服半张点位表」无法解释。写盘走 {@link #save()}，与点位的服务器守卫同一口径
+     * （内存快照不属于当前服务器时拒绝落盘）。</p>
+     *
+     * @param snapshot 点位快照；{@code null} 视为空快照（全部解绑）
+     * @return 替换后已绑定的条数（0 ~ 3），供回执显示
+     */
+    public int replaceAll(JsonObject snapshot) {
+        ensureLoaded();
+        points.clear();
+        points.putAll(parseSnapshot(snapshot));
+        save();
+        return points.size();
+    }
+
+    /**
+     * 解析一份点位快照（键名 {@code mineral / food / afk}）为点位表。
+     *
+     * <p>与 {@link #reload()} 用同一套读取口径（含数组旧写法兼容、维度剥壳），
+     * 「读取记录」与「详情窗显示坐标」共用它，避免两处各写一遍解析。</p>
+     *
+     * @param snapshot 快照；{@code null} 返回空表
+     */
+    public static Map<MiningPointType, MiningPoint> parseSnapshot(JsonObject snapshot) {
+        Map<MiningPointType, MiningPoint> parsed = new EnumMap<>(MiningPointType.class);
+        if (snapshot == null) return parsed;
+        for (MiningPointType type : MiningPointType.values()) {
+            JsonElement element = snapshot.get(type.node());
+            if (element == null) continue;
+            MiningPoint point = readPoint(element);
+            if (point != null) parsed.put(type, point);
+        }
+        return parsed;
+    }
+
     /** 首次使用新隔离键时复制旧版点位；旧单人文件缺少存档身份，禁止跨存档认领 */
     private void migrateLegacyFile(Path target) {
         if (Files.exists(target)) return;

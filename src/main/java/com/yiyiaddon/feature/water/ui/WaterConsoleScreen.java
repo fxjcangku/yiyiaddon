@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.water.ui;
 
 import com.yiyiaddon.feature.water.WaterESPModule;
 import com.yiyiaddon.feature.water.config.WaterSettings;
+import com.yiyiaddon.ui.console.ConsoleHeaderBar;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
@@ -22,6 +23,9 @@ import net.minecraft.client.gui.screens.Screen;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_CYCLE;
 
 /**
  * 水源显示控制台：10 个设置项的唯一承载界面（第 181 条：移植模块一律控制台样式）。
@@ -50,6 +54,8 @@ public final class WaterConsoleScreen extends PanelScreen implements ConsoleHost
     public WaterConsoleScreen(Screen parent, WaterESPModule module) {
         super("水源显示控制台", parent);
         this.module = module;
+        // 标题下的模块说明：与模块页标题下那行同源（用户 2026-09-17 口径：控制台里也要有说明）
+        setSubtitle(module::description);
         this.settings = module.settings();
         content().add(body);
         reload();
@@ -75,6 +81,9 @@ public final class WaterConsoleScreen extends PanelScreen implements ConsoleHost
     }
 
     private void buildInto(CompactStack stack) {
+        // 顶栏：状态文字 / 快捷键徽章 / 模块开关，压缩右对齐（用户 2026-09-17 口径；模块页那条已撤掉）
+        stack.add(new HeaderRow());
+
         // ── 旧默认组两项（无组名平铺，照旧框架 UI 事实） ──
         stack.add(numberRow("扫描半径", "扫描玩家周围多少格内的水源",
             4, 32, () -> (double) settings.scanRadius,
@@ -143,23 +152,60 @@ public final class WaterConsoleScreen extends PanelScreen implements ConsoleHost
             }))));
     }
 
-    /** 颜色行：调色板直接改传入的 EspColor，关闭窗口即生效（第 151 条），改动即写盘 */
+    /** 颜色行：调色板直接改传入的 EspColor，关闭窗口即生效（第 151 条），改动即写盘；行尾带可见提示（第 213 条） */
     private ConsoleRow colorRow(String label, String hint,
                                 com.yiyiaddon.ui.render.world.EspColor color) {
-        return new ConsoleRow(this, () -> label, hint, null,
+        return new ConsoleRow(this, () -> label, hint, COMMENT_COLOR,
             List.of(new Ctl(new SettingColorPicker(label, color, module::persistSettings))));
     }
 
-    /** 样式行：候选 = 线框 / 面 / 两者（第 143 条逐字），改动即写盘 */
+    /** 样式行：候选 = 线框 / 面 / 两者（第 143 条逐字），改动即写盘；行尾带可见提示（第 213 条） */
     private ConsoleRow cycleRow(String label, String hint,
                                 java.util.function.Supplier<ShapeMode> getter,
                                 java.util.function.Consumer<ShapeMode> setter) {
-        return new ConsoleRow(this, () -> label, hint, null,
+        return new ConsoleRow(this, () -> label, hint, COMMENT_CYCLE,
             List.of(new Ctl(new SettingCycle(List.of(ShapeMode.labels()),
                 () -> getter.get().index(), index -> {
                 setter.accept(ShapeMode.of(index));
                 module.persistSettings();
             }))));
+    }
+
+    /**
+     * 控制台顶栏行：状态文字 / 快捷键徽章 / 模块开关压成右对齐的一小排。
+     *
+     * <p>用户 2026-09-17 口径：三件一起搬进控制台（模块页那条已整体撤掉）；本控制台没有状态格，
+     * 顶栏就占内容第一行，与其它控制台同一位置口径，实现见 {@link ConsoleHeaderBar}。</p>
+     */
+    private final class HeaderRow implements CompactElement {
+
+        private final ConsoleHeaderBar header = new ConsoleHeaderBar(module);
+
+        @Override
+        public float height() {
+            return header.height();
+        }
+
+        @Override
+        public void update(float dt) {
+            header.update(dt);
+        }
+
+        @Override
+        public void draw(Canvas canvas, float x, float y, float width, float alpha,
+                         float mouseX, float mouseY) {
+            header.draw(canvas, x, y, width, alpha, mouseX, mouseY);
+        }
+
+        @Override
+        public boolean onClick(float mx, float my, float x, float y, float width, int button) {
+            return header.onClick(mx, my, x, y, width, button);
+        }
+
+        @Override
+        public boolean onDrag(float mx, float my, float x, float y, float width) {
+            return false;
+        }
     }
 
     /** 整页内容容器：{@link #swap} 换掉内部堆叠，刷新不重开窗口、不重播入场动画 */

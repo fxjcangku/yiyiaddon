@@ -15,10 +15,12 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /**
- * 自动挖矿控制台「触发条件」页：满载 / 食物 / 耐久 / 潜影盒打包机。
+ * 自动挖矿控制台「触发条件」页：满载 / 食物 / 耐久 / 自动断线 / 潜影盒打包机 / 状态播报。
  *
- * <p>逐字搬自旧项目配置页的 {@code 触发条件} 分组；顺序、设置名、描述、取值域与落盘时机一字未改，
- * 只把行容器换成本项目的控制台行构件。2026-09-16 起本页是这四行的唯一落点（配置页不再平铺设置）。</p>
+ * <p>前四行逐字搬自旧项目配置页的 {@code 触发条件} 分组；顺序、设置名、描述、取值域与落盘时机一字未改，
+ * 只把行容器换成本项目的控制台行构件。2026-09-16 起本页是这四行的唯一落点（配置页不再平铺设置）；
+ * 「自动断线」一行是 2026-09-18 本项目追加项（旧项目没有对应项），插在三个阈值之后、同为「到线触发」；
+ * 「状态播报」一行是 2026-09-18 本项目追加项（旧项目没有对应项）。</p>
  */
 public final class MiningThresholdPage {
 
@@ -49,11 +51,33 @@ public final class MiningThresholdPage {
             List.of(new Ctl(intBox(1, 3000, () -> settings.durabilityThreshold,
                 value -> settings.durabilityThreshold = value, null)))));
 
+        // 自动断线（用户 2026-09-18 追加：服务器死亡掉落时，血量到线先退服保命）。
+        // 摆位与排布照本页既有口径：紧跟三个阈值之后（同一类「到线触发」），
+        // 数值框在前、开关在后（与「快速停止键」行「控件在前、辅助在后」一致）。
+        stack.add(new ConsoleRow(owner, () -> "自动断线",
+            "血量掉到设定的格数时立即断开服务器连接，避免死亡掉落（一格血 = 2 点血量，默认 2 格）",
+            null,
+            List.of(new Ctl(intBox(1, 20, "%.0f 格", () -> settings.autoDisconnectHealth,
+                    value -> settings.autoDisconnectHealth = value, null),
+                    "断线血量：血量掉到这一格数（含）时断开连接"),
+                new Ctl(toggle(() -> settings.autoDisconnect,
+                    value -> settings.autoDisconnect = value),
+                    "开关自动断线；关闭后血量再低也不会断线"))));
+
         stack.add(new ConsoleRow(owner, () -> "潜影盒打包机",
             "卸货时把矿物箱(潜影盒)填满，检测到满后等红石推盒换新盒，自动重开箱继续放，直到背包目标矿放完才RTP。给搭配潜影盒打包机的挂机用户使用。",
             null,
             List.of(new Ctl(toggle(() -> settings.shulkerPacker,
                 value -> settings.shulkerPacker = value)))));
+
+        // 状态播报（用户 2026-09-18：「加一个播报状态的按钮，默认开启，提示用户可以在配置页面关闭播报，
+        // 或者弄个自动折叠信息的」——两个都做了：开关在运行时关掉全部状态类播报，
+        // 折叠让同一条文本 5 秒内只出现一次）
+        stack.add(new ConsoleRow(owner, () -> "状态播报",
+            "关闭后模块运行时不再发状态类播报（错误提示仍保留）；相同内容的播报 5 秒内自动折叠，只显示一次",
+            null,
+            List.of(new Ctl(toggle(() -> settings.statusBroadcast,
+                value -> settings.statusBroadcast = value)))));
     }
 
     /** 开关行：改动落盘（与配置页同一个 {@code persistSettings} 时机） */
@@ -67,7 +91,18 @@ public final class MiningThresholdPage {
     /** 整数设置框：步进 1、无滑块（旧项目全部 {@code noSlider}），改动落盘 */
     private SettingNumberBox intBox(int min, int max, Supplier<Integer> getter, IntConsumer setter,
                                     String baritoneKey) {
-        return new SettingNumberBox(min, max, 1, "%.0f",
+        return intBox(min, max, "%.0f", getter, setter, baritoneKey);
+    }
+
+    /**
+     * 整数设置框（自定义显示格式）。
+     *
+     * <p>第 124 条：带单位的设置项必须把单位写进格式串（如 {@code %.0f 格}），
+     * 数值框按该格式显示、也按同一格式回读。</p>
+     */
+    private SettingNumberBox intBox(int min, int max, String format, Supplier<Integer> getter,
+                                    IntConsumer setter, String baritoneKey) {
+        return new SettingNumberBox(min, max, 1, format,
             () -> (double) getter.get(),
             value -> {
                 int next = (int) Math.round(value);

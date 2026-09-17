@@ -1,29 +1,28 @@
 package com.yiyiaddon.feature.mining.ui;
 
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.component.CompactRow;
-import com.yiyiaddon.ui.component.KeybindBadge;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
+import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
-import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
 /**
  * 自动挖矿模块页：只留控制台入口与使用说明，**全部设置与点位都在控制台里**。
  *
  * <p><b>形态照星露谷模块页</b>（{@code StardewResourcePanelPage}，用户 2026-09-16 指令
- * 「跟星露谷物语天差地别…已经做进控制台了下面还一堆设置」）：顶部信息块 → 控制台入口 → 使用说明。
+ * 「跟星露谷物语天差地别…已经做进控制台了下面还一堆设置」）：顶部信息块 → 控制台入口 →
+ * 配置记录入口 → 使用说明正文（用户 2026-09-17 口径：不再单摆「查看使用说明」按钮，
+ * 正文直接铺在入口正下方，超出一屏时由本页自身的滚动条上下查看）。
  * 模块的 5 个设置分组（{@code 目标选择 / 传送指令 / 触发条件 / 物品管理 / Baritone调优}）
  * 与三个点位卡片**只在控制台出现一次**，本页不再平铺 —— 两份控件写同一份 {@code MiningSettings}，
  * 同页并存只会互相看对方为旧值。</p>
  *
- * <p><b>用户交互资产（逐字，禁止改写）：</b>按钮 {@code §b打开控制台} / {@code §e查看使用说明}、
+ * <p><b>用户交互资产（逐字，禁止改写）：</b>按钮 {@code §b打开控制台}、
  * 帮助页 8 个章节的全部正文，来自旧项目原文（{@code AutoMinerModule.getWidget} +
  * {@code buildHelpContent}，{@code :1503-1683}）。</p>
  *
@@ -43,8 +42,11 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
 
     private static final String CONSOLE_BUTTON = "§b打开控制台";
     private static final String CONSOLE_HINT = "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / Baritone调优";
-    private static final String HELP_BUTTON = "§e查看使用说明";
-    private static final String HELP_HINT = "打开自动挖矿的完整使用说明";
+
+    // ── 配置记录入口（用户 2026-09-18：「是控制台下面新建一个按钮 服务器记录复原」、「我说弄在控制台按钮下面」） ──
+
+    private static final String RECORD_BUTTON = "§b服务器记录复原";
+    private static final String RECORD_HINT = "整套配置（设置 + 三个点位）一键保存，按服务器读取 / 替换 / 详情 / 删除";
 
     /** 帮助页 8 个章节（旧 {@code buildHelpContent :1618-1683} 逐字；框线与 {@code [#]} 格式由 HelpPanelScreen 生成） */
     private static final HelpPanelScreen.HelpSection[] HELP_SECTIONS = {
@@ -98,7 +100,7 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
             "    §7普通模式：Baritone mine 挖视野内所有目标矿",
             "    §7种子模式：逐块寻路到预测真矿，原版合法破坏，无视假矿",
             "  §d▸ §f预测位置无矿自动跳过，附近挖完自动重新RTP换区",
-            "  §d▸ §f检测假矿：对准可疑方块 §8→ §f点击「检测假矿」按钮",
+            "  §d▸ §f检测假矿：对准可疑方块 §8→ §f本版本未落地 §7(随种子模式留白，无按钮、无指令)",
             "  §d▸ §f假矿判定：预测无矿但显示有矿 §8= §c假矿",
             "  §d▸ §f适用场景：防止挖到管理员放置的诱饵矿"
         ),
@@ -107,9 +109,20 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
             "  §c⚠ §f已绑定点位不允许覆盖，必须先删除再重新设置",
             "  §c⚠ §f传送指令需服务器支持，否则无法自动返回",
             "  §c⚠ §f挂机修复点会记录视角，用于精准对准修补工作台",
-            "  §c⚠ §f默认全丢垃圾！想留下的物品务必先加进「保留白名单」"
+            "  §c⚠ §f默认全丢垃圾！想留下的物品务必先加进「保留白名单」",
+            "  §c⚠ §f控制台「触发条件」页的「自动断线」开启时，血量掉到设定格数会立即退出服务器（防死亡掉落）",
+            "  §c⚠ §f设置按服务器（单人按存档）分开保存，换服自动切换；上面「服务器记录复原」可一键保存整套配置（设置 + 三个点位），并按服务器读取 / 替换 / 详情 / 删除（读取与替换都只认本服 IP / 本存档）"
         )
     };
+
+    /**
+     * 内嵌说明行（去掉窗口外框三行）：本页把使用说明直接铺在「打开控制台」入口下方
+     * （用户 2026-09-17 口径：不再单摆「查看使用说明」按钮，超出可上下滚动查看）。
+     *
+     * <p>声明在 {@link #HELP_SECTIONS} 之后，静态初始化顺序才保证读到的不是 null。</p>
+     */
+    private static final String[] HELP_LINES =
+        HelpPanelScreen.inlineContent(HelpPanelScreen.buildHelpContent(HELP_SECTIONS));
 
     private final AutoMinerModule module;
 
@@ -151,36 +164,33 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
     // ── 构建 ──
 
     private void build() {
-        setHeader(new ModuleStatusBar(
-                () -> module.isEnabled() ? "运行中" : "未启用",
-                module::isEnabled,
-                new KeybindBadge(module.keybindId()),
-                new SettingToggle(module::isEnabled,
-                        value -> ModuleManager.setEnabled(module.id(), value))));
-
         // ① 控制台入口（星露谷同款：提示行 + 居中按钮）
         addCore(new CompactRow("", () -> CONSOLE_HINT,
             new Button(CONSOLE_BUTTON, this::openConsole)).centeredControl());
 
-        // ② 使用说明（与上一行同一形态；「检测假矿」按钮随种子模式留白，不落地）
-        addCore(new CompactRow("", () -> HELP_HINT,
-            new Button(HELP_BUTTON, this::openHelp)).centeredControl());
+        // ①′ 配置记录入口：紧挨在「打开控制台」按钮下面（用户 2026-09-18 明确指定的位置；
+        //     此前放在控制台页脚，六个页签底部各一份，被用户否掉：「你弄去每个页面干嘛」「按钮在哪里」）
+        addCore(new CompactRow("", () -> RECORD_HINT,
+            new Button(RECORD_BUTTON, this::openRecords)).centeredControl());
+
+        // ② 使用说明内嵌在控制台入口下方（用户 2026-09-17 口径），章节标题与正文逐字不变
+        //    （「检测假矿」按钮随种子模式留白，不落地，因此说明里那一行仍是原文）
+        for (String line : HELP_LINES) addCore(new TextLine(line));
     }
 
     // ── 界面跳转 ──
-
-    /** 打开使用说明（旧 {@code :1509-1511}）：窗口标题为「自动挖矿 - 使用说明」 */
-    private void openHelp() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) return;
-        client.setScreen(new HelpPanelScreen(AutoMinerModule.MESSAGE_MODULE,
-            HelpPanelScreen.buildHelpContent(HELP_SECTIONS), client.screen));
-    }
 
     /** 打开控制台（整屏分页）；父屏是当前模块页，ESC 回来 */
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
         client.setScreen(new MiningConsoleScreen(client.screen, module));
+    }
+
+    /** 打开配置记录窗（一键保存 / 读取 / 替换 / 详情 / 删除）；父屏是当前模块页，ESC 回来 */
+    private void openRecords() {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null) return;
+        client.setScreen(new MiningRecordScreen(client.screen, module));
     }
 }

@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_CYCLE;
+
 /**
  * 自动附魔控制台「基础设置」页：旧 {@code sgBasic} 分组（{@code :114-176}）的全部可见项。
  *
@@ -125,7 +127,8 @@ public final class EnchantBasicPage {
             })))));
 
         if (settings.successSoundEnabled) {
-            stack.add(new ConsoleRow(owner, () -> "成功提示音类型", "选择达成目标时播放的音效", null,
+            // 行尾可见提示见第 213 条（循环控件与只读数值框同族，看不出能点）
+            stack.add(new ConsoleRow(owner, () -> "成功提示音类型", "选择达成目标时播放的音效", COMMENT_CYCLE,
                 List.of(new Ctl(new SettingCycle(SOUND_LABELS,
                     () -> settings.successSoundType.ordinal(),
                     index -> {

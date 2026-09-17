@@ -33,11 +33,18 @@ import java.util.List;
  * <p>蓝本里靠 {@code .visible(...)} 控制显隐的五项（武器白名单 / 切回原槽 / 多目标数 /
  * 命中延迟）在注释里标注了可见性条件，界面据此显隐，本类不参与显隐判定。</p>
  *
- * <p><b>与蓝本的差异（有意偏离，勿自行改回）</b>：<b>目标实体默认值</b>。蓝本
- * {@code KillAura.java:134} 默认只勾玩家（{@code onlyAttackable()} 过滤 + {@code defaultValue(EntityType.PLAYER)}），
- * 本项目默认<b>全选可攻击实体</b>（{@link #defaultEntityTypes()}，字段 {@link #entityTypes} 的初值）
- * ——原因：用户 2026-09-16 要求开箱即用（「开启就能打怪」）。蓝本口径的常量
- * {@link #DEFAULT_ENTITY_TYPES} 原样保留，只用于识别老配置里的旧默认值（见 {@link #load(JsonObject)} 的一次性迁移）。</p>
+ * <p><b>与蓝本的差异（有意偏离，勿自行改回）</b></p>
+ * <ol>
+ *     <li><b>目标实体默认值</b>：蓝本 {@code KillAura.java:134} 默认只勾玩家（{@code onlyAttackable()} 过滤 +
+ *         {@code defaultValue(EntityType.PLAYER)}），本项目默认<b>全部怪物</b>（{@link #defaultEntityTypes()}，
+ *         字段 {@link #entityTypes} 的初值）——原因：用户 2026-09-16 要求开箱即用（「开启就能打怪」）。
+ *         蓝本口径的常量 {@link #DEFAULT_ENTITY_TYPES} 原样保留，只用于识别老配置里的旧默认值。</li>
+ *     <li><b>四项数值默认值</b>（用户 2026-09-17：「旋转时机默认改成不旋转 多目标数默认4个 距离默认6 穿墙 3」）：
+ *         旋转时机 {@link #DEFAULT_ROTATION}（不旋转）、多目标数 {@link #DEFAULT_MAX_TARGETS}(4)、
+ *         攻击范围 {@link #DEFAULT_RANGE}(6)、穿墙范围 {@link #DEFAULT_WALLS_RANGE}(3)。
+ *         蓝本原默认值（{@code Always} / 1 / 4.5 / 3.5）保留为 {@code LEGACY_*} 常量，只用于识别老配置
+ *         （见 {@link #migrateLegacyCombatDefaults()}）；<b>取值域一项未改</b>，仍按蓝本 clamp。</li>
+ * </ol>
  */
 public final class KillAuraSettings {
 
@@ -60,6 +67,32 @@ public final class KillAuraSettings {
 
     /** 目标实体默认值：蓝本 {@code :134}（{@code onlyAttackable()} + 仅玩家）。本项目不用它当默认值，只用于识别老配置，见 {@link #defaultEntityTypes()} */
     public static final List<String> DEFAULT_ENTITY_TYPES = List.of("minecraft:player");
+
+    // ━━━ 本项目的默认值偏离（用户 2026-09-17 口径，蓝本原默认值保留在下面只用于识别老配置） ━━━
+
+    /** 本项目默认旋转时机：**不旋转**（用户 2026-09-17：「旋转时机默认改成不旋转」；蓝本默认 {@code Always}） */
+    public static final RotationMode DEFAULT_ROTATION = RotationMode.NONE;
+
+    /** 本项目默认多目标数：**4**（用户 2026-09-17：「多目标数默认4个」；蓝本默认 1），取值域仍为蓝本的 1~5 */
+    public static final int DEFAULT_MAX_TARGETS = 4;
+
+    /** 本项目默认攻击范围：**6**（用户 2026-09-17：「距离默认6」；蓝本默认 4.5），取值域仍为蓝本的 0~6 */
+    public static final double DEFAULT_RANGE = 6;
+
+    /** 本项目默认穿墙范围：**3**（用户 2026-09-17：「穿墙 3」；蓝本默认 3.5），取值域仍为蓝本的 0~6 */
+    public static final double DEFAULT_WALLS_RANGE = 3;
+
+    /** 蓝本原默认旋转时机（{@code :73-78}）：只用于识别老配置里从未动过的值，见 {@link #migrateLegacyCombatDefaults()} */
+    private static final RotationMode LEGACY_ROTATION = RotationMode.ALWAYS;
+
+    /** 蓝本原默认多目标数（{@code :145-153}）：同上 */
+    private static final int LEGACY_MAX_TARGETS = 1;
+
+    /** 蓝本原默认攻击范围（{@code :155-162}）：同上 */
+    private static final double LEGACY_RANGE = 4.5;
+
+    /** 蓝本原默认穿墙范围（{@code :164-171}）：同上 */
+    private static final double LEGACY_WALLS_RANGE = 3.5;
 
     /**
      * 本项目默认目标实体名单：<b>全部怪物</b>（{@code MobCategory.MONSTER}），按登记 ID 字典序。
@@ -111,8 +144,8 @@ public final class KillAuraSettings {
     /** 蓝本 {@code selected-weapon-types}，默认见 {@link #DEFAULT_WEAPONS}；可见性：{@code attackWhenHolding == Weapons}（{@code :64-71}） */
     public final List<String> weapons = new ArrayList<>(DEFAULT_WEAPONS);
 
-    /** 蓝本 {@code rotate}，默认 {@code Always}（{@code :73-78}） */
-    public RotationMode rotation = RotationMode.ALWAYS;
+    /** 蓝本 {@code rotate}，默认 {@code Always}（{@code :73-78}）；**本项目默认改为 {@code None}（不旋转）**，见 {@link #DEFAULT_ROTATION} */
+    public RotationMode rotation = DEFAULT_ROTATION;
 
     /** 蓝本 {@code auto-switch}，默认 {@code false}（{@code :80-85}） */
     public boolean autoSwitch;
@@ -140,14 +173,14 @@ public final class KillAuraSettings {
     /** 蓝本 {@code priority}，默认 {@code ClosestAngle}（{@code :138-143}） */
     public SortPriority priority = SortPriority.CLOSEST_ANGLE;
 
-    /** 蓝本 {@code max-targets}，默认 {@code 1}，最小 {@code 1}，滑条 {@code 1~5}；可见性：{@code !onlyOnLook}（{@code :145-153}） */
-    public int maxTargets = 1;
+    /** 蓝本 {@code max-targets}，默认 {@code 1}，最小 {@code 1}，滑条 {@code 1~5}；可见性：{@code !onlyOnLook}（{@code :145-153}）；**本项目默认改为 4**，见 {@link #DEFAULT_MAX_TARGETS} */
+    public int maxTargets = DEFAULT_MAX_TARGETS;
 
-    /** 蓝本 {@code range}，默认 {@code 4.5}，最小 {@code 0}，滑条上界 {@code 6}（{@code :155-162}） */
-    public double range = 4.5;
+    /** 蓝本 {@code range}，默认 {@code 4.5}，最小 {@code 0}，滑条上界 {@code 6}（{@code :155-162}）；**本项目默认改为 6**，见 {@link #DEFAULT_RANGE} */
+    public double range = DEFAULT_RANGE;
 
-    /** 蓝本 {@code walls-range}，默认 {@code 3.5}，最小 {@code 0}，滑条上界 {@code 6}（{@code :164-171}） */
-    public double wallsRange = 3.5;
+    /** 蓝本 {@code walls-range}，默认 {@code 3.5}，最小 {@code 0}，滑条上界 {@code 6}（{@code :164-171}）；**本项目默认改为 3**，见 {@link #DEFAULT_WALLS_RANGE} */
+    public double wallsRange = DEFAULT_WALLS_RANGE;
 
     /** 蓝本 {@code passive-mob-age-filter}，默认 {@code Adult}（{@code :173-178}） */
     public EntityAge passiveMobAgeFilter = EntityAge.ADULT;
@@ -258,6 +291,7 @@ public final class KillAuraSettings {
         maxTargets = Math.max(1, intOf(json, "maxTargets", maxTargets));
         range = Math.max(0, doubleOf(json, "range", range));
         wallsRange = Math.max(0, doubleOf(json, "wallsRange", wallsRange));
+        migrateLegacyCombatDefaults();
         passiveMobAgeFilter = enumOf(json, "passiveMobAgeFilter", EntityAge.class, passiveMobAgeFilter);
         hostileMobAgeFilter = enumOf(json, "hostileMobAgeFilter", EntityAge.class, hostileMobAgeFilter);
         ignoreNamed = boolOf(json, "ignoreNamed", ignoreNamed);
@@ -300,6 +334,28 @@ public final class KillAuraSettings {
         }
         entityTypes.clear();
         entityTypes.addAll(defaultEntityTypes());
+    }
+
+    /**
+     * 老配置一次性迁移：四项「从未动过」的常规 / 目标数值升级成本项目新默认值。
+     *
+     * <p>用户 2026-09-17 指令：「旋转时机默认改成不旋转 多目标数默认4个 距离默认6 穿墙 3」。
+     * 改字段初值只对<b>新配置</b>生效 —— 已经落过盘的配置会把旧值原样读回来，界面看上去「默认没改」，
+     * 所以必须按内容识别这一次（做法与 {@link #migrateLegacyEntityTypes()} 同）。</p>
+     *
+     * <p><b>触发条件逐项独立</b>：该项的值<b>恰好等于</b>蓝本原默认值（{@link #LEGACY_ROTATION} 始终 /
+     * {@link #LEGACY_MAX_TARGETS} 1 / {@link #LEGACY_RANGE} 4.5 / {@link #LEGACY_WALLS_RANGE} 3.5）时升级为新默认；
+     * 任何别的值（包括用户自己调过的）一律原样尊重。</p>
+     *
+     * <p><b>影响面（诚实记录）</b>：用户若<b>故意</b>把某一项设成蓝本原默认值（例如刻意只打 1 个目标），
+     * 会被升级一次 —— 本模块设置块没有版本号字段，「从未动过」与「故意设成旧默认」无法区分，
+     * 不为此新增字段、不动落盘结构。</p>
+     */
+    private void migrateLegacyCombatDefaults() {
+        if (rotation == LEGACY_ROTATION) rotation = DEFAULT_ROTATION;
+        if (maxTargets == LEGACY_MAX_TARGETS) maxTargets = DEFAULT_MAX_TARGETS;
+        if (range == LEGACY_RANGE) range = DEFAULT_RANGE;
+        if (wallsRange == LEGACY_WALLS_RANGE) wallsRange = DEFAULT_WALLS_RANGE;
     }
 
     private static JsonArray stringArray(List<String> values) {

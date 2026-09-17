@@ -16,6 +16,7 @@ import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.console.ConsoleHeaderBar;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
@@ -51,6 +52,12 @@ import java.util.Set;
  * <p><b>2026-09-16 起设置项只在这里出现一次</b>（用户指令：「已经做进控制台了下面还一堆设置」）：
  * {@link AutoMinerPage} 已按星露谷模块页形态精简为「控制台入口 + 使用说明 + 三个点位卡片」，
  * 不再平铺任何设置分组 —— 两份控件写同一份设置，同页并存只会互相看对方为旧值。</p>
+ *
+ * <p><b>2026-09-18 配置记录入口不在本窗口</b>（用户两次纠正后的最终位置）：入口是模块页
+ * 「打开控制台」按钮下方的 {@code §b服务器记录复原} 按钮（{@link AutoMinerPage}），点开
+ * {@link MiningRecordScreen}（一键保存整套配置 = 全部设置 + 三个点位；每条记录读取 / 替换 / 详情 / 删除）。
+ * <b>不要再往本窗口的页脚加记录控件</b>：本窗页脚由六个页签共用，加在这里等于每个页签底部各一份，
+ * 用户已明确否掉（「你弄去每个页面干嘛」）。</p>
  */
 public final class MiningConsoleScreen extends PanelScreen implements ConsoleHost {
 
@@ -122,6 +129,8 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
     public MiningConsoleScreen(Screen parent, AutoMinerModule module) {
         super("自动挖矿控制台", parent);
         this.module = module;
+        // 标题下的模块说明：与模块页标题下那行同源（用户 2026-09-17 口径：控制台里也要有说明）
+        setSubtitle(module::description);
         content().add(body);
         reload();
     }
@@ -213,6 +222,8 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
     // ── 页面装配 ──
 
     private void buildInto(CompactStack stack) {
+        // 顶栏：状态文字 / 快捷键徽章 / 模块开关，压缩右对齐（用户 2026-09-17 口径；模块页那条已撤掉）
+        stack.add(new ConsoleHeaderBar(module));
         stack.add(new StatusStrip());
         buildTabs(stack);
 
@@ -345,28 +356,9 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
         }
 
         private void drawCell(Canvas canvas, String text, float x, float y, float maxWidth, float alpha) {
-            MinecraftText.draw(canvas, fit(text, maxWidth), x,
+            MinecraftText.draw(canvas, MinecraftText.fit(text, TEXT_SIZE, maxWidth), x,
                 CardLayout.baseline(y + ROW_HEIGHT / 2f, TEXT_SIZE),
                 TEXT_SIZE, ClickGuiThemeColors.current().primaryText, alpha);
-        }
-
-        /**
-         * 按可见宽度截断（保留颜色码），超宽补省略号。
-         *
-         * <p>本窗口没有裁剪原语，超宽文本会直接压到右侧列上。测量走
-         * {@link MinecraftText#measure}（不含颜色码字符），不能用 {@code CardLayout.ellipsize}
-         * ——后者按 {@code FontRenderer} 口径会把 {@code §x} 也算进宽度。</p>
-         */
-        private static String fit(String text, float maxWidth) {
-            if (text == null || text.isEmpty()) return "";
-            if (maxWidth <= 0f) return "";
-            if (MinecraftText.measure(text, TEXT_SIZE, false) <= maxWidth) return text;
-            for (int end = text.length() - 1; end > 0; end--) {
-                if (text.charAt(end - 1) == '§') continue; // 不要把颜色码切一半
-                String candidate = text.substring(0, end) + "…";
-                if (MinecraftText.measure(candidate, TEXT_SIZE, false) <= maxWidth) return candidate;
-            }
-            return "…";
         }
 
         @Override

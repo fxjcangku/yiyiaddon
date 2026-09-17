@@ -12,6 +12,7 @@ import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.console.ConsoleHeaderBar;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
@@ -101,6 +102,8 @@ public final class AdminDetectorConsoleScreen extends PanelScreen implements Con
     public AdminDetectorConsoleScreen(Screen parent, AdminDetectorModule module) {
         super("管理员检测控制台", parent);
         this.module = module;
+        // 标题下的模块说明：与模块页标题下那行同源（用户 2026-09-17 口径：控制台里也要有说明）
+        setSubtitle(module::description);
         content().add(body);
         reload();
     }
@@ -188,6 +191,8 @@ public final class AdminDetectorConsoleScreen extends PanelScreen implements Con
     // ── 页面装配 ──
 
     private void buildInto(CompactStack stack) {
+        // 顶栏：状态文字 / 快捷键徽章 / 模块开关，压缩右对齐（用户 2026-09-17 口径；模块页那条已撤掉）
+        stack.add(new ConsoleHeaderBar(module));
         stack.add(new StatusStrip());
         buildTabs(stack);
 
@@ -287,12 +292,14 @@ public final class AdminDetectorConsoleScreen extends PanelScreen implements Con
                 int row = i / COLUMNS;
                 int column = i % COLUMNS;
                 float cellX = x + CELL_PAD + Math.max(0f, width - CELL_PAD * 2f) * column / COLUMNS;
-                drawCell(canvas, snapshot.cell(i), cellX, y + ROW_HEIGHT * row, alpha);
+                drawCell(canvas, snapshot.cell(i), cellX, y + ROW_HEIGHT * row,
+                    Math.max(0f, width - CELL_PAD * 2f) / COLUMNS, alpha);
             }
         }
 
-        private void drawCell(Canvas canvas, String text, float x, float y, float alpha) {
-            MinecraftText.draw(canvas, text, x, CardLayout.baseline(y + ROW_HEIGHT / 2f, TEXT_SIZE),
+        private void drawCell(Canvas canvas, String text, float x, float y, float maxWidth, float alpha) {
+            MinecraftText.draw(canvas, MinecraftText.fit(text, TEXT_SIZE, maxWidth), x,
+                CardLayout.baseline(y + ROW_HEIGHT / 2f, TEXT_SIZE),
                 TEXT_SIZE, ClickGuiThemeColors.current().primaryText, alpha);
         }
 

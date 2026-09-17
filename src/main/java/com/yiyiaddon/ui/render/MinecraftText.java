@@ -146,6 +146,34 @@ public final class MinecraftText {
         return text != null && text.indexOf(CODE_PREFIX) >= 0;
     }
 
+    /**
+     * 按可见宽度截断带颜色码文本，超宽补省略号（保留颜色码，不切断 {@code §x} 对）。
+     *
+     * <p><b>为什么要按可见宽度算</b>：界面里没有裁剪原语，超宽文本会直接压到右边的列或控件上；
+     * 而测量必须走 {@link #measure}（它不把颜色码字符算进宽度），不能用 {@code CardLayout.ellipsize}
+     * ——后者按 {@code FontRenderer} 口径会把 {@code §x} 也算进宽度，于是一段纯颜色码就被当成超长截掉。</p>
+     *
+     * <p><b>单一实现（第 169 条）</b>：本方法由各控制台顶部状态区里 5 份逐字相同的私有 {@code fit}
+     * 收敛而来（原位于 {@code MiningConsoleScreen / AutoFarmConsoleScreen / VillagerConsoleScreen /
+     * AutoChestConsoleScreen / EnchantConsoleScreen} 的 {@code StatusStrip} 内）。</p>
+     *
+     * @param text     带颜色码的原文，{@code null} / 空串按 {@code ""} 处理
+     * @param size     字号（与绘制时一致）
+     * @param maxWidth 可见宽度上限；{@code <= 0} 时返回空串（调用点因此不会画出半个字）
+     * @return 能放进 {@code maxWidth} 的文本，放不下时以 {@code …} 结尾
+     */
+    public static String fit(String text, float size, float maxWidth) {
+        if (text == null || text.isEmpty()) return "";
+        if (maxWidth <= 0f) return "";
+        if (measure(text, size, false) <= maxWidth) return text;
+        for (int end = text.length() - 1; end > 0; end--) {
+            if (text.charAt(end - 1) == CODE_PREFIX) continue; // 不要把颜色码切一半
+            String candidate = text.substring(0, end) + "…";
+            if (measure(candidate, size, false) <= maxWidth) return candidate;
+        }
+        return "…";
+    }
+
     private static float flush(Canvas canvas, StringBuilder buffer, float cursor, float y, float size,
                                int color, float alpha, boolean bold) {
         if (buffer.isEmpty()) return cursor;

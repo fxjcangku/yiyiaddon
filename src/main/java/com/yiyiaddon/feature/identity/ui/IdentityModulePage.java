@@ -1,11 +1,8 @@
 package com.yiyiaddon.feature.identity.ui;
 
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.component.CompactRow;
-import com.yiyiaddon.ui.component.KeybindBadge;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
@@ -59,13 +56,6 @@ public final class IdentityModulePage extends CompactModulePage implements Modul
     }
 
     private void build() {
-        // 顶部：状态、模块开关与快捷键
-        setHeader(new ModuleStatusBar(
-                () -> module.isEnabled() ? "运行中" : "未启用",
-                module::isEnabled,
-                new KeybindBadge(module.keybindId()),
-                new SettingToggle(module::isEnabled, value -> ModuleManager.setEnabled(module.id(), value))));
-
         // 三个设置项，与旧项目 IdIdentifyModule 一一对应
         addCore(new CompactRow("识别模式", this::modeHint,
                 new SettingSegmented(module.modeLabels(), module::modeIndex, module::setModeIndex)));

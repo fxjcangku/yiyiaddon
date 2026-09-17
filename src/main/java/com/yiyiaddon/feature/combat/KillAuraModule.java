@@ -12,13 +12,11 @@ import com.yiyiaddon.feature.combat.config.KillAuraSettings;
 import com.yiyiaddon.feature.combat.config.KillAuraSettings.AttackItems;
 import com.yiyiaddon.feature.combat.config.KillAuraSettings.RotationMode;
 import com.yiyiaddon.feature.combat.config.KillAuraSettings.ShieldMode;
-import com.yiyiaddon.feature.combat.render.KillAuraTargetRenderer;
 import com.yiyiaddon.feature.combat.target.AimAngles;
 import com.yiyiaddon.feature.combat.target.SortPriority;
 import com.yiyiaddon.feature.combat.target.TargetScanner;
 import com.yiyiaddon.feature.combat.ui.KillAuraPage;
 import com.yiyiaddon.ui.page.ModulePage;
-import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.LocalPlayer;
@@ -136,9 +134,6 @@ public final class KillAuraModule extends Module {
     /** 服务端 TPS / 卡顿观测（蓝本 {@code TickRate}） */
     private final TickRateTracker tickRate = new TickRateTracker();
 
-    /** 锁定目标的 ESP 描边框（用户 2026-09-16 要求新增；挂在世界渲染层上，随模块开关注册/注销） */
-    private final KillAuraTargetRenderer targetRenderer = new KillAuraTargetRenderer(this);
-
     /** 当前锁定目标（蓝本公有字段 {@code targets}，本项目收为私有） */
     private final List<Entity> targets = new ArrayList<>();
 
@@ -221,8 +216,6 @@ public final class KillAuraModule extends Module {
         hitTimer = 0;
         targets.clear();
         tickRate.reset();
-        // ESP：注册世界渲染层，关闭时注销（照 AutoMinerModule / AutoChestModule 的既有做法）
-        WorldOverlay.register(MODULE_ID, targetRenderer::render);
     }
 
     /** 蓝本 {@code onDeactivate}，{@code :281-285}；由挖矿修补钩子在 tick 内同步调用，必须幂等且不抛异常 */
@@ -232,8 +225,6 @@ public final class KillAuraModule extends Module {
         stopAttacking();
         // 兜底解冻：停机路径之外若残留冻结标志，会让 Baritone 被永久停住
         pathingPaused = false;
-        // ESP 层注销（重复注销是空操作，与上面的幂等要求一致）
-        WorldOverlay.unregister(MODULE_ID);
     }
 
     // ── 事件 ──

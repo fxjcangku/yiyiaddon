@@ -420,8 +420,11 @@ public final class HomePage extends BasePage {
             FontRenderer.drawText(canvas, CardLayout.ellipsize(entry.displayName(), w * 0.42f, 11f),
                     x + CARD_PAD, CardLayout.baseline(rowY + 8f, 11f), 11f, nameC);
 
+            // 活动状态用启用绿（主题色槽，第 141 条：此前这里写死 0x22C55E）；
+            // 非活动状态（空闲 / 未启用 / 未注册 / 未启动 / 已停止）仍用弱化灰 —— 这一格里混着
+            // 多种非启用状态，不适用「未启用=红」的单一语义，故不随状态徽章改色。
             int stateC = stateIsActive(status.state())
-                    ? GlassPanel.withAlpha(0x22C55E, alpha)
+                    ? GlassPanel.withAlpha(tc.stateOn, alpha)
                     : GlassPanel.withAlpha(tc.labelTertiary, alpha);
             String state = CardLayout.ellipsize(status.state(), w * 0.45f, 11f);
             FontRenderer.drawTextBold(canvas, state,

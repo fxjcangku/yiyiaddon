@@ -11,16 +11,23 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * ESP 全局设置：作用于<b>所有</b>走 {@link EspRenderer} 的绘制层（星露谷点位、自动箱子、ESP 测试项…）。
  *
  * <p><b>与各模块自己的设置是什么关系：</b>模块自己管的是「画什么、什么颜色、什么模式」；这里管的是
- * <b>全局排版与开销</b>——线宽、不透明度、可见距离、字号、单帧图元上限。两项互不覆盖：
- * 本类不改任何 {@link EspColor}，也不替模块决定画不画某一类目标，只是在绘制瞬间统一缩放与裁剪。
+ * <b>全局排版与开销</b>——线宽、不透明度、可见距离、字号、单帧图元上限，以及各模块层的总闸。
+ * 本类不改任何 {@link EspColor}，只是在绘制瞬间统一缩放、裁剪与抑制。
  * 因此关掉这里的一项不会让模块「记不住自己的设置」。</p>
  *
- * <p><b>默认值一律等于「什么也不改」</b>：倍率 1.0、覆盖项跟随各模块、距离不限、图元不限。
+ * <p><b>2026-09-18 新增「各模块 ESP」抑制开关</b>（用户：「我的 esp 全局设置是不是可以调的…可以调这些插件模块的配置」）：
+ * 全局层现在能在同一页里一处关掉某个模块的全部 ESP（{@link Layer}）。这越过了原先
+ * 「不替模块决定画不画某一类目标」的口径，故口径修订为：<b>模块自己仍决定「画什么、什么颜色、什么模式」，
+ * 全局层只额外交一层「允许 / 抑制」总闸</b>；抑制期间模块只是不画，其设置与运行状态一概不动，取消抑制即原样恢复。</p>
+ *
+ * <p><b>默认值一律等于「什么也不改」</b>：倍率 1.0、覆盖项跟随各模块、距离不限、图元不限、五个模块层全开。
  * 打开即恢复到未启用本设置时的观感，这样即使本设置出问题也不会凭空改变既有 ESP 的样子。</p>
  *
  * <p>写入 {@code config/yiyiaddon/esp-global.json}；文件缺失 / 损坏一律回落默认值。</p>
@@ -121,6 +128,55 @@ public final class EspGlobalSettings {
     private boolean hideSelfFirstPerson = true;
     private boolean hideSelfThirdPerson;
 
+    /** 瞄准方块高亮｜准星指向的方块画一圈整格描边（默认开，用户 2026-09-18 需求） */
+    private boolean blockOutline = true;
+    /** 瞄准方块描边颜色｜RGB（默认 0xFFFFFF 白）；透明度由渲染层固定为不透明 */
+    private int blockOutlineColor = 0xFFFFFF;
+
+    /**
+     * 各模块 ESP 的总闸（用户 2026-09-18：「我的 esp 全局设置是不是可以调的…可以调这些插件模块的配置」）。
+     *
+     * <p>全局层只管「画不画」，<b>不改各模块自己的颜色与「画什么」</b>——那些仍归各自的控制台页面。
+     * 落盘键 {@code layer_<枚举名小写>}，缺键回落 {@code true}（旧存档行为不变）。</p>
+     */
+    public enum Layer {
+        MINING("挖矿"),
+        STARDEW("星露谷"),
+        AUTO_CHEST("自动箱子"),
+        VILLAGER("村民容器"),
+        ADMIN("管理员检测");
+
+        private final String label;
+
+        Layer(String label) {
+            this.label = label;
+        }
+
+        /** 界面显示用中文名。 */
+        public String label() {
+            return label;
+        }
+    }
+
+    /**
+     * 下标与 {@link Layer#ordinal()} 对齐；默认全开。
+     *
+     * <p><b>按枚举长度生成而不是写字面量数组</b>：以后在 {@link Layer} 里加一项时，
+     * 手写字面量数组一旦忘记同步长度，{@code layerEnabled[layer.ordinal()]} 会在渲染线程上
+     * 直接 {@code ArrayIndexOutOfBoundsException}（编译器不报错）。这里自动跟随枚举长度，
+     * 新增项自动默认开启，从根上消灭这个隐患。</p>
+     */
+    private final boolean[] layerEnabled = allLayersEnabled();
+
+    private static boolean[] allLayersEnabled() {
+        boolean[] values = new boolean[Layer.values().length];
+        Arrays.fill(values, true);
+        return values;
+    }
+
+    /** 自动挖矿是否正在运行（运行期标志，不落盘；见 {@link #autoMinerRunning()}） */
+    private boolean autoMinerRunning;
+
     private EspGlobalSettings() {
     }
 
@@ -207,6 +263,32 @@ public final class EspGlobalSettings {
         return firstPerson ? hideSelfFirstPerson : hideSelfThirdPerson;
     }
 
+    /** 瞄准方块高亮开关。 */
+    public boolean blockOutline() {
+        return blockOutline;
+    }
+
+    /**
+     * 运行期标志（<b>不是用户设置，不落盘</b>）：自动挖矿模块是否正在运行。
+     *
+     * <p>用户 2026-09-18：「esp 那个白色显示的方块功能跟自动挖矿冲突了，挖的时候都会出现，
+     * 能不能自动挖矿启动的时候不显示」。自动挖矿期间准星会随挖掘目标到处扫，白框一直闪，
+     * 所以运行时不画；模块关闭自动恢复。</p>
+     */
+    public boolean autoMinerRunning() {
+        return autoMinerRunning;
+    }
+
+    /** 由自动挖矿模块在启用 / 关闭时写入（不触发落盘） */
+    public void setAutoMinerRunning(boolean value) {
+        autoMinerRunning = value;
+    }
+
+    /** 瞄准方块描边颜色（RGB）。 */
+    public int blockOutlineColor() {
+        return blockOutlineColor;
+    }
+
     // ── 写入（界面调用后立即落盘） ──
 
     public void setEnabled(boolean value) {
@@ -274,6 +356,17 @@ public final class EspGlobalSettings {
         save();
     }
 
+    public void setBlockOutline(boolean value) {
+        blockOutline = value;
+        save();
+    }
+
+    /** 瞄准方块描边色只存 RGB：透明度由渲染层固定，避免调出看不见的描边 */
+    public void setBlockOutlineColor(int value) {
+        blockOutlineColor = value & 0xFFFFFF;
+        save();
+    }
+
     // ── 取值器（界面读当前值） ──
 
     public double thicknessScale() {
@@ -296,6 +389,22 @@ public final class EspGlobalSettings {
     /** 第三人称是否隐藏自己。 */
     public boolean hideSelfThirdPerson() {
         return hideSelfThirdPerson;
+    }
+
+    /** 该模块层的 ESP 是否绘制（抑制期间模块只是不画，设置与状态不动）。 */
+    public boolean layerEnabled(Layer layer) {
+        return layerEnabled[layer.ordinal()];
+    }
+
+    /** 设置该模块层的 ESP 是否绘制；改动即时落盘。 */
+    public void setLayerEnabled(Layer layer, boolean value) {
+        layerEnabled[layer.ordinal()] = value;
+        save();
+    }
+
+    /** 落盘键：{@code layer_<枚举名小写>}。 */
+    private static String layerKey(Layer layer) {
+        return "layer_" + layer.name().toLowerCase(Locale.ROOT);
     }
 
     // ── 持久化 ──
@@ -332,6 +441,11 @@ public final class EspGlobalSettings {
                 BUDGET_MIN, BUDGET_MAX));
             hideSelfFirstPerson = boolOf(json, "hideSelfFirstPerson", hideSelfFirstPerson);
             hideSelfThirdPerson = boolOf(json, "hideSelfThirdPerson", hideSelfThirdPerson);
+            blockOutline = boolOf(json, "blockOutline", blockOutline);
+            blockOutlineColor = (int) numberOf(json, "blockOutlineColor", blockOutlineColor) & 0xFFFFFF;
+            for (Layer layer : Layer.values()) {
+                layerEnabled[layer.ordinal()] = boolOf(json, layerKey(layer), layerEnabled[layer.ordinal()]);
+            }
         } catch (Exception ignored) {
             // 文件损坏 / 不可读：保持默认值，绝不阻断渲染
         }
@@ -353,6 +467,11 @@ public final class EspGlobalSettings {
         json.addProperty("primitiveBudget", primitiveBudget);
         json.addProperty("hideSelfFirstPerson", hideSelfFirstPerson);
         json.addProperty("hideSelfThirdPerson", hideSelfThirdPerson);
+        json.addProperty("blockOutline", blockOutline);
+        json.addProperty("blockOutlineColor", blockOutlineColor);
+        for (Layer layer : Layer.values()) {
+            json.addProperty(layerKey(layer), layerEnabled[layer.ordinal()]);
+        }
         try {
             Path file = path();
             Files.createDirectories(file.getParent());

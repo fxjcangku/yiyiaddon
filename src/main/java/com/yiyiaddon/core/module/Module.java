@@ -166,6 +166,33 @@ public abstract class Module {
     public void saveSettings(JsonObject settings) {
     }
 
+    /**
+     * 设置隔离键：返回非 {@code null} 时，本模块的设置按该键分区保存与读取（一个键一套设置）。
+     *
+     * <p><b>用途</b>：本项目用它做「设置按服务器 / 单人存档隔离」——同一个模块在 A 服与 B 服
+     * 各存一套配置，切服自动切换，互不覆盖（自动挖矿在用，见 {@code AutoMinerModule#settingsScope()}）。
+     * 写盘位置仍在 {@code config/module-state.json} 的模块记录内（键 {@code 服务器设置}），
+     * 符合「模块设置统一存 module-state.json」的口径。</p>
+     *
+     * <p><b>默认 {@code null} = 不隔离</b>，全部既有模块行为完全不变。返回 {@code null} 时，
+     * 读写都落到该模块的全局模板（旧档位置），因此隔离模块的全局模板同时充当
+     * 「新服务器 / 新存档的初始值」。</p>
+     *
+     * <p><b>实现方两条硬要求</b>：</p>
+     * <ul>
+     *   <li>键必须稳定、可直接作 JSON 键（本项目用 {@code WorldIdentity.fileSafeServer()}）；</li>
+     *   <li><b>未进入世界时必须返回 {@code null}</b>——主菜单里没有服务器身份，随便造一个键会把
+     *       编辑内容写到一个并不存在的世界上。</li>
+     * </ul>
+     *
+     * <p>隔离模块还需在自己的「换服 / 进世界」入口调用
+     * {@link ModuleManager#reloadScopedSettings(Module)} 重读设置：设置只在加载时读一次，
+     * 不重读就会把上一个服务器的配置带进新服务器。</p>
+     */
+    public String settingsScope() {
+        return null;
+    }
+
     // ── 界面与指令 ──
 
     /** 模块独立页面；返回 {@code null} 表示尚未接入，模块中心会落到占位页面 */

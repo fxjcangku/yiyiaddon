@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.admindetect.render;
 
 import com.yiyiaddon.feature.admindetect.AdminDetectorModule;
 import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
@@ -15,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
  * <p><b>来源</b>：用户 2026-09-16 要求新增（原话「管理员检测要带 esp 检测画框」「管理员传送过来的话
  * 射线➕框」）。<b>旧项目没有这个能力</b>，属新增需求而非迁移资产。</p>
  *
- * <p><b>渲染管线复用</b>：与 {@code KillAuraTargetRenderer} / {@code MiningPointRenderer} 同一范式 ——
+ * <p><b>渲染管线复用</b>：与 {@code MiningPointRenderer} 同一范式 ——
  * 挂在 {@code WorldOverlay} 世界渲染层上（模块启用时注册、关闭时注销），几何交给 {@link EspRenderer}
  * 封装（框交给原版 gizmo 在世界空间绘制，射线走 {@link EspRenderer#tracer}），本类只描述「画什么」。
  * 线宽 / 不透明度 / 显示距离等全局口径仍走「ESP 全局设置」页，本类不另建第二套配置。</p>
@@ -26,10 +27,10 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class AdminThreatRenderer {
 
-    /** 渲染距离：超过这个距离的威胁不画（口径照 {@code KillAuraTargetRenderer.RENDER_DISTANCE}） */
+    /** 渲染距离：超过这个距离的威胁不画（口径照 {@code MiningPointRenderer.RENDER_DISTANCE}） */
     private static final double RENDER_DISTANCE = 128.0;
 
-    /** 线宽（GUI 缩放坐标）；照 {@code KillAuraTargetRenderer.LINE_THICKNESS} */
+    /** 线宽（GUI 缩放坐标）；照 {@code MiningPointRenderer.LINE_THICKNESS} */
     private static final float LINE_THICKNESS = 1.5f;
 
     /** 颜色预设索引：{@code ColorPresets} 的 0 号 = 红 */
@@ -53,6 +54,8 @@ public final class AdminThreatRenderer {
 
     /** 每帧渲染（由模块注册到世界渲染层驱动） */
     public void render(EspRenderer renderer) {
+        // 全局「各模块 ESP」总闸（用户 2026-09-18）
+        if (!EspGlobalSettings.get().layerEnabled(EspGlobalSettings.Layer.ADMIN)) return;
         if (renderer == null || mc.player == null || mc.level == null) return;
         // 两个开关都关掉时整层什么都不做（用户 2026-09-16 拍板这两项都是可关的设置项）
         boolean box = module.settings().espBox;
@@ -68,7 +71,7 @@ public final class AdminThreatRenderer {
 
             if (box) {
                 AABB bounds = threat.getBoundingBox();
-                // 只画描边：目标身上糊一层填充会挡模型（照 KillAuraTargetRenderer 的做法）
+                // 只画描边：目标身上糊一层填充会挡模型（照 MiningPointRenderer 的做法）
                 renderer.box(bounds, BOX_SIDE, BOX_LINE, ShapeMode.Lines, LINE_THICKNESS);
             }
             if (tracer) {

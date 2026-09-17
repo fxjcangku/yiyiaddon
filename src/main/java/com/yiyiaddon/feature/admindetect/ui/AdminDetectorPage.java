@@ -1,27 +1,25 @@
 package com.yiyiaddon.feature.admindetect.ui;
 
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.admindetect.AdminDetectorModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.ui.component.CompactRow;
-import com.yiyiaddon.ui.component.KeybindBadge;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
+import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
-import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
 /**
- * 管理员检测模块页：状态条 + 「打开控制台」+「查看使用说明」的薄壳页。
+ * 管理员检测模块页：状态条 + 「打开控制台」入口，使用说明内嵌在该入口下方的薄壳页。
  *
- * <p><b>形态照自动挖矿模块页</b>（{@code AutoMinerPage}，第 182 条：控制台入口在前、使用说明在其下，
- * 两者同一形态）。模块的设置不在本页平铺：全部由整屏控制台 {@link AdminDetectorConsoleScreen}
+ * <p><b>形态照自动挖矿模块页</b>（{@code AutoMinerPage}）：控制台入口在前、使用说明正文直接铺在
+ * 入口正下方（用户 2026-09-17 口径：不再单摆「查看使用说明」按钮，说明超出一屏时由本页自身的
+ * 滚动条上下查看）。模块的设置不在本页平铺：全部由整屏控制台 {@link AdminDetectorConsoleScreen}
  * 按用途分页承载（概览 / 检测 / 名单 / 显示与警报）。</p>
  *
- * <p><b>用户交互资产（逐字，禁止改写）：</b>按钮 {@code §b打开控制台} / {@code §e查看使用说明}；
+ * <p><b>用户交互资产（逐字，禁止改写）：</b>按钮 {@code §b打开控制台}；
  * 使用说明正文来自旧 {@code AdminDetectorModule.getWidget}（{@code :232-260}）与
  * {@code CometDisconnectModule.getWidget}（{@code :72-83}）两段原文，合并与改写项登记在
  * {@link AdminDetectorModule} 类注释指向的迁移记录里。</p>
@@ -36,8 +34,6 @@ public final class AdminDetectorPage extends CompactModulePage implements Module
     private static final String CONSOLE_BUTTON = "§b打开控制台";
     /** 入口行的说明 */
     private static final String CONSOLE_HINT = "按用途分页：概览 / 检测 / 名单 / 显示与警报";
-    private static final String HELP_BUTTON = "§e查看使用说明";
-    private static final String HELP_HINT = "打开管理员检测的完整使用说明";
 
     /**
      * 使用说明章节（旧两段 {@code buildInfoWidget} 原文合并；框线与 {@code [#]} 格式由
@@ -74,9 +70,18 @@ public final class AdminDetectorPage extends CompactModulePage implements Module
         new HelpPanelScreen.HelpSection("注意事项",
             "  §c⚠ 完全隐身到客户端无实体的管理员无法检测，这是客户端 hack 的固有限制。",
             "  §c⚠ 提示仅发到自己的聊天栏，不会暴露给其他玩家。",
-            "  §c⚠ 断线只退出服务器，不保证完全被记录，请结合隐身 / 伪装使用。"
+            "  §c⚠ 断线只退出服务器，不保证完全不被记录，请结合隐身 / 伪装使用。"
         )
     };
+
+    /**
+     * 内嵌说明行（去掉窗口外框三行）：本页把使用说明直接铺在「打开控制台」入口下方
+     * （用户 2026-09-17 口径：不再单摆「查看使用说明」按钮，超出可上下滚动查看）。
+     *
+     * <p>声明在 {@link #HELP_SECTIONS} 之后，静态初始化顺序才保证读到的不是 null。</p>
+     */
+    private static final String[] HELP_LINES =
+        HelpPanelScreen.inlineContent(HelpPanelScreen.buildHelpContent(HELP_SECTIONS));
 
     private final AdminDetectorModule module;
 
@@ -109,31 +114,15 @@ public final class AdminDetectorPage extends CompactModulePage implements Module
     // ── 构建 ──
 
     private void build() {
-        setHeader(new ModuleStatusBar(
-            () -> module.isEnabled() ? "运行中" : "未启用",
-            module::isEnabled,
-            new KeybindBadge(module.keybindId()),
-            new SettingToggle(module::isEnabled,
-                value -> ModuleManager.setEnabled(module.id(), value))));
-
         // ① 控制台入口（提示行 + 居中按钮，形态照自动挖矿模块页）
         addCore(new CompactRow("", () -> CONSOLE_HINT,
             new Button(CONSOLE_BUTTON, this::openConsole)).centeredControl());
 
-        // ② 使用说明（与上一行同一形态，第 182 条：必须排在控制台入口下面）
-        addCore(new CompactRow("", () -> HELP_HINT,
-            new Button(HELP_BUTTON, this::openHelp)).centeredControl());
+        // ② 使用说明内嵌在控制台入口下方（用户 2026-09-17 口径），章节标题与正文逐字不变
+        for (String line : HELP_LINES) addCore(new TextLine(line));
     }
 
     // ── 界面跳转 ──
-
-    /** 打开使用说明：窗口标题为「管理员检测 - 使用说明」 */
-    private void openHelp() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) return;
-        client.setScreen(new HelpPanelScreen(AdminDetectorModule.MESSAGE_MODULE,
-            HelpPanelScreen.buildHelpContent(HELP_SECTIONS), client.screen));
-    }
 
     /** 打开控制台（整屏分页）；父屏是当前模块页，ESC 回来 */
     private void openConsole() {

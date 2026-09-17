@@ -22,6 +22,7 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
@@ -47,6 +48,14 @@ public final class MiningContainer {
     private final AutoMinerModule module;
     private final Minecraft mc;
 
+    /**
+     * 开箱允许的最大眼到方块中心距离的平方（4.0 格）。
+     *
+     * <p>原版交互距离 4.5 格，这里留 0.5 格余量；配套 {@link #withinOpenRange} 的水平/垂直邻域判据，
+     * 用于「容器比玩家高」时不再垫方块上去（用户 2026-09-17 需求）。</p>
+     */
+    private static final double MAX_OPEN_DISTANCE_SQR = 16.0;
+
     private int trashDisposalCooldown = 0;
     private static final int TRASH_DISPOSAL_INTERVAL = 5; // 每5 tick丢一次垃圾
 
@@ -59,9 +68,35 @@ public final class MiningContainer {
     private BlockPos openingPos = null;
     private int openingCooldown = 0;
     private int actionCooldown = 0;
-    private int foodCountBeforeWithdraw = -1;
+    /** 上一格补给 Shift 点击正在等待到账的物品与其「点击前」数量（null 表示没有在途点击） */
+    private Item pendingWithdrawItem = null;
+    private int pendingWithdrawCountBefore = 0;
+    private int pendingWithdrawWaitTicks = 0;
+    /** 一次 Shift 点击最多等多少刻到账；超时说明背包根本塞不进（背包满 / 服务器拒绝） */
+    private static final int WITHDRAW_CONFIRM_TICKS = 20;
+
+    // 精确补一组（光标搬运）的进行中状态
+    private static final int PRECISE_PICKUP = 1;
+    private static final int PRECISE_FILL = 2;
+    private static final int PRECISE_RETURN = 3;
+    /** 0 = 空闲；非 0 时表示光标上可能拿着物品，其它点击一律让路 */
+    private int precisePhase = 0;
+    /** 正在精确补的那一格（箱子侧菜单下标）；-1 表示已把余量放回 */
+    private int preciseChestSlot = -1;
+    private Item preciseItem = null;
+    private int preciseWaitTicks = 0;
+    /** 精确填充开始前背包里该食物的数量，收尾时用来判断这次点击到底有没有生效 */
+    private int preciseCountBefore = 0;
+    /** 连续「点了却没到账」的次数：满 2 次判背包塞不进 */
+    private int preciseFailStreak = 0;
     private int eatMoveCooldown = 0;
     private static final int MAX_OPEN_ATTEMPTS = 5;
+
+    // 进食时临时占用快捷栏的记录（用户 2026-09-17：食物不在快捷栏时「跟垫脚方块切换但换不回来」）：
+    // 旧实现没空槽就固定顶掉快捷栏 8 号位且永不归还，玩家的垫脚方块被顶进背包后再也不回来。
+    // 现在记录被顶掉的槽位与物品，退出进食时换回原位。
+    private int eatDisplacedHotbarSlot = -1;
+    private Item eatDisplacedItem = null;
 
     public MiningContainer(AutoMinerModule module) {
         this.module = module;
@@ -72,15 +107,16 @@ public final class MiningContainer {
         currentMenu = null;
         menuStateId = -1;
         stableStateTicks = 0;
-        foodCountBeforeWithdraw = -1;
         actionCooldown = 0;
+        clearPendingWithdraw();
+        clearPreciseFill();
         trashDisposalCooldown = 0;
         openAttempts = 0;
         openingPos = null;
         openingCooldown = 0;
-        foodCountBeforeWithdraw = -1;
-        actionCooldown = 0;
         eatMoveCooldown = 0;
+        eatDisplacedHotbarSlot = -1;
+        eatDisplacedItem = null;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -119,9 +155,15 @@ public final class MiningContainer {
             ItemStack stack = inventory.getItem(i);
             if (stack.isEmpty()) continue;
 
-            // 搭路方块：只留一组，超出部分整组丢弃
+            // 搭路方块：只保留一组（最多 64 个），多余的组丢掉。
+            // （用户 2026-09-17 明确「我的默认是一组」；截图里留下 3 组原石就是走到了这里。
+            //  早期版本「超过 64 就整组丢」曾把玩家要用的垫脚方块莫名扔掉，因此现在：
+            //  ① 只保留数量最多的那一组（同数量时保留靠前的），② 手持那一格永不动，
+            //  ③ 只有确实超过一组时才丢，且每次丢一组、分频发包）
             if (isPlaceBlock(stack, placeBlocks)) {
-                if (countItem(inventory, stack.getItem()) > 64) {
+                if (countItem(inventory, stack.getItem()) > 64
+                    && i != inventory.getSelectedSlot()
+                    && !isPrimaryPlaceStack(inventory, i, stack)) {
                     dropStack(i);
                     trashDisposalCooldown = TRASH_DISPOSAL_INTERVAL;
                     return;
@@ -153,6 +195,23 @@ public final class MiningContainer {
             if (!stack.isEmpty() && stack.getItem() == item) count += stack.getCount();
         }
         return count;
+    }
+
+    /**
+     * 该槽位是否为「要保留的那一组」搭路方块：数量最多的那一组（同数量时保留靠前的）。
+     *
+     * <p>用它决定「多余组」的判定：不能只用「数量 &gt; 64 就丢」，否则两组都是 64 时
+     * 会互相把对方当成多余组，最后把搭路方块全丢光。</p>
+     */
+    private boolean isPrimaryPlaceStack(Inventory inventory, int slot, ItemStack stack) {
+        for (int i = 0; i < 36; i++) {
+            if (i == slot) continue;
+            ItemStack other = inventory.getItem(i);
+            if (other.isEmpty() || other.getItem() != stack.getItem()) continue;
+            if (other.getCount() > stack.getCount()) return false;              // 有更大的组 → 本组是多余的
+            if (other.getCount() == stack.getCount() && i < slot) return false; // 同数量时保留靠前的那组
+        }
+        return true;
     }
 
     /**
@@ -197,6 +256,9 @@ public final class MiningContainer {
      */
     private void dropStack(int slot) {
         if (mc.player == null || mc.gameMode == null) return;
+        // 还有容器开着时背包点击会被客户端直接丢弃（日志会刷 Ignoring click in mismatching container），
+        // 此时先不动手，等容器收尾后下一轮再丢
+        if (isPlayerInventoryClickBlocked()) return;
 
         try {
             ItemStack stack = mc.player.getInventory().getItem(slot);
@@ -214,6 +276,7 @@ public final class MiningContainer {
     /** 丢弃副手物品（InventoryMenu 中副手槽位固定为 45） */
     private void dropOffhand() {
         if (mc.player == null || mc.gameMode == null) return;
+        if (isPlayerInventoryClickBlocked()) return; // 容器开着时点击会被客户端丢弃，见 dropStack 注释
         try {
             if (mc.player.getOffhandItem().isEmpty()) return;
             mc.gameMode.handleContainerInput(0, 45, 1, ContainerInput.THROW, mc.player);
@@ -227,18 +290,35 @@ public final class MiningContainer {
     // ═══════════════════════════════════════════════════════════════════
 
     /**
+     * 是否已到「可以从这里开箱」的位置。
+     *
+     * <p>旧实现要求切比雪夫距离 ≤1（玩家与容器几乎同层）。用户 2026-09-17 实机：潜影盒打包机比玩家高
+     * 2 格时，Baritone 为了凑到容器那一层会自动垫方块爬上去——又慢又难看。现按<b>原版交互距离</b>判：
+     * 水平 ≤2 格、垂直 -2~+2 格，且眼睛到方块中心 ≤4.0 格（原版 4.5 格留余量），
+     * 容器高两层时站在下面直接开箱，不必垫方块。</p>
+     *
+     * <p>与 {@code MiningStateMachine.isAdjacentTo} 的开箱邻域判据必须同一套，
+     * 否则会出现「状态机认为到了、容器层却拒绝开」的开箱死锁。</p>
+     */
+    private boolean withinOpenRange(BlockPos pos) {
+        if (mc.player == null || pos == null) return false;
+        BlockPos player = mc.player.blockPosition();
+        int dx = Math.abs(player.getX() - pos.getX());
+        int dz = Math.abs(player.getZ() - pos.getZ());
+        int dy = player.getY() - pos.getY();
+        if (dx > 2 || dz > 2 || dy > 2 || dy < -2) return false;
+        if (dx == 0 && dy == 0 && dz == 0) return false;
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 center = new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        return eye.distanceToSqr(center) <= MAX_OPEN_DISTANCE_SQR;
+    }
+
+    /**
      * 打开容器（发送交互包）
      */
     public void openContainer(BlockPos pos) {
         if (mc.player == null || mc.level == null) return;
-        int dx = Math.abs(mc.player.blockPosition().getX() - pos.getX());
-        int dy = Math.abs(mc.player.blockPosition().getY() - pos.getY());
-        int dz = Math.abs(mc.player.blockPosition().getZ() - pos.getZ());
-        // 切比雪夫邻域（含对角）：与 MinerFSM.isAdjacentTo 同判定，
-        // Baritone 停在对角格时同样允许开箱（interact 包距离校验足够宽松）
-        if (dx > 1 || dy > 1 || dz > 1 || (dx | dy | dz) == 0) {
-            return;
-        }
+        if (!withinOpenRange(pos)) return;
         if (openingCooldown > 0) {
             openingCooldown--;
             return;
@@ -287,6 +367,9 @@ public final class MiningContainer {
         currentMenu = null;
         menuStateId = -1;
         stableStateTicks = 0;
+        // 关箱即放弃「精确补一组」的中间状态：光标上的物品由服务端随关窗归还，这里不能再接着点
+        clearPreciseFill();
+        clearPendingWithdraw();
     }
 
     /**
@@ -435,80 +518,227 @@ public final class MiningContainer {
     //  补给操作
     // ═══════════════════════════════════════════════════════════════════
 
+    /** 补给取食物的单刻结果（用户 2026-09-17：旧实现只有 true/false，「刚点完还没到账」被当成补给结束） */
+    public enum FoodWithdrawResult {
+        /** 还在取：有点击在飞行或冷却中，继续调用 */
+        WORKING,
+        /** 取完了：目标已满组，或箱子里已经没有「还缺的白名单食物」 */
+        DONE,
+        /** 拿不进来：Shift 点击迟迟不到账（背包满 / 服务器拒绝），别继续耗时间 */
+        INVENTORY_BLOCKED
+    }
+
     /**
-     * 从食物箱提取食物（只拿白名单内的）
-     * 
-     * 拿满策略：循环 Shift 点击直到背包白名单食物达到「食物阈值」，
-     * 或箱子里没有更多白名单食物（拿空即止）。
-     * 每格点击间隔 5 tick，等待服务端到账后再拿下一格。
-     * 
-     * @return true=本次补给结束（已拿满或箱子拿空）；false=还在拿（继续调用）
+     * 从食物箱提取食物（只拿白名单内、带 FOOD 组件的）。
+     *
+     * <p><b>拿多少</b>（用户 2026-09-17 需求：「自动计算，补到一组就可以」；2026-09-18 追加约束）：
+     * 逐个物品补到<b>它自己的一组</b>——目标数量取该物品的最大堆叠数（普通食物 64、蜂蜜瓶 16、
+     * 蛋糕 / 各类汤 1），因此不写死 64。用户实机反馈「我要的是假设我现在 9 个食物补到 64，
+     * 而不是加上多出的几个食物，多出来的占格子」：所以箱子里那一格比缺口多时，
+     * 走 {@link #startPreciseFill} 的三步精确填充（拾起整格 → 填满背包未满堆 → 余量放回箱子），
+     * 背包里最终正好是一组，不会多出一个半组。</p>
+     *
+     * <p><b>什么时候算取完</b>：箱子里已经没有「还缺的白名单食物」才返回
+     * {@link FoodWithdrawResult#DONE}；每一格点击都要等物品真正到账（背包内该物品数量增长）
+     * 才发下一格，等待上限 {@link #WITHDRAW_CONFIRM_TICKS} 刻。旧实现在「点击已发出、
+     * 物品还在服务器端飞行」时也会返回 true，状态机当刻读到的还是旧数量，
+     * 于是被判「补给箱无白名单食物」直接回矿区——正是用户报的「根本没拿到就回状态机了」。</p>
      */
-    public boolean withdrawFood() {
-        if (!isContainerOpen() || mc.player == null || mc.gameMode == null) {
-            return false;
-        }
-
-        if (actionCooldown > 0) {
-            actionCooldown--;
-            return false;
-        }
-
-        int currentFoodCount = countWhitelistedFood();
-
-        // 已拿满（达到食物阈值），结束补给
-        if (currentFoodCount >= module.getHungerThreshold()) {
-            return true;
-        }
-
-        // 上一格等待到账：数量增长才视为成功
-        if (foodCountBeforeWithdraw >= 0) {
-            if (currentFoodCount > foodCountBeforeWithdraw) {
-                foodCountBeforeWithdraw = -1; // 到账，继续拿下一格
-            } else {
-                return false; // 物品还在服务器端飞行，等下一tick
-            }
-        }
-
+    public FoodWithdrawResult withdrawFood() {
+        if (!isContainerOpen() || mc.player == null || mc.gameMode == null) return FoodWithdrawResult.DONE;
         AbstractContainerMenu menu = currentMenu;
-        if (menu == null) return false;
+        if (menu == null) return FoodWithdrawResult.DONE;
 
         Inventory inventory = mc.player.getInventory();
         List<String> whitelist = module.getFoodWhitelist();
 
-        // 扫描箱子侧的槽位
+        // 0) 精确填充的三步流程优先推进（光标可能正拿着物品，不能插别的点击）
+        if (precisePhase > 0) return continuePreciseFill(menu, inventory);
+
+        // 1) 到账确认：上一格点击的物品真的进背包了才继续，否则等（超时判「拿不进来」）
+        if (pendingWithdrawItem != null) {
+            if (countItemInInventory(inventory, pendingWithdrawItem) > pendingWithdrawCountBefore) {
+                clearPendingWithdraw();
+            } else if (++pendingWithdrawWaitTicks > WITHDRAW_CONFIRM_TICKS) {
+                clearPendingWithdraw();
+                return FoodWithdrawResult.INVENTORY_BLOCKED;
+            } else {
+                return FoodWithdrawResult.WORKING;
+            }
+        }
+
+        if (actionCooldown > 0) {
+            actionCooldown--;
+            return FoodWithdrawResult.WORKING;
+        }
+
+        // 2) 在箱子侧找「白名单 + 带 FOOD + 还没满一组」的食物
+        boolean blocked = false;
         for (Slot slot : menu.slots) {
             if (slot.container == inventory) continue;
 
             ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) continue;
+            if (stack.isEmpty() || !stack.has(DataComponents.FOOD)) continue;
+            if (!whitelist.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())) continue;
 
-            // 判断是否为食物且在白名单内
-            var foodComp = stack.get(DataComponents.FOOD);
-            if (foodComp != null && whitelist.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())) {
-                foodCountBeforeWithdraw = currentFoodCount;
+            // 目标 = 该物品自己的「一组」（普通食物 64、蜂蜜瓶 16、汤类 1），不写死 64
+            int maxStack = stack.getMaxStackSize();
+            int current = countItemInInventory(inventory, stack.getItem());
+            if (current >= maxStack) continue; // 已够一组（含整组以上的余量堆）
+
+            if (!canAcceptIntoInventory(inventory, stack.getItem())) {
+                blocked = true; // 背包塞不下这个物品，继续看还有没有别的能塞的
+                continue;
+            }
+
+            if (stack.getCount() <= maxStack - current) {
+                // 这一格整组拿走也不会超过一组 → Shift 整格最省事
+                pendingWithdrawItem = stack.getItem();
+                pendingWithdrawCountBefore = current;
+                pendingWithdrawWaitTicks = 0;
                 quickMove(menu, slot.index);
                 actionCooldown = 5;
-                return false;
+                return FoodWithdrawResult.WORKING;
             }
+
+            // 这一格比缺口多：精确补一组，多出来的原样留在箱子里（用户 2026-09-18 要求）
+            startPreciseFill(menu, slot.index, stack.getItem());
+            return FoodWithdrawResult.WORKING;
         }
 
-        // 箱子里已没有白名单食物（拿空即止），结束补给
-        return true;
+        // 没有任何「还缺的白名单食物」可拿：确实取完了；若有方块因背包塞不下而被跳过，则是「拿不进来」
+        return blocked ? FoodWithdrawResult.INVENTORY_BLOCKED : FoodWithdrawResult.DONE;
     }
 
-    private int countWhitelistedFood() {
-        int count = 0;
-        List<String> whitelist = module.getFoodWhitelist();
-        for (int i = 0; i < 36; i++) {
-            ItemStack stack = mc.player.getInventory().getItem(i);
-            if (!stack.isEmpty()
-                && whitelist.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
-                && stack.has(DataComponents.FOOD)) {
-                count += stack.getCount();
+    // ── 精确补一组（光标搬运，三步）────────────────────────────────────────
+    //
+    // 目的：箱子那一格比缺口多时，Shift 整格会把背包塞成「一组 + 零头」，白占一个格子。
+    // 做法（每步都是原版左键 PICKUP，语义与玩家手动操作完全一致）：
+    //   1. 左键箱子格 → 整组拿在光标上；
+    //   2. 左键背包里该食物的未满堆 → 该堆被填满，余量仍在光标上（背包可能有多个未满堆，循环做）；
+    //   3. 左键原箱子格 → 把余量放回去。
+    // 结果：背包里该食物正好一组，箱子里少掉的正是缺口数量。
+
+    /**
+     * 开始精确填充。
+     *
+     * @param chestSlot 箱子侧那一格的菜单下标
+     * @param item      该格的食物物品
+     */
+    private void startPreciseFill(AbstractContainerMenu menu, int chestSlot, Item item) {
+        preciseItem = item;
+        preciseChestSlot = chestSlot;
+        preciseCountBefore = countItemInInventory(mc.player.getInventory(), item);
+        precisePhase = PRECISE_PICKUP;
+        preciseWaitTicks = 2;
+        clickSlot(menu, chestSlot, 0, ContainerInput.PICKUP);
+    }
+
+    /** 推进精确填充：填背包未满堆 → 余量放回箱子 */
+    private FoodWithdrawResult continuePreciseFill(AbstractContainerMenu menu, Inventory inventory) {
+        if (preciseWaitTicks > 0) {
+            preciseWaitTicks--;
+            return FoodWithdrawResult.WORKING;
+        }
+
+        ItemStack carried = menu.getCarried();
+        if (precisePhase == PRECISE_PICKUP) {
+            // 光标没拿到东西（点击被服务端拒绝 / 那格被别人拿走）：收手，避免空转
+            if (carried.isEmpty()) {
+                clearPreciseFill();
+                actionCooldown = 5;
+                return FoodWithdrawResult.WORKING;
+            }
+            precisePhase = PRECISE_FILL;
+            return FoodWithdrawResult.WORKING;
+        }
+
+        if (precisePhase == PRECISE_FILL) {
+            Slot target = findMergeSlot(menu, inventory, preciseItem);
+            if (target != null && !carried.isEmpty() && carried.is(preciseItem)) {
+                clickSlot(menu, target.index, 0, ContainerInput.PICKUP);
+                preciseWaitTicks = 2;
+                return FoodWithdrawResult.WORKING;
+            }
+            precisePhase = PRECISE_RETURN;
+            return FoodWithdrawResult.WORKING;
+        }
+
+        // PRECISE_RETURN：余量放回原箱子格
+        if (!carried.isEmpty() && carried.is(preciseItem) && preciseChestSlot >= 0) {
+            clickSlot(menu, preciseChestSlot, 0, ContainerInput.PICKUP);
+            preciseWaitTicks = 2;
+            preciseChestSlot = -1; // 只放一次
+            return FoodWithdrawResult.WORKING;
+        }
+
+        // 收尾：数量确实涨了才算成功；没涨就记一次失败，连续 2 次判背包塞不进
+        int now = countItemInInventory(inventory, preciseItem);
+        boolean progressed = now > preciseCountBefore;
+        clearPreciseFill();
+        actionCooldown = 5;
+        if (progressed) {
+            preciseFailStreak = 0;
+        } else if (++preciseFailStreak >= 2) {
+            preciseFailStreak = 0;
+            return FoodWithdrawResult.INVENTORY_BLOCKED;
+        }
+        return FoodWithdrawResult.WORKING;
+    }
+
+    /** 背包里该食物「还没满一组」的那一格（菜单槽，用于把光标上的余量并进去） */
+    private Slot findMergeSlot(AbstractContainerMenu menu, Inventory inventory, Item item) {
+        for (Slot slot : menu.slots) {
+            if (slot.container != inventory) continue;
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty() && stack.is(item) && stack.getCount() < stack.getMaxStackSize()) {
+                return slot;
             }
         }
+        return null;
+    }
+
+    /** 清掉精确填充的全部中间状态（关箱 / 复位时必须调用，避免光标搬运流程悬在半路） */
+    private void clearPreciseFill() {
+        precisePhase = 0;
+        preciseChestSlot = -1;
+        preciseItem = null;
+        preciseWaitTicks = 0;
+    }
+
+    /** 容器点击（原版语义）：{@code button=0} 左键、{@code ContainerInput.PICKUP} 拾取 / 放下 */
+    private void clickSlot(AbstractContainerMenu menu, int slotIndex, int button, ContainerInput input) {
+        if (menu == null || mc.player == null || mc.gameMode == null) return;
+        mc.gameMode.handleContainerInput(menu.containerId, slotIndex, button, input, mc.player);
+    }
+
+    /** 清掉「在途 Shift 点击」的记录 */
+    private void clearPendingWithdraw() {
+        pendingWithdrawItem = null;
+        pendingWithdrawCountBefore = 0;
+        pendingWithdrawWaitTicks = 0;
+    }
+
+    /** 背包内指定物品的总数量（主背包 0-35，含快捷栏） */
+    private int countItemInInventory(Inventory inventory, Item item) {
+        int count = 0;
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!stack.isEmpty() && stack.getItem() == item) count += stack.getCount();
+        }
         return count;
+    }
+
+    /** 背包是否还装得下这个物品：有空槽，或存在没满的同类堆可以并入 */
+    private boolean canAcceptIntoInventory(Inventory inventory, Item item) {
+        if (inventory.getFreeSlot() != -1) return true;
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!stack.isEmpty() && stack.getItem() == item && stack.getCount() < stack.getMaxStackSize()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -572,17 +802,30 @@ public final class MiningContainer {
                 return;
             }
 
-            // 找一个空热键栏槽位（优先8号位）
-            int emptyHotbarSlot = -1;
-            for (int i = 8; i >= 0; i--) {
-                if (inventory.getItem(i).isEmpty()) {
-                    emptyHotbarSlot = i;
-                    break;
-                }
+            // 目标热键栏槽位：优先空槽；没有空槽时临时顶掉一格并记录，退出进食时换回原位。
+            // 旧实现固定顶 8 号位且不归还，玩家的垫脚方块因此被顶进背包再也不回来（用户 2026-09-17）；
+            // 而只肯顶「垃圾格」又会出现「快捷栏被几组矿塞满 → 食物永远换不进去 → 一直空吃」，
+            // 所以这里允许临时顶掉一组矿石/垫脚方块（数量最少的那一格），吃完由 restoreEatDisplacedItem() 换回。
+            int targetHotbarSlot = findTemporaryHotbarSlot();
+            if (targetHotbarSlot == -1) {
+                // 快捷栏全是工具与食物，确实没有可腾的位置：本 tick 先不吃，交给超时保护
+                mc.options.keyUse.setDown(false);
+                return;
             }
-            if (emptyHotbarSlot == -1) emptyHotbarSlot = 8;
+            ItemStack displaced = inventory.getItem(targetHotbarSlot);
+            if (!displaced.isEmpty()) {
+                eatDisplacedHotbarSlot = targetHotbarSlot;
+                eatDisplacedItem = displaced.getItem();
+            }
 
-            moveToHotbar(bestBackpackSlot, emptyHotbarSlot);
+            if (isPlayerInventoryClickBlocked()) {
+                // 还有容器开着：此刻换槽会被客户端当窗口不匹配吞掉（日志刷 Ignoring click），先收尾容器
+                closeContainer();
+                mc.options.keyUse.setDown(false);
+                return;
+            }
+
+            moveToHotbar(bestBackpackSlot, targetHotbarSlot);
             eatMoveCooldown = 5; // 等 5 tick 到账
             mc.options.keyUse.setDown(false);
             return;
@@ -609,5 +852,189 @@ public final class MiningContainer {
         if (mc.player == null || mc.gameMode == null) return;
         mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, inventorySlot, hotbarSlot,
             ContainerInput.SWAP, mc.player);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  快捷栏维护（本项目新增，用户 2026-09-17 反馈）
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * 是否不能操作玩家背包。
+     *
+     * <p>客户端对 containerId 不匹配的点击会直接丢弃并打警告
+     * （{@code Ignoring click in mismatching container. Click in 0, player has 48}），
+     * 也就是说「还有容器开着」（模块自己的箱子会话没收尾、或服务端开了别的容器）时，
+     * 背包换槽与丢垃圾会全部静默失效且刷日志。</p>
+     */
+    public boolean isPlayerInventoryClickBlocked() {
+        return mc.player == null || mc.player.containerMenu == null || mc.player.containerMenu.containerId != 0;
+    }
+
+    /** 第一个空的热键栏槽位；没有则返回 -1 */
+    private int findEmptyHotbarSlot() {
+        Inventory inventory = mc.player.getInventory();
+        for (int i = 0; i < 9; i++) {
+            if (inventory.getItem(i).isEmpty()) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * 可临时占用的热键栏槽位，按优先级挑：
+     * <ol>
+     *   <li>空槽；</li>
+     *   <li>非工具 / 非白名单食物 / 非搭路方块 / 非目标矿的「垃圾格」；</li>
+     *   <li>目标矿中<b>数量最少</b>的一格（只是换个格子，数量不丢，卸货时照常进箱子）；</li>
+     *   <li>搭路方块中数量最少的一格（最后手段：Baritone 放方块也只看快捷栏，尽量少动）。</li>
+     * </ol>
+     * 工具与白名单食物永不被顶。
+     *
+     * <p>为什么第 3/4 档必须存在：矿工快捷栏经常被七八组目标矿塞满（用户 2026-09-17 实机截图），
+     * 只肯顶垃圾格会导致「食物换不进快捷栏一直空吃」「铲子在背包却永远进不来挖土」。</p>
+     */
+    private int findTemporaryHotbarSlot() {
+        int empty = findEmptyHotbarSlot();
+        if (empty != -1) return empty;
+
+        Inventory inventory = mc.player.getInventory();
+        List<String> placeBlocks = module.settings().placeBlocks;
+        int junkSlot = -1;
+        int oreSlot = -1;
+        int oreCount = Integer.MAX_VALUE;
+        int blockSlot = -1;
+        int blockCount = Integer.MAX_VALUE;
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.isEmpty()) continue;
+            if (isTool(stack)) continue;
+            if (module.getFoodWhitelist().contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())) continue;
+            if (isAllowedOre(stack)) {
+                if (stack.getCount() < oreCount) {
+                    oreCount = stack.getCount();
+                    oreSlot = i;
+                }
+                continue;
+            }
+            if (isPlaceBlock(stack, placeBlocks)) {
+                if (stack.getCount() < blockCount) {
+                    blockCount = stack.getCount();
+                    blockSlot = i;
+                }
+                continue;
+            }
+            if (junkSlot == -1) junkSlot = i;
+        }
+        if (junkSlot != -1) return junkSlot;
+        return oreSlot != -1 ? oreSlot : blockSlot;
+    }
+
+    /**
+     * 当前准备吃的食物名（进食进度播报用）。
+     *
+     * <p>旧实现直接播报主手物品名 —— 食物还没换进快捷栏时主手还是镐子，于是出现
+     * 「进食中 ▸ 下界合金镐」（用户 2026-09-17）。改为按白名单食物解析。</p>
+     */
+    public String describeEatingFood() {
+        if (mc.player == null) return "食物";
+        Inventory inventory = mc.player.getInventory();
+        List<String> foodWhitelist = module.getFoodWhitelist();
+        ItemStack best = ItemStack.EMPTY;
+        int bestNutrition = 0;
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.isEmpty() || !foodWhitelist.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())) {
+                continue;
+            }
+            var foodComp = stack.get(DataComponents.FOOD);
+            if (foodComp == null) continue;
+            if (i == inventory.getSelectedSlot()) return stack.getHoverName().getString(); // 正拿在手上的优先
+            if (foodComp.nutrition() > bestNutrition) {
+                bestNutrition = foodComp.nutrition();
+                best = stack;
+            }
+        }
+        return best.isEmpty() ? "食物" : best.getHoverName().getString();
+    }
+
+    /**
+     * 把进食时被顶掉的热键栏物品换回原位（退出进食时调用）。
+     *
+     * <p>只有当那一格现在还是食物或空着、且被顶掉的物品确实还在背包里时才换回，
+     * 避免与玩家手动整理的背包打架。</p>
+     */
+    public void restoreEatDisplacedItem() {
+        int slot = eatDisplacedHotbarSlot;
+        Item item = eatDisplacedItem;
+        if (slot < 0 || item == null || mc.player == null) {
+            eatDisplacedHotbarSlot = -1;
+            eatDisplacedItem = null;
+            return;
+        }
+        // 容器还开着时点击会被客户端丢弃：保留记录，下个 tick 再试（这里不能先清字段）
+        if (isPlayerInventoryClickBlocked()) return;
+        eatDisplacedHotbarSlot = -1;
+        eatDisplacedItem = null;
+
+        Inventory inventory = mc.player.getInventory();
+        ItemStack occupied = inventory.getItem(slot);
+        boolean occupiedIsFoodOrEmpty = occupied.isEmpty()
+            || module.getFoodWhitelist().contains(BuiltInRegistries.ITEM.getKey(occupied.getItem()).toString());
+        if (!occupiedIsFoodOrEmpty) return;
+        for (int i = 9; i < 36; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!stack.isEmpty() && stack.getItem() == item) {
+                moveToHotbar(i, slot);
+                return;
+            }
+        }
+    }
+
+    /**
+     * 确保各类工具至少有一把在快捷栏里。
+     *
+     * <p>反编译本版 Baritone 的 {@code ToolSet#getBestSlot}：它的选工具循环上界就是 9，
+     * 只扫快捷栏 0-8，背包里的工具它根本看不到（{@code InventoryBehavior#requestMove} 更是无人调用），
+     * 所以「自动切换工具」开着也会出现镐子躺在背包里挖不动的情况（用户 2026-09-17）。
+     * 由模块自己把缺失的工具类型搬进快捷栏：只用空槽或「最不重要」的格子，不动关键物品。</p>
+     *
+     * @return 是否发起了换槽（调用方可据此延后一帧再动作）
+     */
+    public boolean ensureToolsInHotbar() {
+        if (mc.player == null) return false;
+        Inventory inventory = mc.player.getInventory();
+        boolean moved = false;
+        for (String suffix : new String[]{"_pickaxe", "_shovel", "_axe", "_hoe", "_sword"}) {
+            boolean inHotbar = false;
+            for (int i = 0; i < 9; i++) {
+                if (matchesToolSuffix(inventory.getItem(i), suffix)) {
+                    inHotbar = true;
+                    break;
+                }
+            }
+            if (inHotbar) continue; // 该类型已在快捷栏，不折腾
+
+            int source = -1;
+            for (int i = 9; i < 36; i++) {
+                if (matchesToolSuffix(inventory.getItem(i), suffix)) {
+                    source = i;
+                    break;
+                }
+            }
+            if (source == -1) continue; // 背包里也没有这一类型
+
+            if (isPlayerInventoryClickBlocked()) return moved; // 容器开着：先收尾，下一轮再搬
+            // 腾位置策略与进食一致：空槽 → 垃圾格 → 数量最少的一组目标矿 → 最后才动垫脚方块。
+            // 只肯顶垃圾格会出问题：快捷栏常被几组矿塞满 → 找不到位置 →
+            // 铲子永远进不来（用户 2026-09-17：「铲子在背包没有被调用到快捷栏挖土」）
+            int target = findTemporaryHotbarSlot();
+            if (target == -1) continue; // 快捷栏全是工具与食物，放弃这一类
+            moveToHotbar(source, target);
+            moved = true;
+        }
+        return moved;
+    }
+
+    private boolean matchesToolSuffix(ItemStack stack, String suffix) {
+        return !stack.isEmpty() && BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().endsWith(suffix);
     }
 }

@@ -7,29 +7,39 @@ import com.yiyiaddon.core.event.ClientEvent;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
+import com.yiyiaddon.feature.admindetect.service.AdminDisconnect;
 import com.yiyiaddon.feature.combat.KillAuraRepairHook;
 import com.yiyiaddon.feature.mining.command.WkCommand;
 import com.yiyiaddon.feature.mining.config.MiningSettings;
+import com.yiyiaddon.feature.mining.fastbreak.MiningFastBreakController;
+import com.yiyiaddon.feature.mining.fsm.MinerState;
 import com.yiyiaddon.feature.mining.fsm.MiningStateMachine;
+import com.yiyiaddon.feature.mining.model.ConfigRecord;
 import com.yiyiaddon.feature.mining.model.LootMode;
+import com.yiyiaddon.feature.mining.model.MiningPoint;
 import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.feature.mining.navigation.MiningPathing;
 import com.yiyiaddon.feature.mining.notification.SoundNotifier;
+import com.yiyiaddon.feature.mining.render.MiningBreakProgressRenderer;
 import com.yiyiaddon.feature.mining.render.MiningPointRenderer;
+import com.yiyiaddon.feature.mining.repository.MiningConfigRecordStore;
 import com.yiyiaddon.feature.mining.repository.MiningPointStore;
 import com.yiyiaddon.feature.mining.service.MiningBindingService;
 import com.yiyiaddon.feature.mining.service.MiningContainer;
 import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
 import com.yiyiaddon.feature.mining.ui.AutoMinerPage;
+import com.yiyiaddon.feature.mining.vein.MiningVeinMiner;
 import com.yiyiaddon.integration.baritone.BaritoneChatTranslations;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -44,10 +54,15 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -64,15 +79,39 @@ import java.util.Set;
  * {@link #isSilkTouchMode} / {@link #isShulkerPackerEnabled} / {@link #isInNether}）、
  * 全部子组件访问器与四个逻辑层组件（{@link ServerCommandRunner}（旧 {@code CommandManager}）、
  * {@link MiningPathing}（旧 {@code BaritoneExecutor}）、{@link MiningContainer}（旧 {@code ContainerHelper}）、
- * {@link SoundNotifier}），以及 9 态状态机 {@link MiningStateMachine}（旧 {@code MinerFSM}）——
+ * {@link SoundNotifier}），以及状态机 {@link MiningStateMachine}（旧 {@code MinerFSM}）——
  * 状态机已挂到 {@link #onEnable()} / {@link #onDisable()} / {@link #onTick} 上。</p>
  *
  * <p><b>已接入（批次 4）</b>：修补联动战斗真实现
  * {@link com.yiyiaddon.feature.combat.KillAuraRepairHook}（构造时注入状态机，进入修补开杀戮光环、
  * 离开修补只关我们自己开的那一个）。</p>
  *
- * <p><b>未做（留待后续批次）</b>：秒破发包、种子模式（OrePredictor，随之一并留白的还有
- * {@code .wk 检测假矿} 子命令与按钮、帮助页该行）、岩浆透视渲染（下界自动开启岩浆透视随之一并留白）。</p>
+ * <p><b>已接入（批次 6，用户 2026-09-17 实机驱动）</b>：秒破发包破坏
+ * （{@link MiningFastBreakController}，每刻由 {@link #onTick} 驱动推进）、
+ * 挖掘进度 ESP（{@link MiningBreakProgressRenderer}，另一层世界渲染）、
+ * 战斗拦截（{@code MinerState#COMBAT} + {@link MiningCombat}，默认开启、无设置项）、
+ * 连锁挖矿（{@link MiningVeinMiner}，5 项设置，复用秒破的单槽发包通道逐块清矿脉）——
+ * 状态机因此由 9 态扩到 10 态。</p>
+ *
+ * <p><b>视角口径（用户 2026-09-18 定稿）</b>：挖掘与寻路的可见视角交回 Baritone，模块在
+ * <b>这些状态下</b>一行角度都不写。依据 26.1.2 原版与 Baritone 源码：默认设置下
+ * （{@code freeLook=true}、{@code blockFreeLook=false}）{@code MineProcess} 会以
+ * {@code blockInteract=true} 调用 {@code LookBehavior}，解析为 CLIENT——破坏方块时 Baritone 自己就把
+ * 可见视角对准目标方块（含俯仰）。此前模块自己也每刻写角度，两个写入者互相覆盖，才是用户看到的
+ * 「剧烈抖动」，故整类删除。</p>
+ *
+ * <p><b>「寻路视角跟随」（用户 2026-09-18 追加，默认开）</b>：默认设置下平面走路解析为 SERVER 静默模式
+ * （只写服务端朝向、本地视角还原）——所以走路时看不到寻路视角。开关打开时模块把 Baritone 的
+ * {@code freeLook} 关掉，走路也落到 CLIENT 分支，视角由男中音每刻写向路径下一节点；同时把每刻随机偏移
+ * （{@code randomLooking / randomLooking113}）归零，那是「视角抖」的直接来源。此时可见视角仍然只有
+ * 男中音一个写入者，因此不抖。开关关闭或模块关闭时三项设置全部还原。</p>
+ *
+ * <p><b>分段归属（避免双写入者）</b>：战斗态由 {@code MiningCombat} 转头盯怪（此时把 {@code freeLook}
+ * 让回默认值，男中音转 SERVER 静默）；物流开箱、挂机修复对准、水中脱困对准作业面这三处由状态机写角度，
+ * 但都发生在 {@code baritone.stop()} 之后，男中音已无寻路目标、不写角度。</p>
+ *
+ * <p><b>未做（留待后续批次）</b>：种子模式（OrePredictor，随之一并留白的还有
+ * {@code .wk 检测假矿} 子命令与按钮、帮助页该行）。</p>
  *
  * <p><b>已接入（批次 5A）</b>：配置页面 {@code feature/mining/ui/AutoMinerPage}
  * （帮助页 + 三行点位卡片 + 5 个设置分组）与点位绑定 / 移除的唯一实现
@@ -89,6 +128,9 @@ public final class AutoMinerModule extends Module {
 
     /** 模块 ID，同时作为状态文件键、快捷键键名后缀与世界渲染层标识 */
     public static final String MODULE_ID = "mining";
+
+    /** 挖掘进度 ESP 的世界渲染层标识（与点位层分开注册，互不覆盖） */
+    private static final String BREAK_LAYER_ID = MODULE_ID + ":break";
 
     /** 播报前缀使用的模块名：旧项目 {@code AutoMinerModule} 的模块名为 {@code 自动挖矿} */
     public static final String MESSAGE_MODULE = "自动挖矿";
@@ -128,6 +170,9 @@ public final class AutoMinerModule extends Module {
 
     private final MiningPointRenderer renderer;
 
+    /** 挖掘进度 ESP：秒破正在破坏的方块显示百分比 + 收缩框（用户 2026-09-17 需求） */
+    private final MiningBreakProgressRenderer breakRenderer;
+
     /** 指令执行与防卡死（旧 {@code CommandManager}） */
     private final ServerCommandRunner cmdManager;
 
@@ -143,8 +188,11 @@ public final class AutoMinerModule extends Module {
     /** 点位绑定 / 移除的唯一实现（配置页与 {@code .wk} 指令共用） */
     private final MiningBindingService bindingService;
 
-    /** 9 态挖矿状态机（旧 {@code MinerFSM}） */
+    /** 10 态挖矿状态机（旧 {@code MinerFSM}） */
     private final MiningStateMachine fsm = new MiningStateMachine(this);
+
+    /** 连锁挖矿：清掉整条连通矿脉（用户 2026-09-17 新增需求，复用秒破的单槽发包通道） */
+    private final MiningVeinMiner veinMiner = new MiningVeinMiner(this);
 
     /** 颜色设置的取色载体：调色板直接改这三个对象，随后同步回设置项 */
     private final EspColor mineralColor = new EspColor();
@@ -154,11 +202,18 @@ public final class AutoMinerModule extends Module {
     /** 最近一次装载点位时所处的世界上下文（{@code server@dimension}） */
     private String storeContext;
 
+    /**
+     * 最近一次装载设置时所处的设置作用域（{@code WorldIdentity.fileSafeServer()}）；
+     * {@code null} = 全局模板（未进世界或尚未装载）。换服判据用它比对，见 {@link #refreshSettingsIfScopeChanged()}。
+     */
+    private String loadedSettingsScope;
+
     public AutoMinerModule() {
         super(MODULE_ID, MESSAGE_MODULE, "automation",
                 "Baritone驱动全自动挖矿，物流循环，耐久修补，死亡自愈。点击按钮查看说明。");
 
         this.renderer = new MiningPointRenderer(this);
+        this.breakRenderer = new MiningBreakProgressRenderer(this);
         this.cmdManager = new ServerCommandRunner(this);
         this.baritone = new MiningPathing(this);
         this.container = new MiningContainer(this);
@@ -193,6 +248,9 @@ public final class AutoMinerModule extends Module {
     public void loadSettings(JsonObject json) {
         settings.load(json);
         syncColorsFromSettings();
+        // 记下这一份是从哪个作用域读来的：换服判据用它比对（见 refreshSettingsIfScopeChanged）。
+        // 装配期（主菜单）读到的是全局模板，此时作用域为 null。
+        loadedSettingsScope = settingsScope();
     }
 
     @Override
@@ -203,6 +261,232 @@ public final class AutoMinerModule extends Module {
     /** 立即写回设置（界面改动即时生效，与旧项目设置自动保存一致） */
     public void persistSettings() {
         ModuleManager.saveSettings(this);
+    }
+
+    /**
+     * 设置隔离键：进世界后取当前服务器 / 单人存档，未进世界返回 {@code null}（按全局模板处理）。
+     *
+     * <p><b>为什么需要隔离</b>（用户 2026-09-18 报的「换服把配置覆盖了」）：三点点位早就按服务器分文件
+     * （{@code MiningPointStore}），但设置原本全局共用一份 —— 在 B 服改「返回卸货指令」，A 服的同一项
+     * 跟着变，两服的配置互相覆盖。现在设置与点位同口径隔离：一个服务器（单人则是一个存档）一套配置，
+     * 切服自动切换。</p>
+     *
+     * <p><b>未进世界必须返回 null</b>：主菜单也能打开模块中心改设置，那时没有服务器身份，
+     * 随便造一个键会把编辑内容写到一个并不存在的世界上。返回 null 时读写都落在全局模板上，
+     * 而全局模板同时是「新服务器 / 新存档的初始值」（见 {@code ModuleStateConfig}）。</p>
+     */
+    @Override
+    public String settingsScope() {
+        if (mc.level == null || mc.player == null) return null;
+        return WorldIdentity.fileSafeServer();
+    }
+
+    /**
+     * 换服 / 首次进世界时按当前服务器重读设置。
+     *
+     * <p>调用点只有 {@link #reloadStore()} 一处，而它已经覆盖了三条必经路径：启动自检、模块启用、
+     * 打开配置页。设置与点位属于同一类「这台服务器的东西」，因此挂在同一个时机上一起换；
+     * 读盘动作由运行时承担（{@link ModuleManager#reloadScopedSettings}），本方法只判「作用域变没变」。</p>
+     */
+    private void refreshSettingsIfScopeChanged() {
+        if (Objects.equals(settingsScope(), loadedSettingsScope)) return;
+        ModuleManager.reloadScopedSettings(this);
+    }
+
+    // ── 配置记录（控制台：底部快捷按钮 + 「配置记录」页，用户 2026-09-18 要求） ──
+    // 与「设置自动按服务器隔离」互补：自动隔离管「切服自动换成那一套」，这里管「改乱了能回滚」。
+    // 快照按服务器 / 单人存档各存一份文件（MiningConfigRecordStore），复原只写回当前服务器的设置桶。
+
+    /** 记录时间的显示格式（简短到够用：同一天的记录一眼看出是什么时候存的） */
+    private static final DateTimeFormatter RECORD_TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
+
+    /** 时间戳 → 记录列表 / 播报里用的显示文本（{@code MM-dd HH:mm}）；非正数返回空串 */
+    public static String recordTimeText(long millis) {
+        if (millis <= 0L) return "";
+        return RECORD_TIME_FORMAT.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()));
+    }
+
+    /** 当前是否处于可记录状态：已进入服务器 / 单人存档（主菜单为 false，两个按钮据此禁用与提示） */
+    public boolean hasRecordScope() {
+        return settingsScope() != null;
+    }
+
+    /** 当前服务器 / 单人存档的记录键；未进入世界返回空串（「配置记录」页据此标出「本服」那一条） */
+    public String recordScopeKey() {
+        String scope = settingsScope();
+        return scope == null ? "" : scope;
+    }
+
+    /** 当前服务器 / 单人存档的展示名（写法与记录卡片一致）；未进入世界返回「未进入世界」 */
+    public String currentScopeName() {
+        return ConfigRecord.displayNameOf(WorldIdentity.server());
+    }
+
+    /** 本服记录是否存在（控制台「复原本服记录」按钮的可用性依据） */
+    public boolean hasServerRecord() {
+        return !recordScopeKey().isEmpty() && MiningConfigRecordStore.exists(recordScopeKey());
+    }
+
+    /** 本服记录的保存时间文本（{@code MM-dd HH:mm}）；无记录返回空串 */
+    public String serverRecordTimeText() {
+        String scope = recordScopeKey();
+        return scope.isEmpty() ? "" : recordTimeText(MiningConfigRecordStore.savedAt(scope));
+    }
+
+    /** 全部已保存的配置记录（只列点过「保存本服记录」的，按保存时间从新到旧） */
+    public List<ConfigRecord> serverRecords() {
+        return MiningConfigRecordStore.list();
+    }
+
+    /**
+     * 一键保存当前配置：把当前<b>全部</b>设置与<b>三个点位</b>一起写成这台服务器（单人则是当前存档）
+     * 的快照。
+     *
+     * <p>内容包括：设置（{@link MiningSettings#save} 全字段）+ 点位（{@link MiningPointStore#snapshot()}：
+     * 矿物箱 / 食物箱 / 挂机修复点，含坐标与维度）。用户 2026-09-18：「我要的是一键保存 全部配置
+     * 包括设置 跟坐标点位懂吗」。同时写入逻辑服务器键，列表里才能认出是哪个服。</p>
+     */
+    public void saveServerRecord() {
+        String scope = settingsScope();
+        if (scope == null) {
+            warning("§e⚠ 未进入世界 §8▸ 配置记录只能在进入服务器或单人存档后保存");
+            return;
+        }
+        JsonObject snapshot = new JsonObject();
+        settings.save(snapshot);
+        if (MiningConfigRecordStore.write(scope, WorldIdentity.server(), snapshot, pointStore.snapshot(),
+            System.currentTimeMillis())) {
+            // 播报里带上服务器 IP：用户 2026-09-18 反馈「根本没有识别服务器ip」，
+            // 单说「本服」看不出到底写到了哪一台，把键摆出来才可核对。
+            info("§a✓ 已保存本服配置 §8▸ " + currentScopeName() + " §8· §7设置 + "
+                + pointStore.size() + " 个点位 §8· §7" + serverRecordTimeText());
+        } else {
+            error("§c✗ 配置保存失败 §8▸ 配置文件无法写入");
+        }
+    }
+
+    /**
+     * 用当前配置（全部设置 + 三个点位）覆盖<b>本服</b>那条记录。
+     *
+     * <p><b>只认本服</b>（用户 2026-09-18：「还是能互相保存 根本没有识别服务器ip 拦截」）：
+     * 上一版允许把当前配置推到任何一条记录上（写方向不限本服），实机里被当成漏洞 ——
+     * 在一个服上点另一条的「替换」，就把那个服的记录盖成了这台服的配置。
+     * 现在与「复原」同一条口径：记录键与当前服务器 / 单人存档不一致时直接拒绝，
+     * 界面侧同样会先拦一道（见 {@code MiningRecordScreen#confirmReplace}）。</p>
+     */
+    public boolean replaceRecord(ConfigRecord record) {
+        String scope = settingsScope();
+        if (record == null || scope == null) {
+            warning("§e⚠ 未进入世界 §8▸ 配置记录只能在进入服务器或单人存档后写入");
+            return false;
+        }
+        if (!sameScopeAs(record)) {
+            warning("§e⚠ 不可替换 §8▸ 这条记录属于 " + record.displayName()
+                + "，与本服不一致（写入只认本服的记录）");
+            return false;
+        }
+        JsonObject snapshot = new JsonObject();
+        settings.save(snapshot);
+        if (!MiningConfigRecordStore.write(record.scopeKey(), record.serverKey(), snapshot,
+            pointStore.snapshot(), System.currentTimeMillis())) {
+            error("§c✗ 记录替换失败 §8▸ " + record.displayName());
+            return false;
+        }
+        info("§a✓ 已用当前配置替换记录 §8▸ " + record.displayName()
+            + " §8· §7设置 + " + pointStore.size() + " 个点位");
+        return true;
+    }
+
+    /** 记录是否与当前同源（同一台服务器 / 同一个存档）：不一致时读取与替换都要先提示（用户 2026-09-18 要求） */
+    public boolean sameScopeAs(ConfigRecord record) {
+        return record != null && !recordScopeKey().isEmpty()
+            && record.scopeKey().equals(recordScopeKey());
+    }
+
+    /**
+     * 记录里的设置，还原成一份可读的 {@link MiningSettings}（「详情」窗与列表摘要按类型字段读）。
+     *
+     * <p>还原成设置对象而不是把 JSON 直接甩给界面：键名只在设置类里写一次，界面读的是字段，
+     * 不会因为落盘键改名而与列表显示脱节。没有记录返回 {@code null}。</p>
+     */
+    public MiningSettings recordSettings(ConfigRecord record) {
+        JsonObject json = record == null ? null : MiningConfigRecordStore.readSettings(record.scopeKey());
+        if (json == null) return null;
+        MiningSettings snapshot = new MiningSettings();
+        snapshot.load(json);
+        return snapshot;
+    }
+
+    /** 记录里的点位（「详情」窗显示坐标与维度）；没有记录或没有点位返回空表 */
+    public Map<MiningPointType, MiningPoint> recordPoints(ConfigRecord record) {
+        JsonObject json = record == null ? null : MiningConfigRecordStore.readPoints(record.scopeKey());
+        return MiningPointStore.parseSnapshot(json);
+    }
+
+    /**
+     * 读取一条记录：设置与点位<b>整份替换</b>成记录里的内容（「配置记录」页每行的「读取」）。
+     *
+     * <p><b>只认本服（严格 IP 审核）</b>：记录键必须与当前服务器 / 单人存档一致才复原 ——
+     * 用户 2026-09-18 看到「在别的服务器也能读取别的服」后当场裁定「卡死：不一致就不能复原」。
+     * 早期版本允许跨服读取（提示后确认即可），现已否决：别的服务器的点位坐标在本服不适用，
+     * 复原过去只会把本服的点位冲掉。跨服的记录仍可看详情 / 替换 / 删除，界面侧还会再拦一道
+     * （见 {@code MiningRecordScreen#read}）。</p>
+     *
+     * <p><b>模块运行中拒绝</b>：点位与目标矿都参与状态机，跑着的时候整份换掉等于换了个配置去跑
+     * （与「模块运行中无法修改点位」同一条口径）。写入的仍是<b>当前</b>服务器 / 存档的设置桶与点位文件，
+     * 记录文件本身不动。</p>
+     *
+     * @return 是否读取成功
+     */
+    public boolean restoreRecord(ConfigRecord record) {
+        String scope = settingsScope();
+        JsonObject snapshot = record == null ? null : MiningConfigRecordStore.readSettings(record.scopeKey());
+        if (record == null || snapshot == null || scope == null) {
+            warning("§e⚠ 记录不可用 §8▸ 请进入服务器或单人存档后再读取");
+            return false;
+        }
+        if (!sameScopeAs(record)) {
+            warning("§e⚠ 不可复原 §8▸ 这条记录属于 " + record.displayName()
+                + "，与本服不一致（复原只认服务器 IP / 存档一致的记录）");
+            return false;
+        }
+        if (isEnabled()) {
+            warning("§e⚠ 模块运行中 §8▸ 请先关闭自动挖矿，再读取配置（运行中不能改点位与目标）");
+            return false;
+        }
+        applyRecord(snapshot);
+        int bound = pointStore.replaceAll(MiningConfigRecordStore.readPoints(record.scopeKey()));
+        info("§a✓ 已读取配置 §8▸ " + record.displayName()
+            + " §8· §7设置 + " + bound + " 个点位 §8· §7保存于 " + recordTimeText(record.savedAt()));
+        return true;
+    }
+
+    /**
+     * 删除一条记录（「配置记录」页每行的「删除」）。
+     *
+     * <p>只删记录文件，<b>不动任何设置</b>：当前设置、以及该服务器的自动隔离桶都原样保留。</p>
+     *
+     * @return 是否删除成功
+     */
+    public boolean deleteRecord(ConfigRecord record) {
+        if (record == null) return false;
+        if (!MiningConfigRecordStore.delete(record.scopeKey())) {
+            error("§c✗ 记录删除失败 §8▸ " + record.displayName());
+            return false;
+        }
+        info("§a✓ 已删除记录 §8▸ " + record.displayName());
+        return true;
+    }
+
+    /**
+     * 把一份快照灌进当前设置（读取记录用）：设置整份替换 + 颜色载体同步 + 立即落盘，
+     * 模块正在运行时男中音那一批参数按新值重下发（此时点位已由 {@link #restoreRecord} 拦在关模块之后）。
+     */
+    private void applyRecord(JsonObject snapshot) {
+        settings.load(snapshot);
+        syncColorsFromSettings();
+        persistSettings();
+        if (isEnabled()) applyBaritoneSettings();
     }
 
     // ── 界面与指令 ──
@@ -344,7 +628,40 @@ public final class AutoMinerModule extends Module {
         // 点位重读（旧 onActivate 第一步 :717-718）：自检读的也是这份点位，必须最先装载
         reloadStore();
 
-        // 按当前设置下发 Baritone 调优（旧 onActivate :727-751，23 个入参顺序逐条一致）
+        // 按当前设置下发 Baritone 调优（旧 onActivate :727-751）
+        applyBaritoneSettings();
+
+        // 各组件复位（旧 onActivate :753-756 在 applySettings 之后）
+        fsm.reset();
+        container.reset();
+        cmdManager.reset();
+        // 秒破状态机复位：换服 / 重启模块后不带入上一个会话的目标、冷却与暂停计时
+        MiningFastBreakController.instance().resetTimers();
+        veinMiner.reset();
+        resetSpawnerPriority();
+        // 断线防重锁复位：上次会话靠断线退出后重新进服再开模块，必须能再次触发断线
+        disconnecting = false;
+        // 接管 Baritone 聊天输出：模块运行期间不再刷 [Baritone] 那套消息，改由本模块播报关键事件
+        // （用户 2026-09-18：「太刷屏了，取而代之的是我的自动挖矿播报」）
+        baritone.suppressChat();
+        // 运行期标志：让「瞄准方块高亮」在自动挖矿期间闭嘴（准星随挖掘目标扫，白框会一直闪）
+        EspGlobalSettings.get().setAutoMinerRunning(true);
+
+        // ESP：注册世界渲染层，关闭时注销（点位层 + 挖掘进度层）
+        WorldOverlay.register(MODULE_ID, renderer::render);
+        WorldOverlay.register(BREAK_LAYER_ID, breakRenderer::render);
+
+        // 启动报告：旧 onActivate 的最后一步（旧 :758），让用户一眼确认这次跑的是什么配置
+        reportStartupInfo();
+    }
+
+    /**
+     * 按当前设置下发男中音（Baritone）调优（旧 {@code onActivate :727-751}，23 个入参顺序逐条一致）。
+     *
+     * <p><b>两处调用</b>：模块启用时，以及控制台「复原本服记录」把整份设置换掉之后
+     * （设置页里的单项改动由各页面自己按字段下发，不走这里）。</p>
+     */
+    private void applyBaritoneSettings() {
         baritone.applySettings(
             settings.avoidLava, settings.mobAvoidance, settings.mobAvoidanceRadius,
             settings.allowBreak, settings.allowPlace, settings.maxFallHeight,
@@ -357,22 +674,18 @@ public final class AutoMinerModule extends Module {
             settings.maxYLevelWhileMining, settings.mineMaxOreLocationsCount,
             settings.blacklistClosestOnFailure, settings.legitMine,
             settings.legitMineYLevel, settings.legitMineIncludeDiagonals);
-
-        // 各组件复位（旧 onActivate :753-756 在 applySettings 之后）
-        fsm.reset();
-        container.reset();
-        cmdManager.reset();
-
-        // ESP：注册世界渲染层，关闭时注销
-        WorldOverlay.register(MODULE_ID, renderer::render);
-
-        // 启动报告：旧 onActivate 的最后一步（旧 :758），让用户一眼确认这次跑的是什么配置
-        reportStartupInfo();
     }
 
     @Override
     protected void onDisable() {
         // 顺序照旧 onDeactivate :895-903（去掉种子缓存失效那一句）
+        // 秒破：先收摊（发 ABORT 清服务端槽位 + 清裂纹 + 清状态），再停 Baritone
+        MiningFastBreakController.instance().release(mc, true);
+        // 连锁：清队列与「已接管 Baritone」标志（标志清了 mine 才会被状态机的自愈分支重新拉起）
+        veinMiner.reset();
+        resetSpawnerPriority();
+        // 断线防重锁复位：断线退出后本模块会被自动关闭，本次触发就此收尾
+        disconnecting = false;
         baritone.stop();
         container.closeContainer();
         // shutdown 而不是 reset：reset 不经过状态退场，在修补 / 进食 / 物流态关模块会漏掉
@@ -380,7 +693,14 @@ public final class AutoMinerModule extends Module {
         fsm.shutdown();
         container.reset();
         cmdManager.reset();
+        // 还回 Baritone 的日志输出（接管期间聊天栏是被我们过滤的）
+        baritone.restoreChat();
+        // 还回寻路视角类设置（模块运行期间把 freeLook 关了、随机偏移归零；视角涉及玩家手感，必须还原）
+        baritone.restoreViewSettings();
+        // 还回瞄准方块高亮（模块运行期间它是被压掉的）
+        EspGlobalSettings.get().setAutoMinerRunning(false);
         WorldOverlay.unregister(MODULE_ID);
+        WorldOverlay.unregister(BREAK_LAYER_ID);
     }
 
     // ── 事件 ──
@@ -449,28 +769,253 @@ public final class AutoMinerModule extends Module {
         }
     }
 
-    /** 每刻推进：垃圾丢弃分频 + 状态机（旧 onTick :1076-1088，去掉种子扫描队列那一句） */
+    /** 每刻推进：低血断线优先 + 垃圾丢弃分频 + 秒破发包循环 + 状态机 */
     @Override
     public void onTick(Minecraft client) {
         if (client.player == null || client.level == null) return;
-        container.tickTrashDisposal(settings.keepWhitelist, settings.placeBlocks);
+        // 自动断线最优先：血量到线就退出服务器，本刻不再推进挖矿（多挖一刻就多挨一下，可能直接打死掉落）
+        if (lowHealthDisconnect()) return;
+        // 秒破的发包破坏循环必须由模块每刻驱动：Baritone 在算路 / 换目标的那几刻不会调到
+        // continueDestroyBlock，旧实现靠那个回调推进，于是 START 发出后再没人发 STOP → 方块挖不烂
+        MiningFastBreakController.instance().tick(client, this);
+        // 连锁挖矿：秒破推进之后再跑，这样「上一块刚被权威同步确认破坏」就能同刻派发下一块。
+        // 水中脱困破坏期间不连锁：脱困破坏也占那个单槽（它走原版入口 → 被秒破 Mixin 接管），两边同时发包会互相顶槽
+        veinMiner.tick(this, fsm.state() == MinerState.MINING && !fsm.isWaterBreaking());
+        // 刷怪笼优先扫描：低频，只维护优先级标志；状态翻转发由状态机下发新的 mine 目标。
+        // 连锁挖矿接管 Baritone 期间不参与：那时候服务端的破坏槽位归连锁，重起 mine 会两边顶槽（方块挖不烂）
+        if (settings.breakSpawner && fsm.state() == MinerState.MINING && !veinMiner.isActive()
+            && client.player.tickCount % SPAWNER_SCAN_INTERVAL == 0) {
+            onSpawnerPriorityChanged(refreshSpawnerPriority());
+        }
         fsm.tick();
+        // 自动丢弃放在状态机之后、并跳过战斗态（用户 2026-09-18：「打怪的途中打死第一个捡到了
+        // 掉落物，自动丢弃会先丢东西再打怪」）。放最后还有一个好处：本刻状态机刚判定的「进入战斗」
+        // 立刻生效，不会多丢一刻。
+        // 视角不在这里补写：挖掘时 Baritone 自己以 CLIENT 模式对准方块（含俯仰），平面走路时是
+        // SERVER 静默模式，模块再写一次就会变成两个写入者互相覆盖（用户 2026-09-18 定稿删掉视角跟随）
+        if (!fsm.isInCombat()) {
+            container.tickTrashDisposal(settings.keepWhitelist, settings.placeBlocks);
+        }
+    }
+
+    // ── 自动断线（用户 2026-09-18 追加：服务器死亡掉落，血量到线先退服保命） ──────────────
+    // 断线实体动作复用 AdminDisconnect（旧「自动断线」模块在本项目的唯一实现，见
+    // feature/admindetect/service/AdminDisconnect），本模块只负责「什么时候断」，不碰断线本身，
+    // 也不再写第二条断线链路（第 169 条：同源逻辑只留一份）。
+
+    /** 一格血 = 2 点血量（Minecraft 血量条口径；设置项与播报都用「格」） */
+    private static final float POINTS_PER_HEART = 2f;
+
+    /** 断线防重锁：断线包发出后本刻流程仍在跑、退出世界事件也要下一拍才到，防止同一次触发的重复断线 */
+    private boolean disconnecting;
+
+    /**
+     * 低血量自动断线：血量掉到设定格数（含）时断开当前服务器连接，返回本次是否已触发。
+     *
+     * <p><b>为什么由 {@code onTick} 最前面调用</b>：血量见底那一刻最要紧的是先退出服务器，
+     * 触发后调用方直接结束本刻流程，状态机 / 秒破 / 连锁都不再推进（断线途中继续发包没有意义）。</p>
+     *
+     * <p><b>只对活着的玩家生效</b>：死亡瞬间血量归零，此时掉落已经发生，再断线救不回东西，
+     * 还会抢在自动重生之前把玩家踢出游戏，因此 {@code isDeadOrDying()} 直接放行、不断线。</p>
+     *
+     * <p><b>判定口径</b>：{@code Player#getHealth()}（20 点满血）与「设置格数 × 2」比较；
+     * 设置项取值域在 {@code MiningSettings#load} 里已 clamp 到 1~20 格，此处不再二次兜底。</p>
+     *
+     * @return true 表示已发出断线，调用方应立即结束本刻流程
+     */
+    private boolean lowHealthDisconnect() {
+        if (disconnecting || !settings.autoDisconnect) return false;
+        if (mc.player == null || mc.player.connection == null) return false;
+        if (mc.player.isDeadOrDying()) return false;
+
+        float health = mc.player.getHealth();
+        if (health > settings.autoDisconnectHealth * POINTS_PER_HEART) return false;
+
+        disconnecting = true;
+        info("§c✗ 血量过低 §8▸ 已触发自动断线，正在退出服务器");
+        AdminDisconnect.disconnect(MESSAGE_MODULE, "血量过低（剩余 " + heartsText(health) + "）");
+        return true;
+    }
+
+    /**
+     * 血量文本：整格只写整数（{@code 2 格}），半格才带一位小数（{@code 1.5 格}）。
+     *
+     * <p>血量条本身按半格递进，直接打印点数（{@code 3 点}）玩家对不上自己看到的血条。</p>
+     */
+    private static String heartsText(float health) {
+        float hearts = health / POINTS_PER_HEART;
+        int whole = (int) hearts;
+        return hearts == whole ? whole + " 格" : String.format(Locale.ROOT, "%.1f 格", hearts);
+    }
+
+    // ── 刷怪笼优先（用户 2026-09-18 新增设置，默认开） ───────────────────────
+    // 「寻路途中发现刷怪笼就挖掉，先挖再打怪，不然越打越多怪」。
+    // 实现口径：把刷怪笼临时并进 Baritone 的 mine 目标列表——附近有刷怪笼时它必然比矿点近，
+    // Baritone 自然先走过去挖掉；挖完（扫描不到）再撤回普通目标。不另造一套寻路 / 破坏流程。
+
+    /** 刷怪笼扫描半径（格）：以玩家为中心找这个范围内的刷怪笼（用户 2026-09-18 定 6 格） */
+    private static final int SPAWNER_SCAN_RADIUS = 6;
+    /** 刷怪笼扫描间隔（刻）：40 刻一次，够快也不会把 13³ 的方块读取压在每刻 */
+    private static final int SPAWNER_SCAN_INTERVAL = 40;
+    /** 同一个刷怪笼最长尝试时长（刻）：够不到就不耗着，暂时忽略，避免整片区域卡在「非挖它不可」
+     *  （用户 2026-09-18 实机：卡住时「绿框一直闪却过不去」多半就是它。20 秒，比状态机的
+     *  「挖不动」自愈窗口略长——正常情况由自愈先甩掉它，这里只是兜底） */
+    private static final int SPAWNER_TRY_LIMIT_TICKS = 400;
+    /** 忽略刷怪笼的时长（刻）：超时失败后先当没看见，过一段再重新考虑 */
+    private static final int SPAWNER_IGNORE_TICKS = 2400;
+
+    /** 当前是否需要把刷怪笼并进挖掘目标 */
+    private boolean spawnerPriority;
+    /** 已经在刷怪笼上耗掉的刻数 */
+    private int spawnerPriorityTicks;
+    /** 忽略刷怪笼的截止 tick（超时失败后的冷却） */
+    private int spawnerIgnoreUntilTick;
+    /** 上一次退出刷怪笼优先是否因为尝试超时（够不到 / 挖不动），仅供播报区分用词 */
+    private boolean spawnerTimedOut;
+
+    /** 本刻的挖掘目标：开启刷怪笼优先且附近有刷怪笼时，把刷怪笼一并交给 Baritone 先挖掉 */
+    public List<Block> getMiningTargets() {
+        List<Block> targets = getTargetBlocks();
+        if (!spawnerPriority || targets.contains(Blocks.SPAWNER)) return targets;
+        List<Block> withSpawner = new ArrayList<>(targets.size() + 1);
+        withSpawner.addAll(targets);
+        withSpawner.add(Blocks.SPAWNER);
+        return withSpawner;
+    }
+
+    /**
+     * 每 {@link #SPAWNER_SCAN_INTERVAL} 刻推进一次刷怪笼优先级。
+     *
+     * @return true 表示优先级状态翻转（附近出现刷怪笼 / 刷怪笼已被清掉 / 尝试超时），调用方应重下发挖掘目标
+     */
+    public boolean refreshSpawnerPriority() {
+        if (!settings.breakSpawner || mc.player == null || mc.level == null) {
+            boolean changed = spawnerPriority;
+            spawnerPriority = false;
+            spawnerPriorityTicks = 0;
+            return changed;
+        }
+        int tick = mc.player.tickCount;
+        if (spawnerPriority) {
+            spawnerPriorityTicks += SPAWNER_SCAN_INTERVAL;
+            if (!hasSpawnerNearby(SPAWNER_SCAN_RADIUS) || spawnerPriorityTicks > SPAWNER_TRY_LIMIT_TICKS) {
+                spawnerTimedOut = spawnerPriorityTicks > SPAWNER_TRY_LIMIT_TICKS;
+                if (spawnerTimedOut) {
+                    spawnerIgnoreUntilTick = tick + SPAWNER_IGNORE_TICKS;
+                }
+                spawnerPriority = false;
+                spawnerPriorityTicks = 0;
+                return true;
+            }
+            return false;
+        }
+        if (tick < spawnerIgnoreUntilTick) return false;
+        if (!hasSpawnerNearby(SPAWNER_SCAN_RADIUS)) return false;
+        spawnerPriority = true;
+        spawnerPriorityTicks = 0;
+        return true;
+    }
+
+    /**
+     * 当前是否把刷怪笼列为优先目标。
+     *
+     * <p>状态机用它决定战斗拦截是否还认「6 格内扫到怪物」这条：去挖刷怪笼的路上不主动出击，
+     * 挨打才反击（见 {@code MiningCombat#threatDetected(boolean)}）。</p>
+     */
+    public boolean spawnerPriority() {
+        return spawnerPriority;
+    }
+
+    /** 以玩家为中心扫描刷怪笼（只认原版刷怪笼方块） */
+    private boolean hasSpawnerNearby(int radius) {
+        if (mc.level == null || mc.player == null) return false;
+        BlockPos center = mc.player.blockPosition();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dy = -radius; dy <= radius; dy++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (mc.level.getBlockState(center.offset(dx, dy, dz)).getBlock() == Blocks.SPAWNER) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 清空刷怪笼优先状态（模块启停 / 换世界时调用，避免把上一片区域的判断带过来） */
+    private void resetSpawnerPriority() {
+        spawnerPriority = false;
+        spawnerPriorityTicks = 0;
+        spawnerIgnoreUntilTick = 0;
+        spawnerTimedOut = false;
+    }
+
+    /**
+     * 立刻放弃当前刷怪笼并忽略它一段时间（状态机的「挖不动」自愈调用）。
+     *
+     * <p>够不到的刷怪笼会让 Baritone 反复尝试走过去挖它（mine 目标里它最近），表现成
+     * 「绿框一直闪却过不去、也不挖别的」——重下发 mine 时若仍带着它，等于白重发。
+     * 所以自愈前先甩掉它，并进忽略窗避免 40 刻后又被扫出来。</p>
+     */
+    public void ignoreSpawnerForNow() {
+        if (!spawnerPriority) return;
+        spawnerPriority = false;
+        spawnerPriorityTicks = 0;
+        if (mc.player != null) {
+            spawnerIgnoreUntilTick = mc.player.tickCount + SPAWNER_IGNORE_TICKS;
+        }
+    }
+
+    /** 刷怪笼优先级翻转后的重下发：停旧 mine 进程，按新目标重起 */
+    private void onSpawnerPriorityChanged(boolean changed) {
+        if (!changed) return;
+        baritone.stop();
+        baritone.startMining(getMiningTargets(), false);
+        if (spawnerPriority) {
+            info("§e⚠ 附近发现刷怪笼 §8▸ 优先挖掉，避免持续刷怪");
+        } else if (spawnerTimedOut) {
+            warning("§e⚠ 刷怪笼挖不到 §8▸ 暂时跳过，先继续挖矿");
+        } else {
+            info("§a✓ 刷怪笼已清除 §8▸ 恢复常规挖矿目标");
+        }
     }
 
     // ── 播报（配色语义与旧基类 YiyiaddonModule 一致） ──
 
+    // 相同播报的折叠窗口（用户 2026-09-18：「狂刷屏」——连锁每挖一块矿脉就
+    // 「接管 / 完成 / Baritone 已启动挖掘」各来一条，挖一组矿刷几十条）：
+    // 连续同一条文本 5 秒内只播一次。单槽「上一次文本 + 时间戳」就够：
+    // 折叠的目标是「同一句反复出现」，不同文本交错着来时每条都有自己的信息量
+    private String lastBroadcastText;
+    private long lastBroadcastMillis;
+    private static final long BROADCAST_FOLD_MILLIS = 5000;
+
+    /** 播报出口统一闸门：状态播报开关 + 相同文本折叠（error 不受开关限制，超错也照折） */
+    private boolean broadcastBlocked(String message) {
+        if (message != null && message.equals(lastBroadcastText)
+            && System.currentTimeMillis() - lastBroadcastMillis < BROADCAST_FOLD_MILLIS) {
+            return true;
+        }
+        lastBroadcastText = message;
+        lastBroadcastMillis = System.currentTimeMillis();
+        return false;
+    }
+
     /** 普通信息 */
     public void info(String message) {
+        if (!settings.statusBroadcast || broadcastBlocked(message)) return;
         ClientChat.send(MESSAGE_MODULE, message);
     }
 
     /** 警告：黄色加粗 */
     public void warning(String message) {
+        if (!settings.statusBroadcast || broadcastBlocked(message)) return;
         ClientChat.send(MESSAGE_MODULE, "§e§l" + message);
     }
 
     /** 错误：橙色加粗 */
     public void error(String message) {
+        if (broadcastBlocked(message)) return;
         ClientChat.send(MESSAGE_MODULE, "§6§l" + message);
     }
 
@@ -500,7 +1045,7 @@ public final class AutoMinerModule extends Module {
         StringBuilder report = new StringBuilder();
         report.append("§a§l✓ 自动挖矿 · 启动报告");
         report.append("\n§7当前维度　§8▸ ").append(highlightText(startupDimensionName())).append("§r");
-        report.append("\n§7目标矿物　§8▸ ").append(highlightText(startupTargetName())).append("§r");
+        report.append("\n§7目标矿物　§8▸ ").append(highlightText(getTargetDisplayName())).append("§r");
         report.append("\n§7采集模式　§8▸ ")
               .append(highlightText(isSilkTouchMode() ? "精准采集" : "时运")).append("§r");
         report.append("\n§7挖矿模式　§8▸ ").append(highlightText("普通模式")).append("§r");
@@ -533,13 +1078,16 @@ public final class AutoMinerModule extends Module {
     }
 
     /**
-     * 启动报告的「目标矿物」取值（旧 {@code getTargetDisplayName :843-858}）。
+     * 当前选择的目标矿物显示名（旧 {@code getTargetDisplayName :843-858}）。
      *
      * <p>主世界 / 下界产物取物品悬停名（时运=粗铁这类掉落物名，精准=原矿名），普通方块取方块中文名，
      * 都没选时为 {@code 未选择}。本项目设置项存登记 ID，故先还原成物品 / 方块再走同一口径；
      * 不用 {@code getTargetBlock()} 的方块名代替：那会把「时运模式的掉落物名」显示成原矿名。</p>
+     *
+     * <p>两处消费方：启动报告的「目标矿物」行，与进矿状态播报（「✓ 开始挖矿 ▸ 目标矿 · 模式」）。
+     * 后者由 {@code MiningStateMachine#broadcastStateTransition} 调用，故为 public。</p>
      */
-    private String startupTargetName() {
+    public String getTargetDisplayName() {
         Item overworld = itemOf(settings.overworldOreTarget);
         if (overworld != null) return new ItemStack(overworld).getHoverName().getString();
         Item nether = itemOf(settings.netherOreTarget);
@@ -750,6 +1298,7 @@ public final class AutoMinerModule extends Module {
     public int getDurabilityThreshold() { return settings.durabilityThreshold; }
     public int getTeleportDelay() { return settings.teleportDelay; }
     public int getRtpCooldown() { return settings.rtpCooldown; }
+    public boolean isTeleportRetryEnabled() { return settings.teleportRetryEnabled; }
     public int getMineGoalUpdateInterval() { return settings.mineGoalUpdateInterval; }
     public boolean getAllowBreak() { return settings.allowBreak; }
     public boolean getAutoTool() { return settings.autoTool; }
@@ -757,6 +1306,16 @@ public final class AutoMinerModule extends Module {
     public boolean getBypassAnticheat() { return settings.bypassAnticheat; }
     public int getBreakInterval() { return settings.breakInterval; }
     public boolean isLogisticsBreakBlocks() { return settings.logisticsBreakBlocks; }
+
+    // 连锁挖矿（用户 2026-09-17 追加）
+    /** 连锁挖矿的总开关（注意：连锁挖矿实例的取用是 {@link #getVeinMiner()}，不是这个名字） */
+    public boolean isVeinMinerEnabled() { return settings.veinMiner; }
+    /** 连锁挖矿实例（状态机与渲染层用它避让 / 查询队列状态） */
+    public MiningVeinMiner getVeinMiner() { return veinMiner; }
+    public int getVeinMaxBlocks() { return settings.veinMaxBlocks; }
+    public int getVeinRange() { return settings.veinRange; }
+    public boolean getVeinDiagonal() { return settings.veinDiagonal; }
+    public boolean getVeinFamilyOnly() { return settings.veinFamilyOnly; }
 
     /** 食物白名单（旧项目存 {@code List<Item>}，本项目存登记 ID 字符串，语义不变） */
     public List<String> getFoodWhitelist() { return settings.foodWhitelist; }
@@ -921,13 +1480,17 @@ public final class AutoMinerModule extends Module {
     }
 
     /**
-     * 装载当前服务器的点位（自检与启用都要用）。
+     * 装载当前服务器的东西（设置 + 点位）；自检、启用、打开配置页三条路径都要用。
      *
      * <p>配置页进入时也调这里：页面必须显示磁盘上的真实绑定，而点位装载只发生在自检 / 启用，
      * 玩家「先进页面配点位、再开模块」或重启后直接开页面时，读到的会是空表。点位写入全部即时落盘，
      * 因此重读不会丢数据。</p>
+     *
+     * <p><b>设置先于点位</b>（用户 2026-09-18「设置按服务器隔离」）：自检读的是设置
+     * （目标矿与三条指令），必须先换成这台服务器的那一套，否则自检会拿着上一个服务器的配置下结论。</p>
      */
     public void reloadStore() {
+        refreshSettingsIfScopeChanged();
         pointStore.reload();
         storeContext = currentStoreContext();
     }

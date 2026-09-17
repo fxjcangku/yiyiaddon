@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
+
 /**
  * 自动箱子控制台「渲染」页：{@code 渲染} 分组的五项。
  *
@@ -73,9 +75,11 @@ public final class AutoChestRenderPage {
      * 颜色行：调色板关窗时先把载体颜色写回设置项再落盘。
      *
      * <p>只传 {@code persistSettings} 是不行的：颜色还没同步进设置项，存下去的是旧值。</p>
+     *
+     * <p>行尾带可见提示（第 213 条）：色块本身只是纯色底，看不出能点。</p>
      */
     private ConsoleRow colorRow(String name, String hint, EspColor color) {
-        return new ConsoleRow(owner, () -> name, hint, null,
+        return new ConsoleRow(owner, () -> name, hint, COMMENT_COLOR,
             List.of(new Ctl(new SettingColorPicker(name, color, module::syncColorsToSettings))));
     }
 

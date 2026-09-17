@@ -13,8 +13,12 @@ import net.minecraft.world.item.Items;
 import java.util.List;
 
 /**
- * 自动农场六张点位卡的唯一构建处：模块页与控制台「点位」页共用同一份数据与同一套按钮行为
+ * 自动农场六张点位卡的唯一构建处：控制台「点位」页用它铺卡
  * （旧 {@code AutoFarmMatrix.buildLocationCard :757-796} 逐字换壳）。
+ *
+ * <p><b>模块页不再摆这六张卡</b>（用户 2026-09-17：「控制台里面已经有点位了 为什么控制台外面还有
+ * 自动农村也有这个问题」）：旧项目把卡挂在模块配置页（旧 {@code :717-734}），本项目点位统一由控制台
+ * 「点位」页承载，故本类只被 {@code FarmPointPage} 调用一处，不存在两份卡片。</p>
  *
  * <p>卡片头图标（D9）：农田对角用小麦种子、四箱用箱子，未绑定也显示，不留空洞。</p>
  */
@@ -23,7 +27,7 @@ public final class FarmPointCards {
     private FarmPointCards() {
     }
 
-    /** 按旧模块页的两列配对顺序构建六张卡片：点位1/点位2、单作物箱/多作物箱、种子补货箱/杂物箱 */
+    /** 按旧配置页的两列配对顺序构建六张卡片：点位1/点位2、单作物箱/多作物箱、种子补货箱/杂物箱 */
     public static List<PointCardGrid.PointCard> all(AutoFarmModule module) {
         return List.of(
             card(module, "农场点位1", SiteType.START, "§a"),

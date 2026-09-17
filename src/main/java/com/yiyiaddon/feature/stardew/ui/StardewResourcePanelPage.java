@@ -1,7 +1,6 @@
 package com.yiyiaddon.feature.stardew.ui;
 
 import com.yiyiaddon.core.CommandMessageFormatter;
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.platform.GameProbe;
@@ -9,9 +8,7 @@ import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.service.resourcepack.ResourcePackCache;
 import com.yiyiaddon.ui.component.CompactRow;
-import com.yiyiaddon.ui.component.KeybindBadge;
 import com.yiyiaddon.ui.component.ModuleRow;
-import com.yiyiaddon.ui.component.ModuleStatusBar;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.page.BasePage;
@@ -19,7 +16,6 @@ import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
-import com.yiyiaddon.ui.widget.SettingToggle;
 import net.minecraft.client.Minecraft;
 
 import java.io.File;
@@ -44,11 +40,14 @@ import java.util.function.Supplier;
  * 本项目页面每帧 {@code draw} 都重新读取 {@link TextLine} 的取值来源，因此不需要任何订阅，
  * 状态天然实时。</p>
  *
- * <p><b>顶部信息块</b>：与其它模块页同一套壳——状态圆点 / 状态文字 + 快捷键徽章 + 模块开关
- * （旧项目该开关由 Meteor 的 {@code ModuleScreen} 统一画在面板顶部，迁移后由各页注入）。</p>
+ * <p><b>顶部信息块已撤</b>（用户 2026-09-17 口径：「未启用这些 还有快捷键设置的都没有移动过去
+ * 不可以那么长 压缩到控制台里面的跟启动按钮的旁边」）：状态文字 / 快捷键徽章 / 模块开关三件
+ * 统一搬进星露谷控制台顶栏，压成右对齐的一小排
+ * （{@link com.yiyiaddon.ui.console.ConsoleHeaderBar}），本页不再有那条横贯整屏的状态卡
+ * （旧项目该开关由 Meteor 的 {@code ModuleScreen} 统一画在面板顶部）。</p>
  *
  * <p><b>整页行度量与模块中心同源</b>（2026-09-16，用户看截图后要求「还有点击进去的时候 模块也要
- * 缩小 现在都不对称」）：顶部信息块（{@link ModuleStatusBar#HEIGHT}）、分组标题
+ * 缩小 现在都不对称」）：分组标题
  * （{@link #GROUP_HEIGHT} / {@link #GROUP_SIZE}）、六个字段行（{@link #FIELD_HEIGHT}）与四个按钮行
  * （{@link CompactRow#HEIGHT}）全部落在模块中心那一档——行高
  * {@link ModuleRow#HEIGHT}（24）、行距 {@link ModuleRow#ROW_GAP}（6，由
@@ -137,14 +136,6 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
     // ── 构建 ──
 
     private void build() {
-        // 顶部信息块：状态圆点 + 快捷键徽章 + 模块开关（与其它模块页同一套壳）
-        setHeader(new ModuleStatusBar(
-            () -> module.isEnabled() ? "运行中" : "未启用",
-            module::isEnabled,
-            new KeybindBadge(module.keybindId()),
-            new SettingToggle(module::isEnabled,
-                value -> ModuleManager.setEnabled(module.id(), value))));
-
         addCore(new TextLine(GROUP_TITLE).height(GROUP_HEIGHT).size(GROUP_SIZE).bold(true));
 
         // 六行字段：顺序与标签逐字照旧项目 FIELD_LABELS

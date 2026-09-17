@@ -1,5 +1,7 @@
 package com.yiyiaddon.feature.combat.config;
 
+import java.util.List;
+
 /**
  * 杀戮光环（KillAura）26 项设置的中文界面文案。
  *
@@ -181,4 +183,43 @@ public final class KillAuraTexts {
 
     /** 蓝本 {@code switch-delay}（{@code KillAura.java:255-262}） */
     public static final String DESC_SWITCH_DELAY = "切换快捷栏后等多少刻再打。";
+
+    // ━━━ 武器白名单的展示口径（本项目新增：类别名 + 下界合金图标，用户 2026-09-17 口径） ━━━
+
+    /**
+     * 武器白名单条目的展示口径：**类别名 + 代表图标**。
+     *
+     * <p><b>用户原话</b>：「武器白名单 不用写上什么品质的 直接 剑 斧 这种就行了 物品图标 默认下界合金品质的图标」。
+     * 起因：玩家手里拿的是下界合金剑，名单上却写着「钻石剑」，看着像「只认钻石剑」——
+     * 其实匹配走的是物品标签，任何品质都吃（见 {@code KillAuraModule#acceptableWeapon}），
+     * 所以名字本来就该按**类别**给，而不是按某个具体品质给。</p>
+     *
+     * <p><b>键一个字符都没动</b>：{@code key} 仍是蓝本 {@code FILTER}（{@code KillAura.java:264}）的 8 个登记 ID，
+     * 也就是设置项 {@code weapons} 落盘的值与匹配判据；这里只换「显示什么名字、贴什么图标」。</p>
+     *
+     * <p><b>图标</b>：统一取同名**下界合金**品质（重锤没有下界合金版，三叉戟本就一种，各取原物品）；
+     * 图标 ID 由调用方在 {@code BuiltInRegistries.ITEM} 里解析，取不到时退回该键自身的物品，
+     * 不会出现空图标。</p>
+     */
+    public record WeaponLabel(String key, String label, String iconId) {
+    }
+
+    /** 8 个武器类别的展示口径（顺序 = 蓝本 {@code FILTER} 顺序，一项不少） */
+    public static final List<WeaponLabel> WEAPON_LABELS = List.of(
+        new WeaponLabel("minecraft:diamond_sword", "剑", "minecraft:netherite_sword"),
+        new WeaponLabel("minecraft:diamond_axe", "斧", "minecraft:netherite_axe"),
+        new WeaponLabel("minecraft:diamond_pickaxe", "镐", "minecraft:netherite_pickaxe"),
+        new WeaponLabel("minecraft:diamond_shovel", "锹", "minecraft:netherite_shovel"),
+        new WeaponLabel("minecraft:diamond_hoe", "锄", "minecraft:netherite_hoe"),
+        new WeaponLabel("minecraft:mace", "重锤", "minecraft:mace"),
+        new WeaponLabel("minecraft:diamond_spear", "矛", "minecraft:netherite_spear"),
+        new WeaponLabel("minecraft:trident", "三叉戟", "minecraft:trident"));
+
+    /** 按登记 ID 取展示口径；认不出的 ID 返回 {@code null}（调用方回退原样显示，不猜） */
+    public static WeaponLabel weaponLabel(String key) {
+        for (WeaponLabel label : WEAPON_LABELS) {
+            if (label.key().equals(key)) return label;
+        }
+        return null;
+    }
 }

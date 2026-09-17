@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.villager.render;
 
 import com.yiyiaddon.feature.villager.repository.VillagerBindingStore;
 import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
@@ -78,6 +79,8 @@ public final class ContainerESP {
      * 未绑定的箱子不该有标记；绑定视图由仓库每次访问现取，因此解除绑定后下一帧即消失。</p>
      */
     public void render(EspRenderer renderer) {
+        // 全局「各模块 ESP」总闸（用户 2026-09-18）
+        if (!EspGlobalSettings.get().layerEnabled(EspGlobalSettings.Layer.VILLAGER)) return;
         if (mc.player == null || mc.level == null) return;
 
         VillagerBindingStore.ContainerBinding binding = VillagerBindingStore.getBinding();

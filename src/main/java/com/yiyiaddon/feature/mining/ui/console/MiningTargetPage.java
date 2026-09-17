@@ -94,19 +94,22 @@ public final class MiningTargetPage {
             "时运模式选掉落物（粗铁/粗金/粗铜等），精准采集选原矿（铁矿石等）",
             () -> controls.oreStatus(false),
             () -> controls.openOreSelector(TITLE_OVERWORLD, false),
-            () -> controls.clearOreTarget(false)));
+            () -> controls.clearOreTarget(false),
+            () -> blank(settings.overworldOreTarget)));
 
         stack.add(selectorRow(TITLE_NETHER,
             "时运模式选掉落物（下界残骸/金粒/石英），精准采集选原矿（下界残骸等）",
             () -> controls.oreStatus(true),
             () -> controls.openOreSelector(TITLE_NETHER, true),
-            () -> controls.clearOreTarget(true)));
+            () -> controls.clearOreTarget(true),
+            () -> blank(settings.netherOreTarget)));
 
         stack.add(selectorRow(TITLE_BLOCK,
             "选择普通方块（石头、泥土、原木等）",
             controls::blockStatus,
             () -> controls.openBlockSelector(TITLE_BLOCK),
-            controls::clearBlockTarget));
+            controls::clearBlockTarget,
+            () -> blank(settings.blockTarget)));
 
         stack.add(new Note(owner, "§7§l物品管理", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
@@ -115,19 +118,22 @@ public final class MiningTargetPage {
             "默认保留任意品质工具、白名单食物、目标矿物；此名单内的额外物品/方块也不会被丢弃",
             controls::keepStatus,
             () -> controls.openKeepSelector(TITLE_KEEP),
-            controls::clearKeepList));
+            controls::clearKeepList,
+            () -> settings.keepWhitelist.isEmpty()));
 
         stack.add(selectorRow(TITLE_FOOD,
             "从食物箱只拿选中的食物（只显示能吃的食物，默认常用食物，可自由增删）",
             controls::foodStatus,
             () -> controls.openFoodSelector(TITLE_FOOD),
-            controls::clearFoodList));
+            controls::clearFoodList,
+            () -> settings.foodWhitelist.isEmpty()));
 
         stack.add(selectorRow(TITLE_PLACE,
             "Baritone搭桥/填坑时使用这些方块，且只保留各一组（多余自动丢弃）",
             controls::placeStatus,
             () -> controls.openPlaceSelector(TITLE_PLACE),
-            controls::clearPlaceList));
+            controls::clearPlaceList,
+            () -> settings.placeBlocks.isEmpty()));
     }
 
     // ── 右基线对齐 ──
@@ -223,14 +229,25 @@ public final class MiningTargetPage {
      * 名称 + 说明 …… [点击选择] [状态文字] [↻]。
      *
      * <p>状态文字用 {@link SettingText}，列宽走六行共用的固定列（各自按当前文案量宽会把「点击选择」
-     * 顶得左右浮动）；↻ 的图标与动作都与星露谷一致——清空本行已选，空则静默。</p>
+     * 顶得左右浮动）；↻ 的图标与动作都与星露谷一致——清空本行已选，悬停说明按行标签给出，
+     * 空态（{@code empty}）时按钮为禁用态（第 214 条）。</p>
+     *
+     * @param empty 空态判据；与 ↻ 的清空动作读同一份数据（单值目标为 blank 判定，名单为 isEmpty）
      */
     private CompactElement selectorRow(String title, String description, Supplier<String> status,
-                                       Runnable open, Runnable reset) {
+                                       Runnable open, Runnable reset, Supplier<Boolean> empty) {
         return new ConsoleRow(owner, () -> title, description, null, List.of(
             new Ctl(new Button(SELECT_LABEL, open)),
             new Ctl(new SettingText(status, () -> stateColumn.widthOf(status)).alignLeft()),
-            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset))));
+            // 空态禁用：判据与 MiningTargetControls 的对应 clear 读同一份数据，
+            // 逐帧求值见 IconButton#disabledWhen(Supplier)
+            new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, reset).disabledWhen(empty),
+                "清空本行已选" + title)));
+    }
+
+    /** 单值目标的空态判据：清空动作在值缺失 / 空白时静默返回（见 {@code MiningTargetControls} 的三个 clear） */
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     // ── 选择器候选 / 登记 ID 互转 / 显示名：统一在 MiningRegistry（本类不再自持缓存） ──
