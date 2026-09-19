@@ -25,6 +25,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * （{@code AutoMinerModule#onTick}）与这里的接管入口必须共用同一份状态，
  * 否则「START 在这一份、STOP 在另一份」，方块永远挖不烂。</p>
  *
+ * <p><b>不要把它缓存进 {@code @Unique} 实例字段</b>：Mixin 只会在把 Mixin 类的
+ * 构造器并进目标类构造器时才执行字段初值，混淆产物上这一步实测没生效
+ * （字段挂上去了、初值没进去，读出来恒为 {@code null}，2026-09-20 生产实例实测
+ * {@code stopDestroyBlock} 直接 NPE 崩客户端）。单例取值就是一次静态字段读取，
+ * 每刻最多调一次，直接内联调用。</p>
+ *
  * <ul>
  *   <li>{@code startDestroyBlock} / {@code continueDestroyBlock}：HEAD 注入，裁决后按结果改写返回值；</li>
  *   <li>{@code stopDestroyBlock}：HEAD 注入，需要接管时 {@code cancel()}（只取消原版的 ABORT 包）。</li>
@@ -37,9 +43,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(MultiPlayerGameMode.class)
 public abstract class MultiPlayerGameModeFastBreakMixin {
 
-    @Unique
-    private final MiningFastBreakController yiyiaddon$fastBreak = MiningFastBreakController.instance();
-
     @Inject(method = "startDestroyBlock", at = @At("HEAD"), cancellable = true)
     private void yiyiaddon$startFastBreak(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         Minecraft mc = Minecraft.getInstance();
@@ -50,7 +53,7 @@ public abstract class MultiPlayerGameModeFastBreakMixin {
         // 方块间隔冷却）会返回 false =「我们没挖、也没让原版挖」，而 Baritone 那一刻正好开始挖下一块
         // ——手上拿着对口的工具（铲子挖草方块）却怎么都挖不掉（用户 2026-09-18 实机）。
         // 冷却的意义只是「这一块我们不接管」，不是「这一块谁都别挖」。
-        if (yiyiaddon$fastBreak.start(mc, module, pos, direction)
+        if (MiningFastBreakController.instance().start(mc, module, pos, direction)
             == MiningFastBreakController.StartResult.ACCEPTED) {
             cir.setReturnValue(true);
         }
@@ -60,12 +63,12 @@ public abstract class MultiPlayerGameModeFastBreakMixin {
     private void yiyiaddon$continueFastBreak(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         Minecraft mc = Minecraft.getInstance();
         AutoMinerModule module = yiyiaddon$miningModule();
-        if (yiyiaddon$fastBreak.continueBreaking(mc, module, pos, direction)) cir.setReturnValue(true);
+        if (MiningFastBreakController.instance().continueBreaking(mc, module, pos, direction)) cir.setReturnValue(true);
     }
 
     @Inject(method = "stopDestroyBlock", at = @At("HEAD"), cancellable = true)
     private void yiyiaddon$stopFastBreak(CallbackInfo ci) {
-        if (yiyiaddon$fastBreak.stop(Minecraft.getInstance())) ci.cancel();
+        if (MiningFastBreakController.instance().stop(Minecraft.getInstance())) ci.cancel();
     }
 
     /** 取自动挖矿模块；未注册或类型不符返回 {@code null}（控制器会交还原版处理） */
