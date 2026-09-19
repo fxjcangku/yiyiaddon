@@ -31,6 +31,9 @@ public final class UpdateSelfTest {
         check(ReleaseCatalog.newest("[{}," + beta2 + "]").tag().equals("v1.0-beta2"), "坏条目隔离");
         check(ReleaseCatalog.newest("[]") == null, "空列表");
         check(ReleaseCatalog.newest("[" + beta2.replace(".zip", "-personal.jar") + "]") == null, "不提示个人包");
+        check(ReleaseCatalog.newest("[" + beta2.replace(".zip", "-26.1.2.zip") + "]").tag().equals("v1.0-beta2"), "带 MC 版本的发布包");
+        check(ReleaseCatalog.newest("[" + beta2.replace(".zip", "-26.2.jar") + "]").tag().equals("v1.0-beta2"), "带 MC 版本的发布 JAR");
+        check(ReleaseCatalog.newest("[" + beta2.replace(".zip", "-personal+26.1.2.jar") + "]") == null, "不提示带 MC 版本的个人包");
         UpdateSession session = new UpdateSession();
         check(!session.claimPrompt(false, true), "游戏中不弹窗");
         check(!session.claimPrompt(true, false), "没有更新不消耗提示");

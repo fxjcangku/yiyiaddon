@@ -119,11 +119,14 @@ echo %ERRORLEVEL% > "$codeFile"
 
     New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
     foreach ($jar in $jars) {
-        $target = Join-Path $OutDir ("$([System.IO.Path]::GetFileNameWithoutExtension($jar.Name))+$otherVersion.jar")
+        # 另一条线的包名自带 「+它自己的 MC 版本」，先剥掉再按本条线的口径补上，
+        # 否则会叠成 personal+26.2+26.2.jar。
+        $base = $jar.BaseName -replace '\+[^+]*$', ''
+        $target = Join-Path $OutDir ("$base+$otherVersion.jar")
         Copy-Item $jar.FullName $target -Force
         Write-Step ('已产出 {0}（{1:N1} MB）' -f $target, ($jar.Length / 1MB))
     }
-    Write-Step '两条线的个人版都齐了：带 +<版本> 后缀的是本次另一条线的，本线那份是老名字（由 gradle 直接构建）。'
+    Write-Step '两条线的个人版都齐了：都带 +<MC 版本> 后缀，各一条线。'
 } catch {
     Write-Step "构建失败：$($_.Exception.Message)"
     $failed = $true

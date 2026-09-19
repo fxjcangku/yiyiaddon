@@ -109,13 +109,15 @@ processResources {
 }
 
 // 普通构建供个人使用，以后缀区分，避免误把未混淆包当成公开发布包。
+// 后缀带 MC 版本（本线是 yiyiaddon-<版本>-personal+<本线 MC 版本>.jar）：两条版本线的版本号相同，
+// 不带 MC 版本就分不清谁能装，buildBoth 一次出两份也只有带上才不会互相覆盖。
 tasks.named('jar', Jar) {
-    archiveClassifier = 'personal'
+    archiveClassifier = "personal+${project.minecraft_version}"
 }
 
 tasks.register('buildPersonal') {
     group = 'build'
-    description = '构建带 personal 后缀的个人版。'
+    description = '构建带 personal+<MC 版本> 后缀的个人版。'
     dependsOn tasks.named('build')
 }
 

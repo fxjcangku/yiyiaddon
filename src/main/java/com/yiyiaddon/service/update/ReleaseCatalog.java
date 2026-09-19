@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.net.URI;
+import java.util.regex.Pattern;
 
 /** GitHub 发布列表的纯解析层；只接受本仓库已上传安装包的公开版本，不执行远程正文。 */
 public final class ReleaseCatalog {
@@ -17,6 +18,15 @@ public final class ReleaseCatalog {
     }
 
     private ReleaseCatalog() { }
+
+    /**
+     * 发布包名：`yiyiaddon-<版本>.zip|.jar`，或带 MC 版本的 `yiyiaddon-<版本>-<MC 版本>.zip|.jar`
+     * （两条版本线版本号相同，靠 MC 版本后缀区分）。个人版是 `...-personal+<MC 版本>.jar`，
+     * 不是发布包，不能据此提示更新。
+     */
+    private static boolean isReleaseAsset(String name, String number) {
+        return name.matches("yiyiaddon-" + Pattern.quote(number) + "(-[0-9][0-9A-Za-z.]*)?\\.(zip|jar)");
+    }
 
     /** 按版本值选择最新包，不依赖 GitHub 返回顺序，忽略草稿、坏条目和未传完的包。 */
     public static Release newest(String json) {
@@ -33,7 +43,7 @@ public final class ReleaseCatalog {
                 for (JsonElement asset : item.getAsJsonArray("assets")) {
                     JsonObject file = asset.getAsJsonObject();
                     String name = file.get("name").getAsString();
-                    if ((name.equals("yiyiaddon-" + number + ".zip") || name.equals("yiyiaddon-" + number + ".jar"))
+                    if (isReleaseAsset(name, number)
                             && "uploaded".equals(file.get("state").getAsString()) && file.get("size").getAsLong() > 0) {
                         ready = true;
                     }
