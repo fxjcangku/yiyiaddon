@@ -170,7 +170,7 @@ gradlew :fabric:remapJar -Pavailable_loaders=fabric
 | Mixin | ✅ 全部应用 | 无 `InjectionError`（首轮曾因 `Minecraft.setScreen` 重定向失败，已按上文改挂 `Gui#setScreen`） |
 | 图形后端 | ✅ OpenGL | 日志 `Using graphics backend OpenGL`（印证 DEFAULT 不走 Vulkan） |
 | 采样器兜底 | ✅ 生效 | `yiyiaddon/render-compat 光影兼容兜底生效：已为缺失的原版采样器补绑 Sampler1/Sampler2` |
-| Baritone | ✅ 工作 | `baritone 1.19.0` 加载成功，正常写 `run/baritone/.../cache` 区域缓存 |
+| Baritone | ✅ 工作 | `baritone 1.19.0` 加载成功，正常写 `run-26.1.2/baritone/.../cache` 区域缓存 |
 | 自动进服 + 模块 tick | ✅ | 自动进服到目标服务器；`副手口粮`、`星露谷 界面观察` 等模块日志持续输出 |
 | 自绘界面 | ✅ 实机通过 | 用户 2026-09-19 实机确认：控制台排版 / 字体 / 圆角、模糊、颜色选择器与物品图标（含箱子 / 床 / 羊毛 / 地毯 / 玻璃这些色系图标）、层层退回全部正常 |
 | 世界渲染 | ✅ 实机通过 | 透视 / ESP 的方块框、连线、字牌叠在世界之上且被 GUI 正确遮挡；杀戮光环目标列表与图标正常 |
@@ -184,9 +184,9 @@ gradlew :fabric:remapJar -Pavailable_loaders=fabric
 | 26.2 开发端（1:1 整合包） | ✅ 实机进世界 | `runClient` 跑在 `run-26.2/`：正式版实例 1:1 搬入的 101 个模组 + 15 个资源包 + Iris 光影包（`Bliss_v2.1.2`）**全开**，日志 `Loaded 1688 advancements` 后进入世界并持续渲染、可开背包/配置界面，无崩溃 |
 | 开发端兜底（第四节的 E） | ✅ 两处均生效 | 日志 `yiyiaddon/render-compat 渲染兼容兜底生效：首帧之前先补建全局设置 UBO`；补足顶点格式槽位后，Iris 装包进世界不再抛 `Index 1 out of bounds for length 1` |
 
-**测试环境说明（26.1.2 侧）**：`run/mods` 里 104 个第三方模组全是 26.1.2 版，声明 `>=26.1 <26.2`，
+**测试环境说明（26.1.2 侧）**：`run-26.1.2/mods` 里 104 个第三方模组全是 26.1.2 版，声明 `>=26.1 <26.2`，
 Fabric Loader 直接拒绝启动。编译验证与实机核对两次都按「临时移开该目录」的口径跑，
-**两次都在跑完后原样还原（104 个文件）**。`run/` 在 `.gitignore` 内，不影响仓库与产物。
+**两次都在跑完后原样还原（104 个文件）**。`run-*/` 在 `.gitignore` 内，不影响仓库与产物。
 因此那两次实机结论只覆盖本模组自身与 Fabric API，**不含**那批第三方模组参与的联动路径。
 
 **测试环境说明（26.2 侧）**：26.2 开发端已按「从正式版实例 1:1 搬入」的口径建好 `run-26.2/`
