@@ -53,6 +53,12 @@ final class StardewTaskVerifier {
                 // 与识别、收获学习同源：方块优先 + 展示实体兜底。只读方块状态在「作物是展示实体 /
                 // 盆上是隐形载体」的服务器上永远看不到收获后的变化。
                 CropRecognizer.CropRecognition crop = CropRecognizer.recognizeAtPot(owner.targetPot, owner.profile);
+                // 特殊变种（金色 / 巨型 / 变种）：手持金锄头收完回退到「植株」。判据只看「这一格不再是
+                // 特殊变种阶段」——特殊阶段本来就不在成熟阶段表里，普通规则的 completeVerified /
+                // afterHarvestStage 都不适用于它（比对回退阶段只会把成功判成失败，然后对着收干净的格子反复右键）。
+                if (owner.activeCell != null && owner.activeCell.crop().state() == CropState.SPECIAL) {
+                    yield crop.state() != CropState.SPECIAL && potStillPresent(owner.targetPot);
+                }
                 StardewHarvestRule rule = owner.activeCell == null ? null
                     : owner.harvestRuleResolver.apply(owner.activeCell.crop().cropKey());
                 if (rule == null || !rule.completeVerified()) yield false;

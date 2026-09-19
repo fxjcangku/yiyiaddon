@@ -588,7 +588,7 @@ public final class StardewCoordinator {
     // ── 收获学习快照 ──
     /** 同一运行会话每个作物阶段最多探测一次，避免对未成熟阶段循环右键刷包。 */
     final Set<String> probedLearningStages = new HashSet<>();
-    /** 特殊变种只提示一次人工校准，禁止每轮扫描刷屏。 */
+    /** 「发现特殊作物但背包没有金锄头」每个具体阶段只提示一次，禁止每轮扫描刷屏。 */
     final Set<String> reportedSpecialStages = new HashSet<>();
     String learningCropKey;
     String learningMatureStage;

@@ -71,7 +71,8 @@ public class Button extends SettingWidget {
     private Supplier<Boolean> disabledSupplier;
     private float fixedWidth = -1f;
 
-    private float hover;
+    /** 悬停强度；{@code -1} = 尚未落位（首帧直接取真实值，见 {@link #primeHover()}）。 */
+    private float hover = -1f;
     /** 仅插值选中外观，点击回调与选中数据仍立即生效。 */
     private float selectedBlend = -1f;
     private boolean hovered;
@@ -197,11 +198,26 @@ public class Button extends SettingWidget {
     public void update(float dt) {
         press.update(dt);
         float blend = 1f - (float) Math.exp(-Math.max(0f, dt) * HOVER_SMOOTHING);
-        hover += ((hovered ? 1f : 0f) - hover) * blend;
+        if (hover < 0f) {
+            hover = hovered ? 1f : 0f;
+        } else {
+            hover += ((hovered ? 1f : 0f) - hover) * blend;
+        }
         float target = isSelected() ? 1f : 0f;
         if (selectedBlend < 0f) selectedBlend = target;
         selectedBlend += (target - selectedBlend) * blend;
         if (hover < 0.001f) hover = 0f;
+    }
+
+    /**
+     * 首帧落位：把悬停强度直接设成真实值，不淡入。
+     *
+     * <p><b>为什么需要</b>：控制台的概览页每秒整页重建，鼠标若停在按钮上，新实例的悬停强度从 0
+     * 重新淡入，表现为「按钮高亮每秒闪一次」（用户 2026-09-18 实机反馈）。落位后只有真实的
+     * 移入 / 移出才产生过渡，重建不再重播动画。与 {@code selectedBlend} 的 {@code -1} 哨兵同一手法。</p>
+     */
+    private void primeHover() {
+        if (hover < 0f) hover = hovered ? 1f : 0f;
     }
 
     @Override
@@ -219,6 +235,7 @@ public class Button extends SettingWidget {
 
     /** 以指定宽度绘制，供满宽排版（{@code ButtonRow}）使用。 */
     public void drawAt(Canvas canvas, float x, float y, float width, float alpha) {
+        primeHover();
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float height = size.height;
         float radius = size.radius;

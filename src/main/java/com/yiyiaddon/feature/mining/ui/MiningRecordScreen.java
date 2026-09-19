@@ -24,6 +24,8 @@ import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import io.github.humbleui.skija.Canvas;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +69,9 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
      * 列太长会压到隔壁卡片上，因此这里把长度控制在两列卡片宽度以内。</p>
      */
     private static final int SUMMARY_FOOD_LIMIT = 2;
+
+    /** 记录卡图标：成书的书＝「已保存的一整套配置」 */
+    private static final ItemStack RECORD_ICON = new ItemStack(Items.WRITTEN_BOOK);
 
     private final AutoMinerModule module;
 
@@ -133,7 +138,8 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
             List.of(new Button(current ? "§e读取" : "§7读取", () -> read(record)),
                 new Button(current ? "§7替换" : "§8替换", () -> confirmReplace(record))),
             List.of(new Button("§b详情", () -> showDetails(record)),
-                new Button("§c删除", () -> confirmDelete(record)))));
+                new Button("§c删除", () -> confirmDelete(record)))))
+            .icon(() -> RECORD_ICON);
     }
 
     /** 目标显示：三个单值目标三选一（与模块自检同一口径），并标出矿石还是方块、哪个维度 */

@@ -43,7 +43,8 @@ public class IconButton extends SettingWidget {
     /** 空态禁用判据；非 null 时每帧重算 {@link #disabled} */
     private Supplier<Boolean> disabledSupplier;
 
-    private float hover;
+    /** 悬停强度；{@code -1} = 尚未落位（首帧直接取真实值，理由同 {@link Button}）。 */
+    private float hover = -1f;
     private boolean hovered;
     private float cachedGlyphWidth;
     private float cachedGlyphSize = -1f;
@@ -132,9 +133,20 @@ public class IconButton extends SettingWidget {
     public void update(float dt) {
         if (disabledSupplier != null) disabled = disabledSupplier.get();
         press.update(dt);
+        primeHover();
         hover += ((hovered ? 1f : 0f) - hover)
                 * (1f - (float) Math.exp(-Math.max(0f, dt) * HOVER_SMOOTHING));
         if (hover < 0.001f) hover = 0f;
+    }
+
+    /**
+     * 首帧落位：把悬停强度直接设成真实值，不淡入。
+     *
+     * <p>控制台的概览页每秒整页重建，鼠标若停在图标按钮上，新实例会每秒重新淡入一次高亮
+     * （名单行的「移除」按钮就在这类页面里）。与 {@link Button} 同一套手法。</p>
+     */
+    private void primeHover() {
+        if (hover < 0f) hover = hovered ? 1f : 0f;
     }
 
     @Override
@@ -146,6 +158,7 @@ public class IconButton extends SettingWidget {
 
     @Override
     public void draw(Canvas canvas, float x, float y, float alpha) {
+        primeHover();
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float contentAlpha = disabled ? alpha * 0.4f : alpha;
         float radius = size * RADIUS_RATIO;

@@ -103,3 +103,6 @@ processResources {
         expand(propertyMap)
     }
 }
+
+// 发布混淆独立于开发构建；只处理本项目字节码，不改嵌套第三方依赖。
+apply from: 'gradle/obfuscation.gradle'

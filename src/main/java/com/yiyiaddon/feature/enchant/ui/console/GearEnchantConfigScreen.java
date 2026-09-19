@@ -11,6 +11,7 @@ import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.console.ConsoleStateColumn;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
@@ -129,6 +130,13 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         }
         profileControls.add(new Ctl(new SettingText(() -> profileText(gear),
             () -> profileColumn.widthOf(() -> profileText(gear))).alignLeft()));
+        // 行内 ↺：回到该装备的默认方案（与「换装备」同一入口，目标附魔随方案一起回默认值）
+        profileControls.add(ConsoleWidgets.resetCtl(() -> {
+            new GearEnchantConfig(module.settings().gearEnchantConfig).applyGear(gear.id);
+            module.persistSettings();
+            console.reload();
+            rebuild();
+        }, "极品方案"));
         stack.add(new ConsoleRow(this, () -> "极品方案", null, null, profileControls));
 
         // ── 目标附魔逐条（旧 :187-236）：名称 + 排除 / 核心 + 等级加减 ──
@@ -174,6 +182,13 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
             controls.add(new Ctl(new SettingText(() -> "§8核心", 40f)));
         }
         controls.add(new Ctl(levelBox(config, target)));
+        // 行内 ↺：等级回到方案默认值、同时解除排除（两项都是这一行承载的设置）
+        controls.add(ConsoleWidgets.resetCtl(() -> {
+            config.setLevel(target.id, target.level);
+            config.setExcluded(target.id, false);
+            module.persistSettings();
+            rebuild();
+        }, target.name));
 
         return new ConsoleRow(this,
             () -> (config.isExcluded(target.id) ? "§8" : "§f") + target.name + " §e"
@@ -361,6 +376,15 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
             if (item == null || item == Items.AIR) return false;
             return ItemIconCache.getInstance().draw(canvas, new ItemStack(item), x, y, size);
         }
+
+        /** 与 drawIcon 同一份图标：按登记 ID 取到的物品（取不到返回 null）。 */
+        @Override
+        public ItemStack iconStack() {
+            Identifier id = Identifier.tryParse(key);
+            if (id == null) return null;
+            Item item = BuiltInRegistries.ITEM.getValue(id);
+            return item == null || item == Items.AIR ? null : item.getDefaultInstance();
+        }
     }
 
     /**
@@ -407,6 +431,12 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
             if (iconStack == null) iconStack = new ItemStack(Items.ENCHANTED_BOOK);
             return ItemIconCache.getInstance().draw(canvas, iconStack, x, y, size);
+        }
+
+        /** 与 drawIcon 同一份图标：统一的附魔书。 */
+        @Override
+        public ItemStack iconStack() {
+            return new ItemStack(Items.ENCHANTED_BOOK);
         }
     }
 }

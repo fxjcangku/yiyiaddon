@@ -7,6 +7,7 @@ import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.profile.WateringCanDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
+import com.yiyiaddon.feature.stardew.recognition.CropState;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.recognition.StardewCropDisplayProbe;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
@@ -21,6 +22,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -249,6 +251,8 @@ final class StardewFarmExecutor {
 
     boolean doHarvest() {
         if (owner.targetPot == null) return false;
+        // 特殊变种（金色 / 巨型 / 变种）走「手持金锄头右键」，普通成熟 / 保株作物保持空手右键。
+        if (isSpecialTarget()) return doSpecialHarvest();
         // 普通成熟作物统一右键采摘；重复结果植株会回退生长阶段，验证层据此保留原 cropKey。
         InteractionHand hand = prepareHarvestHand();
         if (hand == null) return false;
@@ -259,6 +263,48 @@ final class StardewFarmExecutor {
         LOGGER.info("[星露谷] 收割交互 手={} 目标={} {} 发包={}",
             hand == InteractionHand.OFF_HAND ? "副手" : "主手", owner.targetPot.above(),
             cellSummary(owner.targetPot.above()), sent);
+        return sent;
+    }
+
+    /**
+     * 特殊变种（金色 / 巨型 / 变种）的收割工具：本服实测口径是「原版金锄头右键」，收完回退植株。
+     *
+     * <p>不写进 {@code StardewHarvestRule}：它就是一个原版物品，既没有 {@code item_model} 身份也没有
+     * ID 绑定，而且所有特殊阶段共用同一个动作（用户实机确认：「金锄头就是普通原版物品，其他特殊都是
+     * 右键一起做了」）。因此只按物品本体取手，不引入新的规则字段与服务端绑定。</p>
+     */
+    private static Item specialHarvestTool() {
+        return Items.GOLDEN_HOE;
+    }
+
+    /** 背包 / 副手里有没有特殊变种收割工具；没有就绝不空手乱点（空手点特殊阶段收不掉，只会白跑一轮）。 */
+    boolean hasSpecialHarvestTool() {
+        return owner.inventory != null && owner.inventory.findSlotItem(specialHarvestTool(), false) >= 0;
+    }
+
+    /** 当前这一格是不是特殊变种——取派发时的扫描快照，与验证层同源。 */
+    private boolean isSpecialTarget() {
+        return owner.activeCell != null && owner.activeCell.crop() != null
+            && owner.activeCell.crop().state() == CropState.SPECIAL;
+    }
+
+    /**
+     * 特殊变种收割：手持金锄头对作物格右键。
+     *
+     * <p>它和普通作物是同一条 {@code HARVEST} 流程，这里只负责「换手 + 右键」——验证与后续扫描完全复用
+     * 现成机制；手在任务结束（{@code replan}）或模块停机时由 {@link #restoreHandNow()} 复位。</p>
+     */
+    private boolean doSpecialHarvest() {
+        if (!holdItem(specialHarvestTool())) {
+            // 派发前已经确认背包里有金锄头，走到这里只可能是任务进行中被拿走：播一条、本轮放弃。
+            owner.status.state("NO_SPECIAL_TOOL", "特殊作物需要金锄头", "背包里找不到金锄头，已跳过");
+            return false;
+        }
+        boolean sent = owner.adapter.face(owner.targetPot.above())
+            && owner.adapter.interactBlock(activeHand, owner.targetPot.above(), Direction.UP);
+        LOGGER.info("[星露谷] 特殊变种收割交互 手={} 工具={} 目标={} {} 发包={}",
+            activeHand == InteractionHand.OFF_HAND ? "副手" : "主手", specialHarvestTool(),
+            owner.targetPot.above(), cellSummary(owner.targetPot.above()), sent);
         return sent;
     }
 

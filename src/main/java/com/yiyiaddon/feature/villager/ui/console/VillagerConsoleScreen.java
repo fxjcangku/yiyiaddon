@@ -10,6 +10,7 @@ import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleHeaderBar;
 import com.yiyiaddon.ui.console.ConsoleHost;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.render.MinecraftText;
@@ -290,6 +291,7 @@ public final class VillagerConsoleScreen extends PanelScreen implements ConsoleH
         stack.add(new ButtonStrip(this, List.of(
             new Ctl(new Button("§7刷新", this::reload),
                 "顶部状态条每秒自动刷新；概览与点位页整页每秒重画，其余页按这个按钮重排最新数据"),
+            ConsoleWidgets.resetDefaultsCtl(this, module, this::reload),
             new Ctl(new Button("§7关闭", () -> {
                 if (minecraft != null) minecraft.setScreen(null);
             }))), ButtonStrip.BUTTON_HEIGHT));

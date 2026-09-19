@@ -1,5 +1,7 @@
 package com.yiyiaddon.ui.console;
 
+import com.yiyiaddon.core.module.Module;
+import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.CardLayout;
@@ -10,10 +12,14 @@ import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
+import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
+import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingWidget;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
 import io.github.humbleui.types.Rect;
 
@@ -63,7 +69,59 @@ public final class ConsoleWidgets {
     /** 键位行清空按钮的悬停说明（未绑定时按钮为禁用态，不存在点了没反应的悬案） */
     public static final String CLEAR_HINT = "清空绑定，恢复未绑定状态";
 
+    /** 控制台底部「恢复默认」按钮文案（与「刷新」「关闭」同一行、同一档灰字） */
+    public static final String RESET_BUTTON = "§7恢复默认";
+
+    /** 「恢复默认」的悬停说明 */
+    public static final String RESET_HINT = "把该模块的全部设置恢复为出厂值（会清掉已绑定点位与名单，需二次确认）";
+
     private ConsoleWidgets() {
+    }
+
+    /**
+     * 行内「恢复默认」图标（Material Symbols：refresh，与自动箱子「容器类型」行那枚同一码点）。
+     *
+     * <p><b>用途</b>（用户 2026-09-18：「我说的是这种选择框 加减应该加上刷新的」）：参数行右侧挂一枚 ↺，
+     * 把<b>这一行</b>的设置恢复成出厂值 —— 底部那颗「恢复默认」是整模块级别、还会清点位，
+     * 单改坏一项时用它太重，所以每行自带一枚。</p>
+     *
+     * <p><b>默认值从哪来</b>：各控制台持有一个出厂设置实例（{@code new XxxSettings()}），
+     * 行的默认值就读它 —— 与设置类字段初始化里的默认值同源，不在调用点抄字面量。</p>
+     *
+     * @param action 点击后要执行的动作：写回默认值 + 落盘（{@code module.persistSettings()}）+ 刷新页面
+     * @param label  行的标签，用于悬停说明（{@code 恢复默认：<标签>}）
+     */
+    public static Ctl resetCtl(Runnable action, String label) {
+        return new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, action), "恢复默认：" + label);
+    }
+
+    /**
+     * 控制台底部的「恢复默认」控件：二次确认之后把该模块的设置整份恢复为出厂值。
+     *
+     * <p><b>为什么放在共用件里</b>（用户 2026-09-18：「还有很多模块的参数设置 都没有刷新 恢复默认的设置
+     * 检查一下遗漏的都加去」）：每个控制台自建一份就会出现文案、确认口径、写盘时机各不相同的老问题；
+     * 这里只做一件事——弹确认、调 {@link ModuleManager#resetToDefaults(Module)}、刷新窗口。</p>
+     *
+     * <p><b>为什么要二次确认</b>：出厂值包含「点位 / 名单」这类手工积累的数据（例如自动农场的农田范围、
+     * 星露谷的种植区域），一次误点就没了；确认文案把这一点明说，按钮本身保持灰字、不与「刷新」抢眼。</p>
+     *
+     * @param parent  上级窗口（确认或返回后回到它；回不去就退出整个界面，见 ConfirmPanelScreen.inPlace）
+     * @param module  目标模块
+     * @param onReset 恢复成功后要执行的刷新动作，一般传窗口自己的 {@code reload}
+     */
+    public static Ctl resetDefaultsCtl(Screen parent, Module module, Runnable onReset) {
+        return new Ctl(new Button(RESET_BUTTON, () -> Minecraft.getInstance().setScreen(
+            ConfirmPanelScreen.inPlace("恢复默认设置",
+                List.of("§7把「§f" + module.displayName() + "§7」的全部设置恢复为出厂值。",
+                    "§7已绑定的点位、已填的名单会一并清空。",
+                    "§8确认后立刻写回配置文件，无法撤销。"),
+                "§a§l恢复默认",
+                () -> {
+                    ModuleManager.resetToDefaults(module);
+                    onReset.run();
+                },
+                parent))),
+            RESET_HINT);
     }
 
     /** 行内控件 + 它的 tooltip（tooltip 可为 null） */
@@ -123,6 +181,8 @@ public final class ConsoleWidgets {
 
         private boolean hovered;
         private float hover;
+        /** 悬停高亮是否已首次落位（概览页每秒整页重建，不落位会每秒重新淡入一次） */
+        private boolean hoverPrimed;
 
         public ConsoleRow(ConsoleHost owner, Supplier<String> label, String labelHint, String comment, List<Ctl> controls) {
             this.owner = owner;
@@ -183,6 +243,11 @@ public final class ConsoleWidgets {
             GlassPanel.rim(canvas, x, y, width, HEIGHT, radius, tc.rim, alpha, 0.10f);
 
             hovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + HEIGHT;
+            if (!hoverPrimed) {
+                // 整页重建后鼠标可能仍停在这一行上：第一帧直接到位，否则高亮会每秒重新淡入一次
+                hoverPrimed = true;
+                hover = hovered ? 1f : 0f;
+            }
             if (hover > 0.01f) {
                 GlassPanel.fill(canvas, x, y, width, HEIGHT, radius, tc.surfaceHover, rowAlpha * hover);
             }
@@ -488,6 +553,8 @@ public final class ConsoleWidgets {
         private boolean expanded = true;
         private boolean hovered;
         private float hover;
+        /** 悬停高亮是否已首次落位（重建后的第一帧直接到位，不淡入，理由同构造器注释） */
+        private boolean hoverPrimed;
 
         public FoldSection(String title) {
             this(title, null, null);
@@ -498,12 +565,18 @@ public final class ConsoleWidgets {
          *
          * <p>窗口整页重建（刷新 / 切页签）会丢弃全部控件实例，若不把折叠状态存在窗口侧，
          * 每次重建都会回到默认展开。</p>
+         *
+         * <p><b>构造即到位（关键）</b>：{@link #expand} 的初值是 0，若不在这里落位，每一个新建的
+         * 折叠块都会把展开动画重播一遍（高度与内容透明度从 0 涨到满）。控制台的概览页<b>每秒整页重建</b>，
+         * 于是变成「折叠块每秒闪一次、分组反复开合」（用户 2026-09-18 实机反馈）。
+         * 落位后动画只由 {@link #onClick} 的展开 / 收起切换触发：那时 {@code setTarget} 才与当前值不同。</p>
          */
         public FoldSection(String title, String stateKey, Set<String> collapsedKeys) {
             this.title = title == null ? "" : title;
             this.stateKey = stateKey;
             this.collapsedKeys = collapsedKeys;
             this.expanded = stateKey == null || collapsedKeys == null || !collapsedKeys.contains(stateKey);
+            expand.set(this.expanded ? 1f : 0f);
         }
 
         public CompactStack content() {
@@ -535,6 +608,11 @@ public final class ConsoleWidgets {
             GlassPanel.rim(canvas, x, y, width, HEADER_HEIGHT, radius, tc.rim, alpha, 0.10f);
 
             hovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + HEADER_HEIGHT;
+            if (!hoverPrimed) {
+                // 整页重建后鼠标可能仍停在标题上：第一帧直接到位，否则高亮会每秒重新淡入一次
+                hoverPrimed = true;
+                hover = hovered ? 1f : 0f;
+            }
             if (hover > 0.01f) {
                 GlassPanel.fill(canvas, x, y, width, HEADER_HEIGHT, radius, tc.surfaceHover, rowAlpha * hover);
             }

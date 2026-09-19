@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.stardew.plan.StardewCropPlanStore;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
@@ -69,6 +70,9 @@ public final class StardewLogisticsPage {
     private static final String LOGISTICS_NO_CROP =
         "§8尚未选择作物：在「种植配置」里选中作物后，这里会出现每种作物自己的后勤参数";
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final StardewSettings DEFAULTS = new StardewSettings();
+
     private final StardewConsoleScreen owner;
     private final StardewFarmModule module;
 
@@ -87,7 +91,12 @@ public final class StardewLogisticsPage {
             owner.reload();
         });
         stack.add(new ConsoleRow(owner, () -> StardewSettings.NAME_LOGISTICS_SIMPLE,
-            StardewSettings.DESC_LOGISTICS_SIMPLE, null, List.of(new Ctl(toggle))));
+            StardewSettings.DESC_LOGISTICS_SIMPLE, null, List.of(new Ctl(toggle),
+                ConsoleWidgets.resetCtl(() -> {
+                    s.logisticsSimple = DEFAULTS.logisticsSimple;
+                    module.persistSettings();
+                    owner.reload();
+                }, StardewSettings.NAME_LOGISTICS_SIMPLE))));
 
         String serverKey = serverKey();
         if (serverKey == null || serverKey.isBlank()) {
@@ -134,7 +143,13 @@ public final class StardewLogisticsPage {
                 putPlan(cropKey, new StardewCropPlanStore.CropPlan(amountMode(index), current.amountValue()));
             });
         content.add(new ConsoleRow(owner, () -> "§7种植数量", modeTooltip, "§7个数算盆 组数×64",
-            List.of(new Ctl(mode))));
+            List.of(new Ctl(mode),
+                // 出厂值 = CropPlan.DEFAULT 的数量模式（个数算盆 / 组数×64 的默认档）
+                ConsoleWidgets.resetCtl(() -> {
+                    putPlan(cropKey, new StardewCropPlanStore.CropPlan(
+                        StardewCropPlanStore.CropPlan.DEFAULT.amountMode(), cropPlan(cropKey).amountValue()));
+                    owner.reload();
+                }, "种植数量"))));
 
         String amountTooltip = "要维持的种植数量：\n"
             + "· 已经种够 → 不再补种，多出来的种子会被回收走\n"
@@ -145,13 +160,20 @@ public final class StardewLogisticsPage {
             value -> putPlan(cropKey, new StardewCropPlanStore.CropPlan(
                 cropPlan(cropKey).amountMode(), (int) Math.round(value))));
         content.add(new ConsoleRow(owner, () -> amountLabelText(cropPlan(cropKey).amountMode()),
-            amountTooltip, "§7种够这么多就停", List.of(new Ctl(amount))));
+            amountTooltip, "§7种够这么多就停", List.of(new Ctl(amount),
+                // 出厂值 = CropPlan.DEFAULT 的数量（组数 1），只回写数量、不动当前数量模式
+                ConsoleWidgets.resetCtl(() -> {
+                    putPlan(cropKey, new StardewCropPlanStore.CropPlan(
+                        cropPlan(cropKey).amountMode(), StardewCropPlanStore.CropPlan.DEFAULT.amountValue()));
+                    owner.reload();
+                }, "目标数量"))));
 
         if (module.settings().logisticsSimple) {
             // 简化模式：四个阈值不画出来，改用一行灰字把「实际在用什么值」写明
             content.add(new Note(owner, SIMPLE_HINT, simpleHintTooltip()));
         } else {
             content.add(thresholdRow(cropKey, LABEL_RESTOCK_TRIGGER, 0, 64,
+                StardewLogisticsStore.CropLogistics.DEFAULT.restockTrigger(),
                 TIP_RESTOCK_TRIGGER, COMMENT_RESTOCK_TRIGGER,
                 value -> {
                     StardewLogisticsStore.CropLogistics current = logistics(cropKey);
@@ -159,6 +181,7 @@ public final class StardewLogisticsPage {
                         current.restockTarget(), current.unloadTrigger(), current.unloadKeep());
                 }));
             content.add(thresholdRow(cropKey, LABEL_RESTOCK_TARGET, 1, 64,
+                StardewLogisticsStore.CropLogistics.DEFAULT.restockTarget(),
                 TIP_RESTOCK_TARGET, COMMENT_RESTOCK_TARGET,
                 value -> {
                     StardewLogisticsStore.CropLogistics current = logistics(cropKey);
@@ -166,6 +189,7 @@ public final class StardewLogisticsPage {
                         value, current.unloadTrigger(), current.unloadKeep());
                 }));
             content.add(thresholdRow(cropKey, LABEL_UNLOAD_TRIGGER, 1, 64,
+                StardewLogisticsStore.CropLogistics.DEFAULT.unloadTrigger(),
                 TIP_UNLOAD_TRIGGER, COMMENT_UNLOAD_TRIGGER,
                 value -> {
                     StardewLogisticsStore.CropLogistics current = logistics(cropKey);
@@ -173,6 +197,7 @@ public final class StardewLogisticsPage {
                         current.restockTarget(), value, current.unloadKeep());
                 }));
             content.add(thresholdRow(cropKey, LABEL_UNLOAD_KEEP, 0, 64,
+                StardewLogisticsStore.CropLogistics.DEFAULT.unloadKeep(),
                 TIP_UNLOAD_KEEP, COMMENT_UNLOAD_KEEP,
                 value -> {
                     StardewLogisticsStore.CropLogistics current = logistics(cropKey);
@@ -196,15 +221,19 @@ public final class StardewLogisticsPage {
         return section;
     }
 
-    /** 单行「§7标签 + 整数输入 + §7行尾注释」 */
-    private CompactElement thresholdRow(String cropKey, String label, int min, int max,
+    /** 单行「§7标签 + 整数输入 + §7行尾注释」；行尾 ↺ 只回写这一条阈值（其余三条不动） */
+    private CompactElement thresholdRow(String cropKey, String label, int min, int max, int defaultValue,
                                         String tooltip, String comment,
                                         IntFunction<StardewLogisticsStore.CropLogistics> updater) {
         SettingNumberBox box = new SettingNumberBox(min, max, 1, "%.0f",
             () -> (double) thresholdValue(cropKey, label),
             value -> StardewLogisticsStore.put(serverKey(), fingerprint(), cropKey,
                 updater.apply((int) Math.round(value))));
-        return new ConsoleRow(owner, () -> "§7" + label, tooltip, "§7" + comment, List.of(new Ctl(box, tooltip)));
+        return new ConsoleRow(owner, () -> "§7" + label, tooltip, "§7" + comment, List.of(new Ctl(box, tooltip),
+            ConsoleWidgets.resetCtl(() -> {
+                StardewLogisticsStore.put(serverKey(), fingerprint(), cropKey, updater.apply(defaultValue));
+                owner.reload();
+            }, label)));
     }
 
     /** 按标签取该作物当前阈值（四个输入框各自独立，改一个不会顶回另一个） */

@@ -27,7 +27,7 @@ public final class AutoChestRenderer {
     /** 渲染距离：超过这个距离的容器不画（旧项目 {@code AutoChestRenderer.RENDER_DISTANCE}） */
     private static final double RENDER_DISTANCE = 64.0;
 
-    /** 线框线宽；旧项目由 Meteor 渲染器固定，本项目在此显式给出 */
+    /** 线框线宽；旧项目由旧框架渲染器固定，本项目在此显式给出 */
     private static final float LINE_THICKNESS = 1.5f;
 
     private final Minecraft mc = Minecraft.getInstance();

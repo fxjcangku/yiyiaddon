@@ -7,6 +7,7 @@ import com.yiyiaddon.core.event.ClientEvent;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
+import com.yiyiaddon.feature.admindetect.AdminDetectorModule;
 import com.yiyiaddon.feature.admindetect.service.AdminDisconnect;
 import com.yiyiaddon.feature.combat.KillAuraRepairHook;
 import com.yiyiaddon.feature.mining.command.WkCommand;
@@ -30,6 +31,7 @@ import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
 import com.yiyiaddon.feature.mining.ui.AutoMinerPage;
 import com.yiyiaddon.feature.mining.vein.MiningVeinMiner;
 import com.yiyiaddon.integration.baritone.BaritoneChatTranslations;
+import com.yiyiaddon.platform.eat.OffhandRationLock;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.page.ModulePage;
@@ -37,6 +39,7 @@ import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.BlockPos;
@@ -45,6 +48,9 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -276,9 +282,10 @@ public final class AutoMinerModule extends Module {
         return ICON;
     }
 
+    /** 分类内排序：自动化分类第四位（自动重生 → 自动农场 → 自动骨粉 → 自动挖矿 → …） */
     @Override
     public int order() {
-        return 30;
+        return 40;
     }
 
     // ── 设置持久化 ──
@@ -690,6 +697,13 @@ public final class AutoMinerModule extends Module {
         WorldOverlay.register(MODULE_ID, renderer::render);
         WorldOverlay.register(BREAK_LAYER_ID, breakRenderer::render);
 
+        // 走路提速：默认给一点移速（用户 2026-09-18），关模块时由 onDisable 摘掉
+        applyWalkSpeed();
+
+        // 联动：自动挖矿开着的时候自动打开管理员检测（用户 2026-09-19 需求）——
+        // 无人值守跑图时最怕管理员摸过来，「记得手动开检测」一定会漏
+        AdminDetectorModule.linkFromAutomation(MESSAGE_MODULE);
+
         // 启动报告：旧 onActivate 的最后一步（旧 :758），让用户一眼确认这次跑的是什么配置
         reportStartupInfo();
     }
@@ -717,6 +731,9 @@ public final class AutoMinerModule extends Module {
 
     @Override
     protected void onDisable() {
+        // 副手口粮锁兜底解锁：运行中玩家换不动副手，停模块必须立刻还手（即使本模块是被断线自动关的，
+        // 那时 onTick 已经不跑了，锁会一直留在 true）
+        OffhandRationLock.setLocked(false);
         // 顺序照旧 onDeactivate :895-903（去掉种子缓存失效那一句）
         // 秒破：先收摊（发 ABORT 清服务端槽位 + 清裂纹 + 清状态），再停 Baritone
         MiningFastBreakController.instance().release(mc, true);
@@ -738,6 +755,8 @@ public final class AutoMinerModule extends Module {
         baritone.restoreViewSettings();
         // 还回瞄准方块高亮（模块运行期间它是被压掉的）
         EspGlobalSettings.get().setAutoMinerRunning(false);
+        // 摘掉走路提速（瞬态修饰符，别留在玩家身上）
+        clearWalkSpeed();
         WorldOverlay.unregister(MODULE_ID);
         WorldOverlay.unregister(BREAK_LAYER_ID);
     }
@@ -803,6 +822,16 @@ public final class AutoMinerModule extends Module {
     private void onOpenScreen(ClientEvent event) {
         if (mc.player == null || !isEnabled()) return;
         String screenClassName = event.payload();
+        // 玩家自己开着界面时别让「加载地形中」把它顶掉（用户 2026-09-19：「没用，只要传送成功，
+        // 就会把我这个页面关闭」）：本服传送走「重生式传送」→ 客户端收到 ClientboundRespawnPacket
+        // → 原版**无条件**把我方界面替换成 LevelLoadingScreen
+        // （ClientPacketListener#handleRespawn → startWaitingForNewLevel → setScreenAndShow）。
+        // 跳过显示它不影响任何流程：加载进度与「客户端已加载」上报都由 levelLoadTracker 在
+        // ClientPacketListener#tick 里推进（notifyPlayerLoaded），与这个界面无关。
+        if (mc.screen != null && LevelLoadingScreen.class.getName().equals(screenClassName)) {
+            event.cancel();
+            return;
+        }
         // 旧判定 `!(screen instanceof InventoryScreen)`
         if (InventoryScreen.class.getName().equals(screenClassName)) return;
         if (isContainerScreen(screenClassName)) event.cancel();
@@ -825,6 +854,17 @@ public final class AutoMinerModule extends Module {
     @Override
     public void onTick(Minecraft client) {
         if (client.player == null || client.level == null) return;
+        // 副手口粮锁：模块运行中且副手确实是口粮时，玩家手动的 F 换手会被发包闸门丢弃
+        // （用户 2026-09-19：「能不能运行期间锁死副手食物不让切换？除非停止模块」）。
+        // 每刻按实况开合，两种情况自动解锁：
+        //   ① 副手不是口粮（例如挂机修复点把要修的镐子换进副手了）；
+        //   ② 状态机处于挂机修复点（REPAIR）—— 用户 2026-09-19 特别交代「修复工具要切换副手，
+        //      这个时候要放行」。REPAIR 的进入动作要把工具换到副手，此刻副手还端着食物、
+        //      ①并不成立，所以必须按状态显式放行（它换手走容器点击、本就不经闸门，这里再兜一层）
+        OffhandRationLock.setLocked(
+            fsm.state() != MinerState.REPAIR && container.isOffhandRationHeld());
+        // 玩家试图换手（F）而被闸门拦下：告诉他「为什么按了没反应」（用户 2026-09-19 要求）
+        if (OffhandRationLock.consumeBlocked() > 0) warnOffhandLocked();
         // 自动断线最优先：血量到线就退出服务器，本刻不再推进挖矿（多挖一刻就多挨一下，可能直接打死掉落）
         if (lowHealthDisconnect()) return;
         // 秒破的发包破坏循环必须由模块每刻驱动：Baritone 在算路 / 换目标的那几刻不会调到
@@ -832,12 +872,29 @@ public final class AutoMinerModule extends Module {
         MiningFastBreakController.instance().tick(client, this);
         // 连锁挖矿：秒破推进之后再跑，这样「上一块刚被权威同步确认破坏」就能同刻派发下一块。
         // 水中脱困破坏期间不连锁：脱困破坏也占那个单槽（它走原版入口 → 被秒破 Mixin 接管），两边同时发包会互相顶槽
-        veinMiner.tick(this, fsm.state() == MinerState.MINING && !fsm.isWaterBreaking());
+        // 岩浆垫脚期间同样不连锁（用户 2026-09-18）：垫脚每块都要把主手换成搭路方块，连锁的秒破每刻又换回镐，
+        // 交替覆盖就是「方块放不下去」；而且那期间 Baritone 已被停掉，扫脉派发也没有意义
+        // EATING 也放行（用户 2026-09-19「边挖边吃」）：进食走副手，主手与选定槽不动，
+        // 连锁/秒破照常跑；旧版主手进食必须停 Baritone，现在不停了
+        veinMiner.tick(this, (fsm.state() == MinerState.MINING || fsm.state() == MinerState.EATING)
+            && !fsm.isWaterBreaking() && !fsm.isLavaBridging());
         // 刷怪笼优先扫描：低频，只维护优先级标志；状态翻转发由状态机下发新的 mine 目标。
         // 连锁挖矿接管 Baritone 期间不参与：那时候服务端的破坏槽位归连锁，重起 mine 会两边顶槽（方块挖不烂）
         if (settings.breakSpawner && fsm.state() == MinerState.MINING && !veinMiner.isActive()
             && client.player.tickCount % SPAWNER_SCAN_INTERVAL == 0) {
             onSpawnerPriorityChanged(refreshSpawnerPriority());
+        }
+        // 副手常驻口粮：模块一开始跑就把白名单食物备进副手，不等进 MINING —— 旧写法挂在 tickMining 里，
+        // 而 tickMining 开头有「预热 + 等区块」的早退（起 mine 前每刻 return），人已经跑了十几秒才搬。
+        // 用户 2026-09-19：「不是模块已启动就放副手，而是等了几秒才放」。REPAIR 要占副手放要修的镐子、
+        // COMBAT 期间不动背包，这两种状态跳过；IDLE 只存在一刻（下一 tick 就转 GO_WILD），也跳过。
+        // 卸货 / 补给的容器开着，必须跳过：此时背包点击归容器会话（客户端对 containerId 不匹配的点击
+        // 直接丢弃），而且补给流程自己会把食物直接补进副手（MiningContainer#withdrawFood 的副手分支）
+        MinerState rationState = fsm.state();
+        if (rationState != MinerState.IDLE && rationState != MinerState.REPAIR
+            && rationState != MinerState.COMBAT && rationState != MinerState.SUPPLY
+            && rationState != MinerState.UNLOADING) {
+            container.tickOffhandRation();
         }
         fsm.tick();
         // 自动丢弃放在状态机之后、并跳过战斗态（用户 2026-09-18：「打怪的途中打死第一个捡到了
@@ -848,6 +905,55 @@ public final class AutoMinerModule extends Module {
         if (!fsm.isInCombat()) {
             container.tickTrashDisposal(settings.keepWhitelist, settings.placeBlocks);
         }
+        // 走路提速补挂：服务端每次同步属性包都会冲掉客户端的瞬态修饰符（已经在就直接返回）
+        applyWalkSpeed();
+    }
+
+    // ── 走路提速（用户 2026-09-18：默认加点移速，不做设置项） ────────────────────
+
+    /** 移速加成修饰符的 id（瞬态，只在本模块开着期间挂在玩家身上） */
+    private static final Identifier WALK_SPEED_MODIFIER_ID =
+        Identifier.fromNamespaceAndPath("yiyiaddon", "miner_walk_speed");
+
+    /**
+     * 移速加成档位（用户 2026-09-18：「速度二试一下 如果被 t 我让你改成 1」）。
+     *
+     * <p>档位按药水那套命名：<b>1 档 = 速度一（+20%）</b>、<b>2 档 = 速度二（+40%）</b>。
+     * 要调就改这一个数字，下面那行自己算——客户端跑得比服务端认的快就会被拉回，
+     * 被拉回就往下调一档。</p>
+     */
+    private static final int WALK_SPEED_LEVEL = 2;
+
+    /** 客户端移速加成：每档 +20% 玩家基础移速 0.1（见 {@link #WALK_SPEED_LEVEL}） */
+    private static final double WALK_SPEED_BONUS = 0.02 * WALK_SPEED_LEVEL;
+
+    /**
+     * 给玩家挂上走路提速。
+     *
+     * <p>用户原话：<i>「在帮我默认加点移速 发点包也行 走快一点点就行了 不用加设置 就默认写在代码里面」</i>。
+     * 实现用<b>瞬态</b>属性修饰符：不落盘、模块关掉就摘干净、不新增任何设置项。</p>
+     *
+     * <p><b>关于幅度</b>：客户端跑多快，服务端仍按自己那份移速做移动校验，差距超出容差就是
+     * 「你移动得太快」被拉回。所以做成了可调档位（见 {@link #WALK_SPEED_LEVEL}）：
+     * 按用户要求先上 2 档（+40%）试，真被拉回就降 1 档（+20%）。</p>
+     *
+     * <p>写在世界同步之后调用：服务端下发属性包会整体重置客户端的属性实例，
+     * 瞬态修饰符会被冲掉，所以每刻补挂一次（已挂上时是两次查表，可忽略）。</p>
+     */
+    private void applyWalkSpeed() {
+        if (mc.player == null) return;
+        AttributeInstance speed = mc.player.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null || speed.getModifier(WALK_SPEED_MODIFIER_ID) != null) return;
+        speed.addTransientModifier(new AttributeModifier(
+            WALK_SPEED_MODIFIER_ID, WALK_SPEED_BONUS, AttributeModifier.Operation.ADD_VALUE));
+    }
+
+    /** 摘掉走路提速（关模块时调用，玩家身上不留任何本模块的修饰符） */
+    private void clearWalkSpeed() {
+        if (mc.player == null) return;
+        AttributeInstance speed = mc.player.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        speed.removeModifier(WALK_SPEED_MODIFIER_ID);
     }
 
     // ── 自动断线（用户 2026-09-18 追加：服务器死亡掉落，血量到线先退服保命） ──────────────
@@ -860,6 +966,17 @@ public final class AutoMinerModule extends Module {
 
     /** 断线防重锁：断线包发出后本刻流程仍在跑、退出世界事件也要下一拍才到，防止同一次触发的重复断线 */
     private boolean disconnecting;
+
+    /** 上次提示「副手已锁定」的刻（每 20 刻最多提示一次，玩家连按 F 时不刷屏） */
+    private int offhandLockWarnTick = -1000;
+
+    /** 玩家在模块运行期间试图换手（F）被闸门拦下：告诉他为什么没反应（用户 2026-09-19 要求） */
+    private void warnOffhandLocked() {
+        if (mc.player == null) return;
+        if (mc.player.tickCount - offhandLockWarnTick < 20) return;
+        offhandLockWarnTick = mc.player.tickCount;
+        warning("§e⚠ 副手已锁定 §8▸ 运行期间不可切换副手（停止模块后恢复）");
+    }
 
     /**
      * 低血量自动断线：血量掉到设定格数（含）时断开当前服务器连接，返回本次是否已触发。
@@ -1113,7 +1230,7 @@ public final class AutoMinerModule extends Module {
 
         // 经验修补软提示（不阻断）：挂机修复依赖经验修补，没有则耐久低了修不了
         if (!hasMendingPickaxe()) {
-            report.append("\n§e⚠ 镐子无经验修补附魔：耐久低时将无法自动修复，建议换有经验修补的镐子");
+            report.append("\n§e⚠ 镐子无经验修补附魔：耐久低时不会前往挂机点修复，背包还有其它镐子则继续挖矿");
         }
 
         info(report.toString());

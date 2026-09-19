@@ -10,10 +10,10 @@ import java.util.Objects;
 /**
  * 一个键位绑定值：键盘键或鼠标按键，可带修饰键（Ctrl / Alt / Shift / Cmd）。
  *
- * <p><b>来源与自研说明</b>：旧项目的 {@code KeybindSetting} 用的是框架的
- * {@code meteordevelopment.meteorclient.utils.misc.Keybind}（原始源码见
- * {@code 26.1.2/01-开发参考库/Meteor原始源码/.../utils/misc/Keybind.java}）。
- * 新项目不依赖旧框架，用户 2026-09-17 明确要求「快速停止键不能自研一个吗，Meteor 的源代码也有参考价值」
+ * <p><b>来源与自研说明</b>：旧项目的 {@code KeybindSetting} 用的是旧框架的
+ * {@code Keybind}（参考库原始源码见
+ * {@code 26.1.2/01-开发参考库/原始源码/.../utils/misc/Keybind.java}）。
+ * 新项目不依赖旧框架，用户 2026-09-17 明确要求「快速停止键不能自研一个吗，旧框架的源代码也有参考价值」
  * ——本类即照该源码的取值模型与判据自研，**语义逐条对齐**：</p>
  *
  * <ul>

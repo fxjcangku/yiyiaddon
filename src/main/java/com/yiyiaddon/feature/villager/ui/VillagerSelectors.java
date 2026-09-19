@@ -1,8 +1,10 @@
 package com.yiyiaddon.feature.villager.ui;
 
 import com.yiyiaddon.feature.villager.AutoVillagerTradeModule;
+import com.yiyiaddon.feature.villager.config.VillagerTradeSettings;
 import com.yiyiaddon.feature.villager.data.VillagerProfessionRegistry;
 import com.yiyiaddon.feature.villager.ui.console.VillagerConsoleScreen;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.render.ItemIconCache;
@@ -95,6 +97,9 @@ public final class VillagerSelectors {
     /** 中文排序器：候选与分组内的行按本地化名稳定排序（与挖矿 / 附魔选择器同一做法） */
     private static final Collator COLLATOR = Collator.getInstance(Locale.CHINA);
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final VillagerTradeSettings DEFAULTS = new VillagerTradeSettings();
+
     /**
      * 附魔家族（旧 {@code VillagerProfessionRegistry} 附魔池注释里的八个分节，顺序原样）。
      *
@@ -132,7 +137,14 @@ public final class VillagerSelectors {
         return ConsoleRow.liveComment(host, () -> label, ITEM_DESCRIPTION,
             () -> SELECTED_PREFIX + module.settings().itemTargets(professionName).size(),
             List.of(new Ctl(new Button(CONFIG_BUTTON, () -> openItems(host, module, professionName)),
-                "打开「" + label + "」选择器")));
+                    "打开「" + label + "」选择器"),
+                ConsoleWidgets.resetCtl(() -> {
+                    // 出厂值 = 该职业没有任何已选物品
+                    module.settings().setItemTargets(professionName,
+                        new ArrayList<>(DEFAULTS.itemTargets(professionName)));
+                    module.persistSettings();
+                    host.reload();
+                }, label)));
     }
 
     /**
@@ -145,7 +157,14 @@ public final class VillagerSelectors {
         return ConsoleRow.liveComment(host, () -> ENCHANT_LABEL, ENCHANT_DESCRIPTION,
             () -> SELECTED_PREFIX + module.settings().librarianEnchantments().size(),
             List.of(new Ctl(new Button(CONFIG_BUTTON, () -> openEnchants(host, module)),
-                "打开「" + ENCHANT_LABEL + "」选择器")));
+                    "打开「" + ENCHANT_LABEL + "」选择器"),
+                ConsoleWidgets.resetCtl(() -> {
+                    // 出厂值 = 没有任何已选附魔书
+                    module.settings().setLibrarianEnchantments(
+                        new ArrayList<>(DEFAULTS.librarianEnchantments()));
+                    module.persistSettings();
+                    host.reload();
+                }, ENCHANT_LABEL)));
     }
 
     // ── 物品选择器 ──
@@ -400,6 +419,12 @@ public final class VillagerSelectors {
             if (iconStack == null) iconStack = new ItemStack(item);
             return ItemIconCache.getInstance().draw(canvas, iconStack, x, y, size);
         }
+
+        /** 与 drawIcon 同一份图标。 */
+        @Override
+        public ItemStack iconStack() {
+            return item.getDefaultInstance();
+        }
     }
 
     /**
@@ -441,6 +466,12 @@ public final class VillagerSelectors {
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
             if (iconStack == null) iconStack = new ItemStack(Items.ENCHANTED_BOOK);
             return ItemIconCache.getInstance().draw(canvas, iconStack, x, y, size);
+        }
+
+        /** 与 drawIcon 同一份图标：统一的附魔书。 */
+        @Override
+        public ItemStack iconStack() {
+            return new ItemStack(Items.ENCHANTED_BOOK);
         }
     }
 }

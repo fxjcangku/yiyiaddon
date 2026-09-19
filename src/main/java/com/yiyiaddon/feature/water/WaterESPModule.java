@@ -86,8 +86,26 @@ public final class WaterESPModule extends Module {
         return ICON;
     }
 
+    /** 分类内排序：工具分类最后一位（管理员检测 → 服务器检测 → 自动重连 → 传送 → 水源显示） */
+    @Override
+    public int order() {
+        return 50;
+    }
+
     public WaterSettings settings() {
         return settings;
+    }
+
+    // ── 只读状态（控制台状态条读它，不另建第二份状态） ──
+
+    /** 已扫描到的水源方块数量 */
+    public int waterCount() {
+        return waterBlocks.size();
+    }
+
+    /** 当前建议放水点数量 */
+    public int suggestionCount() {
+        return suggestedSpots.size();
     }
 
     // ── 设置持久化 ──

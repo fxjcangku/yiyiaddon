@@ -186,6 +186,30 @@ public final class StardewQuerySupport {
      * 阶段模型、索引构建有没有半途失败、准星方块的「方块 ID → 资源模型 → 语义身份 → 作物状态」这条
      * 链路断在哪一环。全部取运行时真实数据，缺哪项写哪项，绝不用推断值填空。</p>
      */
+    /**
+     * 只读诊断：把当前服务器资源包里「带特殊阶段」的作物全部列出来。
+     *
+     * <p>特殊阶段的判据与识别层同源（{@link CropRuntimeStateResolver#isSpecialStage}：阶段名含
+     * {@code golden / giant / gigantic / variation}），不另立一套。这些阶段收的时候要手持金锄头右键，
+     * 提前列出来玩家就知道田里可能冒出什么、要备几把金锄头；资源包里没有就如实报「无」，
+     * 绝不编造阶段名。</p>
+     */
+    private String specialStageLine() {
+        StringBuilder out = new StringBuilder();
+        for (CropDefinition crop : index.crops()) {
+            List<String> specials = new ArrayList<>();
+            for (String stage : index.stagesOf(crop.cropKey())) {
+                if (CropRuntimeStateResolver.isSpecialStage(stage)) specials.add(stage);
+            }
+            if (specials.isEmpty()) continue;
+            if (out.length() > 0) out.append("§8、§f");
+            out.append(crop.cropKey()).append('(').append(crop.chineseName()).append(")§8 ")
+                .append(String.join("/", specials));
+        }
+        return "§f特殊阶段 §8▸ §f"
+            + (out.length() == 0 ? "无（本服资源包里没有金色 / 巨大 / 变种阶段）" : out);
+    }
+
     public List<String> diagnosticLines() {
         List<String> lines = new ArrayList<>();
         // 先把「眼里能看到的物品」学一遍：玩家常是把商店 / 种子箱开着直接跑诊断的，
@@ -226,6 +250,7 @@ public final class StardewQuerySupport {
             + " §8· §f洒水器 " + index.entriesFor(StardewSelectorCategory.SPRINKLER).size()
             + " §8· §f温室玻璃 " + index.entriesFor(StardewSelectorCategory.SHELTER).size());
         lines.add("§f阶段模型 §8▸ §f" + withStages + " 种作物有真实阶段（其余无法在世界里按阶段识别）");
+        lines.add(specialStageLine());
         lines.add(index.lastFailure() == null
             ? "§a索引构建 §8▸ §a完整"
             : "§c索引构建 §8▸ §c失败：" + index.lastFailure());

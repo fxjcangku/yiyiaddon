@@ -12,6 +12,7 @@ import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.console.ConsoleStateColumn;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.render.ItemIconCache;
@@ -25,6 +26,7 @@ import io.github.humbleui.skija.Canvas;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +68,9 @@ public final class KillAuraGeneralPage {
     /** 武器白名单候选（惰性建一次并缓存：候选就是蓝本 {@code FILTER} 的 8 个登记 ID，注册表运行期不变） */
     private static List<SelectorScreen.Entry> weaponEntries;
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final KillAuraSettings DEFAULTS = new KillAuraSettings();
+
     private final KillAuraConsoleScreen owner;
     private final KillAuraModule module;
     /** 名单行共用的状态列宽度（见 {@link ConsoleStateColumn}：浮动会把「点击选择」顶得左右移动） */
@@ -83,7 +88,9 @@ public final class KillAuraGeneralPage {
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_ATTACK_WHEN_HOLDING,
             KillAuraTexts.DESC_ATTACK_WHEN_HOLDING, null,
             List.of(new Ctl(new SettingSegmented(ATTACK_ITEMS_LABELS,
-                () -> settings.attackWhenHolding.ordinal(), this::pickAttackWhenHolding)))));
+                    () -> settings.attackWhenHolding.ordinal(), this::pickAttackWhenHolding)),
+                resetCtl(KillAuraTexts.NAME_ATTACK_WHEN_HOLDING,
+                    () -> settings.attackWhenHolding = DEFAULTS.attackWhenHolding))));
 
         // 武器白名单：只在「持械攻击 = 武器」时加入（对应蓝本 .visible(attackWhenHolding == Weapons)）
         if (settings.attackWhenHolding == AttackItems.WEAPONS) {
@@ -95,39 +102,66 @@ public final class KillAuraGeneralPage {
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_ROTATION,
             KillAuraTexts.DESC_ROTATION, null,
             List.of(new Ctl(new SettingSegmented(ROTATION_LABELS,
-                () -> settings.rotation.ordinal(), this::pickRotation)))));
+                    () -> settings.rotation.ordinal(), this::pickRotation)),
+                resetCtl(KillAuraTexts.NAME_ROTATION,
+                    () -> settings.rotation = DEFAULTS.rotation))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_AUTO_SWITCH,
             KillAuraTexts.DESC_AUTO_SWITCH, null,
-            List.of(new Ctl(toggle(() -> settings.autoSwitch, value -> settings.autoSwitch = value, true)))));
+            List.of(new Ctl(toggle(() -> settings.autoSwitch, value -> settings.autoSwitch = value, true)),
+                resetCtl(KillAuraTexts.NAME_AUTO_SWITCH,
+                    () -> settings.autoSwitch = DEFAULTS.autoSwitch))));
 
         // 切回原槽位：只在「自动切换武器」为真时加入（对应蓝本 .visible(autoSwitch::get)）
         if (settings.autoSwitch) {
             stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_SWAP_BACK,
                 KillAuraTexts.DESC_SWAP_BACK, null,
-                List.of(new Ctl(toggle(() -> settings.swapBack, value -> settings.swapBack = value, false)))));
+                List.of(new Ctl(toggle(() -> settings.swapBack, value -> settings.swapBack = value, false)),
+                    resetCtl(KillAuraTexts.NAME_SWAP_BACK,
+                        () -> settings.swapBack = DEFAULTS.swapBack))));
         }
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_SHIELD_MODE,
             KillAuraTexts.DESC_SHIELD_MODE, null,
             List.of(new Ctl(new SettingSegmented(SHIELD_LABELS,
-                () -> settings.shieldMode.ordinal(), this::pickShieldMode)))));
+                    () -> settings.shieldMode.ordinal(), this::pickShieldMode)),
+                resetCtl(KillAuraTexts.NAME_SHIELD_MODE,
+                    () -> settings.shieldMode = DEFAULTS.shieldMode))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_ONLY_ON_CLICK,
             KillAuraTexts.DESC_ONLY_ON_CLICK, null,
-            List.of(new Ctl(toggle(() -> settings.onlyOnClick, value -> settings.onlyOnClick = value, false)))));
+            List.of(new Ctl(toggle(() -> settings.onlyOnClick, value -> settings.onlyOnClick = value, false)),
+                resetCtl(KillAuraTexts.NAME_ONLY_ON_CLICK,
+                    () -> settings.onlyOnClick = DEFAULTS.onlyOnClick))));
 
         // 仅注视时攻击：目标页的「多目标数」可见性依赖它，改动后重排一次保证两页一致
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_ONLY_ON_LOOK,
             KillAuraTexts.DESC_ONLY_ON_LOOK, null,
-            List.of(new Ctl(toggle(() -> settings.onlyOnLook, value -> settings.onlyOnLook = value, true)))));
+            List.of(new Ctl(toggle(() -> settings.onlyOnLook, value -> settings.onlyOnLook = value, true)),
+                resetCtl(KillAuraTexts.NAME_ONLY_ON_LOOK,
+                    () -> settings.onlyOnLook = DEFAULTS.onlyOnLook))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_PAUSE_BARITONE,
             KillAuraTexts.DESC_PAUSE_BARITONE, null,
-            List.of(new Ctl(toggle(() -> settings.pauseBaritone, value -> settings.pauseBaritone = value, false)))));
+            List.of(new Ctl(toggle(() -> settings.pauseBaritone, value -> settings.pauseBaritone = value, false)),
+                resetCtl(KillAuraTexts.NAME_PAUSE_BARITONE,
+                    () -> settings.pauseBaritone = DEFAULTS.pauseBaritone))));
     }
 
     // ── 行构件 ──
+
+    /**
+     * 行内「恢复默认」：写回出厂值 → 落盘（与改动同一入口 {@link #persist()}）→ 刷新本页。
+     *
+     * @param writeDefault 只负责把这一行的设置写回出厂值，持久化与刷新由本方法统一收口
+     */
+    private Ctl resetCtl(String label, Runnable writeDefault) {
+        return ConsoleWidgets.resetCtl(() -> {
+            writeDefault.run();
+            persist();
+            owner.reload();
+        }, label);
+    }
 
     /**
      * 名单行（行样式照星露谷 / 挖矿控制台页）：名称 + 说明 …… [点击选择] [状态文字] [↻]。
@@ -294,6 +328,12 @@ public final class KillAuraGeneralPage {
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
             return ItemIconCache.getInstance().draw(canvas, icon.getDefaultInstance(), x, y, size);
+        }
+
+        /** 与 drawIcon 同一份图标：类别代表物品。 */
+        @Override
+        public ItemStack iconStack() {
+            return icon.getDefaultInstance();
         }
     }
 }

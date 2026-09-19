@@ -1,0 +1,372 @@
+{
+    "minecraft_version":  "26.1.2",
+    "item":  "minecraft:trident",
+    "name":  "三叉戟",
+    "category":  "WEAPON_TRIDENT",
+    "material":  "none",
+    "enchantability":  1,
+    "slot_level":  30,
+    "modified_cost_range":  [
+                                26,
+                                36
+                            ],
+    "cost_pools":  [
+                       {
+                           "cost":  26,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  4,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  2,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  27,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  4,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  2,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  28,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  4,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  2,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  29,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  4,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  2,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  30,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  4,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  2,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  31,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  4,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  3,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  32,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  4,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  3,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  33,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  5,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  3,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  34,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  5,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  3,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  35,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  5,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  3,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       },
+                       {
+                           "cost":  36,
+                           "entries":  [
+                                           {
+                                               "enchantment":  "loyalty",
+                                               "level":  3,
+                                               "weight":  5
+                                           },
+                                           {
+                                               "enchantment":  "impaling",
+                                               "level":  5,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "riptide",
+                                               "level":  3,
+                                               "weight":  2
+                                           },
+                                           {
+                                               "enchantment":  "channeling",
+                                               "level":  1,
+                                               "weight":  1
+                                           },
+                                           {
+                                               "enchantment":  "unbreaking",
+                                               "level":  3,
+                                               "weight":  5
+                                           }
+                                       ]
+                       }
+                   ],
+    "reachable_levels":  {
+                             "loyalty":  [
+                                             3
+                                         ],
+                             "impaling":  [
+                                              4,
+                                              5
+                                          ],
+                             "riptide":  [
+                                             2,
+                                             3
+                                         ],
+                             "channeling":  [
+                                                1
+                                            ],
+                             "unbreaking":  [
+                                                3
+                                            ]
+                         },
+    "roll_model":  {
+                       "first_cost":  "modified 最终成本（30 + 1 + 两个 rand(e/4+1)，±15% 后 round）",
+                       "subsequent_rolls":  "while(nextInt(50) \u003c= cost) 继续抽取，cost 每次减半",
+                       "compatibility":  "每次续抽前按 areCompatible 过滤（互斥组过滤，同名去重）",
+                       "max_possible_rolls":  7
+                   },
+    "source":  "Minecraft 26.1.2 EnchantmentHelper.selectEnchantment + tags/enchantment(non_treasure) + tags/item/enchantable",
+    "generated_at":  "2026-09-01 20:27:26"
+}

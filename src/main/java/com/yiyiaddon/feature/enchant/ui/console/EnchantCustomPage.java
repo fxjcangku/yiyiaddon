@@ -1,8 +1,10 @@
 package com.yiyiaddon.feature.enchant.ui.console;
 
 import com.yiyiaddon.feature.enchant.EnchantModule;
+import com.yiyiaddon.feature.enchant.config.EnchantSettings;
 import com.yiyiaddon.feature.enchant.ui.EnchantConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.Button;
@@ -32,6 +34,9 @@ public final class EnchantCustomPage {
     /** 行内「移除这一项」（Material Symbols：remove，与选择器右栏同一字形） */
     private static final String GLYPH_REMOVE = "\uE15B";
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final EnchantSettings DEFAULTS = new EnchantSettings();
+
     private final EnchantConsoleScreen owner;
     private final EnchantModule module;
 
@@ -49,7 +54,14 @@ public final class EnchantCustomPage {
             null, List.of(
             new Ctl(new SettingTextBox(owner::customDraft, owner::customDraft, TEXT_MAX_LENGTH)
                 .width(TEXT_BOX_WIDTH)),
-            new Ctl(new Button("添加", this::add).disabledWhen(() -> owner.customDraft().isBlank())))));
+            new Ctl(new Button("添加", this::add).disabledWhen(() -> owner.customDraft().isBlank())),
+            // 出厂值 = 空列表；↺ 清掉本页已填的全部目标附魔
+            ConsoleWidgets.resetCtl(() -> {
+                targets.clear();
+                targets.addAll(DEFAULTS.customEnchantTargets);
+                module.persistSettings();
+                owner.reload();
+            }, "自定义附魔目标"))));
 
         for (String target : targets) {
             stack.add(new ConsoleRow(owner, () -> target, null, null,

@@ -289,6 +289,40 @@ public final class ItemIconCache {
         return stack != null && !stack.isEmpty() && icons.containsKey(keyOf(stack));
     }
 
+    /**
+     * 预热物品图标：把请求排队，交给抽帧管线在随后的帧里渲染入库（调用方不需要 Canvas）。
+     *
+     * <p><b>为什么需要它</b>（用户 2026-09-18：「点击这些分组的时候 有几率那个贴图会在闪一下
+     * 所有的选择器都要防止」）：{@link #draw} 在图标还没入库时返回 false，那一两帧里行上是空的图标位，
+     * 图标随后才补上，看起来就是「闪一下」。选择器的分组默认收起，展开那一刻才第一次请求该组的图标，
+     * 于是每次点开分组都可能闪。开窗时先把整表排队，展开时图标已经在缓存里。</p>
+     *
+     * <p>幂等：已在缓存或已在途的键由 {@link #request} 直接跳过，重复调用不会排出多份请求。</p>
+     */
+    public void prefetch(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return;
+        request(stack, keyOf(stack));
+    }
+
+    /**
+     * 预热实体图标：有刷怪蛋就热刷怪蛋那一版（同 {@link #drawEntity}），否则热实体模型那一版
+     * （同 {@link #drawEntityModel}）。
+     *
+     * <p>用途与 {@link #prefetch(ItemStack)} 相同。模型版一帧只渲一个（原因见 {@link #pendingModels}），
+     * 排队多时会分摊到随后若干帧 —— 但只要在开窗时就排上，展开分组时通常已经入库。</p>
+     */
+    public void prefetchEntity(EntityType<?> type) {
+        if (type == null || modelUnsupported.contains(type)) return;
+        Item egg = spawnEggByEntity().get(type);
+        if (egg != null) {
+            prefetch(egg.getDefaultInstance());
+            return;
+        }
+        Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+        if (id == null) return;
+        requestModel(type, MODEL_KEY_PREFIX + id + "|" + ICON_SIZE);
+    }
+
     // ── 方块与实体：都是转成 ItemStack 后走同一条链路 ──
 
     /**

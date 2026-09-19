@@ -7,27 +7,31 @@ import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.fastbreak.MiningFastBreakController;
 import com.yiyiaddon.feature.mining.model.MiningPoint;
 import com.yiyiaddon.feature.mining.model.MiningPointType;
+import com.yiyiaddon.feature.mining.navigation.BlockPlacer;
 import com.yiyiaddon.feature.mining.service.MiningContainer;
 import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
 import com.yiyiaddon.feature.mining.service.WardenWarningGuard;
+import com.yiyiaddon.platform.identity.ItemIdentifier;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
@@ -70,17 +74,17 @@ import java.util.Set;
  *
  * <p><b>与旧项目的差异（其余逐条一致）：</b></p>
  * <ol>
- *   <li><b>死亡自动重生的归属</b>（用户 2026-09-16 拍板）：旧项目 {@code tryMeteorAutoRespawn()}
- *       （{@code :1781-1793}，toggle 第三方框架的模块）整段删除。本项目有自研
+ *   <li><b>死亡自动重生的归属</b>（用户 2026-09-16 拍板）：旧项目里切换第三方框架自动重生模块的调用
+ *       （{@code :1781-1793}）整段删除。本项目有自研
  *       {@code feature/respawn/AutoRespawnModule}（默认开启）承担这件事，状态机不再切换任何模块，
  *       只保留 {@code mc.player.respawn()} 兜底（旧 {@code :1477-1479}）。随之两条死亡播报按最小改动
- *       换成本项目模块名（其余一字不改）：旧 {@code :1472} {@code "§c✗ 已调用流星自动重生模块"}
- *       → {@code "§c✗ 已调用自动重生模块"}；旧 {@code :1723}
- *       {@code "§c✗ 检测到死亡 §8▸ 已调用流星自动重生"} → {@code "§c✗ 检测到死亡 §8▸ 已调用自动重生"}。</li>
+ *       换成本项目模块名（其余一字不改）：旧 {@code :1472} 的死亡播报模块名
+ *       → {@code "§c✗ 已调用自动重生模块"}；旧 {@code :1723} 的死亡播报模块名
+ *       → {@code "§c✗ 检测到死亡 §8▸ 已调用自动重生"}。</li>
  *   <li><b>KillAura 修补联动</b>：旧 {@code startKillAura / stopKillAura}（{@code :1763-1779}）
  *       改为接口 seam {@link RepairCombatHook}（实现由批次 4 的 KillAura 模块注入），
  *       状态机侧调用点与 {@code killAuraWasOnBefore} 卫语句语义不变。</li>
- *   <li><b>外部依赖</b>：旧 {@code Meteor InvUtils} 换成 26.1.2 原语——选槽走
+ *   <li><b>外部依赖</b>：旧框架 {@code InvUtils} 换成 26.1.2 原语——选槽走
  *       {@code Inventory#setSelectedSlot} + {@code ServerboundSetCarriedItemPacket}，
  *       与副手互换走 {@code handleContainerInput(..., ContainerInput.SWAP, ...)}（按钮 40 = 副手），
  *       与本项目 {@code DefaultStardewAdapter} 同一做法；旧 {@code WKCommand.WKData} 三点位换成
@@ -100,9 +104,11 @@ import java.util.Set;
  *       {@code getInventory()} 读出来是空的，于是出现「自检通过却一启动就报缺少镐子」。现改为
  *       世界实例变化后 {@code INVENTORY_TRUST_TICKS} 刻内不按背包读数下结论，且需连续
  *       {@code PICKAXE_MISSING_TICKS_TO_STOP} 刻读不到才停机（文案未改）。</li>
- *   <li><b>掉落物捡取节奏修正</b>（用户 2026-09-17 实机：「挖矿老是莫名暂停 + 刷屏」）：见
- *       {@link #tryPickupNearbyOre()} 注释 —— 只捡存在满 {@code PICKUP_MIN_AGE_TICKS} 刻的漏捡物，
- *       每次捡取后冷却 {@code PICKUP_COOLDOWN_TICKS} 刻，够不到时 1 秒内判不可达并进黑名单。</li>
+ *   <li><b>掉落物捡取</b>：见 {@link #tryPickupNearbyOre()} 注释 —— 只捡存在满
+ *       {@code PICKUP_MIN_AGE_TICKS} 刻的漏捡物，{@code PICKUP_RADIUS} 格内来一趟就捡完
+ *       （捡到一个接着找下一个），一轮收工后才冷却 {@code PICKUP_COOLDOWN_TICKS} 刻；
+ *       够不到（寻路进程 1 秒起不来）判不可达并进黑名单；脚边 {@code PICKUP_IGNORE_RADIUS_SQR}
+ *       内的不算漏捡（自然吸拾），认领扫描每 5 刻一次。</li>
  *   <li><b>水中卡死判据重做</b>（用户 2026-09-17：「卡在水里一直上下弹跳、动来动去，就是不自动脱困」）：
  *       旧实现把水中位移判据挂在前面的原地抖动采样上，用的是含 Y 轴的 {@code distSqr}——水里上下弹跳
  *       本身就制造 Y 位移，位移判据永远命中不了，只剩「速度满 30 秒」这条，于是表现为长时间不脱困。
@@ -134,19 +140,28 @@ import java.util.Set;
  *       <b>进战斗时临时关掉 Baritone 的怪物规避（{@code avoidance}）</b>——开着它 Baritone 会因
  *       「怪物附近代价更高」不肯靠近，表现成「要杀它却在原地绕圈」；目标跑出 6 格后最多再追 10 秒，
  *       追不上就回挖矿；攻击不做视线检查（用户裁定：可以穿墙攻击）。</li>
- *   <li><b>岩浆避险加强</b>（用户 2026-09-17：「透视岩浆没生效 / 老是擦着岩浆边走被烧」）：
- *       避险半径改用新增设置「岩浆安全距离」{@code lavaAvoidRadius}（默认 2 格，旧实现只看相邻 1 格）；
- *       玩家已在岩浆里或身上着火时立即触发（不等 10 刻采样）；挑安全点时要求该点距岩浆也 ≥ 避险半径
- *       （否则脱困一结束立刻又触发）；脱困成功后给 {@code LAVA_ESCAPE_COOLDOWN_TICKS} 刻冷却，
- *       避免在岩浆矿区反复「触发→脱困→再触发」把挖矿打断成碎片。岩浆透视渲染自身「一次都不画」的
- *       根因（{@code lastLavaScanTick = Integer.MIN_VALUE} 参与减法溢出）已在
- *       {@code MiningPointRenderer} 修掉。</li>
+ *   <li><b>岩浆处理改口径</b>（用户 2026-09-18：「碰到岩浆就进入状态机 现在改成封边直接绕过去就好
+ *       了」）：原先「附近 {@code lavaAvoidRadius} 格内有岩浆就撤离」的触发已废——那套触发的实际表现
+ *       是来回跑（撤离→冷却→mine 把路径又规划回岩浆边→再撤离），挖矿被打断成碎片。现在：
+ *       <b>撤离只兜「已经出事」</b>（人泡在岩浆里 / 身上着火），完成判据也收到 1 格（脱离接触即可）；
+ *       <b>挡路的岩浆用垫脚方块铺过去</b>——脚底 / 脚层 / 头顶三层里、<b>手长范围内</b>的岩浆格直接填实
+ *       （{@link #tickLavaBridging}，填的是岩浆自己那一格，含嵌在墙体里的岩浆源）。只在玩家
+ *       已经走到的位置<b>顺手封</b>（一轮最多 {@code BRIDGE_MAX_PLACES_PER_ROUND} 块、两轮之间歇
+ *       {@code BRIDGE_ROUND_COOLDOWN_TICKS} 刻），不专门寻路过去封。挖开贴岩浆矿物后的
+ *       流入口封堵在 {@code MiningVeinMiner}（共用 {@code BlockPlacer} 放置链路）。</li>
  *   <li><b>离开挖矿态时收掉秒破会话</b>：{@code onStateExit(MINING)} 里先
  *       {@code MiningFastBreakController#release}（发 ABORT 清服务端槽位 + 清裂纹）再停 Baritone，
  *       否则残留的 START 槽位会顶掉下一个方块的破坏进度（表现为「下一块怎么挖都不烂」）。</li>
  *   <li><b>手动传送检测</b>（用户 2026-09-17：「挖矿中敲 /home 回家，模块还在继续挖」）：见
  *       {@link #manualTeleportDetected()} —— MINING 态下位置单刻跳变 &gt;32 格即判定服务器传送类指令，
  *       立刻停机播报（用户裁定：停机最安全，绝不在家里/别人基地继续挖）。</li>
+ *   <li><b>GO_WILD 的「传送是否生效」改判单刻瞬移</b>（用户 2026-09-19 实测）：旧 {@code tickGoWild}
+ *       两处都用「离起点超过 2 格即算传送生效」。而本服 RTP 先提示「請勿移動」、3 秒后才随机传送 ——
+ *       玩家在这几秒里自己走动会让服务器取消传送，可位置照样变了 &gt;2 格，于是被判成「传送已生效」，
+ *       人还在原地就进 MINING 让 Baritone 就地找矿挖。现改为看 {@link #teleportJumpThisTick}
+ *       （单刻位移 ≥ {@link #TELEPORT_JUMP_DISTANCE_SQR} 8 格）：只有服务器真把人挪走才成立，
+ *       走动再也构不成「传送成功」。<b>三个指定点传送状态（卸货/补给/修补）本轮未改</b>，
+ *       仍用「超过等待时长还在起点 2 格内 = 指令无效」的原判据。</li>
  *   <li><b>开箱距离按原版交互距离判</b>（用户 2026-09-17：「打包机比玩家高 2 格，寻路会自动垫方块上去」）：
  *       {@link #isAdjacentTo} 由「切比雪夫 ≤1」放宽到「水平 ≤2、垂直 -2~+2、眼到方块中心 ≤4 格」，
  *       与 {@code MiningContainer#withinOpenRange} 同一口径；容器高两层时站在下面直接开箱，不再垫方块。</li>
@@ -158,9 +173,24 @@ import java.util.Set;
  *       取食目标也由「凑够食物阈值」改为「每个白名单食物补到自己的一组」
  *       （上限自动取该物品的最大堆叠数：普通食物 64、蜂蜜瓶 16、汤类/蛋糕 1）；
  *       背包满导致「点了拿不进来」会单独报出来，不再混成「箱内无食物」。</li>
+ *   <li><b>自动回血 + 发包连吃</b>（用户 2026-09-19：「自动挖矿加一个发包功能……自动回血」，
+ *       不占设置项）：{@code tickMining} 新增优先级 2.6 —— 血量未满且饱食度未满（原版普通食物
+ *       只在饿的时候吃得下）就停 Baritone 进 {@link MinerState#EATING}；进食本体由
+ *       {@code MiningContainer#packetEat()} 发包驱动（起手走原版 {@code gameMode.useItem}、补发直发
+ *       {@code ServerboundUseItemPacket}；起手后立刻本地取消用食状态，所以没有吃东西的动画），
+ *       吃完一件立刻接下一件（零间隔）。
+ *       <b>吃什么严格按食物白名单</b>——当天曾放宽成「任何带 {@code FOOD} 组件的物品」，
+ *       结果怪物掉的腐肉被吃掉（用户实机反馈），现按用户裁定收口：吃（{@link #hasFoodToEat()} /
+ *       {@code MiningContainer#isEdible}）与留（{@code MiningContainer#shouldKeep}）统一走
+ *       {@code foodWhitelist}，与补给取货、{@link #countFoodStacks()} 同源。
+ *       单件食物的用食时长由服务端结算（原版 32 刻），发包改不了它；连吃与「不等按键」
+ *       才是这个功能省下的时间。</li>
  * </ol>
  */
 public final class MiningStateMachine {
+
+    /** 挖矿诊断日志：只写日志文件（yiyiaddon/mining），不进聊天 */
+    private static final Logger MINING_LOG = LoggerFactory.getLogger("yiyiaddon/mining");
 
     private final AutoMinerModule module;
     private final Minecraft mc;
@@ -185,6 +215,16 @@ public final class MiningStateMachine {
     private boolean teleportRetryNoticeShown = false; // 「自动重试已关闭」提示只播一次（关掉重试后每 tick 都在超时）
     private static final int MAX_TELEPORT_RETRIES = 3; // 传送失败最多自动重试 3 次
 
+    /** 这次进进食态是因为饿了（饱食度低于阈值） */
+    private static final int EAT_REASON_HUNGER = 1;
+    /** 这次进进食态是因为掉血（自动回血） */
+    private static final int EAT_REASON_HEAL = 2;
+    /**
+     * 本次进食的原因，只用于区分播报文案（用户 2026-09-19：「能不能分清楚没血吃跟饿了吃的文案啊」）。
+     * 由触发进食的那两个优先级分支在 {@code transitionTo(EATING)} 之前设置。
+     */
+    private int eatReason = EAT_REASON_HUNGER;
+
     /** 当前状态（只读，供控制台概览页显示）；状态机内部行为不变 */
     public MinerState state() {
         return state;
@@ -199,6 +239,18 @@ public final class MiningStateMachine {
      */
     public boolean isWaterBreaking() {
         return waterBreaker.isActive();
+    }
+
+    /**
+     * 是否正在「岩浆垫脚铺设」。
+     *
+     * <p>连锁挖矿必须一并让位（{@code AutoMinerModule} 把它与 {@code isWaterBreaking} 并列传进
+     * {@code veinMiner.tick} 的 active）：铺设与连锁都写主手 —— 连锁的秒破每刻把主手换成镐、
+     * 垫脚每块把主手换成搭路方块，两边交替覆盖的结果是「方块放不下去 / 墙挖不动」。
+     * 垫脚期间 Baritone 也被停掉了，连锁的扫脉与派发本就没有意义。</p>
+     */
+    public boolean isLavaBridging() {
+        return lavaBridging;
     }
 
     /**
@@ -236,6 +288,13 @@ public final class MiningStateMachine {
     private boolean repairPathIssued = false;
     private int repairSwapAttempts = 0;
     private int repairSwapRequestedTick = -1;
+    /**
+     * 「没有经验修补、修不了」提示记账（用户 2026-09-19）。
+     *
+     * <p>键 = 物品登记 ID + {@code "@"} + 槽位，同一件工具只提示一次，避免每 tick 刷屏；
+     * 背包里已无受损工具时清空，工具被修好或换走后再出现照样重新提示。</p>
+     */
+    private String noMendingNotifiedKey = "";
     private boolean unloadingPathIssued = false;
     private boolean supplyPathIssued = false;
 
@@ -310,6 +369,13 @@ public final class MiningStateMachine {
     // 「无法找到前往…的路径，已取消挖掘」（用户 2026-09-17 实机：每次第一次传送必现）。
     // 而 MINING 总是紧跟 RTP 传送之后进入，落地瞬间区块还没到齐 → 改为等区块就绪再起 mine。
     private boolean mineStartIssued = false; // 本轮 MINING 是否已真正起过 mine
+    /**
+     * 进进食态时是否刻意保留了挖矿现场（没停 Baritone / 秒破 / 连锁）。
+     *
+     * <p>用户 2026-09-19「要边走边吃，不是停下来吃」：MINING → EATING 不停挖矿，回来时若 mine 还活着
+     * 就不重下发（重下发会把正在破坏那一块的进度丢掉）。见 {@code onStateExit} / {@code onStateEnter}。</p>
+     */
+    private boolean mineKeptDuringEating = false;
     private int mineStartWait = 0;           // 起 mine 前的剩余等待刻
     private int mineStartWaited = 0;         // 已等待总刻数（兜底上限用）
     private static final int MINE_START_WARMUP_TICKS = 40;    // 基础预热：2 秒
@@ -363,14 +429,38 @@ public final class MiningStateMachine {
     private int noMoveTicks = 0;                    // 位移长时间不变的累计 tick
     private int stuckResetCount = 0;                // 连续原地抖动卡死次数（超过阈值才传送去野外）
 
-    // ── 「挖不动」快速自愈（用户 2026-09-18） ────────────────────────────────
+    // ── 「挖不动」快速自愈（用户 2026-09-18，2026-09-19 扩一档） ──────────────
     // 「卸完货 RTP 切状态后莫名其妙卡住，拿着镐子不挖东西，绿框一直闪却过不去，重启模块才恢复——
     //  寻路没问题，就是挖不掉东西导致它寻不了路」。旧实现只有 3 分钟一档的位移判据（NO_MOVE_THRESHOLD），
-    // 玩家要干等 3 分钟才等到自愈。这里用更精确的判据把响应压到 15 秒：Baritone 在寻路（绿框在闪）
-    // 却原地不动，同时秒破没有任何活跃目标——说明不是「正在挖、只是在等方块破」，而是根本挖不动。
+    // 玩家要干等 3 分钟才等到自愈。这里用更精确的判据把响应压到 15 秒，共两档：
+    //   ① 在寻路（绿框在闪）却原地不动，同时秒破没有任何活跃目标 → 根本挖不动（2026-09-18）；
+    //   ② mine 进程还活着（isMiningActive）却根本没在寻路 → 算路失败 / 目标不可达，mine 停摆
+    //      （2026-09-19：幽冥脉络下的钻石矿，状态机完全静默卡住；旧判据要求「必须在寻路」，
+    //      于是①②两条都不满足、只剩 3 分钟兜底）。
+    //   ③ 人还在寻路（所以①②都不成立）却长时间没打穿任何方块 → 目标矿够不到 / 打不穿
+    //      （2026-09-19 用户复报「幽冥脉络下面的钻石原矿挖不了，然后卡死」；判据刻意与速度无关）。
     private int mineNoProgressTicks = 0;            // 「在寻路却毫无进展」的连续 tick
     private int mineNoProgressResets = 0;           // 已重下发 mine 脱困的次数（连续两次才升级为换区）
+    /**
+     * 本次「毫无进展」属于哪一档（只影响播报用词）：
+     * 1 = 在寻路却挖不动面前的方块；2 = mine 进程活着却没在寻路（进程停摆）；3 = 长时间没打穿任何方块。
+     */
+    private int mineStallKind = 0;
+    /** 第三档的连续计数（刻）：连续满足才判定，避免单刻抖动误伤 */
+    private int mineNoBreakTicks = 0;
     private static final int MINE_NO_PROGRESS_LIMIT = 300; // 15 秒毫无进展即判定挖不动
+    /**
+     * 第三档门槛（刻）：mine 活着、人还在寻路（所以前两档都不成立），但这么久没打穿过任何方块
+     * → 判「目标矿够不到 / 打不穿」。
+     *
+     * <p>用户 2026-09-19：「幽冥脉络下面的钻石原矿挖不了，然后卡死」——现场就是被 Baritone 带着来回走、
+     * 目标矿永远到不了，而前两档都要「速度低」、原地抖动那档要「位移 &lt; 2 格 / 10 秒」，
+     * 一条都不满足，于是聊天栏一条播报都没有。90 秒足够长：正常挖矿几刻就破一块，
+     * 就算长途赶路也不会有 90 秒一块不破；且连续两次才升级为换区。</p>
+     */
+    private static final int MINE_NO_BREAK_LIMIT_TICKS = 1800;
+    /** 第三档的确认刻数：条件连续满足这么多刻才触发（避免单刻抖动） */
+    private static final int MINE_NO_BREAK_CONFIRM_TICKS = 20;
     /**
      * mine 启动宽限（用户 2026-09-18：「⚠ 挖不动面前的方块…我怀疑是这个弄的 老是失效 秒破跟连锁」）。
      *
@@ -393,6 +483,18 @@ public final class MiningStateMachine {
     // 手动传送监测（用户 2026-09-17：挖矿中敲 /home 回家后还在继续挖）：位置单刻跳变超过该值即判定
     private BlockPos lastWatchPos = null;
     private static final double MANUAL_TELEPORT_DISTANCE_SQR = 32.0 * 32.0;
+
+    /**
+     * 「服务器真把人挪走了」的单刻位移阈值（8 格）。
+     *
+     * <p>玩家正常移动单刻最多约 1.5 格（鞘翅），8 格是安全分界；而服务器传送是一瞬间完成的，
+     * 哪怕只挪几十格也会超过它。与 {@link #MANUAL_TELEPORT_DISTANCE_SQR}（32 格，抓「玩家自己敲指令传送」）
+     * 同族但更灵敏：那边放宽是为了不误伤落地位置修正，这边收紧是因为它要充当「传送成功」的判据。</p>
+     */
+    private static final double TELEPORT_JUMP_DISTANCE_SQR = 8.0 * 8.0;
+
+    /** 本刻是否发生瞬移级位移：由 {@link #manualTeleportDetected()} 每刻刷新，GO_WILD 用它判传送是否生效 */
+    private boolean teleportJumpThisTick = false;
 
     /** 玩家自己敲的最后一条服务器指令原文（不含前导斜杠，仅用于播报）与它的 tick */
     private String playerCommandText = "";
@@ -433,12 +535,14 @@ public final class MiningStateMachine {
     // 自动捡取掉落物（旧 :109-114）
     private ItemEntity pickupTarget = null;
     private int pickupTimeout = 0;
-    // 捡取节奏控制（本项目修正，见 tryPickupNearbyOre 注释）：只捡躺够久的漏捡物 + 每次捡取后冷却，
-    // 避免「刚挖出来的掉落物 → 停下 mine 去捡 → 捡完重启 mine」的 1~2 秒刷屏循环
+    // 捡取节奏控制（本项目修正，见 tryPickupNearbyOre 注释）：脚边的掉落物交给挖掘流程自然吸拾，
+    // 只为「已经拉开距离的漏捡物」停一次 mine；一轮之内一趟捡完，收工后才计冷却
     private int pickupCooldownTicks = 0;
-    private static final int PICKUP_MIN_AGE_TICKS = 100;   // 掉落物至少存在 5 秒才算漏捡，新掉落交给挖掘流程自然拾取
-    private static final int PICKUP_PATH_FAIL_TICKS = 20;  // 开始捡取 1 秒后仍无寻路进程＝够不到，直接判不可达
-    private static final int PICKUP_COOLDOWN_TICKS = 200;  // 一次捡取结束后 10 秒内不再开捡
+    private static final int PICKUP_MIN_AGE_TICKS = 40;    // 落地满 2 秒仍没被自然吸走＝漏捡，立刻认领（原先 5 秒太久：人已走出 8 格，只能回头跑＝白跑一趟）
+    private static final int PICKUP_PATH_FAIL_TICKS = 20;  // 认领 1 秒后寻路进程仍未起步＝够不到，直接判不可达进黑名单（原先 2 秒，白等一秒）
+    private static final int PICKUP_COOLDOWN_TICKS = 60;   // 一轮捡取结束后 3 秒内不另开新轮次（原先 10 秒：漏的攒成一批，又得多跑一趟）
+    private static final double PICKUP_RADIUS = 8.0;       // 漏捡物扫描半径（原先 6 格：矿脉边缘/侧边小洞的掉落物常落在 6 格外，判成「漏检」白丢）
+    private static final double PICKUP_IGNORE_RADIUS_SQR = 2.25; // 脚边 1.5 格内的掉落物不专门去捡：走过去就自动吸到，为它停 mine 会退化成「挖一下停一下」
     // 捡取失败黑名单：掉落物卡角落捡不起来时记录位置，避免反复寻路捡同一个
     private final Set<BlockPos> pickupBlacklist = new HashSet<>();
     private static final int MAX_PICKUP_BLACKLIST = 64; // 黑名单上限，防止无限增长
@@ -447,8 +551,43 @@ public final class MiningStateMachine {
     private boolean lavaEscapeActive = false;   // 岩浆脱困寻路进行中
     private int lavaEscapeTicks = 0;            // 岩浆脱困已持续 tick
     private int lavaEscapeCooldown = 0;         // 脱困成功后的避险冷却（避免在岩浆矿区反复触发）
-    private static final int LAVA_ESCAPE_COOLDOWN_TICKS = 200;
+    // 2026-09-18 由 200 收到 100（用户：「老是走到岩浆旁边然后被烧」）：10 秒冷却太长，逃离后
+    // Baritone 立刻又把路径规划回岩浆边缘，整个冷却窗内都在贴边走；5 秒足够走出一个矿位
+    private static final int LAVA_ESCAPE_COOLDOWN_TICKS = 100;
     private boolean diedInLava = false;         // 死亡时是否在岩浆里（复活后跳过 back 用）
+
+    // 岩浆垫脚（用户 2026-09-18：「岩浆边用踮脚方块……填满附近就行 能通行就行」「封堵是在我寻路的路上
+    // 顺便」「堵岩浆加一下距离把玩家原版默认最大手长就行了」）：玩家脚底/脚层/头顶三层里、
+    // 手长范围内的岩浆格直接填实（含嵌在墙体里的岩浆源），铺出通路直接走，取代原先「附近有岩浆就撤离」。
+    // 只在玩家已经走到的位置顺手封，绝不专门寻路过去封。
+    // 用户 2026-09-19：「放岩浆的时候会罚站放，应该边走边放」——不再停 Baritone，人沿路径继续走，
+    // 我们每刻把够得着的岩浆格填上（见 tickLavaBridging）。
+    private boolean lavaBridging = false;       // 垫脚铺设进行中（不停 Baritone，只临时占用主手）
+    private int bridgeTicks = 0;                // 本轮铺设已持续 tick（超时兜底用）
+    private int bridgeIdleTicks = 0;            // 连续没有可放目标的刻数（判定铺完）
+    private int bridgePlaced = 0;               // 本轮已放置块数（上限见 BRIDGE_MAX_PLACES_PER_ROUND）
+    private final Set<BlockPos> bridgeBlacklist = new HashSet<>(); // 本轮放不进的格子，不再重试
+    private boolean bridgeNoBlockWarned = false; // 「身上没垫脚方块」一次性提示（reset 不清，避免刷屏）
+    // 扫描循环上界（格）：真正的距离判据是玩家手长，见 findNextBridgeTarget。
+    // 循环只负责圈出候选范围（6 略大于服务端接受的「手长 + 1」上限），多扫几十格代价可忽略
+    private static final int BRIDGE_SCAN_RADIUS = 6;
+    // 每刻连放几块（用户 2026-09-19：「填岩浆的时候是一个一个放的，能不能一次性铺满，跟投影打印机那种」）：
+    // 旧实现是「3 刻一块」且停着不动，一轮 16 块要站 2.4 秒。现在每刻连放一批，每块重新挑目标
+    // （BlockPlacer 本地立刻落块，所以后一块可以拿刚放的那块当锚点，涟漪式铺出去）；
+    // 一批限 4 块是给服务端留的呼吸量——放置包走平台层绕行直发（不再被「发包防踢」每秒 8 个的限速掐），
+    // 单刻 4 个小包是安全的突发量
+    private static final int BRIDGE_PLACES_PER_TICK = 4;
+    private static final int BRIDGE_IDLE_DONE_TICKS = 10;   // 0.5 秒没有新目标＝铺完（岩浆流动会带出新面）
+    private static final int BRIDGE_MAX_TICKS = 400;        // 一轮铺设 20 秒封顶（防「放不进又不进黑名单」的病态循环）
+    // 一轮最多铺几块（用户 2026-09-18：「封堵是在我寻路的路上 顺便」）：三层 3×7×7 全铺满最坏 147 格，
+    // 一轮只铺最近的一批（先脚底后脚层再头顶，见 findNextBridgeTarget）；人往前走，新进入手长范围的
+    // 岩浆格触发下一轮 —— 与手动垫脚一样是「一块贴一块」往前推进。
+    // 安全性由 Baritone 保证：岩浆在它的 blocksToAvoid 里，它不会自己走进没填的岩浆
+    private static final int BRIDGE_MAX_PLACES_PER_ROUND = 16;
+    // 两轮之间歇 2 秒：给「随手填」留出间隔，不然岩浆区里会一刻不停地触发下一轮，
+    // 主手被垫脚方块反复占用、秒破的破坏进度被拖慢（挖矿时间被吃光）
+    private static final int BRIDGE_ROUND_COOLDOWN_TICKS = 40;
+    private int bridgeCooldown = 0;             // 距离下一轮可触发还差几刻
 
     /**
      * 修补联动战斗钩子（旧 {@code :1763-1779} 的 KillAura 联动）；
@@ -478,6 +617,7 @@ public final class MiningStateMachine {
         state = MinerState.IDLE;
         stateTick = 0;
         teleportStartPos = BlockPos.ZERO;
+        teleportJumpThisTick = false;
         teleportTimeout = 0;
         teleportRetries = 0;
         teleportCooldownTicks = 0;
@@ -491,6 +631,7 @@ public final class MiningStateMachine {
         repairPathIssued = false;
         repairSwapAttempts = 0;
         repairSwapRequestedTick = -1;
+        noMendingNotifiedKey = "";
         unloadingPathIssued = false;
         supplyPathIssued = false;
         supplyFoodBefore = 0;
@@ -532,6 +673,12 @@ public final class MiningStateMachine {
         lastWatchPos = null;
         lavaEscapeCooldown = 0;
         diedInLava = false;
+        lavaBridging = false;
+        bridgeTicks = 0;
+        bridgeIdleTicks = 0;
+        bridgePlaced = 0;
+        bridgeCooldown = 0;
+        bridgeBlacklist.clear();
         combat.reset();
         wardenGuard.reset();
         playerCommandText = "";
@@ -555,7 +702,8 @@ public final class MiningStateMachine {
      * 再 {@link #reset()}。</p>
      */
     public void shutdown() {
-        onStateExit(state);
+        // 停机不是「转进食」：照常收掉秒破会话与寻路（nextState 传 IDLE 只作分类用）
+        onStateExit(state, MinerState.IDLE);
         mc.options.keyUse.setDown(false);
         if (state == MinerState.UNLOADING || state == MinerState.SUPPLY || state == MinerState.REPAIR) {
             module.getBaritone().updateSetting("allowBreak", module.getAllowBreak());
@@ -672,8 +820,8 @@ public final class MiningStateMachine {
     private void transitionTo(MinerState newState) {
         if (state == newState) return;
 
-        // 状态退出清理
-        onStateExit(state);
+        // 状态退出清理（把目标状态一并传进去：转进食时要保留挖矿现场，见 onStateExit）
+        onStateExit(state, newState);
 
         MinerState oldState = state;
         previousState = oldState;
@@ -724,6 +872,9 @@ public final class MiningStateMachine {
         if (newState == MinerState.MINING) {
             // 新一轮挖矿开始，清零 mine 退出重启计数
             mineRestartCount = 0;
+            // 手上还留着垫脚方块就先换回镐子（用户 2026-09-18：「有时候会拿着踮脚方块 挖矿进入状态机」）——
+            // 只在「主手是搭路白名单方块」时生效，见 ensureMiningToolInHand
+            ensureMiningToolInHand();
             // 刚由「前往野外」落地进挖矿：落地后的位置修正、客户端世界重建都可能在进 MINING 之后才发生
             if (previousState == MinerState.GO_WILD) {
                 ownTeleportSettleTicks = Math.max(ownTeleportSettleTicks, OWN_TELEPORT_SETTLE_TICKS);
@@ -748,6 +899,13 @@ public final class MiningStateMachine {
                 || previousState == MinerState.EATING;
             mineStartWait = resumeInPlace ? 0 : MINE_START_WARMUP_TICKS;
             mineStartWaited = 0;
+            // 进食期间刻意没停挖矿（见 onStateExit）：mine 还活着就直接接着挖，不重下发 ——
+            // 重下发会丢掉正在破坏那一块的进度与裂纹，等于「吃完回来从头挖」，正是要去掉的停顿。
+            // mine 万一在进食期间退了，这里不接管，下一轮走正常启动流程自愈
+            if (resumeInPlace && mineKeptDuringEating && module.getBaritone().isMiningActive()) {
+                mineStartIssued = true;
+            }
+            mineKeptDuringEating = false;
             // 下界挖矿自动开启岩浆透视并提示一次（旧 :234-238）
             if (module.isInNether() && !module.isLavaEspEnabled()) {
                 module.enableLavaEsp();
@@ -776,22 +934,36 @@ public final class MiningStateMachine {
         }
     }
 
-    /** 状态退出副作用（旧 {@code onStateExit}，{@code :253-261} 逐字） */
-    private void onStateExit(MinerState oldState) {
+    /**
+     * 状态退出副作用（旧 {@code onStateExit}，{@code :253-261} 逐字）。
+     *
+     * @param nextState 正在切换到的目标状态：转 {@link MinerState#EATING} 时不停挖（见下）
+     */
+    private void onStateExit(MinerState oldState, MinerState nextState) {
         if (oldState == MinerState.MINING) {
-            // 离开挖矿态：把秒破手上那个方块的会话收掉（发 ABORT 清服务端槽位 + 清裂纹），
-            // 否则收摊后残留的 START 槽位会顶掉下一个方块的破坏进度
-            MiningFastBreakController.instance().release(mc, true);
-            // 连锁队列一并清空（连锁只在采掘中成立；留着会带着旧坐标回到挖矿态）
-            module.getVeinMiner().reset();
-            module.getBaritone().stop();
+            // 转进食时<b>什么也不停</b>（用户 2026-09-19：「要边走边吃，不是停下来吃」）：
+            // 进食全程走副手，主手、选定槽、寻路、秒破、连锁都不需要让位。停一次会清掉正在破坏
+            // 那一块的进度与连锁队列，回来还得重新下发 mine —— 表现就是「站住 1.6 秒 + 重新起步」，
+            // 正是用户要去掉的停顿。mine 全程存活，回来时也不再重下发（见 onStateEnter 的 MINING）
+            if (nextState == MinerState.EATING) {
+                mineKeptDuringEating = true;
+            } else {
+                // 离开挖矿态：把秒破手上那个方块的会话收掉（发 ABORT 清服务端槽位 + 清裂纹），
+                // 否则收摊后残留的 START 槽位会顶掉下一个方块的破坏进度
+                MiningFastBreakController.instance().release(mc, true);
+                // 连锁队列一并清空（连锁只在采掘中成立；留着会带着旧坐标回到挖矿态）
+                module.getVeinMiner().reset();
+                module.getBaritone().stop();
+            }
         }
         if (oldState == MinerState.REPAIR) {
             stopRepairCombat();
             restoreHotbar();
         }
         if (oldState == MinerState.EATING) {
-            // 进食结束：把临时顶掉的热键栏物品换回原位（用户 2026-09-17：垫脚方块被顶进背包换不回来）
+            // 进食结束：停掉发包连吃（清在吃的那一件 + 松开右键），再把临时顶掉的热键栏物品换回原位
+            // （用户 2026-09-17：垫脚方块被顶进背包换不回来）
+            module.getContainer().stopPacketEat();
             module.getContainer().restoreEatDisplacedItem();
         }
         if (oldState == MinerState.UNLOADING || oldState == MinerState.SUPPLY) {
@@ -829,7 +1001,8 @@ public final class MiningStateMachine {
             // 冷却期内传送才落地也算成功（用户 2026-09-18：「我传送成功之后 又被传送了一次」）：
             // 原写法冷却期只倒计时、完全不看位置 —— 服务器 RTP 排队延迟超过「传送等待时长」时，
             // 第一次其实已经传过去了，冷却一结束又重发一条指令，人就被连传两次。
-            if (Math.sqrt(mc.player.blockPosition().distSqr(teleportStartPos)) > 2) {
+            // 判据同样是「单刻瞬移」：玩家在等待期自己走动不算传送生效（用户 2026-09-19 实测）。
+            if (teleportJumpThisTick) {
                 teleportCooldownTicks = 0;
                 teleportRetries = 0;
                 teleportRetryNoticeShown = false;
@@ -844,10 +1017,8 @@ public final class MiningStateMachine {
             return;
         }
 
-        // 阶段 1：记录传送前位置并发送传送命令
+        // 阶段 1：发送传送命令
         if (stateTick == 1) {
-            // 只有首次尝试需要记录起点，重试时起点不变（人还在原地）
-            if (teleportRetries == 0) teleportStartPos = mc.player.blockPosition();
             teleportRetryNoticeShown = false;
             executeOwnTeleport(module.getWildCommand(), true);
             teleportTimeout = module.getTeleportDelay() * 20; // 转换为tick
@@ -859,11 +1030,11 @@ public final class MiningStateMachine {
             return;
         }
 
-        // 阶段 3：检测传送是否成功（原地没动才算失败；RTP 插件可能只移几十格，同样算成功）
-        BlockPos currentPos = mc.player.blockPosition();
-        double distance = Math.sqrt(currentPos.distSqr(teleportStartPos));
-
-        if (distance > 2) {
+        // 阶段 3：检测传送是否成功（只看单刻瞬移）。
+        // 旧判据「离起点超过 2 格即算生效」会把玩家自己的走动当成传送成功：服务器 RTP 先提示
+        // 「請勿移動」，这几秒里玩家一动服务器就取消传送，可位置照样变了 > 2 格 → 人还在原地就进
+        // MINING，Baritone 就地找矿挖（用户 2026-09-19 实测）。瞬移判据则只有服务器真把人挪走才成立。
+        if (teleportJumpThisTick) {
             teleportRetries = 0;
             module.getSoundNotifier().notifyTeleportSuccess();
             transitionTo(MinerState.MINING);
@@ -898,6 +1069,9 @@ public final class MiningStateMachine {
         // 起动时机（本项目相对旧项目唯一改动，见字段区注释）：先等「预热 N 刻 + 所在区块与四邻区块
         // 已加载」再起 mine。旧项目在传送落地那一瞬就起，Baritone 当刻扫不到目标矿会直接 cancel 并
         // 播报「无法找到前往…的路径，已取消挖掘」——即用户每次第一次传送必现的那条。
+        // 垫脚铺设期间照常允许重启 mine（用户 2026-09-19 改「边走边放」）：旧实现进铺设前会 stop Baritone，
+        // 这里重发 mine 会把铺到一半的人拖走，所以当时专门避让 lavaBridging；现在 Baritone 全程不停，
+        // 反而必须让它照常重启——否则 mine 退出后没人重新下发，人就在原地站着不动了
         if (!mineStartIssued) {
             if (mineStartWait > 0) {
                 mineStartWait--;
@@ -951,30 +1125,54 @@ public final class MiningStateMachine {
             module.getContainer().restoreEatDisplacedItem();
             if (module.getContainer().ensureToolsInHotbar()) return;
         }
-        if (findDamagedToolSlot() != -1) {
-            ItemStack damaged = findDamagedTool();
-            // 挂机修复依赖经验修补附魔（打怪掉经验修工具），没有则去修复点也白挂到超时，直接停机
-            if (!hasMending(damaged)) {
-                module.getBaritone().stop();
-                module.error("§c✗ " + toolName(damaged) + "无经验修补附魔 §8▸ 无法自动修复，请换有经验修补的工具");
-                if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
-                return;
-            }
+
+        // 运行期定期补一次「主手不是方块」：残留方块可能来自任何一条路径——Baritone 自己搭桥 / 垫脚
+        // 留下的投放方块、上一槽本来就是方块时 BlockPlacer 还原不掉、垫脚出事早退（用户 2026-09-19
+        // 「搭完路不切换回镐子，手里还拿着搭路的方块，然后卡死状态机」，是重犯）。拿着方块挖矿的
+        // 破坏速度约 210 刻（镐约 7 刻），表现就是「卡住不动」，所以这里 1 秒兜一次；
+        // 垫脚正在铺的那一刻跳过（那时主手本来就该是方块）
+        if (stateTick % 20 == 0 && !lavaBridging) {
+            ensureMiningToolInHand();
+        }
+        // 2a：带经验修补的工具低于阈值 → 前往挂机点联动杀戮光环修复（旧 :348-367）
+        if (findDamagedToolSlot(true) != -1) {
             module.getSoundNotifier().notifyLowDurability();
             transitionTo(MinerState.REPAIR);
             return;
         }
 
-        // 优先级 2.5：饱食度检测（低于15时暂停进食；背包没白名单食物则直接去补给，旧 :369-380）
+        // 2b：低于阈值但**没有经验修补**的工具 → 修不了，不前往挂机点，只提示（用户 2026-09-19 需求）
+        if (handleUnrepairableTool()) return;
+
+        // 优先级 2.5：饱食度检测（低于15时进食；背包没白名单食物则直接去补给，旧 :369-380）
         FoodData foodData = mc.player.getFoodData();
         if (foodData.getFoodLevel() < 15) {
-            module.getBaritone().stop();
             if (hasFoodToEat()) {
+                eatReason = EAT_REASON_HUNGER; // 播报区分「饿了」与「掉血」（见 transitionTo 的 EATING 文案）
                 transitionTo(MinerState.EATING);
             } else {
                 // 没吃的还进进食状态会死循环（超时→MINING→又饿→又进食），必须转补给
                 transitionTo(MinerState.SUPPLY);
             }
+            return;
+        }
+
+        // 优先级 2.6：自动回血（用户 2026-09-19 追加，不占设置项）
+        // 血量未满、且饱食度还没满（原版普通食物只在饿的时候吃得下）时就吃一顿；
+        // 复用进食态 —— 它自己负责搬食物、发包连吃、超时保护、退场还原，不另造第二套进食流程。
+        // 回血原理：发包连吃把饱食度顶满并带上饱和度，原版自然再生的条件（饱食度 ≥ 18）随之满足，
+        // 饱和度 > 0 时 10 刻回 1 点血（FoodData#tick），血会在回到挖矿态后继续自己涨。
+        //
+        // 用户 2026-09-19「边挖边吃」：进食改走副手（见 MiningContainer#packetEat 的副手模式），
+        // 主手与选定槽全程不动，所以这里<b>不再停 Baritone</b> —— 那 1.6 秒/件（服务端 Consumable
+        // 规则，客户端改不了）不再打断挖矿。食物由 {@code tickOffhandRation} 常驻副手（用户当天
+        // 追加「不能一直放在副手？」），只有挂机修复点（REPAIR）需要副手放要修的镐子 —— 它整组
+        // 换走、修完由 restoreHotbar 换回，与进食不会同时占副手。
+        if (mc.player.getHealth() < mc.player.getMaxHealth() && foodData.getFoodLevel() < 20 && hasFoodToEat()) {
+            // 播报由 transitionTo 的 EATING 文案统一出（按 eatReason 区分「饿了 / 掉血」），
+            // 这里不再自己打一条，否则同刻两行重复（用户 2026-09-19：「有点刷屏了」）
+            eatReason = EAT_REASON_HEAL;
+            transitionTo(MinerState.EATING);
             return;
         }
 
@@ -1004,8 +1202,11 @@ public final class MiningStateMachine {
                 // 重启后冷却：等 mine 进程启动，避免启动延迟被误判成「又退出」
                 mineRestartCooldown--;
             } else if (module.getVeinMiner().isActive()) {
-                // 连锁挖矿正在用秒破通道逐块清矿脉，期间是我方主动停的 Baritone（服务端单槽位不能两头发包）：
-                // 这里必须放行，否则会把「停 mine」误判成「mine 退出」并去重启它，两边抢槽 → 方块挖不烂
+                // 连锁挖矿正在用秒破通道逐块清矿脉，期间是**我方主动停的** Baritone（服务端单槽位不能两头发包）：
+                // 这里必须放行，否则会把「停 mine」误判成「mine 退出」并去重启它——用户 2026-09-18 实机：
+                // 「刚放两个就提示『挖矿进程已退出 ▸ 正在重启（1/3）』然后重新寻路了」，就是这条看门狗误触发。
+                // 岩浆垫脚**不在**这条豁免里了（用户 2026-09-19 改「边走边放」）：垫脚期间 Baritone 全程不停，
+                // mine 真退出就该照常重启，否则人会站在原地不动
             } else if (!module.getBaritone().isPathing() && !module.getBaritone().isMiningActive()) {
                 // 目标解析不出方块时重启永远不会成功：直接停机，否则 3 次重启→GO_WILD→回 MINING（计数清零）→
                 // 再 3 次重启，变成永不停止的 RTP 循环 + 「挖矿进程已退出」刷屏
@@ -1078,13 +1279,46 @@ public final class MiningStateMachine {
         // ① mine 启动宽限内（落地后 Baritone 扫矿 + 算路径 + 等区块，头 15~20 秒秒破必然空闲）
         // ② 最近 5 秒内实际破坏过方块（块与块之间的间隙不该被计成卡死）
         int sinceLastBreak = mc.player.tickCount - MiningFastBreakController.instance().lastBrokenTick();
-        boolean mineNoProgress = !uiOpen
+        boolean idleNoBreak = !uiOpen
             && mc.player.tickCount - mineStartTick > MINE_START_GRACE_TICKS
             && sinceLastBreak > MINE_PROGRESS_GRACE_TICKS
-            && module.getBaritone().isPathing()
             && currentSpeed < MIN_SPEED_THRESHOLD
-            && !MiningFastBreakController.instance().isActive();
+            && !MiningFastBreakController.instance().isActive()
+            // 原版/Baritone 正在破坏某个方块时不算静止：硬方块（黑曜石、远古残骸）慢速破坏、
+            // 以及没走秒破通道的那些块，都会让「没寻路 + 没破坏过」同时成立，不能误判成挖不动
+            && !mc.gameMode.isDestroying();
+        boolean mineNoProgress = idleNoBreak && module.getBaritone().isPathing();
+        // 用户 2026-09-19：「幽冥脉络下面的钻石矿挖不了，状态机完全静默卡住」——mine 进程还活着
+        // （isMiningActive=true）却根本没在寻路，就是算路失败 / 目标不可达。旧判据要求「必须在寻路」，
+        // 于是这种停摆一条自愈都不触发（挖不动 15 秒不满足、mine 退出重启不满足、原地抖动要 3 分钟），
+        // 表现出来就是「站着不动、聊天栏一条播报都没有」。这里把「mine 活着但不推进」也纳入 15 秒自愈。
+        if (!mineNoProgress && idleNoBreak && module.getBaritone().isMiningActive()) {
+            mineNoProgress = true;
+        }
+        // 记下这一档是哪种停摆（只影响播报用词）：没在寻路 = mine 停摆，在寻路 = 挖不动方块
+        mineStallKind = mineNoProgress ? (module.getBaritone().isPathing() ? 1 : 2) : 0;
         mineNoProgressTicks = mineNoProgress ? mineNoProgressTicks + 1 : 0;
+
+        // 第三档（判据与速度无关，见 MINE_NO_BREAK_LIMIT_TICKS 注释）：人还在寻路、目标矿却永远到不了。
+        // 前两档都要求「速度低」，这一档专抓「一直在走、一直没打穿任何方块」——
+        // 就是用户复报的「幽冥脉络下面的钻石原矿挖不了，然后卡死」那种现场。
+        boolean mineAliveNoBreak = !mineNoProgress
+            && !uiOpen
+            && mc.player.tickCount - mineStartTick > MINE_START_GRACE_TICKS
+            && sinceLastBreak > MINE_NO_BREAK_LIMIT_TICKS
+            && !MiningFastBreakController.instance().isActive()
+            && !mc.gameMode.isDestroying()
+            && (module.getBaritone().isMiningActive() || module.getBaritone().isPathing());
+        mineNoBreakTicks = mineAliveNoBreak ? mineNoBreakTicks + 1 : 0;
+        if (mineNoBreakTicks >= MINE_NO_BREAK_CONFIRM_TICKS) {
+            mineNoBreakTicks = 0;
+            mineStallKind = 3;
+            mineNoProgress = true;
+            mineNoProgressTicks = MINE_NO_PROGRESS_LIMIT + 1; // 直接进下面同一套恢复动作
+            MINING_LOG.warn("长时间无进展 ▸ {} 刻没打穿方块（寻路={} mine={} 速度={}）→ 重置采掘目标",
+                sinceLastBreak, module.getBaritone().isPathing(), module.getBaritone().isMiningActive(),
+                String.format("%.3f", currentSpeed));
+        }
         // 真的动起来了就算脱困成功：清零「已重试次数」，这样两次判定必须是「重下发后立刻又卡」，
         // 而不是「挖了半小时偶尔卡一次就直接被判换区」
         if (!mineNoProgress && currentSpeed >= MIN_SPEED_THRESHOLD) mineNoProgressResets = 0;
@@ -1101,7 +1335,11 @@ public final class MiningStateMachine {
             } else {
                 // 先把够不到的刷怪笼甩掉：mine 目标里它最近，不甩掉重下发等于白重发
                 module.ignoreSpawnerForNow();
-                module.info("§e⚠ 挖不动面前的方块 §8▸ 重置采掘目标脱困");
+                module.info(switch (mineStallKind) {
+                    case 2 -> "§e⚠ 挖矿进程停摆（没在寻路）§8▸ 重置采掘目标脱困";
+                    case 3 -> "§e⚠ 目标矿长时间够不到 §8▸ 重置采掘目标脱困";
+                    default -> "§e⚠ 挖不动面前的方块 §8▸ 重置采掘目标脱困";
+                });
                 // 重下发等于一次新的 mine 启动：宽限重新计时，否则重下发后的「扫矿 + 算路径」空窗
                 // 会立刻把第二次判定顶到，直接跳到「换区」（保守优先：宁可多等，不乱换区）
                 mineStartTick = mc.player.tickCount;
@@ -1248,19 +1486,27 @@ public final class MiningStateMachine {
             return; // 脱困寻路中，暂停其它挖矿逻辑
         }
 
-        // 岩浆避险（本轮加强，用户 2026-09-17：「老是擦着岩浆边走，老是被烧」）：
-        //   ① 判据半径改用可配置的「岩浆安全距离」（settings.lavaAvoidRadius，默认 2 格）——
-        //      旧实现只看相邻 1 格（hasLavaNear(1)），贴着岩浆走完全不算危险；
-        //   ② 除了岩浆方块，玩家已在岩浆里 / 身上着火也立即触发（这两条不等采样）；
-        //   ③ 脱困成功后给一段冷却，避免在岩浆矿区反复「触发→脱困→再触发」打断挖矿；
-        //   ④ 采样间隔 10 刻 → 5 刻（用户 2026-09-17：「老是擦着岩浆边走，老是被烧」）：
-        //      判据只是 (2·半径+1)³ 次方块读取（半径 4 也才 729 次），加密采样几乎不花钱，
-        //      但贴边时能早 0.25 秒刹车。
+        // 岩浆处理（用户 2026-09-18 定稿改口径：「碰到岩浆就进入状态机 现在改成封边直接绕过去就好
+        // 了 不用『附近 N 格内有岩浆 ▸ 寻路到安全位置』」）：
+        //   ① <b>撤离只兜「已经出事」</b>：人泡在岩浆里 / 身上着火才撤离。原先「附近 lavaAvoidRadius
+        //      格内有岩浆就撤离」的触发已废——那套触发的实际表现是来回跑：撤离→冷却→mine 把路径
+        //      又规划回岩浆边（矿就在那边）→冷却一过再撤离，挖矿被打断成碎片（用户：「来来回回的跑动」）。
+        //   ② <b>挡路的岩浆用垫脚方块铺过去</b>（见 {@link #tickLavaBridging}）：脚层 / 脚底 / 头顶三层里、
+        //      手长范围内的岩浆格直接填实（填的是岩浆自己那一格），铺完 Baritone
+        //      直接走新路，不再贴边绕。不同层（脚底以下的岩浆湖 / 头顶）不挡路就不碰——「静止的岩浆不管，
+        //      能通行就行」。
         if (lavaEscapeCooldown > 0) lavaEscapeCooldown--;
+        if (bridgeCooldown > 0) bridgeCooldown--;
+
+        // 垫脚推进最优先：铺路期间其它挖矿逻辑全停（放置与秒破换工具共用主手，不能并行）
+        if (lavaBridging) {
+            tickLavaBridging();
+            return;
+        }
+
         int lavaRadius = Math.max(1, module.settings().lavaAvoidRadius);
         boolean lavaDanger = mc.player.isInLava() || mc.player.getRemainingFireTicks() > 0;
-        if (!lavaEscapeActive && (lavaDanger
-            || (lavaEscapeCooldown <= 0 && stateTick % 5 == 0 && hasLavaNear(lavaRadius)))) {
+        if (!lavaEscapeActive && lavaDanger) {
             module.getBaritone().stop();
             BlockPos safe = findNearestSafeSpot(lavaRadius);
             if (safe != null) {
@@ -1269,9 +1515,7 @@ public final class MiningStateMachine {
                     baritone.getCustomGoalProcess().setGoalAndPath(new GoalGetToBlock(safe));
                     lavaEscapeActive = true;
                     lavaEscapeTicks = 0;
-                    module.info(lavaDanger
-                        ? "§e⚠ 已接触岩浆/着火 §8▸ 寻路到安全位置"
-                        : "§e⚠ 附近 " + lavaRadius + " 格内有岩浆 §8▸ 寻路到安全位置");
+                    module.info("§e⚠ 已接触岩浆/着火 §8▸ 寻路到安全位置");
                 } else {
                     module.error("§c✗ Baritone 未加载 §8▸ 重新前往野外");
                     transitionTo(MinerState.GO_WILD);
@@ -1284,15 +1528,19 @@ public final class MiningStateMachine {
             }
         }
 
-        // 岩浆脱困推进：已远离岩浆则恢复挖矿；超时仍未脱困则 RTP 兜底（旧 :576-598）
+        // 岩浆脱困推进：脱离接触（1 格内无岩浆）即恢复挖矿；超时仍未脱困则 RTP 兜底（旧 :576-598）。
+        // 完成判据用 1 格而不是避险半径：撤离的目的是「别再被烧」，不是「离岩浆远远的」——
+        // 站在 1 格外本来就不烧，再远就是白跑（用户 2026-09-18：「来来回回的跑动」的一半成因）
         if (lavaEscapeActive) {
             lavaEscapeTicks++;
-            if (!hasLavaNear(lavaRadius) && !mc.player.isInLava() && mc.player.getRemainingFireTicks() <= 0) {
+            if (!hasLavaNear(1) && !mc.player.isInLava() && mc.player.getRemainingFireTicks() <= 0) {
                 lavaEscapeActive = false;
                 lavaEscapeTicks = 0;
                 lavaEscapeCooldown = LAVA_ESCAPE_COOLDOWN_TICKS;
                 module.getBaritone().stop();
                 module.info("§a✓ 已远离岩浆 §8▸ 继续挖矿");
+                // 恢复挖矿当刻就把主手换回镐：撤离路上可能为挖开挡路方块换了方块/工具
+                ensureMiningToolInHand();
                 module.getBaritone().startMining(module.getMiningTargets());
                 return;
             }
@@ -1305,6 +1553,23 @@ public final class MiningStateMachine {
                 return;
             }
             return; // 脱困寻路中，暂停其它挖矿逻辑
+        }
+
+        // 垫脚触发：脚层 / 脚底两条线上出现挡路的岩浆格 → 顺手把它填实（用户 2026-09-19：「边走边放」——
+        // 不再停 Baritone，人继续沿路径走，我们每刻把够得着的岩浆格填上）。
+        // 两处避让：连锁进行中不触发、秒破正在挖某一块时不触发——三者都要写主手（连锁的换镐、
+        // 秒破的换镐、垫脚的换方块），跨刻互顶的结果是「方块放不下去 / 墙挖不动」
+        if (!lavaEscapeActive && bridgeCooldown <= 0 && stateTick % 10 == 0
+            && !module.getVeinMiner().isActive()
+            && !MiningFastBreakController.instance().isActive()
+            && findNextBridgeTarget() != null) {
+            lavaBridging = true;
+            bridgeTicks = 0;
+            bridgeIdleTicks = 0;
+            bridgePlaced = 0;
+            bridgeBlacklist.clear();
+            module.info("§b垫脚过岩浆 ▸ 开始铺设通路");
+            return;
         }
 
         // Baritone 卡死检测（普通模式专用，种子模式由 seedPathRetries 兜底——种子模式本轮留白，旧 :600-606）
@@ -1440,6 +1705,13 @@ public final class MiningStateMachine {
         // 玩家指令窗口内阈值放低：要确认的只是「这条指令挪没挪动位置」，几格的瞬移也算
         double threshold = playerCommandWindow ? PLAYER_COMMAND_DISTANCE_SQR : MANUAL_TELEPORT_DISTANCE_SQR;
         boolean jumped = lastWatchPos != null && !deathFlow && distanceSqr > threshold;
+
+        // GO_WILD 判「服务器有没有真把人挪走」只看单刻瞬移，不看「离起点几格」：
+        // 服务器 RTP 先提示「請勿移動」再传送，玩家在这几秒里自己走动同样会让位置变化，
+        // 旧判据（离起点 > 2 格即算传送生效）会把走动当成功 —— 人还在原地就进 MINING 就地挖矿
+        // （用户 2026-09-19 在首次启动路径实测）。
+        teleportJumpThisTick = lastWatchPos != null && !deathFlow
+            && distanceSqr > TELEPORT_JUMP_DISTANCE_SQR;
 
         // 这一跳算不算「我方传送」：
         // · 正在等自己落地（pending）——一律认领，玩家指令窗口内也认领。RTP 插件是<b>两段传送</b>
@@ -1662,6 +1934,201 @@ public final class MiningStateMachine {
         return null;
     }
 
+    // ── 岩浆垫脚（用户 2026-09-18：挡路的岩浆铺过去，不撤离） ──────────────────────
+
+    /**
+     * 垫脚铺设每刻推进：<b>一次刻连放一批</b>（最多 {@link #BRIDGE_PLACES_PER_TICK} 块），
+     * 铺完（或超时 / 出事）收尾（见 {@link #finishBridging}）。
+     *
+     * <p><b>边走边放</b>（用户 2026-09-19：「放岩浆的时候会罚站放，应该边走边放吧」）：本轮<b>不停
+     * Baritone</b>，人沿路径继续走，我们每刻把够得着的岩浆格填上——旧实现是「停下站着一块一块铺」。
+     * 放置链路复用 {@link BlockPlacer#placeAt}（与连锁封堵同一份），每块都<b>重新挑目标</b>：
+     * 人在走动、本地又立刻落块，"最近的岩浆格"每刻都在变，重新挑才跟得上
+     * （用户 2026-09-19：「一次性铺满，跟投影打印机那种」）。放不进的格子进 {@link #bridgeBlacklist}
+     * 本轮不再试；连续 {@link #BRIDGE_IDLE_DONE_TICKS} 刻没有新目标即视为铺完（岩浆流动 / 玩家挪动
+     * 会带出新目标，空窗只是暂时的）；一轮最多 {@link #BRIDGE_MAX_PLACES_PER_ROUND} 块
+     * （「顺便封」的份额，见该常量注释），总时长 {@link #BRIDGE_MAX_TICKS} 封顶。
+     * 铺设途中掉进岩浆 / 着火：立刻收摊交给撤离分支。</p>
+     */
+    private void tickLavaBridging() {
+        LocalPlayer player = mc.player;
+        if (player == null || mc.level == null) {
+            lavaBridging = false;
+            return;
+        }
+        bridgeTicks++;
+        if (bridgeTicks > BRIDGE_MAX_TICKS) {
+            finishBridging(false);
+            return;
+        }
+        // 铺路途中出事：不硬铺，收摊后由上面的 lavaDanger 分支撤离
+        if (player.isInLava() || player.getRemainingFireTicks() > 0) {
+            finishBridging(false);
+            return;
+        }
+
+        int placedThisTick = 0;
+        while (placedThisTick < BRIDGE_PLACES_PER_TICK) {
+            BlockPos target = findNextBridgeTarget();
+            if (target == null) break; // 手长范围内没有可填的岩浆了：本刻收手，由空窗判定是否铺完
+            if (BlockPlacer.placeAt(mc, player, module.settings().placeBlocks, target)) {
+                placedThisTick++;
+                bridgeIdleTicks = 0;
+                // 一轮的份额用完就收工回挖矿（人往前走会带出下一轮，见 BRIDGE_MAX_PLACES_PER_ROUND 注释）
+                if (++bridgePlaced >= BRIDGE_MAX_PLACES_PER_ROUND) {
+                    finishBridging(true);
+                    return;
+                }
+                continue;
+            }
+            // 放不进（没锚点 / 没方块 / 目标格不可替换）：黑名单这块，别在同一格打转；本刻收手，下一刻再说
+            bridgeBlacklist.add(target);
+            if (!bridgeNoBlockWarned
+                && !BlockPlacer.hasPlaceBlock(player, module.settings().placeBlocks)) {
+                bridgeNoBlockWarned = true;
+                module.warning("§e⚠ 垫脚过岩浆缺方块 §8▸ 搭路方块白名单里的一种都没带，建议带上圆石");
+            }
+            break;
+        }
+
+        if (placedThisTick == 0) {
+            bridgeIdleTicks++;
+            if (bridgeIdleTicks >= BRIDGE_IDLE_DONE_TICKS) finishBridging(true);
+        }
+    }
+
+    /**
+     * 下一个要封的岩浆格：<b>脚底 / 脚层 / 头顶三层</b>里、<b>玩家手长范围内</b>的岩浆格，
+     * 取离玩家最近的（从脚边往外推进，一块贴一块铺）。
+     *
+     * <p><b>距离判据 = 原版手长</b>（用户 2026-09-18：「堵岩浆加一下距离把玩家原版默认最大手长就行了」）：
+     * {@code isWithinBlockInteractionRange(pos, 1.0)}，与 26.1.2 服务端接受放置请求用的是同一条判据
+     * （{@code ServerGamePacketListenerImpl#handleUseItemOn} → 手长属性 {@code BLOCK_INTERACTION_RANGE}
+     * 默认 4.5，+1 缓冲）。扫描循环只圈候选（{@link #BRIDGE_SCAN_RADIUS}），能被真正封的就是手够得到的那些。</p>
+     *
+     * <p><b>填的是岩浆自己那一格</b>（用户 2026-09-18：「并没有直接放在流体岩浆那一格，而是放在流体岩浆
+     * 上面了」——上一版算的是 {@code lava.above()}，等于把方块放进玩家身体空间：既不挡岩浆也走不了路）。
+     * 三层各有各的用处，都在「玩家已经走到的地方」，不专门寻路过去封：</p>
+     * <ol>
+     *   <li><b>脚底同层</b>（池子 / 洞）：填完地面与脚底齐平，直接走过去；</li>
+     *   <li><b>脚层</b>（流水漫到脚面，或墙体里的岩浆源）：填完是一级台阶 / 把墙面源头堵住，
+     *       Baritone 跳得上去，也不再有新岩浆往路上流；</li>
+     *   <li><b>头顶层</b>（用户 2026-09-18：「堵上上面静止的那一层岩浆」）：填掉上方那层静止源，
+     *       走过时不会被浇下来——头顶淋一滴就是一身火。</li>
+     * </ol>
+     *
+     * <p>填之前要求「填完上方到玩家头顶这一路仍然通得过」（见 {@link #isPassableAfterFill}）：
+     * 上方被实体方块堵死的格子填了也走不了，跳过；头顶层本身不再要求——那里是「顺便堵源头」，
+     * 墙上嵌着的岩浆源上方多半是岩体，要求过头就一个都封不住。</p>
+     */
+    private BlockPos findNextBridgeTarget() {
+        LocalPlayer player = mc.player;
+        if (player == null || mc.level == null) return null;
+        BlockPos feet = player.blockPosition();
+        BlockPos best = null;
+        double bestDist = Double.MAX_VALUE;
+        // dy 由低到高遍历：距离相同时先取下层（通路格优先于头顶格）——`<` 比较让先遍历到的留下
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -BRIDGE_SCAN_RADIUS; dx <= BRIDGE_SCAN_RADIUS; dx++) {
+                for (int dz = -BRIDGE_SCAN_RADIUS; dz <= BRIDGE_SCAN_RADIUS; dz++) {
+                    BlockPos pos = feet.offset(dx, dy, dz);
+                    if (!isLavaAt(pos) || bridgeBlacklist.contains(pos)) continue;
+                    if (!player.isWithinBlockInteractionRange(pos, 1.0)) continue;
+                    if (!isPassableAfterFill(pos, feet)) continue;
+                    double dist = pos.distSqr(feet);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        best = pos;
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    /** 该格是不是岩浆（源与流动都算——挖开后都会流，也都挡路） */
+    private boolean isLavaAt(BlockPos pos) {
+        return mc.level != null && mc.level.getBlockState(pos).getBlock() == Blocks.LAVA;
+    }
+
+    /** 该格能不能通行 / 能不能填：空气或流体（流体可替换，填进去就把那一格变成实体地面） */
+    private boolean isOpenAt(BlockPos pos) {
+        if (mc.level == null) return false;
+        BlockState state = mc.level.getBlockState(pos);
+        return state.isAir() || state.canBeReplaced();
+    }
+
+    /**
+     * 把 {@code pos} 填实之后，它上方到玩家头顶这一路是否仍然通得过。
+     *
+     * <p>头顶层（{@code pos} 已在玩家头顶）没有更上方要检查，直接放行——那是顺手堵源头，
+     * 见 {@link #findNextBridgeTarget()} 的说明。</p>
+     */
+    private boolean isPassableAfterFill(BlockPos pos, BlockPos feet) {
+        int headY = feet.getY() + 1;
+        for (int y = pos.getY() + 1; y <= headY; y++) {
+            if (!isOpenAt(new BlockPos(pos.getX(), y, pos.getZ()))) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 一轮垫脚收尾。
+     *
+     * <p><b>不再重启 mine</b>：边走边放之后本轮从没停过 Baritone（旧实现进铺设前先 {@code stop}，
+     * 收尾才要把它拉回来），它的 mine 一直在跑，重发一次等于白重启。</p>
+     *
+     * <p><b>换回镐子放在最前面，出事时也要换</b>（用户 2026-09-19：「搭完路不切换回镐子，手里还拿着
+     * 搭路的方块，然后卡死状态机」）：旧实现把 {@link #ensureMiningToolInHand()} 放在「出事就 return」
+     * 之后，而踩进岩浆 / 着火恰恰是最常见的收尾方式（铺路铺到脚边就是岩浆），于是那一条路径上主手
+     * 一直留着方块——方块破坏速度约 210 刻（镐约 7 刻），撤离要挖挡路的方块时挖不动、回到挖矿也挖不动，
+     * 表现就是「手里拿着搭路方块 + 状态机卡死」。出事时更需要手上是镐：撤离往往要先挖开一条路。</p>
+     */
+    private void finishBridging(boolean done) {
+        LocalPlayer player = mc.player;
+        boolean urgent = player != null && (player.isInLava() || player.getRemainingFireTicks() > 0);
+        lavaBridging = false;
+        bridgeBlacklist.clear();
+        // 看门狗计数必须清掉：否则铺几轮就攒到 3 次，直接触发「附近目标矿已挖完 ▸ 重新前往野外」的误换区
+        mineRestartCount = 0;
+        ensureMiningToolInHand();
+        if (urgent) return;
+        bridgeCooldown = BRIDGE_ROUND_COOLDOWN_TICKS;
+        module.info(done
+            ? "§a✓ 垫脚完成 §8▸ 继续挖矿"
+            : "§e⚠ 垫脚中止 §8▸ 交回挖掘流程");
+    }
+
+    /**
+     * 主手还留着垫脚方块时换回镐子。
+     *
+     * <p>用户 2026-09-18：「垫完脚的方块 老拿手上 能不能切回镐子 因为有时候会拿着踮脚方块 挖矿进入状态机」。
+     * {@link BlockPlacer} 自己每次放完都会同刻还原槽位，但<b>「上一槽本来就是方块」这一种还原不掉</b>
+     * （还原目标就是方块本身），Baritone 自己搭桥/垫脚时也会把方块留在手上——主手破坏速度决定服务端
+     * 0.7 判定所需刻数（青金石矿配镐约 7 刻，拿方块约 210 刻），表现为「卡住不动」。</p>
+     *
+     * <p>判据收得很窄：<b>只在手上拿着方块类物品时才动手</b>（换成快捷栏里第一把镐）；手上不是方块
+     * （剑 / 斧 / 空手 / 别的镐）一律不碰——那些由战斗的 {@code restoreHotbar} 与秒破的
+     * {@code ensureFasterTool} 各自负责，多写一手就会互顶。</p>
+     *
+     * <p><b>为什么放宽到「任意方块」而不是只认搭路白名单</b>（用户 2026-09-19：「搭完路不切换回镐子，
+     * 手里还拿着搭路的方块，然后卡死状态机」，且是重犯）：残留的方块不一定是白名单里的那种——
+     * 白名单比对只在「玩家自己配的搭路方块」上成立，而 Baritone 自己搭桥 / 垫脚用的是<b>它的</b>投放方块
+     * （与挖矿白名单无关），上一槽本来就是方块时 {@link BlockPlacer} 也还原不掉。窄判据补不到这两种，
+     * 一旦留在手上，破坏速度约 210 刻（镐约 7 刻），表现就是「卡住不动」。</p>
+     */
+    private void ensureMiningToolInHand() {
+        LocalPlayer player = mc.player;
+        if (player == null) return;
+        var inventory = player.getInventory();
+        if (Block.byItem(inventory.getSelectedItem().getItem()) == Blocks.AIR) return;
+        for (int slot = 0; slot < 9; slot++) {
+            if (!inventory.getItem(slot).is(ItemTags.PICKAXES)) continue;
+            selectHotbar(slot);
+            return;
+        }
+    }
+
     /**
      * 扫描快捷栏，返回挖掘指定方块最快的工具槽位（无快于空手的工具返回 -1）。
      *
@@ -1701,6 +2168,8 @@ public final class MiningStateMachine {
             // 只认「已经躺了一会儿」的漏捡物：刚挖出来的掉落物就在脚下，Baritone 挖掘过程自己会走到并
             // 拾取；为它停下 mine 再重启，就变成用户看到的「挖一下→停→捡→重启」1~2 秒刷屏循环
             if (item.tickCount < PICKUP_MIN_AGE_TICKS) continue;
+            // 脚边的同样不认领：再走一步就自动吸到，专门为它规划一次路径纯属白跑
+            if (item.distanceToSqr(mc.player) <= PICKUP_IGNORE_RADIUS_SQR) continue;
             String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
             if (!acceptIds.contains(id)) continue;
             double d = item.distanceToSqr(mc.player);
@@ -1725,6 +2194,19 @@ public final class MiningStateMachine {
      * Baritone 已启动挖掘」。现改为：只捡存在满 {@code PICKUP_MIN_AGE_TICKS} 刻的漏捡物；捡取结束或
      * 放弃后冷却 {@code PICKUP_COOLDOWN_TICKS} 刻；够不到（寻路进程起不来）时 1 秒内即判不可达并进黑名单，
      * 不再空等满 300 刻。判据之外的文案与恢复挖掘的落点不变。</p>
+     *
+     * <p><b>一趟捡完（用户 2026-09-18：「偶尔会漏检掉落物 然后白跑一趟 回去捡起来 寻路 加强一下拾取逻辑」）</b>：
+     * 旧实现一次只认一个目标、捡完就冷却是 10 秒，漏了三个就要来回跑三趟（每趟都得停 mine 再重启）。
+     * 现在一轮之内<b>接着捡</b>：捡到一个立刻在同一趟里找下一个（{@link #beginPickup} 延续目标不走冷却），
+     * 只有一个都找不到了才 {@link #endPickupRound()} 收工回挖矿；扫不到的角落（够不到/太远）也是
+     * 「先看附近还有没有别的」再收工。半径同时放宽到 {@link #PICKUP_RADIUS}。</p>
+     *
+     * <p><b>加速拾取（用户 2026-09-18：「我说 提升一下捡东西的速度 逻辑算法 加速拾取」）</b>：上一版
+     * 的慢不在寻路，而在「发现得太晚」——认领门槛 5 秒、一轮收工冷却 10 秒、够不到空等 2 秒，等它被
+     * 认领时人早被挖矿带出 {@link #PICKUP_RADIUS}，只能回头跑一趟。本轮<b>只收节奏不改判据</b>：
+     * 门槛收到 {@code PICKUP_MIN_AGE_TICKS}、冷却收到 {@code PICKUP_COOLDOWN_TICKS}、够不到判定收到
+     * {@code PICKUP_PATH_FAIL_TICKS}、扫描间隔 10 刻收到 5 刻；并把脚边 {@code PICKUP_IGNORE_RADIUS_SQR}
+     * 内的掉落物排除出认领名单——它本来就靠自然吸拾，专门停一次 mine 反而退化成「挖一下停一下」。</p>
      */
     private boolean tryPickupNearbyOre() {
         if (mc.player == null || mc.level == null) return false;
@@ -1734,37 +2216,64 @@ public final class MiningStateMachine {
 
         if (pickupTarget == null) {
             if (pickupCooldownTicks > 0) return false;
-            // 每 10 tick 扫一次，避免每帧全量扫实体
-            if (stateTick % 10 != 0) return false;
-            ItemEntity drop = findNearbyOreDrop(6.0);
+            // 每 5 tick 扫一次：漏捡物必须在被带出 PICKUP_RADIUS 之前认领，扫得太稀就等于白跑
+            if (stateTick % 5 != 0) return false;
+            ItemEntity drop = findNearbyOreDrop(PICKUP_RADIUS);
             if (drop == null) return false;
-            pickupTarget = drop;
-            pickupTimeout = 0;
-            module.getBaritone().stop();
-            var baritone = module.getBaritone().getBaritoneInstance();
-            if (baritone != null) {
-                baritone.getCustomGoalProcess().setGoalAndPath(new GoalGetToBlock(drop.blockPosition()));
-            }
+            beginPickup(drop);
             return true;
         }
 
-        // 已有捡取目标：消失/超时/太远/够不到 → 放弃并恢复挖矿
+        // 已有捡取目标：消失/超时/太远/够不到 → 收尾
         pickupTimeout++;
         boolean picked = pickupTarget.isRemoved() || !pickupTarget.isAlive();
-        // 已过 1 秒却连寻路进程都不在（Baritone 算不出路径或已放弃）＝ 掉落物卡在够不到的地方
-        boolean unreachable = !picked && pickupTimeout > PICKUP_PATH_FAIL_TICKS
+        if (picked) {
+            // 捡到了：同一趟接着捡附近剩下的漏捡物，别为下一个再停一次 mine
+            ItemEntity next = findNearbyOreDrop(PICKUP_RADIUS);
+            if (next != null) {
+                beginPickup(next);
+                return true;
+            }
+            endPickupRound();
+            return false;
+        }
+
+        // 已过 2 秒却连寻路进程都不在（Baritone 算不出路径或已放弃）＝ 掉落物卡在够不到的地方
+        boolean unreachable = pickupTimeout > PICKUP_PATH_FAIL_TICKS
             && !module.getBaritone().isCustomGoalActive();
-        boolean tooFar = !picked && pickupTarget.distanceTo(mc.player) > 16;
-        if (picked || unreachable || tooFar || pickupTimeout > 300) {
-            // 捡到了就不记黑名单；够不到/超时/太远说明这位置捡不起来，记黑名单避免反复寻路捡同一个
-            if (!picked) addPickupBlacklist(pickupTarget.blockPosition());
-            pickupTarget = null;
-            pickupCooldownTicks = PICKUP_COOLDOWN_TICKS;
-            module.getBaritone().stop();
-            module.getBaritone().startMining(module.getMiningTargets());
+        boolean tooFar = pickupTarget.distanceTo(mc.player) > 16;
+        if (unreachable || tooFar || pickupTimeout > 300) {
+            // 够不到/超时/太远说明这位置捡不起来，记黑名单避免反复寻路捡同一个
+            addPickupBlacklist(pickupTarget.blockPosition());
+            // 这一个够不到不代表别处也没有：先看附近还有没有能捡的，有就接着捡，别白跑一趟就收工
+            ItemEntity next = findNearbyOreDrop(PICKUP_RADIUS);
+            if (next != null) {
+                beginPickup(next);
+                return true;
+            }
+            endPickupRound();
             return false;
         }
         return true;
+    }
+
+    /** 选定掉落物并下发寻路：捡取轮次里的延续目标不走冷却（见 {@link #tryPickupNearbyOre} 注释） */
+    private void beginPickup(ItemEntity drop) {
+        pickupTarget = drop;
+        pickupTimeout = 0;
+        module.getBaritone().stop();
+        var baritone = module.getBaritone().getBaritoneInstance();
+        if (baritone != null) {
+            baritone.getCustomGoalProcess().setGoalAndPath(new GoalGetToBlock(drop.blockPosition()));
+        }
+    }
+
+    /** 一轮捡取收工：恢复挖矿并进入冷却（避免刚挖出来的新掉落物立刻把我们拽回来） */
+    private void endPickupRound() {
+        pickupTarget = null;
+        pickupCooldownTicks = PICKUP_COOLDOWN_TICKS;
+        module.getBaritone().stop();
+        module.getBaritone().startMining(module.getMiningTargets());
     }
 
     /** 旧 {@code addPickupBlacklist}，{@code :939-944} 逐字 */
@@ -1779,13 +2288,17 @@ public final class MiningStateMachine {
     private void checkToolDurabilityWarning() {
         if (mc.player == null) return;
 
-        // 找出耐久最低的可修复工具（镐/铲/斧/锄/剑，含副手），预警提示跟修复触发用同一套判定
+        // 找出耐久最低的可修复工具（镐/铲/斧/锄/剑，含副手）；与修复触发同一套判定，
+        // 只预警带经验修补、真正修得回来的工具（用户 2026-09-19）
         ItemStack lowest = ItemStack.EMPTY;
         int lowestRemaining = Integer.MAX_VALUE;
 
         for (int i = 0; i < 36; i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
             if (!isRepairableTool(stack)) continue;
+            // 无经验修补的工具修不了，不会触发修复流程，不进本预警（用户 2026-09-19；
+            // 「修不了」的提示由 handleUnrepairableTool 负责，避免同一件工具出现两套口径）
+            if (!ItemIdentifier.hasMending(stack)) continue;
             Integer maxDamage = stack.get(DataComponents.MAX_DAMAGE);
             Integer damage = stack.get(DataComponents.DAMAGE);
             if (maxDamage == null || damage == null) continue;
@@ -1797,7 +2310,7 @@ public final class MiningStateMachine {
         }
 
         ItemStack offhand = mc.player.getOffhandItem();
-        if (isRepairableTool(offhand)) {
+        if (isRepairableTool(offhand) && ItemIdentifier.hasMending(offhand)) {
             Integer maxDamage = offhand.get(DataComponents.MAX_DAMAGE);
             Integer damage = offhand.get(DataComponents.DAMAGE);
             if (maxDamage != null && damage != null) {
@@ -2042,7 +2555,8 @@ public final class MiningStateMachine {
         module.getBaritone().stop();
         faceBlock(mineralChest.pos());
 
-        if (mc.screen != null && !(mc.screen instanceof AbstractContainerScreen<?>)) {
+        if (mc.screen != null && !(mc.screen instanceof AbstractContainerScreen<?>)
+            && !(mc.screen instanceof PauseScreen)) {
             if (stateTick % 20 == 0) module.getContainer().closeContainer();
             return;
         }
@@ -2172,9 +2686,14 @@ public final class MiningStateMachine {
         faceBlock(foodChest.pos());
 
         if (!module.getContainer().isContainerOpen()) {
-            // 屏幕被其它界面占用时定期强制关闭，避免永远打不开箱子
+            // 屏幕被其它界面占用时定期强制关闭，避免永远打不开箱子；
+            // 但玩家自己按 ESC 打开的「游戏菜单」既不必关、也不该卡住流程（用户 2026-09-19：
+            // 「我本来是这个界面的，然后卸货触发就把我这个界面关掉了」）——发包开箱、点槽位、发指令
+            // 全都与客户端界面无关，关掉它只会把人从菜单里踢回游戏（镜头被抢）
             if (mc.screen instanceof AbstractContainerScreen<?>) return;
-            if (mc.screen != null && stateTick % 20 == 0) module.getContainer().closeContainer();
+            if (mc.screen != null && !(mc.screen instanceof PauseScreen) && stateTick % 20 == 0) {
+                module.getContainer().closeContainer();
+            }
             module.getContainer().openContainer(foodChest.pos());
             return;
         }
@@ -2237,31 +2756,30 @@ public final class MiningStateMachine {
         // 检查饱食度是否回满（满值20）
         if (foodData.getFoodLevel() >= 20) {
             mc.options.keyUse.setDown(false); // 释放右键
-            module.info("§a✓ 饱食度已恢复 §8▸ 继续挖矿");
+            // 结束不再自己播一条（用户 2026-09-19：「§a✓ 吃饱了 不用两条 一条就够了」）：
+            // 紧跟着的 transitionTo(MINING) 会播「§a✓ 开始挖矿 ▸ …」，那就是收尾消息
             module.getSoundNotifier().notifyMiningStart();
             transitionTo(MinerState.MINING);
             return;
         }
 
         // 食物耗尽（拿到手上的最后一块也吃完了）：别傻等 2 分钟超时，直接去补给
-        if (!hasFoodToEat()) {
+        // 搬运/进食进行中的那几刻不判「吃完」：副手模式刚把食物换走时客户端还没同步到副手，
+        // 此刻扫背包必为空（见 MiningContainer#isEatingInProgress）
+        if (!hasFoodToEat() && !module.getContainer().isEatingInProgress()) {
             mc.options.keyUse.setDown(false);
             module.info("§6⚠ 食物已吃完 §8▸ 前往补给点");
             transitionTo(MinerState.SUPPLY);
             return;
         }
 
-        // 每 tick 都尝试进食：autoEat 内部幂等，未在进食时触发一次 useItem，
-        // 已在使用中则仅保持按键。窗口失焦/开 GUI 时按键会被吞，靠 useItem 兜底。
-        module.getContainer().autoEat();
+        // 每 tick 都尝试进食：packetEat 内部幂等 —— 没在吃就起手发一包，正在吃就推进那一件
+        // （吃完一件接下一件，零间隔）；用户 2026-09-19 定为发包驱动 + 严格按食物白名单吃。
+        // 参数 true = 走副手：主手继续拿镐，Baritone 的挖矿不中断（「边挖边吃」）
+        module.getContainer().packetEat(true);
 
-        // 每 2 秒播报一次进食进度（避免刷屏）
-        if (stateTick % 40 == 0) {
-            // 播报要吃的食物名，而不是主手物品名：食物还没换进快捷栏时主手还是镐子，
-            // 旧写法会打出「进食中 ▸ 下界合金镐」（用户 2026-09-17）
-            module.info("§e进食中 §8▸ " + module.getContainer().describeEatingFood()
-                + " §7(饱食度: " + foodData.getFoodLevel() + "/20)");
-        }
+        // 进食期间不再每刻/每 2 秒重复播报（用户 2026-09-19：「有点刷屏了」）：
+        // 「正在吃 xx」已由进态的 transitionTo 文案一次说清，结束由回挖矿那条收尾
 
         // 超时保护：2分钟还没吃饱就放弃，回到挖矿
         if (stateTick > 2400) {
@@ -2333,9 +2851,9 @@ public final class MiningStateMachine {
         // 阶段 5：执行 Auto-Swap（只做一次）
         if (!repairMode) {
             if (repairSwapRequestedTick == -1) {
-                int toolSlot = findDamagedToolSlot();
+                int toolSlot = findDamagedToolSlot(true);
                 if (toolSlot == -1) {
-                    // 没有需要修的工具了（可能已被其它机制修好），直接返回矿区
+                    // 没有需要修的工具了（可能已被其它机制修好；无经验修补的修不了、已被跳过），直接返回矿区
                     transitionTo(MinerState.GO_WILD);
                     return;
                 }
@@ -2407,9 +2925,9 @@ public final class MiningStateMachine {
     /**
      * 旧 {@code tickDeathHandling}，{@code :1463-1485}。
      *
-     * <p>差异（用户 2026-09-16 拍板）：旧 {@code tryMeteorAutoRespawn()}（切换第三方框架的自动重生模块）
+     * <p>差异（用户 2026-09-16 拍板）：旧自动重生切换方法（切换第三方框架的自动重生模块）
      * 整段删除，自动重生由本项目 {@code feature/respawn/AutoRespawnModule}（默认开启）承担；
-     * 因此旧 {@code :1472} 的「已调用流星自动重生模块」改成本项目的「已调用自动重生模块」，其余逐字不变。</p>
+     * 因此旧 {@code :1472} 的死亡播报模块名改成本项目的「已调用自动重生模块」，其余逐字不变。</p>
      */
     private void tickDeathHandling() {
         if (mc.player == null) return;
@@ -2522,34 +3040,99 @@ public final class MiningStateMachine {
             || id.endsWith("_hoe") || id.endsWith("_sword");
     }
 
-    /** 旧 {@code hasMending}，{@code :1569-1581} 逐字（附魔 holder 从世界注册表取） */
-    private boolean hasMending(ItemStack stack) {
-        if (stack.isEmpty() || mc.level == null) return false;
-        ItemEnchantments enchantments = stack.get(DataComponents.ENCHANTMENTS);
-        if (enchantments == null || enchantments.isEmpty()) return false;
-        try {
-            var lookup = mc.level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-            var holder = lookup.get(Enchantments.MENDING).orElse(null);
-            return holder != null && enchantments.getLevel(holder) > 0;
-        } catch (Exception ignored) {
+    /**
+     * 处理「剩余耐久低于阈值、但没有经验修补附魔」的工具（用户 2026-09-19 需求）。
+     *
+     * <p><b>为什么不去挂机点</b>：挂机修复靠杀戮光环打怪掉经验、再由经验修补把经验换成耐久，
+     * 工具自己不带经验修补，传送到修复点挂到超时也修不回一格耐久（旧实现是「检测到就整体停机」，
+     * 于是背包里明明还有别的镐子也不挖了）。现在改为：</p>
+     * <ul>
+     *   <li>不传送、不换槽，就地跳过这件工具的修复流程；</li>
+     *   <li>同一件工具只提示一次（按「物品 + 槽位」记账，见 {@link #noMendingNotifiedKey}）；</li>
+     *   <li>受损的是<b>镐子</b>且背包（含副手）已没有别的镐子 → 停机（没镐子挖不动了）；</li>
+     *   <li>背包还有别的镐子（不要求带经验修补）→ 继续挖矿。</li>
+     * </ul>
+     *
+     * <p><b>只扫镐子</b>（用户 2026-09-19 裁定）：剑 / 铲 / 斧 / 锄不带经验修补对挖矿没有任何影响，
+     * 既不该刷提示，也不该参与这里「当前受损工具」的挑选 —— 否则一把僵尸掉的烂铲子会因剩余耐久
+     * 天然最低而顶掉真正受损的镐子，使「修不了 → 换镐 / 停机」那条判据失效。</p>
+     *
+     * @return true 表示已停机，调用方必须立即 return
+     */
+    private boolean handleUnrepairableTool() {
+        int slot = findDamagedToolSlot(false);
+        if (slot == -1) {
+            noMendingNotifiedKey = ""; // 已无受损镐子：解除记账，下次再出现照样提示
             return false;
         }
+
+        ItemStack tool = slot == -2 ? mc.player.getOffhandItem() : mc.player.getInventory().getItem(slot);
+        if (tool.isEmpty()) return false; // 镐子必定无经验修补（findDamagedToolSlot 已筛过）
+
+        String key = BuiltInRegistries.ITEM.getKey(tool.getItem()) + "@" + slot;
+        if (key.equals(noMendingNotifiedKey)) return false; // 这件镐子已提示过，不再刷屏
+        noMendingNotifiedKey = key;
+
+        // 物品全名（如「下界合金镐」，自定义重命名也照实显示）
+        String name = tool.getHoverName().getString();
+
+        // 镐子：背包还有别的镐子就继续挖，没有才停机
+        if (hasOtherPickaxe(slot)) {
+            module.warning("§e⚠ " + name + " 没有经验修补 §8▸ 不回去挂机点修复，改用背包内其余镐子继续挖矿");
+            return false;
+        }
+
+        module.getBaritone().stop();
+        module.error("§c✗ " + name + " 没有经验修补 §8▸ 不回去挂机点修复，背包已无其余镐子，自动挖矿已停止");
+        if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
+        return true;
     }
 
-    /** 旧 {@code findDamagedToolSlot}，{@code :1583-1606} 逐字（副手 -2 优先） */
-    private int findDamagedToolSlot() {
+    /**
+     * 背包（含副手）里是否还有除 {@code excludeSlot} 之外的镐子。
+     *
+     * <p>判据只看「是不是镐子」，不要求耐久、也不要求经验修补 —— 用户的期望是
+     * 「还有别的镐子就别停」，这把用坏了换下一把即可。</p>
+     *
+     * @param excludeSlot 受损镐子所在槽位（{@code -2} = 副手），不计入
+     */
+    private boolean hasOtherPickaxe(int excludeSlot) {
+        if (mc.player == null) return false;
+        if (excludeSlot != -2 && isPickaxe(mc.player.getOffhandItem())) return true;
+        for (int i = 0; i < 36; i++) {
+            if (i == excludeSlot) continue;
+            if (isPickaxe(mc.player.getInventory().getItem(i))) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 旧 {@code findDamagedToolSlot}，{@code :1583-1606} 逐字（副手 -2 优先）。
+     *
+     * <p>新增 {@code requireMending} 形参（用户 2026-09-19），两种用途的工具面不同：</p>
+     * <ul>
+     *   <li>{@code true} —— 触发挂机修复与换槽。挂机修复只有带经验修补的工具修得回来，
+     *       所以只认带经验修补的「可修复工具」（镐/铲/斧/锄/剑）；</li>
+     *   <li>{@code false} —— 「修不了」的提示扫描。<b>只认镐子</b>：挖矿真正离不开的只有镐，
+     *       剑/铲/斧/锄缺经验修补对挖矿毫无影响，不该刷提示，也不该顶掉受损镐子的判据
+     *       （僵尸掉的烂铲子剩余耐久天然最低，旧写法会把它当成「当前受损工具」）。</li>
+     * </ul>
+     *
+     * @param requireMending true = 只取带经验修补的可修复工具；false = 只取无经验修补的受损镐子
+     * @return 槽位（-2 = 副手，0~35 = 背包），没有则 -1
+     */
+    private int findDamagedToolSlot(boolean requireMending) {
         if (mc.player == null) return -1;
 
         // 副手工具优先（已就位，直接修）
-        if (isRepairableTool(mc.player.getOffhandItem()) && needsRepair(mc.player.getOffhandItem())) {
-            return -2;
-        }
+        ItemStack offhand = mc.player.getOffhandItem();
+        if (isDamagedToolCandidate(offhand, requireMending)) return -2;
 
         int bestSlot = -1;
         int lowestRemaining = Integer.MAX_VALUE;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
-            if (!isRepairableTool(stack) || !needsRepair(stack)) continue;
+            if (!isDamagedToolCandidate(stack, requireMending)) continue;
             Integer maxDamage = stack.get(DataComponents.MAX_DAMAGE);
             Integer damage = stack.get(DataComponents.DAMAGE);
             int remaining = maxDamage - damage;
@@ -2561,9 +3144,26 @@ public final class MiningStateMachine {
         return bestSlot;
     }
 
-    /** 旧 {@code findDamagedTool}，{@code :1608-1614} 逐字 */
+    /**
+     * {@link #findDamagedToolSlot(boolean)} 的单件判据：已受损 + 工具面符合该用途。
+     *
+     * @param requireMending true = 可修复工具且带经验修补；false = 镐子且无经验修补
+     */
+    private boolean isDamagedToolCandidate(ItemStack stack, boolean requireMending) {
+        if (!needsRepair(stack)) return false;
+        if (requireMending) {
+            return isRepairableTool(stack) && ItemIdentifier.hasMending(stack);
+        }
+        return isPickaxe(stack) && !ItemIdentifier.hasMending(stack);
+    }
+
+    /**
+     * 旧 {@code findDamagedTool}，{@code :1608-1614} 逐字。
+     *
+     * <p>只服务 REPAIR 态的状态播报：那一态修的是带经验修补的工具（{@code findDamagedToolSlot(true)}）。</p>
+     */
     private ItemStack findDamagedTool() {
-        int slot = findDamagedToolSlot();
+        int slot = findDamagedToolSlot(true);
         if (slot == -2) return mc.player.getOffhandItem();
         if (slot >= 0) return mc.player.getInventory().getItem(slot);
         return ItemStack.EMPTY;
@@ -2590,26 +3190,40 @@ public final class MiningStateMachine {
                 count += stack.getCount(); // 统计实际数量
             }
         }
+        // 副手也是玩家的食物（「边挖边吃」时食物就临时放在这儿，见 MiningContainer#packetEat 副手模式）：
+        // 不数副手会让「食物不足检测」在进食期间反复触发补给（用户 2026-09-19 实机）
+        ItemStack offhand = mc.player.getOffhandItem();
+        if (whitelist.contains(BuiltInRegistries.ITEM.getKey(offhand.getItem()).toString())) {
+            count += offhand.getCount();
+        }
         return count;
     }
 
     /**
-     * 背包里是否还有白名单内的可吃食物（有 FOOD 组件才算）。
+     * 背包里是否还有能吃的食物（必须同时是「食物白名单内」且带 FOOD 组件）。
      *
-     * <p>旧 {@code hasFoodToEat}，{@code :1640-1650}。</p>
+     * <p>旧 {@code hasFoodToEat}，{@code :1640-1650}。用户 2026-09-19 追加自动回血时曾把进食口径
+     * 放宽成「任何带 {@code FOOD} 组件的物品」，结果怪物掉的腐肉也被吃掉（用户当天实机反馈：
+     * 「白名单食物只有金苹果，怎么会吃腐肉」）—— 现按用户裁定<b>严格白名单</b>收口：
+     * 吃什么、留什么、囤什么，三处判据统一走 {@code foodWhitelist}，与补给取货
+     * （{@code MiningContainer#withdrawFood()}）和 {@link #countFoodStacks()} 完全同源。</p>
      */
     private boolean hasFoodToEat() {
         if (mc.player == null) return false;
         List<String> whitelist = module.getFoodWhitelist();
         for (int i = 0; i < 36; i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
-            if (!stack.isEmpty()
-                && whitelist.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
-                && stack.has(DataComponents.FOOD)) {
+            if (!stack.isEmpty() && stack.has(DataComponents.FOOD)
+                && whitelist.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())) {
                 return true;
             }
         }
-        return false;
+        // 副手同样算「有得吃」：进食走副手模式后食物被搬离背包，只扫 0~35 会当场判成「食物已吃完」
+        // → 退出进食态 → restoreEatDisplacedItem 把食物换回背包 → 下一轮又搬过去，来回打转并卡死
+        // 状态机（用户 2026-09-19 实机：「放到副手之后食物检测到没有食物了，然后卡死状态机」）
+        ItemStack offhand = mc.player.getOffhandItem();
+        return !offhand.isEmpty() && offhand.has(DataComponents.FOOD)
+            && whitelist.contains(BuiltInRegistries.ITEM.getKey(offhand.getItem()).toString());
     }
 
     /** 旧 {@code countOreStacks}，{@code :1652-1672} 逐字（返回组数 = 总数 / 64） */
@@ -2686,7 +3300,15 @@ public final class MiningStateMachine {
             case MINING -> String.format("§a✓ 开始挖矿 §8▸ §f%s §8· §f%s", lootMode, target);
             case UNLOADING -> String.format("§b开始卸货 §8▸ §f%s §8· §f%s", lootMode, target);
             case SUPPLY -> String.format("§6⚠ 前往补给 §8▸ 食物不足 %d/%d 个", foodCount, foodThreshold);
-            case EATING -> "§d补充饥饿值";
+            // 进食文案按原因分两种（用户 2026-09-19：「能不能分清楚没血吃跟饿了吃的文案啊」），
+            // 并在这条上直接带上「正在吃什么」—— 用户当天追加：「应该显示玩家在吃上面食物呀」。
+            // 吃哪种食物只有这里播一次；结束时不另外播「✓ 吃饱了」，由下面回挖矿那条收尾，避免两条
+            case EATING -> {
+                String eatFood = module.getContainer().describeEatingFood();
+                yield eatReason == EAT_REASON_HEAL
+                    ? "§d自动回血 §8▸ 正在吃 " + eatFood
+                    : "§e补充饥饿值 §8▸ 正在吃 " + eatFood;
+            }
             case REPAIR -> "§c⚠ " + toolName(findDamagedTool()) + "耐久过低 §8▸ 联动杀戮光环修复中";
             case DEATH_HANDLING -> "§c✗ 检测到死亡 §8▸ 已调用自动重生";
             case RESPAWN_WAIT -> "§6复活完成 §8▸ 返回挂机点";
@@ -2784,7 +3406,7 @@ public final class MiningStateMachine {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  物品栏原语（旧项目走 Meteor InvUtils；本项目换 26.1.2 原语）
+    //  物品栏原语（旧项目走旧框架的 InvUtils；本项目换 26.1.2 原语）
     // ═══════════════════════════════════════════════════════════════════
 
     /**

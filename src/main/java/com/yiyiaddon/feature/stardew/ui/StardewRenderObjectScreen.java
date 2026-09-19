@@ -6,8 +6,10 @@ import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.component.TextLine;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.MinecraftText;
+import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import com.yiyiaddon.ui.screen.PanelScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
@@ -35,7 +37,7 @@ import java.util.function.Supplier;
  * 全部落在 {@link StardewSettings.RenderObject} 上，改完立即 {@link StardewFarmModule#persistSettings()}
  * 落盘，与主页、渲染逻辑完全同源。</p>
  *
- * <p><b>标签为什么自绘：</b>旧标签是 Meteor 的 {@code theme.label("§7显示 §8▶")}，含 {@code §} 颜色码；
+ * <p><b>标签为什么自绘：</b>旧标签是旧框架的 {@code theme.label("§7显示 §8▶")}，含 {@code §} 颜色码；
  * 本项目 {@code CompactRow} 的标签不解析 {@code §}（直接走字体绘制），直接用会把 {@code §7} 原样画出来，
  * 因此这里用一个只做「左标签 + 右控件」的小行元素，标签经 {@link MinecraftText} 绘制，文案逐字保留。</p>
  */
@@ -45,6 +47,9 @@ public final class StardewRenderObjectScreen extends PanelScreen {
     private static final String HINT_OPEN_PICKER = "打开颜色选择器";
     /** 彩虹开关 tooltip 原文（与配色页里的「彩虹」是同一个开关） */
     private static final String HINT_RAINBOW = "颜色随时间自动循环（与配色页里的「彩虹」是同一个开关）";
+
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final StardewSettings DEFAULTS = new StardewSettings();
 
     private final StardewFarmModule module;
     private final StardewSettings.RenderObject object;
@@ -62,23 +67,38 @@ public final class StardewRenderObjectScreen extends PanelScreen {
     }
 
     private void build() {
+        // 出厂对象：行尾 ↺ 的取值来源（与设置类字段初始化里的默认值同源，不在本页抄字面量）
+        StardewSettings.RenderObject factory = factoryOf(object);
+
         // 显示：同一个对象字段，勾选立即生效
         content().add(new Row("§7显示 §8▶", null,
             new SettingToggle(() -> object.show, value -> {
                 object.show = value;
                 module.persistSettings();
-            })));
+            }),
+            ConsoleWidgets.resetCtl(() -> {
+                object.show = factory.show;
+                module.persistSettings();
+            }, "显示")));
 
         // 颜色：色块点击打开调色板；彩虹是同一个 EspColor 上的开关。
         // 点位字牌没有这一项：它的颜色跟随对应点位方框，摆一个点了没反应的色块只会误导。
         if (object.colorEditable()) {
             content().add(new Row("§7颜色 §8▶", () -> HINT_OPEN_PICKER,
-                new SettingColorPicker(object.name() + "颜色", object.color, module::persistSettings)));
+                new SettingColorPicker(object.name() + "颜色", object.color, module::persistSettings),
+                ConsoleWidgets.resetCtl(() -> {
+                    copyColor(object.color, factory.color);
+                    module.persistSettings();
+                }, "颜色")));
             content().add(new Row("§7彩虹 §8▶", () -> HINT_RAINBOW,
                 new SettingToggle(() -> object.color.rainbow(), value -> {
                     object.color.rainbow(value);
                     module.persistSettings();
-                })));
+                }),
+                ConsoleWidgets.resetCtl(() -> {
+                    object.color.rainbow(factory.color.rainbow());
+                    module.persistSettings();
+                }, "彩虹")));
         }
 
         // 渲染模式：线框 / 面 / 两者（点位字牌没有这一项）
@@ -89,7 +109,11 @@ public final class StardewRenderObjectScreen extends PanelScreen {
                     index -> {
                         object.mode = ShapeMode.of(index);
                         module.persistSettings();
-                    })));
+                    }),
+                ConsoleWidgets.resetCtl(() -> {
+                    object.mode = factory.mode;
+                    module.persistSettings();
+                }, "渲染模式")));
         }
 
         // 说明：让玩家清楚「本对象独立」，避免以为改了这里会连带其它对象
@@ -97,8 +121,26 @@ public final class StardewRenderObjectScreen extends PanelScreen {
     }
 
     /**
+     * 该渲染对象的出厂设置实例：按对象名在出厂设置里取同一项。
+     *
+     * <p>渲染对象是设置类里的固定字段（名字唯一且不变），取不到时返回自身（等价于不动作）。</p>
+     */
+    private static StardewSettings.RenderObject factoryOf(StardewSettings.RenderObject object) {
+        for (StardewSettings.RenderObject candidate : DEFAULTS.renderObjects()) {
+            if (candidate.name().equals(object.name())) return candidate;
+        }
+        return object;
+    }
+
+    /** 把出厂颜色就地写回当前颜色对象（{@code RenderObject.color} 是 final，不能换引用） */
+    private static void copyColor(EspColor target, EspColor source) {
+        target.rgb(source.rgb()).alpha(source.alpha()).rainbow(source.rainbow())
+            .rainbowSpeed(source.rainbowSpeed()).rainbowOffset(source.rainbowOffset());
+    }
+
+    /**
      * 「左标签 + 右控件」行：标签含 {@code §} 颜色码，经 {@link MinecraftText} 绘制；
-     * 有 tooltip 时在指针悬停时于标签与控件之间淡入（旧项目 Meteor 控件 tooltip 的等价展示位）。
+     * 有 tooltip 时在指针悬停时于标签与控件之间淡入（旧项目框架控件 tooltip 的等价展示位）。
      */
     private static final class Row implements CompactElement {
 
@@ -109,18 +151,23 @@ public final class StardewRenderObjectScreen extends PanelScreen {
         private static final float HINT_GAP = 12f;
         private static final float HINT_MIN_WIDTH = 28f;
         private static final float HOVER_SMOOTHING = 12f;
+        /** 相邻控件之间的间距（与 {@code ConsoleRow} 的控件间距同一档） */
+        private static final float GAP = 8f;
 
         private final String label;
         private final Supplier<String> hint;
-        private final SettingWidget control;
+        /** 行内控件：主控件在前、行尾「恢复默认」↺ 在后（绘制与命中按同一顺序从右往左排） */
+        private final List<ConsoleWidgets.Ctl> controls;
 
         private boolean hovered;
         private float hover;
 
-        private Row(String label, Supplier<String> hint, SettingWidget control) {
+        private Row(String label, Supplier<String> hint, SettingWidget control, ConsoleWidgets.Ctl reset) {
             this.label = label == null ? "" : label;
             this.hint = hint;
-            this.control = control;
+            this.controls = reset == null
+                ? List.of(new ConsoleWidgets.Ctl(control))
+                : List.of(new ConsoleWidgets.Ctl(control), reset);
         }
 
         @Override
@@ -130,7 +177,7 @@ public final class StardewRenderObjectScreen extends PanelScreen {
 
         @Override
         public void update(float dt) {
-            if (control != null) control.update(dt);
+            for (ConsoleWidgets.Ctl ctl : controls) ctl.widget().update(dt);
             hover += ((hovered ? 1f : 0f) - hover) * Math.min(1f, Math.max(0f, dt) * HOVER_SMOOTHING);
         }
 
@@ -150,23 +197,33 @@ public final class StardewRenderObjectScreen extends PanelScreen {
             float centerY = y + HEIGHT / 2f;
             MinecraftText.draw(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE), LABEL_SIZE,
                     tc.primaryText, alpha);
-            drawHint(canvas, x, y, width, alpha, tc);
-            if (control != null) {
-                float cx = controlX(x, width);
-                float cy = controlY(y);
-                control.hover(mouseX, mouseY, cx, cy, control.getWidth());
-                control.draw(canvas, cx, cy, alpha);
+            drawHint(canvas, x, y, width, alpha, tc, hoveredHintText(mouseX, mouseY, x, y, width));
+            float cursor = controlsStartX(x, width);
+            for (ConsoleWidgets.Ctl ctl : controls) {
+                SettingWidget widget = ctl.widget();
+                float cy = controlY(y, widget);
+                widget.hover(mouseX, mouseY, cursor, cy, widget.getWidth());
+                widget.draw(canvas, cursor, cy, alpha);
+                cursor += widget.getWidth() + GAP;
             }
         }
 
         @Override
         public boolean onClick(float mx, float my, float x, float y, float width, int button) {
-            if (control == null || button != 0) return false;
+            if (button != 0) return false;
             if (mx < x || mx > x + width || my < y || my > y + HEIGHT) return false;
-            float cx = controlX(x, width);
-            float cy = controlY(y);
-            if (mx < cx || mx > cx + control.getWidth() || my < cy || my > cy + control.getHeight()) return false;
-            return control.onClick(mx, my, cx, cy, button);
+            float cursor = controlsStartX(x, width);
+            for (ConsoleWidgets.Ctl ctl : controls) {
+                SettingWidget widget = ctl.widget();
+                float cy = controlY(y, widget);
+                if (mx >= cursor && mx <= cursor + widget.getWidth()
+                    && my >= cy && my <= cy + widget.getHeight()
+                    && widget.onClick(mx, my, cursor, cy, button)) {
+                    return true;
+                }
+                cursor += widget.getWidth() + GAP;
+            }
+            return false;
         }
 
         @Override
@@ -174,28 +231,50 @@ public final class StardewRenderObjectScreen extends PanelScreen {
             return false;
         }
 
-        /** 控件左边界；绘制与命中共用 */
-        private float controlX(float x, float width) {
-            return x + width - PAD_X - control.getWidth();
+        /** 控件组左边界（整组右对齐）；绘制与命中共用 */
+        private float controlsStartX(float x, float width) {
+            float total = 0f;
+            for (ConsoleWidgets.Ctl ctl : controls) total += ctl.widget().getWidth() + GAP;
+            if (total > 0f) total -= GAP;
+            return x + width - PAD_X - total;
         }
 
-        /** 控件顶部；绘制与命中共用 */
-        private float controlY(float y) {
-            return y + (HEIGHT - control.getHeight()) / 2f;
+        /** 控件顶部（每个控件各自居中）；绘制与命中共用 */
+        private static float controlY(float y, SettingWidget widget) {
+            return y + (HEIGHT - widget.getHeight()) / 2f;
+        }
+
+        /**
+         * 悬停提示文字：指针落在带说明的控件上时优先用控件自己的（行尾 ↺ 的「恢复默认：…」），
+         * 否则用整行那句（旧行为的等价物）。
+         */
+        private String hoveredHintText(float mouseX, float mouseY, float x, float y, float width) {
+            float cursor = controlsStartX(x, width);
+            for (ConsoleWidgets.Ctl ctl : controls) {
+                SettingWidget widget = ctl.widget();
+                float cy = controlY(y, widget);
+                if (mouseX >= cursor && mouseX <= cursor + widget.getWidth()
+                    && mouseY >= cy && mouseY <= cy + widget.getHeight()) {
+                    String own = ctl.hint() == null ? null : ctl.hint().get();
+                    if (own != null && !own.isBlank()) return own;
+                }
+                cursor += widget.getWidth() + GAP;
+            }
+            return hint == null ? null : hint.get();
         }
 
         /** 悬停提示：只在指针悬停时淡入，并按「标签结束到控件开始」的实际空隙截断 */
-        private void drawHint(Canvas canvas, float x, float y, float width, float alpha, ClickGuiThemeColors tc) {
-            if (hint == null || hover < 0.02f) return;
-            String text = hint.get();
-            if (text == null || text.isBlank()) return;
+        private void drawHint(Canvas canvas, float x, float y, float width, float alpha,
+                              ClickGuiThemeColors tc, String hintText) {
+            if (hintText == null || hover < 0.02f) return;
+            if (hintText.isBlank()) return;
 
             float startX = x + PAD_X + MinecraftText.measure(label, LABEL_SIZE, false) + HINT_GAP;
-            float endX = control == null ? x + width - PAD_X : controlX(x, width) - HINT_GAP;
+            float endX = controlsStartX(x, width) - HINT_GAP;
             float available = endX - startX;
             if (available < HINT_MIN_WIDTH) return;
 
-            FontRenderer.drawText(canvas, CardLayout.ellipsize(MinecraftText.strip(text), available, HINT_SIZE),
+            FontRenderer.drawText(canvas, CardLayout.ellipsize(MinecraftText.strip(hintText), available, HINT_SIZE),
                     startX, CardLayout.baseline(y + HEIGHT / 2f, HINT_SIZE), HINT_SIZE,
                     GlassPanel.withAlpha(tc.labelTertiary, alpha * hover));
         }

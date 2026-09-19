@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.autochest.ui.AutoChestConsoleScreen;
 import com.yiyiaddon.model.autochest.ScanMode;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
@@ -14,6 +15,7 @@ import com.yiyiaddon.ui.widget.SettingSegmented;
 import com.yiyiaddon.ui.widget.SettingText;
 import com.yiyiaddon.ui.widget.SettingWidget;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -45,6 +47,9 @@ public final class AutoChestRunPage {
     private static final List<String> SCAN_MODE_LABELS = List.of(
         ScanMode.PLAYER_CONTROL.displayName(), ScanMode.PATHING.displayName(), ScanMode.MARKER.displayName());
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoChestSettings DEFAULTS = new AutoChestSettings();
+
     private final AutoChestConsoleScreen owner;
     private final AutoChestModule module;
 
@@ -59,7 +64,12 @@ public final class AutoChestRunPage {
 
         stack.add(section("运行模式"));
         stack.add(row("运行模式", DESC_SCAN_MODE, new SettingSegmented(SCAN_MODE_LABELS,
-            () -> settings.scanMode.ordinal(), pickScanMode())));
+            () -> settings.scanMode.ordinal(), pickScanMode()),
+            ConsoleWidgets.resetCtl(() -> {
+                settings.scanMode = DEFAULTS.scanMode;
+                module.persistSettings();
+                owner.reload();
+            }, "运行模式")));
         stack.add(row("当前模式", DESC_CURRENT_MODE,
             new SettingText(() -> "§a§l" + settings.scanMode.displayName())));
 
@@ -68,7 +78,12 @@ public final class AutoChestRunPage {
             stack.add(row("触发距离", DESC_TRIGGER_DISTANCE, intBox(1, 4,
                 () -> settings.triggerDistance, value -> {
                     settings.triggerDistance = value;
-                })));
+                }),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.triggerDistance = DEFAULTS.triggerDistance;
+                    module.persistSettings();
+                    owner.reload();
+                }, "触发距离")));
         }
 
         stack.add(section("标点模式"));
@@ -79,9 +94,12 @@ public final class AutoChestRunPage {
         }
     }
 
-    /** 单控件设置行（标题 + 描述 + 右侧一个控件），行构件由控制台统一提供 */
-    private ConsoleRow row(String title, String description, SettingWidget control) {
-        return new ConsoleRow(owner, () -> title, description, null, List.of(new Ctl(control)));
+    /** 单控件设置行（标题 + 描述 + 右侧控件，可再挂行尾 ↺），行构件由控制台统一提供 */
+    private ConsoleRow row(String title, String description, SettingWidget control, Ctl... extra) {
+        List<Ctl> controls = new ArrayList<>();
+        controls.add(new Ctl(control));
+        controls.addAll(List.of(extra));
+        return new ConsoleRow(owner, () -> title, description, null, controls);
     }
 
     /** 分区标题（与星露谷 / 挖矿控制台各页同一套样式） */

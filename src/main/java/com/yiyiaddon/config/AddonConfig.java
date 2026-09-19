@@ -45,6 +45,10 @@ public final class AddonConfig {
     /** 客户端指令前缀的原始输入值；合法性与回落由 {@code CommandManager.normalizePrefix} 负责。 */
     public static String commandPrefix = ".";
 
+    // —— 模块中心 ——
+    /** 收藏（顶部「常用」区）的模块 id，以 {@code ;} 分隔；由模块中心的右键收藏读写。 */
+    public static String favoriteModules = "";
+
     private static boolean loaded;
 
     private AddonConfig() {
@@ -74,6 +78,7 @@ public final class AddonConfig {
             moduleKeybinds = string(json, "moduleKeybinds", moduleKeybinds);
             baritoneChinese = bool(json, "baritoneChinese", baritoneChinese);
             commandPrefix = string(json, "commandPrefix", commandPrefix);
+            favoriteModules = string(json, "favoriteModules", favoriteModules);
         } catch (Exception ignored) {
             // 配置文件损坏：保持默认值，不阻断启动。
         }
@@ -91,6 +96,7 @@ public final class AddonConfig {
         json.addProperty("moduleKeybinds", moduleKeybinds);
         json.addProperty("baritoneChinese", baritoneChinese);
         json.addProperty("commandPrefix", commandPrefix);
+        json.addProperty("favoriteModules", favoriteModules);
         try {
             Path file = path();
             Files.createDirectories(file.getParent());

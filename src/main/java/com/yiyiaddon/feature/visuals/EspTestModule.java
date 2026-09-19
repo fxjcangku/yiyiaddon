@@ -137,7 +137,7 @@ public final class EspTestModule extends Module {
     /**
      * 本地玩家相关测试项在第一人称下默认不画。
      *
-     * <p>Meteor 的 ESP 有两条自过滤判据（{@code ignore-self} 与「第一人称跳过相机实体」）。
+     * <p>旧框架的 ESP 有两条自过滤判据（{@code ignore-self} 与「第一人称跳过相机实体」）。
      * 本模块这三项的主体就是自己（玩家线框盒 / 玩家屏幕框 / 眼前的渐变面），第一人称下画出来
      * 只会糊在准星上挡视野；切到第三人称（F5）才画，那时正好用来对比 3D 与 2D 两种形态。</p>
      *

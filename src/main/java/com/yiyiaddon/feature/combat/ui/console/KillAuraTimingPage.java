@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.combat.config.KillAuraSettings;
 import com.yiyiaddon.feature.combat.config.KillAuraTexts;
 import com.yiyiaddon.feature.combat.ui.KillAuraConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
@@ -26,6 +27,9 @@ import java.util.function.Supplier;
  */
 public final class KillAuraTimingPage {
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final KillAuraSettings DEFAULTS = new KillAuraSettings();
+
     private final KillAuraConsoleScreen owner;
     private final KillAuraModule module;
 
@@ -40,11 +44,15 @@ public final class KillAuraTimingPage {
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_PAUSE_ON_LAG,
             KillAuraTexts.DESC_PAUSE_ON_LAG, null,
-            List.of(new Ctl(toggle(() -> settings.pauseOnLag, value -> settings.pauseOnLag = value, false)))));
+            List.of(new Ctl(toggle(() -> settings.pauseOnLag, value -> settings.pauseOnLag = value, false)),
+                resetCtl(KillAuraTexts.NAME_PAUSE_ON_LAG,
+                    () -> settings.pauseOnLag = DEFAULTS.pauseOnLag))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_PAUSE_ON_USE,
             KillAuraTexts.DESC_PAUSE_ON_USE, null,
-            List.of(new Ctl(toggle(() -> settings.pauseOnUse, value -> settings.pauseOnUse = value, false)))));
+            List.of(new Ctl(toggle(() -> settings.pauseOnUse, value -> settings.pauseOnUse = value, false)),
+                resetCtl(KillAuraTexts.NAME_PAUSE_ON_USE,
+                    () -> settings.pauseOnUse = DEFAULTS.pauseOnUse))));
 
         /**
          * 本项目无 CrystalAura：该判据在模块里恒假（{@code KillAuraModule.CRYSTAL_AURA_PLACING}），
@@ -52,30 +60,53 @@ public final class KillAuraTimingPage {
          */
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_PAUSE_ON_CA,
             KillAuraTexts.DESC_PAUSE_ON_CA, null,
-            List.of(new Ctl(toggle(() -> settings.pauseOnCA, value -> settings.pauseOnCA = value, false)))));
+            List.of(new Ctl(toggle(() -> settings.pauseOnCA, value -> settings.pauseOnCA = value, false)),
+                resetCtl(KillAuraTexts.NAME_PAUSE_ON_CA,
+                    () -> settings.pauseOnCA = DEFAULTS.pauseOnCA))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_TPS_SYNC,
             KillAuraTexts.DESC_TPS_SYNC, null,
-            List.of(new Ctl(toggle(() -> settings.tpsSync, value -> settings.tpsSync = value, false)))));
+            List.of(new Ctl(toggle(() -> settings.tpsSync, value -> settings.tpsSync = value, false)),
+                resetCtl(KillAuraTexts.NAME_TPS_SYNC,
+                    () -> settings.tpsSync = DEFAULTS.tpsSync))));
 
         // 自定义攻击间隔：下一行（攻击间隔（刻））的可见性依赖它
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_CUSTOM_DELAY,
             KillAuraTexts.DESC_CUSTOM_DELAY, null,
-            List.of(new Ctl(toggle(() -> settings.customDelay, value -> settings.customDelay = value, true)))));
+            List.of(new Ctl(toggle(() -> settings.customDelay, value -> settings.customDelay = value, true)),
+                resetCtl(KillAuraTexts.NAME_CUSTOM_DELAY,
+                    () -> settings.customDelay = DEFAULTS.customDelay))));
 
         // 攻击间隔（刻）：只在「自定义攻击间隔」为真时加入（对应蓝本 .visible(customDelay::get)）
         if (settings.customDelay) {
             stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_HIT_DELAY,
                 KillAuraTexts.DESC_HIT_DELAY, null,
-                List.of(new Ctl(intBox(0, 60, () -> settings.hitDelay, value -> settings.hitDelay = value)))));
+                List.of(new Ctl(intBox(0, 60, () -> settings.hitDelay, value -> settings.hitDelay = value)),
+                    resetCtl(KillAuraTexts.NAME_HIT_DELAY,
+                        () -> settings.hitDelay = DEFAULTS.hitDelay))));
         }
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_SWITCH_DELAY,
             KillAuraTexts.DESC_SWITCH_DELAY, null,
-            List.of(new Ctl(intBox(0, 10, () -> settings.switchDelay, value -> settings.switchDelay = value)))));
+            List.of(new Ctl(intBox(0, 10, () -> settings.switchDelay, value -> settings.switchDelay = value)),
+                resetCtl(KillAuraTexts.NAME_SWITCH_DELAY,
+                    () -> settings.switchDelay = DEFAULTS.switchDelay))));
     }
 
     // ── 行构件 ──
+
+    /**
+     * 行内「恢复默认」：写回出厂值 → 落盘（与改动同一入口 {@link #persist()}）→ 刷新本页。
+     *
+     * @param writeDefault 只负责把这一行的设置写回出厂值，持久化与刷新由本方法统一收口
+     */
+    private Ctl resetCtl(String label, Runnable writeDefault) {
+        return ConsoleWidgets.resetCtl(() -> {
+            writeDefault.run();
+            persist();
+            owner.reload();
+        }, label);
+    }
 
     /** 开关行：改动落盘；{@code reload} 为真时重建本页（下一行的可见性依赖它） */
     private SettingToggle toggle(Supplier<Boolean> getter, Consumer<Boolean> setter, boolean reload) {

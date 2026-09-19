@@ -52,7 +52,7 @@ import java.util.List;
  * 不使用附近的作物代替。</p>
  *
  * <p><b>逐字搬运自旧项目</b> {@code stardew/command/StardewCommand.java}（536 行）。框架适配点：
- * 旧 Meteor Brigadier 命令树 → 本项目 {@link ClientCommand} 的位置参数 + {@link #complete}；
+ * 旧框架 Brigadier 命令树 → 本项目 {@link ClientCommand} 的位置参数 + {@link #complete}；
  * 旧 {@code Modules.get().get(...)} → {@link ModuleManager#byId(String)}；
  * 旧 {@code MatureMarkOutcome/MatureMarkStatus}（挂在模块上）→
  * {@link StardewQuerySupport.MatureMarkOutcome}/{@link StardewQuerySupport.MatureMarkStatus}；

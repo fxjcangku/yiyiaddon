@@ -7,6 +7,7 @@ import com.yiyiaddon.feature.autochest.ui.ContainerTypePage;
 import com.yiyiaddon.model.autochest.ContainerTypeRegistry;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.Button;
@@ -36,6 +37,9 @@ public final class AutoChestContainerPage {
     private static final String DESC_SCAN_INTERVAL = "每多少 Tick 推进一轮扫描（分帧扫描，不整世界全扫）。";
     private static final String DESC_RECORD_EXPIRE = "已处理容器记录多少分钟后失效，可被再次处理。";
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoChestSettings DEFAULTS = new AutoChestSettings();
+
     private final AutoChestConsoleScreen owner;
     private final AutoChestModule module;
 
@@ -64,19 +68,34 @@ public final class AutoChestContainerPage {
             List.of(new Ctl(intBox(4, Integer.MAX_VALUE, () -> settings.scanRadius,
                 value -> {
                     settings.scanRadius = value;
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.scanRadius = DEFAULTS.scanRadius;
+                    module.persistSettings();
+                    owner.reload();
+                }, "检测范围"))));
 
         stack.add(new ConsoleRow(owner, () -> "扫描周期", DESC_SCAN_INTERVAL, null,
             List.of(new Ctl(intBox(1, Integer.MAX_VALUE, () -> settings.scanInterval,
                 value -> {
                     settings.scanInterval = value;
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.scanInterval = DEFAULTS.scanInterval;
+                    module.persistSettings();
+                    owner.reload();
+                }, "扫描周期"))));
 
         stack.add(new ConsoleRow(owner, () -> "已处理记录过期", DESC_RECORD_EXPIRE, null,
             List.of(new Ctl(intBox(0, Integer.MAX_VALUE, () -> settings.recordExpireMinutes,
                 value -> {
                     settings.recordExpireMinutes = value;
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.recordExpireMinutes = DEFAULTS.recordExpireMinutes;
+                    module.persistSettings();
+                    owner.reload();
+                }, "已处理记录过期"))));
     }
 
     /** 容器类型计数（与旧项目逐字同源）：{@code 已选 N / M 类} */

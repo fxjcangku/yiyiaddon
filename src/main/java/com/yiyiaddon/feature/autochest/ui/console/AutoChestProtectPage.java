@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.autochest.config.AutoChestSettings;
 import com.yiyiaddon.feature.autochest.ui.AutoChestConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
@@ -31,6 +32,9 @@ public final class AutoChestProtectPage {
     private static final String DESC_MAX_RETRIES = "开箱/寻路/交互失败后最多重试几次，超过则本轮跳过该容器。";
     private static final String DESC_COOLDOWN = "连续失败或多人保护后，容器进入暂时不可用的冷却时长（Tick）。";
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoChestSettings DEFAULTS = new AutoChestSettings();
+
     private final AutoChestConsoleScreen owner;
     private final AutoChestModule module;
 
@@ -49,27 +53,47 @@ public final class AutoChestProtectPage {
                 module.persistSettings();
                 // 下一行随开关显示 / 消失，本页整页重建后才会改变
                 owner.reload();
-            })))));
+            })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.multiplayerProtect = DEFAULTS.multiplayerProtect;
+                    module.persistSettings();
+                    owner.reload();
+                }, "多人保护"))));
 
         if (settings.multiplayerProtect) {
             stack.add(new ConsoleRow(owner, () -> "玩家检测距离", DESC_PLAYER_DISTANCE, null,
                 List.of(new Ctl(intBox(1, Integer.MAX_VALUE, () -> settings.playerDetectDistance,
                     value -> {
                         settings.playerDetectDistance = value;
-                    })))));
+                    })),
+                    ConsoleWidgets.resetCtl(() -> {
+                        settings.playerDetectDistance = DEFAULTS.playerDetectDistance;
+                        module.persistSettings();
+                        owner.reload();
+                    }, "玩家检测距离"))));
         }
 
         stack.add(new ConsoleRow(owner, () -> "最大重试次数", DESC_MAX_RETRIES, null,
             List.of(new Ctl(intBox(1, Integer.MAX_VALUE, () -> settings.maxRetries,
                 value -> {
                     settings.maxRetries = value;
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.maxRetries = DEFAULTS.maxRetries;
+                    module.persistSettings();
+                    owner.reload();
+                }, "最大重试次数"))));
 
         stack.add(new ConsoleRow(owner, () -> "临时冷却", DESC_COOLDOWN, null,
             List.of(new Ctl(intBox(20, Integer.MAX_VALUE, () -> settings.cooldownTicks,
                 value -> {
                     settings.cooldownTicks = value;
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.cooldownTicks = DEFAULTS.cooldownTicks;
+                    module.persistSettings();
+                    owner.reload();
+                }, "临时冷却"))));
     }
 
     /** 开关行：改动落盘（与配置页同一个 {@code persistSettings} 时机） */

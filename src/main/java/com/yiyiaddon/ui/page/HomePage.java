@@ -1,5 +1,7 @@
 package com.yiyiaddon.ui.page;
 
+import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
@@ -16,8 +18,11 @@ import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.PlayerFaceCache;
+import com.yiyiaddon.ui.render.TooltipLayer;
+import com.yiyiaddon.ui.navigation.PageRouter;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
@@ -35,29 +40,32 @@ import org.lwjgl.glfw.GLFW;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
- * 首页仪表盘：全部内容都是本次会话的真实状态。
+ * 首页仪表盘：五块内容自上而下，每一块都是「此刻能拿来判断 / 拿来动手」的东西。
  *
- * <p>五块内容自上而下：</p>
  * <ol>
- *   <li><b>后端数据</b>：账户 / 排名 / 人数 / 后端 / 地区 / 网络 / IP / 同步时间（{@link HomeStats}）；</li>
- *   <li><b>当前状态</b>：服务器 / 维度 / 坐标 / 帧率 / 延迟 / 在线时长 / 版本 / 服务器资源；</li>
- *   <li><b>模块开关</b>：全部模块当场开关，不用先进模块中心；</li>
- *   <li><b>功能状态</b>（左）与<b>星露谷 · 本维度</b>（右）：各模块此刻在做什么、本维度配置齐不齐；</li>
+ *   <li><b>账户</b>：头像 + 名字 + 会话 ID / IP + 正版徽标，下面是排名 / 人数 / 后端 / 地区 / 网络 / 同步时间；</li>
+ *   <li><b>本次会话</b>：服务器 / 维度 / 坐标 / 帧率 / 延迟 / 在线时长 / 服务器资源 / 启用模块数；</li>
+ *   <li><b>常用模块</b>（用户自己收藏的模块，一键开关）与 <b>需要处理</b>（启用中但自检不通过的模块）；</li>
+ *   <li><b>运行中</b>（只列启用中的模块与此刻在做什么）与 <b>星露谷 · 本维度</b>；</li>
  *   <li><b>最近活动</b>：模块开关与异常的流水（{@link ActivityLog}）。</li>
  * </ol>
  *
- * <p>高度全部按内容算，绘制与命中共用同一组算式（{@link #switchCardY} 等），模块数量变化时行数自动跟着变；
- * 内容超出可视高度时整页可滚动（总高由 {@link #getTotalHeight()} 给出，滚动由外层负责）。</p>
+ * <p><b>为什么不再铺 22 个模块开关</b>（用户 2026-09-18：「没必要带模块的开关 不实用 你帮我重做一下」）：
+ * 22 个开关一屏铺不完、九成时间里九成都是关着的，既看不完也点不准；真正有用的是
+ * 「我常用的那几个」+「哪个开着却没配好」。于是首页只留<b>收藏模块</b>的开关（模块中心右键即可收藏），
+ * 另加一张「需要处理」卡把自检缺项直接列出来并点进去修；其余模块归模块中心。</p>
  *
- * <p><b>注意</b>：第 1 块是原有的后端统计，不属于「可裁剪」的装饰——它由 {@link HomeStats} 60 秒后台刷新，
- * 渲染线程只读 volatile 字段，不做网络等待。</p>
+ * <p>高度全部按内容算，绘制、命中、总高共用同一组算式（{@code cardY} 一族），所以模块数 / 收藏数变化时
+ * 只改一处。列表里的行都可点：收藏行点开关、问题行与运行行点进模块页、卡片底部的链接切到模块中心。</p>
  */
 public final class HomePage extends BasePage {
 
@@ -74,33 +82,51 @@ public final class HomePage extends BasePage {
     private static final float LABEL_BASELINE = 15f;
     private static final float VALUE_BASELINE = 35f;
     private static final float CELL_ROW_H = 44f;
-    /** 顶部两张键值卡的列数与高度（4 列 × 2 行）。 */
+    /** 键值网格顶边相对卡片顶部的间距（账户卡与「本次会话」卡共用）。 */
+    private static final float GRID_TOP_GAP = 12f;
+    /**
+     * 键值网格列数与卡片高度。
+     *
+     * <p><b>高度按绘制算式反推、不是拍一个数</b>（用户 2026-09-18：「又跑到框外了」）：卡片高度必须
+     * ≥ 网格上间距 + 两行单元 + 底部内边距，否则第二行的数值基线会落到卡片底边之外 —— 看着就是文字
+     * 挂在卡外。原先写死的 96 比这本账少 18，账户卡那组更少 26（见 {@link #dataCardH()}）。</p>
+     */
     private static final int DATA_COLUMNS = 4;
-    private static final float DATA_H = 96f;
+    private static final float DATA_H = GRID_TOP_GAP + 2f * CELL_ROW_H + CARD_PAD;
+    /** 账户卡的列数（三列两行，比四列宽松，六项都读得清）。 */
+    private static final int ACCOUNT_COLUMNS = 3;
 
-    /** 后端数据卡顶部的账户条：头像 + 玩家名 + 会话 ID + 正版/离线徽标。 */
+    /** 账户条：头像 + 玩家名 + 会话 ID / IP + 正版/离线徽标。 */
     private static final float ACCOUNT_H = 46f;
     private static final float ACCOUNT_AVATAR = 32f;
 
-    /** 模块开关卡：标题高度、每行高度、列数。 */
-    private static final float SWITCH_HEADER_H = 30f;
-    private static final float SWITCH_ROW_H = 34f;
-    private static final int SWITCH_COLUMNS = 3;
-
-    /** 底部双卡与活动卡的标题高度、行高。 */
-    private static final float BOTTOM_HEADER_H = 30f;
-    private static final float BOTTOM_ROW_H = 24f;
+    /** 卡片标题高度与卡片底部留白（列表行数之外的那点余量）。 */
+    private static final float CARD_HEADER_H = 30f;
+    private static final float CARD_FOOT_PAD = 8f;
+    /** 收藏行高（放得下 24 高的开关）与开关宽度，与 {@link SettingToggle} 内部一致。 */
+    private static final float FAVORITE_ROW_H = 30f;
+    private static final float TOGGLE_W = 44f;
+    private static final float TOGGLE_H = 24f;
+    /** 卡片底部的链接行高。 */
+    private static final float LINK_ROW_H = 26f;
+    /** 各类列表最多显示多少行（超出的部分给一行汇总，不让卡片无限长）。 */
+    private static final int FAVORITE_MAX = 6;
+    private static final int ISSUE_MAX = 5;
+    private static final int RUNNING_MAX = 8;
     /** 右侧「星露谷 · 本维度」的固定行数。 */
     private static final int DIMENSION_ROWS = 5;
+    /**
+     * 列表行高。
+     *
+     * <p><b>为什么不用 {@link ModuleRow#HEIGHT}（24）：</b>那 24 里还含 8 的呼吸位，
+     * 并排卡片里放「16 的图标盒 + 12 号文字」会贴边；28 让图标与文字都有一格余量。</p>
+     */
+    private static final float ROW_H = 28f;
 
     /** 最近活动展示条数与卡片高度。 */
     private static final int ACTIVITY_LINES = 3;
     private static final float ACTIVITY_LINE_H = 22f;
-    private static final float ACTIVITY_H = BOTTOM_HEADER_H + ACTIVITY_LINES * ACTIVITY_LINE_H + 8f;
-
-    /** 开关控件尺寸，与 {@link SettingToggle} 内部一致，用于排版与命中。 */
-    private static final float TOGGLE_W = 44f;
-    private static final float TOGGLE_H = 24f;
+    private static final float ACTIVITY_H = CARD_HEADER_H + ACTIVITY_LINES * ACTIVITY_LINE_H + 8f;
 
     /** 数值缺省占位。 */
     private static final String UNKNOWN = "--";
@@ -111,6 +137,11 @@ public final class HomePage extends BasePage {
             "空闲", "未启用", "未注册", "未启动", "已停止", "Idle", "Disabled", "Not registered");
     /** 会话起点：用于「在线时长」，进程启动那一刻。 */
     private static final long SESSION_START = System.currentTimeMillis();
+
+    /** 语义色：正常 / 异常 / 提示（与卡片其它位置同一组色值，不新造配色）。 */
+    private static final int COLOR_GOOD = 0x22C55E;
+    private static final int COLOR_BAD = 0xEF4444;
+    private static final int COLOR_WARN = 0xF59E0B;
 
     /** 常见出口地区码 → 中文名；未收录的码原样展示。 */
     private static final Map<String, String> REGION_NAMES = Map.ofEntries(
@@ -133,12 +164,21 @@ public final class HomePage extends BasePage {
     /** 画刷静态复用：卡片底，避免每帧新建 Skia 原生对象。 */
     private static final Paint CARD_BG = new Paint().setAntiAlias(true);
 
-    /** 卡片里列出的全部模块（顺序来自注册表）。 */
-    private final List<ModuleEntry> modules = ModuleRegistry.all();
-    /** 每个模块一个开关控件；绘制与命中都按模块下标取用。 */
-    private final Map<String, SettingToggle> toggles = new LinkedHashMap<>();
+    /** 页面路由：底部「打开模块中心」需要切导航；由宿主注入（第 180 条：构造期不碰注册表） */
+    private final PageRouter router;
+    /** 打开模块独立页的入口：与模块中心点模块卡片走同一条路径 */
+    private final Consumer<ModuleEntry> moduleOpener;
 
-    public HomePage() {
+    /** 全部模块（顺序来自注册表） */
+    private final List<ModuleEntry> modules = ModuleRegistry.all();
+    /** 每个模块一个开关控件；收藏行的绘制与命中都按 id 取用 */
+    private final Map<String, SettingToggle> toggles = new LinkedHashMap<>();
+    /** 收藏模块（每帧从 {@link AddonConfig#favoriteModules} 重读：在模块中心改过收藏，回首页立刻生效） */
+    private final List<ModuleEntry> favorites = new ArrayList<>();
+
+    public HomePage(PageRouter router, Consumer<ModuleEntry> moduleOpener) {
+        this.router = router;
+        this.moduleOpener = moduleOpener;
         for (ModuleEntry entry : modules) {
             toggles.put(entry.id(), new SettingToggle(entry::enabled,
                     value -> ModuleManager.setEnabled(entry.id(), value)));
@@ -157,8 +197,8 @@ public final class HomePage extends BasePage {
 
     @Override
     public float getTotalHeight() {
-        return TOP_INSET + dataCardH() + SECTION_GAP + DATA_H + SECTION_GAP + switchCardH()
-                + SECTION_GAP + bottomCardH() + SECTION_GAP + ACTIVITY_H + PAD_BOTTOM;
+        return TOP_INSET + dataCardH() + SECTION_GAP + DATA_H + SECTION_GAP + listRowH()
+                + SECTION_GAP + sessionListH() + SECTION_GAP + ACTIVITY_H + PAD_BOTTOM;
     }
 
     @Override
@@ -166,58 +206,135 @@ public final class HomePage extends BasePage {
         for (SettingToggle toggle : toggles.values()) toggle.update(dt);
     }
 
-    // ── 布局：绘制与命中必须用同一组算式 ──
+    // ── 布局：绘制、命中与总高必须用同一组算式 ──
 
-    /** 模块开关卡高度：标题 + 若干行（至少一行，空注册表也有标题）。 */
-    private float switchCardH() {
-        int rows = Math.max(1, (modules.size() + SWITCH_COLUMNS - 1) / SWITCH_COLUMNS);
-        return SWITCH_HEADER_H + rows * SWITCH_ROW_H;
+    /**
+     * 账户卡总高：账户条 + 网格上间距 + 三列两行的键值网格 + 卡片下内边距。
+     *
+     * <p><b>这几个数是一本账，少一项就出框</b>（用户 2026-09-18：「又跑到框外了」）：原先写的是
+     * {@code ACCOUNT_H + 2 * CELL_ROW_H}（= 134），漏了网格上间距 12 与底部内边距 —— 第二行的值
+     * （网络地区 / IP / 最后同步）基线落在 137，比卡片底边还低，看着就是文字挂在卡外。
+     * 现在按绘制用的同一组算式反推，绘制与命中同源。</p>
+     */
+    private float dataCardH() {
+        return ACCOUNT_H + GRID_TOP_GAP + 2f * CELL_ROW_H + CARD_PAD;
     }
 
-    /** 底部双卡高度：取「模块行数」与「本维度行数」里多的那个。 */
-    private float bottomCardH() {
-        int rows = Math.max(1, Math.max(modules.size(), DIMENSION_ROWS));
-        return BOTTOM_HEADER_H + rows * BOTTOM_ROW_H + 8f;
+    /** 「常用模块」卡高度：标题 + 收藏行（至少一行，用于空态提示） */
+    private float favoriteCardH() {
+        return CARD_HEADER_H + Math.max(1, Math.min(favorites.size(), FAVORITE_MAX)) * FAVORITE_ROW_H
+                + CARD_FOOT_PAD;
     }
 
-    /** 后端数据卡顶部（已含滚动偏移，屏幕坐标）。 */
+    /** 「需要处理」卡高度：标题 + 问题行（至少一行，用于「全部正常」）+ 底部链接行 */
+    private float issueCardH() {
+        return CARD_HEADER_H + Math.max(1, Math.min(issues().size(), ISSUE_MAX)) * ROW_H
+                + LINK_ROW_H + CARD_FOOT_PAD;
+    }
+
+    /** 第三段两张卡片的高度（并排，取高的一张，短的那张下方留白） */
+    private float listRowH() {
+        return Math.max(favoriteCardH(), issueCardH());
+    }
+
+    /** 「运行中」卡高度：标题 + 最多 {@link #RUNNING_MAX} 行 */
+    private float runningCardH() {
+        return CARD_HEADER_H + Math.max(1, Math.min(running().size(), RUNNING_MAX)) * ROW_H + CARD_FOOT_PAD;
+    }
+
+    /** 「星露谷 · 本维度」卡高度：固定五行 */
+    private float dimensionCardH() {
+        return CARD_HEADER_H + DIMENSION_ROWS * ROW_H + CARD_FOOT_PAD;
+    }
+
+    /** 第四段两张卡片的高度 */
+    private float sessionListH() {
+        return Math.max(runningCardH(), dimensionCardH());
+    }
+
+    /** 账户卡顶部（已含滚动偏移，屏幕坐标） */
     private float dataCardY(float pageY, float scrollOffset) {
         return pageY + TOP_INSET - scrollOffset;
     }
 
-    /** 后端数据卡总高：账户条 + 键值网格。 */
-    private float dataCardH() {
-        return ACCOUNT_H + DATA_H;
-    }
-
-    /** 当前状态卡顶部。 */
+    /** 本次会话卡顶部 */
     private float statusCardY(float pageY, float scrollOffset) {
         return dataCardY(pageY, scrollOffset) + dataCardH() + SECTION_GAP;
     }
 
-    /** 模块开关卡顶部。 */
-    private float switchCardY(float pageY, float scrollOffset) {
+    /** 第三段（常用模块 + 需要处理）顶部 */
+    private float listRowY(float pageY, float scrollOffset) {
         return statusCardY(pageY, scrollOffset) + DATA_H + SECTION_GAP;
     }
 
-    /** 底部双卡顶部。 */
-    private float bottomRowY(float pageY, float scrollOffset) {
-        return switchCardY(pageY, scrollOffset) + switchCardH() + SECTION_GAP;
+    /** 第四段（运行中 + 星露谷本维度）顶部 */
+    private float sessionRowY(float pageY, float scrollOffset) {
+        return listRowY(pageY, scrollOffset) + listRowH() + SECTION_GAP;
     }
 
-    /** 最近活动卡顶部。 */
+    /** 最近活动卡顶部 */
     private float activityCardY(float pageY, float scrollOffset) {
-        return bottomRowY(pageY, scrollOffset) + bottomCardH() + SECTION_GAP;
+        return sessionRowY(pageY, scrollOffset) + sessionListH() + SECTION_GAP;
     }
 
-    /** 单元格宽度：卡片左右内边距之后的可用宽按列数均分。 */
-    private static float cellW(float cardW) {
-        return (cardW - CARD_PAD * 2f) / SWITCH_COLUMNS;
+    /** 并排两卡的左卡宽 */
+    private static float halfWidth(float contentW) {
+        return (contentW - SECTION_GAP) / 2f;
     }
 
-    /** 开关控件左边界：贴在单元格右侧内缩 8px 处；绘制与命中共用。 */
-    private static float toggleX(float cellX, float cellWidth) {
-        return cellX + cellWidth - 8f - TOGGLE_W;
+    /** 收藏行里开关的左边界：贴单元格右侧内缩 8px；绘制与命中共用 */
+    private static float toggleX(float cardX, float cardW) {
+        return cardX + cardW - CARD_PAD - 8f - TOGGLE_W;
+    }
+
+    /**
+     * 并排卡片里的行底：圆角毛玻璃 + 悬停描边（收藏行与状态行共用同一份外观）。
+     *
+     * @param rowH 底板高度（比行高少 6，留出行距）
+     */
+    private static void drawRowBackground(Canvas canvas, float x, float y, float w, float rowH,
+                                          boolean hover, float alpha, ClickGuiThemeColors tc) {
+        float radius = GlassPanel.rowRadius(rowH);
+        int background = GlassPanel.mix(tc.module, tc.surfaceHover, hover ? 1f : 0f);
+        GlassPanel.frost(canvas, x, y, w, rowH, radius, background, 0.55f, alpha);
+        GlassPanel.rim(canvas, x, y, w, rowH, radius, tc.rim, alpha, 0.06f + 0.14f * (hover ? 1f : 0f));
+    }
+
+    /**
+     * 并排卡片里的单行：图标 + 左侧模块名 + 右侧状态文字（只有一行，全文交给悬停浮层）。
+     *
+     * <p><b>为什么不用 {@link ModuleRow#drawEntry}：</b>那是给整页宽（501）的行设计的，
+     * 「名称 40% + 说明 + 状态标记 + 箭头」四件东西挤进半宽卡片（约 244）时，模块名只剩三四个字
+     * ——用户 2026-09-18 已经明确反对「字超出框 根本看不见名字」。这里只留最要紧的两件：
+     * 名字（左，优先吃满）与状态（右，语义色），放不下的部分由悬停浮层给出原文。</p>
+     *
+     * @param state 行尾状态文字（空串则不画）
+     * @param color 状态语义色（裸色，透明度由这里乘）
+     * @param hint  悬停浮层文案（空串则不给浮层）
+     */
+    private static void drawListRow(Canvas canvas, ModuleEntry entry, String state, int color, String hint,
+                                    float x, float y, float w, float alpha, ClickGuiThemeColors tc,
+                                    float mouseX, float mouseY) {
+        boolean hover = hovered(mouseX, mouseY, x, y, w, ROW_H);
+        float rowH = ROW_H - 6f;
+        drawRowBackground(canvas, x, y, w, rowH, hover, alpha, tc);
+
+        float centerY = y + rowH / 2f;
+        float cursor = ModuleRow.drawIcon(canvas, entry.icon(), x + 6f, centerY, alpha, tc);
+        // 状态文字最多占半行：先截断再量宽，右对齐用的才是真正画出来的那一串
+        String stateText = state == null || state.isBlank()
+                ? "" : CardLayout.ellipsize(state, w * 0.5f, 11f);
+        float stateW = stateText.isEmpty() ? 0f : FontRenderer.measureTextWidth(stateText, 11f);
+        float nameMax = Math.max(24f, x + w - 8f - stateW - (stateW > 0f ? 8f : 0f) - cursor);
+        FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(entry.displayName(), nameMax, 12f),
+                cursor, CardLayout.baseline(centerY, 12f), 12f,
+                GlassPanel.withAlpha(tc.primaryText, alpha));
+
+        if (stateW > 0f) {
+            FontRenderer.drawText(canvas, stateText, x + w - 8f - stateW,
+                    CardLayout.baseline(centerY, 11f), 11f, GlassPanel.withAlpha(color, alpha));
+        }
+        if (hover && hint != null && !hint.isBlank()) TooltipLayer.show(hint, mouseX, mouseY);
     }
 
     // ── 绘制 ──
@@ -226,20 +343,30 @@ public final class HomePage extends BasePage {
     public void draw(Canvas canvas, float x, float y, float contentW, float contentH, float alpha, float scrollOffset,
                      float mouseX, float mouseY) {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        refreshFavorites();
+
         drawDataCard(canvas, x, dataCardY(y, scrollOffset), contentW, alpha, tc);
         drawStatusCard(canvas, x, statusCardY(y, scrollOffset), contentW, alpha, tc);
-        drawSwitchCard(canvas, x, switchCardY(y, scrollOffset), contentW, alpha, tc);
 
-        float bottomY = bottomRowY(y, scrollOffset);
-        float bottomH = bottomCardH();
-        float colW = (contentW - SECTION_GAP) / 2f;
-        drawModuleStatusCard(canvas, x, bottomY, colW, bottomH, alpha, tc);
-        drawDimensionCard(canvas, x + colW + SECTION_GAP, bottomY, colW, bottomH, alpha, tc);
+        float listY = listRowY(y, scrollOffset);
+        float colW = halfWidth(contentW);
+        drawFavoriteCard(canvas, x, listY, colW, alpha, tc, mouseX, mouseY);
+        drawIssueCard(canvas, x + colW + SECTION_GAP, listY, colW, alpha, tc, mouseX, mouseY);
+
+        float sessionY = sessionRowY(y, scrollOffset);
+        drawRunningCard(canvas, x, sessionY, colW, alpha, tc, mouseX, mouseY);
+        drawDimensionCard(canvas, x + colW + SECTION_GAP, sessionY, colW, sessionListH(), alpha, tc);
 
         drawActivityCard(canvas, x, activityCardY(y, scrollOffset), contentW, alpha, tc);
     }
 
-    /** 后端数据卡：账户条 + 账户 / 排名 / 人数 / 后端 / 地区 / 网络 / IP / 同步时间，4 列两行。 */
+    /**
+     * 账户卡：账户条 + 六项诊断（三列两行）。
+     *
+     * <p>格子顺序：用户排名 / 使用人数 / 后端状态，网络地区 / IP / 最后同步。
+     * 里面的「网络状态」被 IP 顶掉了 —— 出口 IP 探得出来就说明网络通，同一件事不再占两格；
+     * IP 按数据上色（主题高亮色），不再挤在账户条的 ID 后面（用户 2026-09-18：「IP 跑到框外了」）。</p>
+     */
     private void drawDataCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc) {
         drawCardBg(canvas, x, y, w, dataCardH(), alpha, tc);
 
@@ -248,71 +375,82 @@ public final class HomePage extends BasePage {
         boolean network = HomeStats.networkReachable();
         int rank = HomeStats.rank();
         int totalUsers = HomeStats.totalUsers();
+        String ip = HomeStats.ip();
 
         drawAccountStrip(canvas, x, y, w, alpha, tc, premium);
 
         int labelC = GlassPanel.withAlpha(tc.secondaryText, alpha);
         int valueC = GlassPanel.withAlpha(tc.primaryText, alpha);
-        int goodC = GlassPanel.withAlpha(0x22C55E, alpha);
-        int badC = GlassPanel.withAlpha(0xEF4444, alpha);
+        int goodC = GlassPanel.withAlpha(COLOR_GOOD, alpha);
+        int badC = GlassPanel.withAlpha(COLOR_BAD, alpha);
+        int accentC = GlassPanel.withAlpha(tc.accent, alpha);
 
         String[] labels = {
-                UiText.t("账户状态", "Account"), UiText.t("用户排名", "Rank"),
-                UiText.t("使用人数", "Users"), UiText.t("后端状态", "Backend"),
-                UiText.t("网络地区", "Region"), UiText.t("网络状态", "Network"),
-                UiText.t("IP", "IP"), UiText.t("最后同步", "Last Sync")
+                UiText.t("用户排名", "Rank"), UiText.t("使用人数", "Users"),
+                UiText.t("后端状态", "Backend"),
+                UiText.t("网络地区", "Region"), UiText.t("IP", "IP"), UiText.t("最后同步", "Last Sync")
         };
         String[] values = {
-                premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline"),
                 rank > 0 ? "#" + rank : UNKNOWN,
                 totalUsers > 0 ? String.format(Locale.ROOT, "%,d", totalUsers) : UNKNOWN,
                 backend ? UiText.t("正常", "Online") : UiText.t("异常", "Offline"),
                 regionName(HomeStats.countryCode()),
-                network ? UiText.t("已连接", "Connected") : UiText.t("异常", "Error"),
-                HomeStats.ip() == null ? UNKNOWN : HomeStats.ip(),
+                ip == null || ip.isBlank() ? UNKNOWN : ip,
                 syncTime()
         };
-        int[] colors = {
-                premium ? goodC : badC, valueC, valueC,
-                backend ? goodC : badC, valueC,
-                network ? goodC : badC, valueC, valueC
-        };
+        // 后端可达看后端、地区与 IP 的取数看网络：探测失败时 IP 那格会显示占位而不是空着
+        int[] colors = {valueC, valueC, backend ? goodC : badC, valueC,
+                network ? accentC : badC, valueC};
 
         float rowW = w - CARD_PAD * 2f;
-        float gridY = y + ACCOUNT_H;
-        drawCellRow(canvas, x + CARD_PAD, gridY + 12f, rowW, labels, values, colors, labelC, 0);
-        drawCellRow(canvas, x + CARD_PAD, gridY + 12f + CELL_ROW_H, rowW, labels, values, colors, labelC, DATA_COLUMNS);
+        float gridY = y + ACCOUNT_H + GRID_TOP_GAP;
+        drawCellRow(canvas, x + CARD_PAD, gridY, rowW, ACCOUNT_COLUMNS, 0,
+                labels, values, colors, labelC);
+        drawCellRow(canvas, x + CARD_PAD, gridY + CELL_ROW_H, rowW, ACCOUNT_COLUMNS, ACCOUNT_COLUMNS,
+                labels, values, colors, labelC);
     }
 
     /**
-     * 账户条：头像 + 玩家名 + 会话 ID + 正版/离线徽标。
+     * 账户条：头像 + 玩家名 + 「ID …」 + 正版/离线徽标。
      *
      * <p>身份一律取<b>会话账户</b>（{@link ClientIdentity}）而不是玩家实体 —— 正版链路下服务器会重写
      * 实体 UUID，用实体 UUID 会跟后端统计口径对不上（同 {@code ClientIdentity} 的既有约定）。
      * 头像走 {@link PlayerFaceCache}：只画皮肤贴图的脸与帽子层，是 2D 头像，不需要 3D 模型与联网。</p>
+     *
+     * <p><b>IP 不在这行长在 ID 后面</b>（用户 2026-09-18：「IP 跑到框外了 我要 IP 显示颜色」）：
+     * 会话 ID 有 36 个字符，再挂一个 IP 会一路顶到卡片右边看着像出框；IP 是六项诊断之一，
+     * 回到底下的键值格子里、按数据上色（主题高亮色），既归位又看得清。
+     * 顺带记一条硬约束：{@code FontRenderer} 是 Skia 自绘、<b>不解析 {@code §} 颜色码</b>，
+     * 颜色只能靠分段绘制传色，不能写进字符串。</p>
      */
     private void drawAccountStrip(Canvas canvas, float x, float y, float w, float alpha,
                                   ClickGuiThemeColors tc, boolean premium) {
         int nameC = GlassPanel.withAlpha(tc.primaryText, alpha);
         int idC = GlassPanel.withAlpha(tc.secondaryText, alpha);
-        int badgeC = GlassPanel.withAlpha(premium ? 0x22C55E : 0xEF4444, alpha);
+        int badgeC = GlassPanel.withAlpha(premium ? COLOR_GOOD : COLOR_BAD, alpha);
 
         float avatarX = x + CARD_PAD;
         float avatarY = y + (ACCOUNT_H - ACCOUNT_AVATAR) / 2f;
         PlayerFaceCache.draw(canvas, localSkin(), avatarX, avatarY, ACCOUNT_AVATAR);
 
+        // 右侧徽标先量宽：名字与 ID 两行都要在它左边收住
+        String badge = premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline");
+        float badgeW = FontRenderer.measureTextWidth(badge, 11f);
+        float badgeX = x + w - CARD_PAD - badgeW;
         float textX = avatarX + ACCOUNT_AVATAR + 10f;
+        float textMax = Math.max(60f, badgeX - 10f - textX);
+
         String name = ClientIdentity.name();
-        FontRenderer.drawTextBold(canvas, name == null || name.isBlank() ? UNKNOWN : name,
+        FontRenderer.drawTextBold(canvas,
+                CardLayout.ellipsize(name == null || name.isBlank() ? UNKNOWN : name, textMax, 13f),
                 textX, CardLayout.baseline(y + 8f, 13f), 13f, nameC);
 
         String uuid = ClientIdentity.uuidString();
-        FontRenderer.drawText(canvas, UiText.t("ID", "ID") + " " + (uuid == null ? UNKNOWN : uuid),
+        FontRenderer.drawText(canvas,
+                CardLayout.ellipsize("ID " + (uuid == null ? UNKNOWN : uuid), textMax, 10f),
                 textX, CardLayout.baseline(y + 24f, 10f), 10f, idC);
 
-        String badge = premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline");
-        FontRenderer.drawText(canvas, badge,
-                x + w - CARD_PAD - FontRenderer.measureTextWidth(badge, 11f),
+        FontRenderer.drawText(canvas, badge, badgeX,
                 CardLayout.baseline(y + (ACCOUNT_H - 11f) / 2f, 11f), 11f, badgeC);
     }
 
@@ -330,111 +468,172 @@ public final class HomePage extends BasePage {
         return id == null ? DefaultPlayerSkin.getDefaultSkin() : DefaultPlayerSkin.get(id);
     }
 
-    /** 当前状态卡：服务器 / 维度 / 坐标 / 帧率 / 延迟 / 在线时长 / 客户端版本 / 服务器资源。 */
+    /**
+     * 本次会话卡：服务器 / 维度 / 坐标 / 帧率 / 延迟 / 在线时长 / 服务器资源 / 启用模块数。
+     *
+     * <p>原来的「客户端版本」在这里删掉了：左上角侧栏本来就常显模组版本，同一屏里出现两次是废信息；
+     * 空出的格子换成「模块 运行中 N / M」——原先那张铺满 22 个开关的卡片被撤掉后，
+     * 玩家仍需要一个「一共开着几个」的总览。</p>
+     */
     private void drawStatusCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc) {
         drawCardBg(canvas, x, y, w, DATA_H, alpha, tc);
 
         int labelC = GlassPanel.withAlpha(tc.secondaryText, alpha);
         int valueC = GlassPanel.withAlpha(tc.primaryText, alpha);
-        int goodC = GlassPanel.withAlpha(0x22C55E, alpha);
-        int badC = GlassPanel.withAlpha(0xEF4444, alpha);
+        int goodC = GlassPanel.withAlpha(COLOR_GOOD, alpha);
+        int badC = GlassPanel.withAlpha(COLOR_BAD, alpha);
 
         boolean ready = ResourceExtractionService.isReady();
         String[] labels = {
                 UiText.t("服务器", "Server"), UiText.t("维度", "Dimension"),
                 UiText.t("坐标", "Position"), UiText.t("帧率", "FPS"),
                 UiText.t("延迟", "Ping"), UiText.t("在线时长", "Session"),
-                UiText.t("客户端版本", "Version"), UiText.t("服务器资源", "Server Resources")
+                UiText.t("服务器资源", "Server Resources"), UiText.t("模块", "Modules")
         };
         String[] values = {
                 serverLabel(), dimensionLabel(), positionLabel(), fpsLabel(),
-                latencyLabel(), sessionLabel(), ClientIdentity.version(),
-                ready ? UiText.t("已就绪", "Ready") : ResourceExtractionService.phase().label()
+                latencyLabel(), sessionLabel(),
+                ready ? UiText.t("已就绪", "Ready") : ResourceExtractionService.phase().label(),
+                ModuleManager.enabledIds().size() + " / " + modules.size()
         };
-        int[] colors = {valueC, valueC, valueC, valueC, valueC, valueC, valueC, ready ? goodC : badC};
+        int[] colors = {valueC, valueC, valueC, valueC, valueC, valueC, ready ? goodC : badC, valueC};
 
         float rowW = w - CARD_PAD * 2f;
-        drawCellRow(canvas, x + CARD_PAD, y + 12f, rowW, labels, values, colors, labelC, 0);
-        drawCellRow(canvas, x + CARD_PAD, y + 12f + CELL_ROW_H, rowW, labels, values, colors, labelC, DATA_COLUMNS);
+        drawCellRow(canvas, x + CARD_PAD, y + GRID_TOP_GAP, rowW, DATA_COLUMNS, 0, labels, values, colors, labelC);
+        drawCellRow(canvas, x + CARD_PAD, y + GRID_TOP_GAP + CELL_ROW_H, rowW, DATA_COLUMNS, DATA_COLUMNS,
+                labels, values, colors, labelC);
     }
 
-    /** 模块开关卡：标题带「运行 N / M」，下方按列铺开全部模块的开关。 */
-    private void drawSwitchCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc) {
-        drawCardBg(canvas, x, y, w, switchCardH(), alpha, tc);
+    /**
+     * 常用模块卡：只列玩家自己收藏的模块，每行「图标 + 名字 + 开关」，点开关直接开关模块。
+     *
+     * <p>空态给一句可执行的指引（去模块中心右键），不放「暂无数据」这种没法行动的提示。</p>
+     */
+    private void drawFavoriteCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc,
+                                  float mouseX, float mouseY) {
+        drawCardBg(canvas, x, y, w, favoriteCardH(), alpha, tc);
 
         float titleY = CardLayout.baseline(y + 16f, 13f);
-        FontRenderer.drawTextBold(canvas, UiText.t("模块开关", "Modules"), x + CARD_PAD, titleY, 13f,
+        FontRenderer.drawTextBold(canvas, UiText.t("常用模块", "Favorites"), x + CARD_PAD, titleY, 13f,
                 GlassPanel.withAlpha(tc.primaryText, alpha));
-
-        String count = ModuleManager.enabledIds().size() + " / " + modules.size();
+        String count = favorites.isEmpty()
+                ? UiText.t("未收藏", "none")
+                : favorites.size() + " " + UiText.t("个", "items");
         FontRenderer.drawText(canvas, count,
                 x + w - CARD_PAD - FontRenderer.measureTextWidth(count, 11f), titleY, 11f,
                 GlassPanel.withAlpha(tc.secondaryText, alpha));
 
-        if (modules.isEmpty()) {
-            FontRenderer.drawText(canvas, UiText.t("还没有注册任何模块", "No modules registered"),
-                    x + CARD_PAD, CardLayout.baseline(y + SWITCH_HEADER_H + SWITCH_ROW_H / 2f, 11f), 11f,
-                    GlassPanel.withAlpha(tc.labelTertiary, alpha));
-            return;
-        }
-
-        float colW = cellW(w);
-        int labelC = GlassPanel.withAlpha(tc.primaryText, alpha);
-        for (int i = 0; i < modules.size(); i++) {
-            ModuleEntry entry = modules.get(i);
-            float cellX = x + CARD_PAD + (i % SWITCH_COLUMNS) * colW;
-            float cellY = y + SWITCH_HEADER_H + (i / SWITCH_COLUMNS) * SWITCH_ROW_H;
-
-            float textMax = colW - 8f - TOGGLE_W - 8f;
-            FontRenderer.drawText(canvas, CardLayout.ellipsize(entry.displayName(), textMax, 12f),
-                    cellX, CardLayout.baseline(cellY + SWITCH_ROW_H / 2f, 12f), 12f, labelC);
-
-            SettingToggle toggle = toggles.get(entry.id());
-            if (toggle != null) {
-                toggle.draw(canvas, toggleX(cellX, colW), cellY + (SWITCH_ROW_H - TOGGLE_H) / 2f, alpha);
-            }
-        }
-    }
-
-    /** 功能状态卡：每个模块一行——左边模块名，右边此刻在做什么，下面一行小字补细节。 */
-    private void drawModuleStatusCard(Canvas canvas, float x, float y, float w, float h, float alpha,
-                                      ClickGuiThemeColors tc) {
-        drawCardBg(canvas, x, y, w, h, alpha, tc);
-        FontRenderer.drawTextBold(canvas, UiText.t("功能状态", "Module Status"), x + CARD_PAD,
-                CardLayout.baseline(y + 16f, 13f), 13f, GlassPanel.withAlpha(tc.primaryText, alpha));
-
-        if (modules.isEmpty()) {
-            FontRenderer.drawText(canvas, UiText.t("还没有注册任何模块", "No modules registered"),
-                    x + CARD_PAD, y + BOTTOM_HEADER_H + 14f, 11f,
-                    GlassPanel.withAlpha(tc.labelTertiary, alpha));
+        if (favorites.isEmpty()) {
+            int hintC = GlassPanel.withAlpha(tc.labelTertiary, alpha);
+            FontRenderer.drawText(canvas, UiText.t("在模块中心右键模块即可收藏", "Right-click a module to pin it"),
+                    x + CARD_PAD, CardLayout.baseline(y + CARD_HEADER_H + 10f, 11f), 11f, hintC);
+            FontRenderer.drawText(canvas, UiText.t("收藏后出现在这里，一键开关", "Pinned modules show up here"),
+                    x + CARD_PAD, CardLayout.baseline(y + CARD_HEADER_H + 26f, 10f), 10f, hintC);
             return;
         }
 
         int nameC = GlassPanel.withAlpha(tc.primaryText, alpha);
-        int detailC = GlassPanel.withAlpha(tc.labelTertiary, alpha);
-        for (int i = 0; i < modules.size(); i++) {
-            ModuleEntry entry = modules.get(i);
-            float rowY = y + BOTTOM_HEADER_H + i * BOTTOM_ROW_H;
-            ModuleStatus status = statusOf(entry);
+        float rowX = x + CARD_PAD;
+        float rowW = w - CARD_PAD * 2f;
+        float toggleLeft = toggleX(x, w);
+        for (int i = 0; i < Math.min(favorites.size(), FAVORITE_MAX); i++) {
+            ModuleEntry entry = favorites.get(i);
+            float rowY = y + CARD_HEADER_H + i * FAVORITE_ROW_H;
+            boolean isHovered = hovered(mouseX, mouseY, x, rowY, w, FAVORITE_ROW_H);
 
-            FontRenderer.drawText(canvas, CardLayout.ellipsize(entry.displayName(), w * 0.42f, 11f),
-                    x + CARD_PAD, CardLayout.baseline(rowY + 8f, 11f), 11f, nameC);
+            float centerY = rowY + FAVORITE_ROW_H / 2f;
+            drawRowBackground(canvas, rowX, rowY + 3f, rowW, FAVORITE_ROW_H - 6f, isHovered, alpha, tc);
+            float cursor = ModuleRow.drawIcon(canvas, entry.icon(), rowX + 6f, centerY, alpha, tc);
+            float nameMax = Math.max(24f, toggleLeft - 8f - cursor);
+            FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(entry.displayName(), nameMax, 12f),
+                    cursor, CardLayout.baseline(centerY, 12f), 12f, nameC);
 
-            // 活动状态用启用绿（主题色槽，第 141 条：此前这里写死 0x22C55E）；
-            // 非活动状态（空闲 / 未启用 / 未注册 / 未启动 / 已停止）仍用弱化灰 —— 这一格里混着
-            // 多种非启用状态，不适用「未启用=红」的单一语义，故不随状态徽章改色。
-            int stateC = stateIsActive(status.state())
-                    ? GlassPanel.withAlpha(tc.stateOn, alpha)
-                    : GlassPanel.withAlpha(tc.labelTertiary, alpha);
-            String state = CardLayout.ellipsize(status.state(), w * 0.45f, 11f);
-            FontRenderer.drawTextBold(canvas, state,
-                    x + w - CARD_PAD - FontRenderer.measureTextWidth(state, 11f),
-                    CardLayout.baseline(rowY + 8f, 11f), 11f, stateC);
-
-            if (!status.detail().isBlank()) {
-                FontRenderer.drawText(canvas, CardLayout.ellipsize(status.detail(), w - CARD_PAD * 2f, 10f),
-                        x + CARD_PAD, CardLayout.baseline(rowY + 22f, 10f), 10f, detailC);
+            SettingToggle toggle = toggles.get(entry.id());
+            if (toggle != null) {
+                toggle.draw(canvas, toggleLeft, centerY - TOGGLE_H / 2f, alpha);
             }
+            if (isHovered && entry.description() != null && !entry.description().isBlank()) {
+                TooltipLayer.show(entry.displayName() + "\n§7" + entry.description(), mouseX, mouseY);
+            }
+        }
+    }
+
+    /**
+     * 需要处理卡：列出「已启用但自检不通过」的模块，点一行直接进该模块页去补配置。
+     *
+     * <p><b>只看启用中的模块</b>：没开的模块缺配置是正常状态（还没用），列出来只会变成噪音。
+     * <b>「未进入世界」这条被过滤掉</b>：它是运行时对「不在世界里」的统一说法，在主菜单/标题界面
+     * 每个模块都会报，属于当前场景而非配置缺项。</p>
+     */
+    private void drawIssueCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc,
+                               float mouseX, float mouseY) {
+        drawCardBg(canvas, x, y, w, issueCardH(), alpha, tc);
+
+        List<Issue> issues = issues();
+        float titleY = CardLayout.baseline(y + 16f, 13f);
+        FontRenderer.drawTextBold(canvas, UiText.t("需要处理", "Needs Attention"), x + CARD_PAD, titleY, 13f,
+                GlassPanel.withAlpha(tc.primaryText, alpha));
+        String count = issues.isEmpty() ? UiText.t("无", "none") : issues.size() + " " + UiText.t("项", "items");
+        FontRenderer.drawText(canvas, count,
+                x + w - CARD_PAD - FontRenderer.measureTextWidth(count, 11f), titleY, 11f,
+                GlassPanel.withAlpha(issues.isEmpty() ? tc.secondaryText : COLOR_WARN, alpha));
+
+        if (issues.isEmpty()) {
+            FontRenderer.drawText(canvas, UiText.t("启用中的模块都已就绪", "All enabled modules are ready"),
+                    x + CARD_PAD, CardLayout.baseline(y + CARD_HEADER_H + ROW_H / 2f, 11f), 11f,
+                    GlassPanel.withAlpha(COLOR_GOOD, alpha));
+        } else {
+            float rowX = x + CARD_PAD;
+            float rowW = w - CARD_PAD * 2f;
+            for (int i = 0; i < Math.min(issues.size(), ISSUE_MAX); i++) {
+                Issue issue = issues.get(i);
+                float rowY = y + CARD_HEADER_H + i * ROW_H;
+                drawListRow(canvas, issue.entry(), issue.detail(), COLOR_WARN,
+                        issue.entry().displayName() + "\n§7" + issue.detail(),
+                        rowX, rowY, rowW, alpha, tc, mouseX, mouseY);
+            }
+        }
+
+        // 底部链接行：模块中心才是「所有模块」的家，首页只负责指路
+        float linkY = y + issueCardH() - CARD_FOOT_PAD - LINK_ROW_H;
+        boolean linkHover = hovered(mouseX, mouseY, x, linkY, w, LINK_ROW_H);
+        int linkC = GlassPanel.withAlpha(GlassPanel.mix(tc.accent, tc.primaryText, linkHover ? 1f : 0f), alpha);
+        FontRenderer.drawTextBold(canvas, UiText.t("打开模块中心", "Open Module Center"),
+                x + CARD_PAD, CardLayout.baseline(linkY + LINK_ROW_H / 2f, 11f), 11f, linkC);
+    }
+
+    /** 运行中卡：只列启用中的模块与此刻在做什么，点一行进该模块页。 */
+    private void drawRunningCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc,
+                                 float mouseX, float mouseY) {
+        drawCardBg(canvas, x, y, w, runningCardH(), alpha, tc);
+
+        List<ModuleEntry> running = running();
+        float titleY = CardLayout.baseline(y + 16f, 13f);
+        FontRenderer.drawTextBold(canvas, UiText.t("运行中", "Running"), x + CARD_PAD, titleY, 13f,
+                GlassPanel.withAlpha(tc.primaryText, alpha));
+        String count = running.size() + " / " + modules.size();
+        FontRenderer.drawText(canvas, count,
+                x + w - CARD_PAD - FontRenderer.measureTextWidth(count, 11f), titleY, 11f,
+                GlassPanel.withAlpha(tc.secondaryText, alpha));
+
+        if (running.isEmpty()) {
+            FontRenderer.drawText(canvas, UiText.t("没有启用中的模块", "No module is running"),
+                    x + CARD_PAD, CardLayout.baseline(y + CARD_HEADER_H + ROW_H / 2f, 11f), 11f,
+                    GlassPanel.withAlpha(tc.labelTertiary, alpha));
+            return;
+        }
+
+        float rowX = x + CARD_PAD;
+        float rowW = w - CARD_PAD * 2f;
+        for (int i = 0; i < Math.min(running.size(), RUNNING_MAX); i++) {
+            ModuleEntry entry = running.get(i);
+            float rowY = y + CARD_HEADER_H + i * ROW_H;
+            ModuleStatus status = statusOf(entry);
+            boolean active = stateIsActive(status.state());
+            String hint = status.detail() == null || status.detail().isBlank()
+                    ? entry.displayName() : entry.displayName() + "\n§7" + status.detail();
+            drawListRow(canvas, entry, status.state(), active ? tc.stateOn : tc.labelTertiary, hint,
+                    rowX, rowY, rowW, alpha, tc, mouseX, mouseY);
         }
     }
 
@@ -449,12 +648,13 @@ public final class HomePage extends BasePage {
         int valueC = GlassPanel.withAlpha(tc.primaryText, alpha);
         String[][] rows = dimensionRows();
         for (int i = 0; i < rows.length; i++) {
-            float rowY = y + BOTTOM_HEADER_H + i * BOTTOM_ROW_H;
-            FontRenderer.drawText(canvas, rows[i][0], x + CARD_PAD, CardLayout.baseline(rowY + 8f, 11f), 11f, labelC);
+            float rowY = y + CARD_HEADER_H + i * ROW_H;
+            float centerY = rowY + ROW_H / 2f;
+            FontRenderer.drawText(canvas, rows[i][0], x + CARD_PAD, CardLayout.baseline(centerY, 11f), 11f, labelC);
             String value = CardLayout.ellipsize(rows[i][1], w * 0.62f, 11f);
             FontRenderer.drawTextBold(canvas, value,
                     x + w - CARD_PAD - FontRenderer.measureTextWidth(value, 11f),
-                    CardLayout.baseline(rowY + 8f, 11f), 11f, valueC);
+                    CardLayout.baseline(centerY, 11f), 11f, valueC);
         }
     }
 
@@ -478,10 +678,10 @@ public final class HomePage extends BasePage {
     }
 
     /** 一行键值单元：等宽分列，上标签下数值，超宽自动截断。 */
-    private void drawCellRow(Canvas canvas, float x, float y, float w, String[] labels, String[] values,
-                             int[] valueColors, int labelC, int from) {
-        float colW = w / DATA_COLUMNS;
-        for (int i = 0; i < DATA_COLUMNS; i++) {
+    private void drawCellRow(Canvas canvas, float x, float y, float w, int columns, int from,
+                             String[] labels, String[] values, int[] valueColors, int labelC) {
+        float colW = w / columns;
+        for (int i = 0; i < columns; i++) {
             int index = from + i;
             float cx = x + i * colW;
             FontRenderer.drawText(canvas, labels[index], cx, y + LABEL_BASELINE, 10f, labelC);
@@ -496,24 +696,68 @@ public final class HomePage extends BasePage {
         canvas.drawRRect(RRect.makeXYWH(x, y, w, h, CARD_RADIUS), CARD_BG);
     }
 
+    /** 指针是否落在某一行内（绘制里的悬停反馈与命中判定共用）。 */
+    private static boolean hovered(float mouseX, float mouseY, float x, float y, float w, float h) {
+        return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
+    }
+
     // ── 输入 ──
 
+    /**
+     * 三段可点的东西，按屏幕位置自上而下判定：收藏行的开关 → 需要处理的问题行 → 底部链接行 → 运行中的行。
+     *
+     * <p>命中的横坐标只跟卡片几何有关（与 {@link #draw} 同一组算式），纵坐标用同一组 {@code *CardY}，
+     * 因此不会出现「看得到点不到」。</p>
+     */
     @Override
     public boolean onClick(float mx, float my, float contentX, float contentY, float contentW, float scrollOffset,
                            int button) {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT || modules.isEmpty()) return false;
-        float colW = cellW(contentW);
-        float cardTop = switchCardY(contentY, scrollOffset);
-        for (int i = 0; i < modules.size(); i++) {
-            float cellX = contentX + CARD_PAD + (i % SWITCH_COLUMNS) * colW;
-            float cellY = cardTop + SWITCH_HEADER_H + (i / SWITCH_COLUMNS) * SWITCH_ROW_H;
-            float tx = toggleX(cellX, colW);
-            float ty = cellY + (SWITCH_ROW_H - TOGGLE_H) / 2f;
-            if (mx < tx || mx > tx + TOGGLE_W || my < ty || my > ty + TOGGLE_H) continue;
-            SettingToggle toggle = toggles.get(modules.get(i).id());
-            if (toggle == null) return false;
-            toggle.toggle();
-            return true;
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false;
+        refreshFavorites();
+        float colW = halfWidth(contentW);
+
+        // ① 常用模块：点开关切换；空态不响应
+        float favY = listRowY(contentY, scrollOffset);
+        if (!favorites.isEmpty() && my >= favY && my <= favY + favoriteCardH()) {
+            float toggleLeft = toggleX(contentX, colW);
+            for (int i = 0; i < Math.min(favorites.size(), FAVORITE_MAX); i++) {
+                float rowY = favY + CARD_HEADER_H + i * FAVORITE_ROW_H;
+                float ty = rowY + (FAVORITE_ROW_H - TOGGLE_H) / 2f;
+                if (mx < toggleLeft || mx > toggleLeft + TOGGLE_W || my < ty || my > ty + TOGGLE_H) continue;
+                SettingToggle toggle = toggles.get(favorites.get(i).id());
+                if (toggle == null) return false;
+                toggle.toggle();
+                return true;
+            }
+        }
+
+        // ② 需要处理：问题行开模块页，底部链接行切到模块中心
+        float issueX = contentX + colW + SECTION_GAP;
+        float issueY = listRowY(contentY, scrollOffset);
+        if (mx >= issueX && my >= issueY && my <= issueY + issueCardH()) {
+            List<Issue> issues = issues();
+            for (int i = 0; i < Math.min(issues.size(), ISSUE_MAX); i++) {
+                float rowY = issueY + CARD_HEADER_H + i * ROW_H;
+                if (my < rowY || my > rowY + ROW_H) continue;
+                moduleOpener.accept(issues.get(i).entry());
+                return true;
+            }
+            if (my >= issueY + issueCardH() - CARD_FOOT_PAD - LINK_ROW_H) {
+                openModuleCenter();
+                return true;
+            }
+        }
+
+        // ③ 运行中：点一行开模块页
+        float runY = sessionRowY(contentY, scrollOffset);
+        if (mx >= contentX && mx <= contentX + colW && my >= runY && my <= runY + runningCardH()) {
+            List<ModuleEntry> running = running();
+            for (int i = 0; i < Math.min(running.size(), RUNNING_MAX); i++) {
+                float rowY = runY + CARD_HEADER_H + i * ROW_H;
+                if (my < rowY || my > rowY + ROW_H) continue;
+                moduleOpener.accept(running.get(i));
+                return true;
+            }
         }
         return false;
     }
@@ -523,19 +767,81 @@ public final class HomePage extends BasePage {
         return false;
     }
 
+    /** 切到模块中心这张根页（按类型找，不写死导航下标） */
+    private void openModuleCenter() {
+        List<BasePage> roots = router.roots();
+        for (int i = 0; i < roots.size(); i++) {
+            if (roots.get(i) instanceof ModuleCenterPage) {
+                router.select(i);
+                return;
+            }
+        }
+    }
+
     // ── 数据读数 ──
+
+    /** 一条待处理项：模块 + 一句话说清缺什么。 */
+    private record Issue(ModuleEntry entry, String detail) {
+    }
 
     /** 一个模块此刻的状态与补充说明。 */
     private record ModuleStatus(String state, String detail) {
     }
 
-    /** 按模块取实时状态；未启用时不读业务数据，避免在停机状态下报出过期内容。 */
+    /** 从配置重读收藏（`;` 分隔的模块 id）：模块中心里改过收藏，回首页立刻生效。 */
+    private void refreshFavorites() {
+        favorites.clear();
+        String raw = AddonConfig.favoriteModules;
+        if (raw == null || raw.isBlank()) return;
+        for (String id : raw.split(";")) {
+            String trimmed = id.trim();
+            if (trimmed.isEmpty()) continue;
+            ModuleEntry entry = ModuleRegistry.byId(trimmed);
+            if (entry != null) favorites.add(entry);
+        }
+    }
+
+    /** 已启用模块，按注册表顺序。 */
+    private List<ModuleEntry> running() {
+        List<ModuleEntry> result = new ArrayList<>();
+        for (ModuleEntry entry : modules) {
+            if (entry.enabled()) result.add(entry);
+        }
+        return result;
+    }
+
+    /**
+     * 待处理项：启用中、且自检有缺项的模块。
+     *
+     * <p>只取第一项缺项做摘要（一行的宽度放得下），完整列表在模块自己的控制台里。</p>
+     */
+    private static List<Issue> issues() {
+        List<Issue> result = new ArrayList<>();
+        for (ModuleEntry entry : ModuleRegistry.all()) {
+            if (!entry.enabled()) continue;
+            Module module = ModuleManager.byId(entry.id());
+            if (module == null) continue;
+            String detail = firstRealProblem(ModuleManager.problemsOf(module));
+            if (detail != null) result.add(new Issue(entry, detail));
+        }
+        return result;
+    }
+
+    /** 取第一条非「未进入世界」的缺项；没有则返回 {@code null}。 */
+    private static String firstRealProblem(List<String> problems) {
+        if (problems == null || problems.isEmpty()) return null;
+        for (String problem : problems) {
+            if (problem == null || problem.isBlank()) continue;
+            if (problem.contains("未进入世界")) continue;
+            return problem;
+        }
+        return null;
+    }
+
+    /** 按模块取实时状态；未启用时不读业务数据（调用方只对启用中的模块调用）。 */
     private static ModuleStatus statusOf(ModuleEntry entry) {
         if (ModuleManager.byId(entry.id()) == null) {
             return new ModuleStatus(UiText.t("未注册", "Not registered"), "");
-        }
-        if (!entry.enabled()) {
-            return new ModuleStatus(UiText.t("未启用", "Disabled"), "");
         }
         if (entry.id().equals(StardewFarmModule.MODULE_ID)
                 && ModuleManager.byId(entry.id()) instanceof StardewFarmModule farm) {

@@ -105,9 +105,10 @@ public final class EnchantModule extends Module {
         return pointStore;
     }
 
+    /** 分类内排序：自动化分类第五位（… → 自动挖矿 → 自动附魔 → 自动图书管理员 → …） */
     @Override
     public int order() {
-        return 35;
+        return 50;
     }
 
     // ── 设置持久化 ──
@@ -235,7 +236,7 @@ public final class EnchantModule extends Module {
     // ── 界面与指令（批次5） ──
 
     /**
-     * 模块独立页：② 打开控制台 → ④ 查看使用说明（顺序照开发习惯第 182 条不可颠倒）。
+     * 模块独立页：② 打开控制台 → ④ 内嵌说明正文（顺序照开发习惯第 182 条不可颠倒）。
      *
      * <p>页面内容由 {@link com.yiyiaddon.feature.enchant.ui.EnchantPage#createPage} 在真正打开时构建
      * （开发习惯第 180 条）：本方法会在模组初始化阶段被调用一次用于判空，构造期不得读注册表 / 点位磁盘。</p>

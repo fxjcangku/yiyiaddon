@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.config.MiningSettings;
 import com.yiyiaddon.feature.mining.ui.MiningConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
@@ -24,6 +25,9 @@ import java.util.function.Supplier;
  */
 public final class MiningThresholdPage {
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final MiningSettings DEFAULTS = new MiningSettings();
+
     private final MiningConsoleScreen owner;
     private final AutoMinerModule module;
 
@@ -39,17 +43,23 @@ public final class MiningThresholdPage {
         stack.add(new ConsoleRow(owner, () -> "满载组数",
             "背包矿物达到多少组时触发卸货", null,
             List.of(new Ctl(intBox(1, 36, () -> settings.unloadThreshold,
-                value -> settings.unloadThreshold = value, null)))));
+                    value -> settings.unloadThreshold = value, null)),
+                resetInt("满载组数", () -> DEFAULTS.unloadThreshold, null,
+                    value -> settings.unloadThreshold = value))));
 
         stack.add(new ConsoleRow(owner, () -> "食物阈值",
             "背包食物少于此数量时触发补给", null,
             List.of(new Ctl(intBox(1, 64, () -> settings.hungerThreshold,
-                value -> settings.hungerThreshold = value, null)))));
+                    value -> settings.hungerThreshold = value, null)),
+                resetInt("食物阈值", () -> DEFAULTS.hungerThreshold, null,
+                    value -> settings.hungerThreshold = value))));
 
         stack.add(new ConsoleRow(owner, () -> "耐久阈值",
-            "工具剩余耐久低于此值时前往挂机点修补（下界合金镐耐久 2031，上限已放宽）", null,
+            "工具剩余耐久低于此值时前往挂机点修补（下界合金镐耐久 2031，上限已放宽）；无经验修补的工具修不了，不前往挂机点、只提示", null,
             List.of(new Ctl(intBox(1, 3000, () -> settings.durabilityThreshold,
-                value -> settings.durabilityThreshold = value, null)))));
+                    value -> settings.durabilityThreshold = value, null)),
+                resetInt("耐久阈值", () -> DEFAULTS.durabilityThreshold, null,
+                    value -> settings.durabilityThreshold = value))));
 
         // 自动断线（用户 2026-09-18 追加：服务器死亡掉落时，血量到线先退服保命）。
         // 摆位与排布照本页既有口径：紧跟三个阈值之后（同一类「到线触发」），
@@ -62,13 +72,19 @@ public final class MiningThresholdPage {
                     "断线血量：血量掉到这一格数（含）时断开连接"),
                 new Ctl(toggle(() -> settings.autoDisconnect,
                     value -> settings.autoDisconnect = value),
-                    "开关自动断线；关闭后血量再低也不会断线"))));
+                    "开关自动断线；关闭后血量再低也不会断线"),
+                resetInt("自动断线", () -> DEFAULTS.autoDisconnectHealth, null,
+                    value -> settings.autoDisconnectHealth = value),
+                resetToggle("自动断线", () -> DEFAULTS.autoDisconnect,
+                    value -> settings.autoDisconnect = value))));
 
         stack.add(new ConsoleRow(owner, () -> "潜影盒打包机",
             "卸货时把矿物箱(潜影盒)填满，检测到满后等红石推盒换新盒，自动重开箱继续放，直到背包目标矿放完才RTP。给搭配潜影盒打包机的挂机用户使用。",
             null,
             List.of(new Ctl(toggle(() -> settings.shulkerPacker,
-                value -> settings.shulkerPacker = value)))));
+                    value -> settings.shulkerPacker = value)),
+                resetToggle("潜影盒打包机", () -> DEFAULTS.shulkerPacker,
+                    value -> settings.shulkerPacker = value))));
 
         // 状态播报（用户 2026-09-18：「加一个播报状态的按钮，默认开启，提示用户可以在配置页面关闭播报，
         // 或者弄个自动折叠信息的」——两个都做了：开关在运行时关掉全部状态类播报，
@@ -77,7 +93,31 @@ public final class MiningThresholdPage {
             "关闭后模块运行时不再发状态类播报（错误提示仍保留）；相同内容的播报 5 秒内自动折叠，只显示一次",
             null,
             List.of(new Ctl(toggle(() -> settings.statusBroadcast,
-                value -> settings.statusBroadcast = value)))));
+                    value -> settings.statusBroadcast = value)),
+                resetToggle("状态播报", () -> DEFAULTS.statusBroadcast,
+                    value -> settings.statusBroadcast = value))));
+    }
+
+    /**
+     * 行内「恢复默认」：把该行写回出厂值（与改动同一条写入路径：落盘 + 按需下调 Baritone），再刷新本页。
+     */
+    private Ctl resetInt(String label, Supplier<Integer> defaultValue, String baritoneKey, IntConsumer setter) {
+        return ConsoleWidgets.resetCtl(() -> {
+            int value = defaultValue.get();
+            setter.accept(value);
+            module.persistSettings();
+            if (baritoneKey != null) module.getBaritone().updateSetting(baritoneKey, value);
+            owner.reload();
+        }, label);
+    }
+
+    /** 行内「恢复默认」（开关行，写法同上） */
+    private Ctl resetToggle(String label, Supplier<Boolean> defaultValue, Consumer<Boolean> setter) {
+        return ConsoleWidgets.resetCtl(() -> {
+            setter.accept(defaultValue.get());
+            module.persistSettings();
+            owner.reload();
+        }, label);
     }
 
     /** 开关行：改动落盘（与配置页同一个 {@code persistSettings} 时机） */

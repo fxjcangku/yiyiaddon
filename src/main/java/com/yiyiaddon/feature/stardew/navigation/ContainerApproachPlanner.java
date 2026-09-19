@@ -91,11 +91,21 @@ public final class ContainerApproachPlanner {
 
     /** 合法站位必须有真实支撑、两格净空，并明确排除箱体与箱顶。 */
     private static boolean legalStand(BlockPos stand, Set<BlockPos> footprint) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || !mc.level.isLoaded(stand)) return false;
         for (BlockPos body : footprint) {
             if (stand.equals(body) || stand.equals(body.above())) return false;
         }
+        return standable(stand);
+    }
+
+    /**
+     * 「人能不能站在这一格」的唯一判据：脚下有真实支撑面、脚部与头部两格都无碰撞、玩家碰撞箱不撞世界。
+     *
+     * <p>后勤外围站位与回农田中心的落点共用这一份判据，禁止各写一份——两处口径一旦分叉，
+     * 就会出现「站得上去的地方说站不住、站不住的地方硬要去」这类自相矛盾的导航目标。</p>
+     */
+    public static boolean standable(BlockPos stand) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || stand == null || !mc.level.isLoaded(stand)) return false;
         BlockPos supportPos = stand.below();
         BlockState support = mc.level.getBlockState(supportPos);
         if (support.isAir() || !support.isFaceSturdy(mc.level, supportPos, Direction.UP)) return false;

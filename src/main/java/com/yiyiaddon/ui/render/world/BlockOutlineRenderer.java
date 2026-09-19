@@ -32,8 +32,9 @@ public final class BlockOutlineRenderer {
     public static void render(EspRenderer renderer) {
         EspGlobalSettings settings = EspGlobalSettings.get();
         if (!settings.blockOutline()) return;
-        // 自动挖矿运行期间不画：准星随挖掘目标到处扫，白框会一直闪（用户 2026-09-18）
-        if (settings.autoMinerRunning()) return;
+        // 自动挖矿 / 发包秒破运行期间不画：两者的准星都随挖掘目标到处扫，白框会一直闪
+        // （用户 2026-09-18 自动挖矿、2026-09-19 发包秒破）
+        if (settings.aimOutlineSuppressed()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;

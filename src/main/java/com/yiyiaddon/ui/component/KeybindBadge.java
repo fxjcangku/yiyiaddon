@@ -40,6 +40,10 @@ public final class KeybindBadge {
     private float width = MIN_WIDTH;
     private float hover;
     private float unbind;
+    /** 宽度是否已首帧落位（控制台顶栏每秒整页重建，不落位会每秒从图标宽长到键名宽） */
+    private boolean widthPrimed;
+    /** 悬停 / 解绑是否已首帧落位（同上：不落位会每秒重新淡入） */
+    private boolean hoverPrimed;
 
     public KeybindBadge(String bindingId) {
         this.bindingId = bindingId == null ? "" : bindingId;
@@ -52,12 +56,27 @@ public final class KeybindBadge {
 
     /** 当前宽度（带过渡）；调用方按它做右对齐布局。 */
     public float width() {
+        primeWidth();
         return width;
     }
 
     public void update(float dt) {
         if (!active()) return;
+        primeWidth();
         width += (targetWidth() - width) * Math.min(1f, Math.max(0f, dt) * WIDTH_SMOOTHING);
+    }
+
+    /**
+     * 宽度首帧落位：直接取目标宽度，不播放「图标宽 → 键名宽」的过渡。
+     *
+     * <p><b>为什么</b>：控制台的概览页每秒整页重建，而 {@link #width()} 参与顶栏右对齐布局 ——
+     * 不落位时徽章每秒从 {@link #MIN_WIDTH} 长到目标宽，右边的模块开关跟着每秒位移，
+     * 整条顶栏看起来一直在抖（用户 2026-09-18 实机反馈）。落位后只有真实绑定 / 录制变化才过渡。</p>
+     */
+    private void primeWidth() {
+        if (widthPrimed || !active()) return;
+        widthPrimed = true;
+        width = targetWidth();
     }
 
     /** 绘制徽章；绘制矩形与悬停命中矩形完全一致。 */
@@ -66,6 +85,12 @@ public final class KeybindBadge {
         boolean hovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + HEIGHT;
         boolean bound = ModuleKeybindManager.hasBinding(bindingId);
         boolean capturing = ModuleKeybindManager.isCapturing(bindingId);
+        if (!hoverPrimed) {
+            // 整页重建后鼠标可能仍停在徽章上：第一帧直接到位，否则悬停 / 解绑色每秒重新淡入
+            hoverPrimed = true;
+            hover = hovered ? 1f : 0f;
+            unbind = bound && hovered && !capturing ? 1f : 0f;
+        }
         hover += ((hovered ? 1f : 0f) - hover) * HOVER_SMOOTHING;
         unbind += ((bound && hovered && !capturing ? 1f : 0f)
                 - unbind) * HOVER_SMOOTHING;

@@ -23,7 +23,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class KeyInputs {
 
-    /** 未绑定键位（GLFW 的 {@code GLFW_KEY_UNKNOWN}，与 Meteor {@code Keybind.none()} 同值） */
+    /** 未绑定键位（GLFW 的 {@code GLFW_KEY_UNKNOWN}，与旧框架的 {@code Keybind.none()} 同值） */
     public static final int NONE = GLFW.GLFW_KEY_UNKNOWN;
 
     /** 鼠标按键以 {@code MOUSE_KEY_OFFSET - button} 编码进同一张键位表 */
@@ -65,7 +65,7 @@ public final class KeyInputs {
     }
 
     /**
-     * 修饰键前缀（照 Meteor {@code Keybind#toString()} 的顺序与英文写法）。
+     * 修饰键前缀（照旧框架 {@code Keybind#toString()} 的顺序与英文写法）。
      *
      * @param modifiers GLFW 修饰键掩码
      */

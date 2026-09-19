@@ -7,14 +7,24 @@ import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.admindetect.AdminDetectorModule;
 import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.autofarm.AutoFarmModule;
+import com.yiyiaddon.feature.autologin.AutoLoginModule;
+import com.yiyiaddon.feature.bonemeal.AutoBoneMealModule;
 import com.yiyiaddon.feature.combat.KillAuraModule;
 import com.yiyiaddon.feature.enchant.EnchantModule;
 import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
+import com.yiyiaddon.feature.librarian.AutoLibrarianModule;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
+import com.yiyiaddon.feature.packetbreak.PacketInstantBreakModule;
+import com.yiyiaddon.feature.reconnect.AutoReconnectModule;
 import com.yiyiaddon.feature.respawn.AutoRespawnModule;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
+import com.yiyiaddon.feature.tactical.AntiKickBypassModule;
+import com.yiyiaddon.feature.tactical.FlightBypassModule;
+import com.yiyiaddon.feature.tactical.ServerDetectorModule;
+import com.yiyiaddon.feature.teleport.TeleportModule;
 import com.yiyiaddon.feature.villager.AutoVillagerTradeModule;
+import com.yiyiaddon.feature.vision.VisionModule;
 import com.yiyiaddon.feature.water.WaterESPModule;
 import com.yiyiaddon.integration.baritone.BaritoneSettingsPage;
 import com.yiyiaddon.service.identity.IdentityService;
@@ -74,8 +84,18 @@ public final class AddonModules {
                 new AutoFarmModule(),
                 new WaterESPModule(),
                 new AutoVillagerTradeModule(),
+                new AutoLibrarianModule(),
                 new AutoRespawnModule(),
-                new AdminDetectorModule()
+                new AdminDetectorModule(),
+                new VisionModule(),
+                new TeleportModule(),
+                new FlightBypassModule(),
+                new ServerDetectorModule(),
+                new AntiKickBypassModule(),
+                new PacketInstantBreakModule(),
+                new AutoBoneMealModule(),
+                new AutoLoginModule(),
+                new AutoReconnectModule()
         );
     }
 
@@ -95,6 +115,8 @@ public final class AddonModules {
                 BaritoneSettingsPage::new));
         CategoryRegistry.register(new ModuleCategory("stardew", "星露谷", "管理农场模拟功能", "\uE8CD", 60));
         CategoryRegistry.register(new ModuleCategory("combat", "战斗", "管理战斗辅助功能", "\uE3E7", 50));
+        // 视觉：世界标记与显示类模块（首个承载模块 = 透视，2026-09-18 启用预留分类，第 148 条三处同步）
+        CategoryRegistry.register(new ModuleCategory("visuals", "视觉", "管理世界标记与显示功能", "\uE3B4", 70));
         CategoryRegistry.register(ModuleCategory.settings("esp", "ESP 全局设置",
                 "全部世界 ESP 的公共选项：线宽 / 不透明度 / 显示距离 / 字号 / 每帧最多画多少个图形",
                 "\uE8F4", 80, EspSettingsPage::new));

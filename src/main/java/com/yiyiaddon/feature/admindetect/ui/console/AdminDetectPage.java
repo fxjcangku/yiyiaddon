@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.admindetect.config.AdminDetectorSettings;
 import com.yiyiaddon.feature.admindetect.config.AdminDetectorTexts;
 import com.yiyiaddon.feature.admindetect.ui.AdminDetectorConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
@@ -25,6 +26,9 @@ import java.util.function.Supplier;
  */
 public final class AdminDetectPage {
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AdminDetectorSettings DEFAULTS = new AdminDetectorSettings();
+
     private final AdminDetectorConsoleScreen owner;
     private final AdminDetectorModule module;
 
@@ -41,26 +45,44 @@ public final class AdminDetectPage {
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_RANGE,
             AdminDetectorTexts.DESC_RANGE, null,
             List.of(new Ctl(intBox(AdminDetectorSettings.RANGE_MIN, AdminDetectorSettings.RANGE_MAX,
-                () -> settings.detectRange, value -> settings.detectRange = value)))));
+                    () -> settings.detectRange, value -> settings.detectRange = value)),
+                reset(() -> settings.detectRange = DEFAULTS.detectRange, AdminDetectorTexts.NAME_RANGE))));
 
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_SPECTATOR,
             AdminDetectorTexts.DESC_SPECTATOR, null,
-            List.of(new Ctl(toggle(() -> settings.detectSpectator, value -> settings.detectSpectator = value)))));
+            List.of(new Ctl(toggle(() -> settings.detectSpectator, value -> settings.detectSpectator = value)),
+                reset(() -> settings.detectSpectator = DEFAULTS.detectSpectator,
+                    AdminDetectorTexts.NAME_SPECTATOR))));
 
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_CREATIVE,
             AdminDetectorTexts.DESC_CREATIVE, null,
-            List.of(new Ctl(toggle(() -> settings.detectCreative, value -> settings.detectCreative = value)))));
+            List.of(new Ctl(toggle(() -> settings.detectCreative, value -> settings.detectCreative = value)),
+                reset(() -> settings.detectCreative = DEFAULTS.detectCreative,
+                    AdminDetectorTexts.NAME_CREATIVE))));
 
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_INVISIBLE,
             AdminDetectorTexts.DESC_INVISIBLE, null,
-            List.of(new Ctl(toggle(() -> settings.detectInvisible, value -> settings.detectInvisible = value)))));
+            List.of(new Ctl(toggle(() -> settings.detectInvisible, value -> settings.detectInvisible = value)),
+                reset(() -> settings.detectInvisible = DEFAULTS.detectInvisible,
+                    AdminDetectorTexts.NAME_INVISIBLE))));
 
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_HIDDEN,
             AdminDetectorTexts.DESC_HIDDEN, null,
-            List.of(new Ctl(toggle(() -> settings.detectHidden, value -> settings.detectHidden = value)))));
+            List.of(new Ctl(toggle(() -> settings.detectHidden, value -> settings.detectHidden = value)),
+                reset(() -> settings.detectHidden = DEFAULTS.detectHidden,
+                    AdminDetectorTexts.NAME_HIDDEN))));
     }
 
     // ── 行构件（形态与其它控制台页一致） ──
+
+    /** 行尾 ↺：写回本行出厂值 + 落盘 + 刷新页面 */
+    private Ctl reset(Runnable applyDefaults, String label) {
+        return ConsoleWidgets.resetCtl(() -> {
+            applyDefaults.run();
+            persist();
+            owner.reload();
+        }, label);
+    }
 
     /** 开关行：改动落盘 */
     private SettingToggle toggle(Supplier<Boolean> getter, Consumer<Boolean> setter) {

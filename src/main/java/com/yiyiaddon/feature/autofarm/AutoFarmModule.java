@@ -22,6 +22,7 @@ import com.yiyiaddon.feature.autofarm.model.HarvestMode;
 import com.yiyiaddon.feature.autofarm.model.PlantMode;
 import com.yiyiaddon.feature.autofarm.model.SiteType;
 import com.yiyiaddon.feature.autofarm.render.FarmRenderer;
+import com.yiyiaddon.feature.autofarm.region.FarmSiteSelector;
 import com.yiyiaddon.feature.autofarm.resource.FarmResourceManager;
 import com.yiyiaddon.feature.autofarm.scan.FarmScanner;
 import com.yiyiaddon.feature.autofarm.task.FarmTask;
@@ -107,6 +108,15 @@ public final class AutoFarmModule extends Module {
 
     private final Minecraft mc = Minecraft.getInstance();
 
+    /**
+     * 锚点点选模式（控制台「点位」页的「设置」按钮进入）：手持任意物品，左键 / 右键在游戏里点方块
+     * 完成绑定，手感与星露谷种植区域同一套（见 {@link FarmSiteSelector}）。
+     *
+     * <p>构造期就建实例：它只注册 Fabric 事件回调（不碰注册表、不读世界），
+     * 事件回调内部按「是否在模式内」决定是否接管。</p>
+     */
+    private final FarmSiteSelector siteSelector = new FarmSiteSelector(this);
+
     public AutoFarmModule() {
         super(MODULE_ID, MESSAGE_MODULE, "automation",
             "熟一颗收一颗，自动补种拾取，单作物箱/种子补货箱/多作物箱与杂物箱物流自动化。点击按钮查看说明。");
@@ -128,9 +138,15 @@ public final class AutoFarmModule extends Module {
         return ICON;
     }
 
+    /** 锚点点选模式载体（控制台「点位」页的「设置」按钮用，见 {@link FarmSiteSelector}） */
+    public FarmSiteSelector siteSelector() {
+        return siteSelector;
+    }
+
+    /** 分类内排序：自动化分类第二位（自动重生 → 自动农场 → 自动骨粉 → 自动挖矿 → …） */
     @Override
     public int order() {
-        return 30;
+        return 20;
     }
 
     public AutoFarmSettings settings() {
@@ -269,6 +285,8 @@ public final class AutoFarmModule extends Module {
 
     @Override
     protected void onDisable() {
+        // 点选模式是「半成品」：模块一关就丢弃本次点选（没有写入的点位一个都不落盘）
+        FarmSiteSelector.cancelIfActive(true);
         controller.reset();
         com.yiyiaddon.platform.container.ContainerAccess.closeContainer();
         broker.reset();

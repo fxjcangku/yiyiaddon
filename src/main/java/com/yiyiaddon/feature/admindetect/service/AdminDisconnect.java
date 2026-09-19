@@ -1,10 +1,9 @@
 package com.yiyiaddon.feature.admindetect.service;
 
 import com.yiyiaddon.core.ClientChat;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientPacketListener;
+import com.yiyiaddon.platform.network.ConnectionCloser;
+import com.yiyiaddon.service.reconnect.ReconnectSuppression;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
 
 /**
  * 断线保命：合并进来的旧「自动断线」核心。
@@ -13,9 +12,14 @@ import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
  * 原来是它的 {@code public static void disconnect(String reason)}（{@code :53-61}）；用户 2026-09-16
  * 裁定两个模块合并成一个「管理员检测」，因此该静态入口整体搬到这里，旧模块不再存在。</p>
  *
- * <p><b>与旧项目的差异（用户 2026-09-16 拍板，勿自行改回）</b>：删掉旧实现里「断线前强制关闭自动重连」
- * 那一步（旧 {@code :56-57} 关的是第三方框架的 {@code AutoReconnect}）。本项目零第三方依赖，
- * 且 grep 确认本项目<b>没有</b>任何自动重连实现，因此这一步在新项目里无事可做、行为零差异。</p>
+ * <p><b>旧「断线前先关掉自动重连」那一步的对应物</b>：旧实现（旧 {@code :56-57}）关的是第三方框架的
+ * {@code AutoReconnect}，本项目零第三方依赖、没有该对象。但本项目现在<b>有自己的自动重连</b>
+ * （自动登入模块与独立「自动重连」模块），保命断线若被它立刻连回去就等于白按，因此改为在断线前
+ * 开一个 {@link ReconnectSuppression} 抑制窗口：窗口内的断线不触发自动重连。作用与旧那一步一致
+ * （让主动断线断得掉），实现方式随本项目形态改变。</p>
+ *
+ * <p><b>断线动作</b>走共用件 {@link ConnectionCloser}（与原版处理服务端断线包同一条链路），
+ * 与自动重连模块的「测试重连」共用同一份实现（第 169 条）。</p>
  *
  * <p><b>断线文案</b>：旧原文 {@code §c§l[yiyiaddon]§r §f自动断线 §8▸ §c<原因>}。按第 110/119 条
  * （禁止显示模组自身名称）去掉 {@code yiyiaddon} 段，前缀改由 {@link ClientChat#prefix(String)}
@@ -38,15 +42,14 @@ public final class AdminDisconnect {
      * @return 是否真的发出了断线包
      */
     public static boolean disconnect(String moduleName, String reason) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null) return false;
-        ClientPacketListener connection = mc.player.connection;
-        if (connection == null) return false;
+        if (!ConnectionCloser.hasConnection()) return false;
+
+        // 保命断线不允许被自动重连撤销：先开抑制窗口，再发断线包
+        ReconnectSuppression.suppress(0L);
 
         Component text = Component.literal(ClientChat.prefix(moduleName) + " §f自动断线 §8▸ §c" + reason);
         // 与原版客户端处理服务端断线包同一条链路：ClientCommonPacketListenerImpl#handleDisconnect
         // → Connection#disconnect(Component)，因此断开界面的行为与原版一致。
-        connection.handleDisconnect(new ClientboundDisconnectPacket(text));
-        return true;
+        return ConnectionCloser.disconnect(text);
     }
 }

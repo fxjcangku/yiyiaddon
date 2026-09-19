@@ -1,0 +1,211 @@
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+import java.util.zip.ZipFile
+
+// 工具只进入构建进程，不进入模组运行依赖或最终 JAR。
+configurations { obfuscator }
+dependencies { obfuscator 'com.guardsquare:proguard-base:7.9.1' }
+
+def privateDir = layout.buildDirectory.dir('obfuscation')
+def rulesFile = file('gradle/proguard-rules.pro')
+def originalJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
+def protectedClasses = privateDir.map { it.file('classes.jar') }
+def generatedConfig = privateDir.map { it.file('proguard.pro') }
+def mappingFile = privateDir.map { it.file('mapping.txt') }
+def releaseVersion = project.version.toString()
+def backupRoot = file("05-混淆文件备份/${releaseVersion}")
+def releaseLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(project.jdk_version as int)
+}
+
+apply from: 'gradle/hardening.gradle'
+def hardenedJar = privateDir.map { it.file('hardened.jar') }
+
+// 每次从实际工具链与编译类路径生成配置，避免写死本机缓存路径。
+tasks.register('prepareObfuscation') {
+    dependsOn tasks.named('hardenJar')
+    inputs.file(hardenedJar)
+    inputs.file(rulesFile)
+    inputs.files(configurations.compileClasspath)
+    inputs.property('jdk', releaseLauncher.map { it.metadata.installationPath.asFile.absolutePath })
+    outputs.file(generatedConfig)
+    doLast {
+        def quote = { File path -> "'" + path.absolutePath.replace('\\', '/') + "'" }
+        def lines = [
+            "-include ${quote(rulesFile)}",
+            "-injars ${quote(hardenedJar.get().asFile)}(**.class)",
+            "-outjars ${quote(protectedClasses.get().asFile)}",
+            "-printmapping ${quote(mappingFile.get().asFile)}"
+        ]
+        configurations.compileClasspath.files.findAll { it.isFile() }.sort().each {
+            lines.add("-libraryjars ${quote(it)}(!META-INF/versions/**;!module-info.class)")
+        }
+        def jmods = new File(releaseLauncher.get().metadata.installationPath.asFile, 'jmods')
+        fileTree(jmods).matching { include '*.jmod' }.files.sort().each {
+            lines.add("-libraryjars ${quote(it)}(!**.jar;!module-info.class)")
+        }
+        def target = generatedConfig.get().asFile
+        target.parentFile.mkdirs()
+        target.setText(lines.join('\n') + '\n', 'UTF-8')
+    }
+}
+
+tasks.register('obfuscateClasses', JavaExec) {
+    dependsOn tasks.named('prepareObfuscation')
+    classpath = configurations.obfuscator
+    mainClass = 'proguard.ProGuard'
+    javaLauncher = releaseLauncher
+    maxHeapSize = '2g'
+    inputs.file(originalJar)
+    inputs.file(hardenedJar)
+    inputs.file(rulesFile)
+    inputs.file(generatedConfig)
+    inputs.files(configurations.compileClasspath)
+    outputs.file(protectedClasses)
+    outputs.file(mappingFile)
+    args "@${generatedConfig.get().asFile.absolutePath}"
+}
+
+// 只替换 class；资源、Fabric 元数据、嵌套 Baritone / Skija JAR 原样复制。
+def releaseJar = tasks.register('obfuscatedJar', Jar) {
+    dependsOn tasks.named('obfuscateClasses')
+    archiveClassifier = 'obfuscated'
+    destinationDirectory = layout.buildDirectory.dir('release')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from({ zipTree(protectedClasses.get().asFile) }) { include '**/*.class' }
+    from({ zipTree(originalJar.get().asFile) }) {
+        exclude '**/*.class', 'META-INF/MANIFEST.MF'
+    }
+    manifest { from({ zipTree(originalJar.get().asFile).matching { include 'META-INF/MANIFEST.MF' }.singleFile }) }
+}
+
+// 发布前失败即中止：核对入口、Mixin、原样资源及禁止进入产物的调试探针。
+tasks.register('verifyObfuscatedJar') {
+    dependsOn releaseJar, tasks.named('testHardening'), tasks.named('auditProtectedConstants')
+    inputs.file(releaseJar.flatMap { it.archiveFile })
+    inputs.file(originalJar)
+    inputs.file(mappingFile)
+    inputs.files(configurations.compileClasspath)
+    doLast {
+        def artifact = releaseJar.get().archiveFile.get().asFile
+        new ZipFile(originalJar.get().asFile).withCloseable { before ->
+            new ZipFile(artifact).withCloseable { after ->
+                def read = { zip, String name ->
+                    def entry = zip.getEntry(name)
+                    if (entry == null) throw new GradleException("混淆产物缺少条目：${name}")
+                    zip.getInputStream(entry).withCloseable { it.readAllBytes() }
+                }
+                def metadata = new JsonSlurper().parse(read(after, 'fabric.mod.json'))
+                metadata.entrypoints.values().flatten().each { name ->
+                    read(after, name.replace('.', '/') + '.class')
+                }
+                metadata.mixins.each { config ->
+                    def mixin = new JsonSlurper().parse(read(after, config))
+                    ((mixin.client ?: []) + (mixin.mixins ?: []) + (mixin.server ?: [])).each { name ->
+                        read(after, (mixin.package + '.' + name).replace('.', '/') + '.class')
+                    }
+                }
+                before.entries().each { entry ->
+                    if (!entry.directory && !entry.name.endsWith('.class') && entry.name != 'META-INF/MANIFEST.MF') {
+                        if (!Arrays.equals(read(before, entry.name), read(after, entry.name))) {
+                            throw new GradleException("混淆过程改动了资源：${entry.name}")
+                        }
+                    }
+                }
+                after.entries().each { entry ->
+                    if (entry.name.endsWith('.java') || entry.name.endsWith('mapping.txt')) {
+                        throw new GradleException("发布包含源码或映射：${entry.name}")
+                    }
+                    if (entry.name.endsWith('.class')) {
+                        def content = new String(read(after, entry.name), java.nio.charset.StandardCharsets.ISO_8859_1)
+                        if (['DebugProbe', 'debug-point', '127.0.0.1:7777'].any { content.contains(it) }) {
+                            throw new GradleException("发布包含临时埋点：${entry.name}")
+                        }
+                    }
+                }
+            }
+        }
+        def renamed = mappingFile.get().asFile.readLines('UTF-8').count {
+            !it.startsWith(' ') && it.contains(' -> ') && it.split(' -> ')[0] != it.split(' -> ')[1].replace(':', '')
+        }
+        if (renamed == 0) throw new GradleException('混淆未生效：没有类被重命名。')
+
+        // 隔离加载器只看到发布包与依赖，不能误用开发目录里的未混淆类。
+        // 不初始化游戏类；纯 DTO 单独做真实反射 / Gson 往返验证。
+        def urls = ([artifact] + configurations.compileClasspath.files.toList()).collect { it.toURI().toURL() }
+        new URLClassLoader(urls as URL[], ClassLoader.getPlatformClassLoader()).withCloseable { loader ->
+            new ZipFile(artifact).withCloseable { zip ->
+                zip.entries().findAll { it.name.endsWith('.class') }.each { entry ->
+                    def name = entry.name.replace('/', '.').replaceAll(/\.class$/, '')
+                    def type = Class.forName(name, false, loader)
+                    type.getDeclaredMethods()
+                    type.getDeclaredFields()
+                    type.getDeclaredConstructors()
+                }
+            }
+            def names = [:]
+            mappingFile.get().asFile.readLines('UTF-8').findAll { !it.startsWith(' ') && it.contains(' -> ') }.each {
+                def pair = it.split(' -> ')
+                names[pair[0]] = pair[1].replace(':', '')
+            }
+            def gsonType = loader.loadClass('com.google.gson.Gson')
+            def gson = gsonType.getConstructor().newInstance()
+            def fromJson = gsonType.getMethod('fromJson', String, Class)
+            def toJson = gsonType.getMethod('toJson', Object)
+            def cases = [
+                'com.yiyiaddon.feature.enchant.gear.GearEnchantData$Root':
+                    '{"gears":[{"id":"test","name":"中文校验","category":"工具","profiles":[{"id":"p","name":"方案","default":true,"exclusiveWith":["x"],"forbidden":["y"],"targets":[{"id":"z","name":"附魔","level":3,"excludable":true}]}]}]}',
+                'com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantDatabase$EnchRoot':
+                    '{"enchantments":[{"id":"x","name":"附魔","max_level":5,"weight":10,"min_cost":{"base":1,"per_level":2},"max_cost":{"base":3,"per_level":4},"treasure":true,"exclusive_group":"g"}]}',
+                'com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantDatabase$ConflictRoot':
+                    '{"exclusive_groups":[{"id":"g","members":["a","b"]}],"conflict_pairs":[{"a":"a","b":"b"}]}',
+                'com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantDatabase$GearsRoot':
+                    '{"items":[{"id":"x","name":"装备","category":"c","material":"m","enchantability":12,"table_enchantments":["a"]}]}',
+                'com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantDatabase$CandidateJson':
+                    '{"item":"x","name":"候选","category":"c","material":"m","enchantability":12,"modified_cost_range":[1,2],"reachable_levels":{"x":[1,2]}}',
+                'com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantDatabase$MetaJson':
+                    '{"minecraft_version":"26.1.2","data_version":1}'
+            ]
+            cases.each { name, json ->
+                def dto = fromJson.invoke(gson, json, loader.loadClass(names[name]))
+                def restored = toJson.invoke(gson, dto)
+                if (new JsonSlurper().parseText(json) != new JsonSlurper().parseText(restored)) {
+                    throw new GradleException("混淆后 Gson 字段契约失效：${name}")
+                }
+            }
+        }
+        def hash = MessageDigest.getInstance('SHA-256').digest(artifact.bytes).encodeHex().toString()
+        new File(artifact.parentFile, artifact.name + '.sha256').setText(hash + '  ' + artifact.name + '\n', 'UTF-8')
+
+        // 备份放在 build 外，产物信息以完整摘要绑定映射；同名备份不得静默覆盖。
+        // 验证任务不声明 outputs，因此即使 JAR 命中缓存也会检查 / 补齐备份。
+        // 中文标签方便定位；完整摘要保存在产物信息中，同前缀冲突仍由下方逐文件校验拒绝覆盖。
+        def backup = new File(backupRoot, '02-字符串与控制流加强版-' + hash.substring(0, 8))
+        backup.mkdirs()
+        def saveBackup = { String name, byte[] bytes ->
+            def target = new File(backup, name)
+            if (target.exists() && !Arrays.equals(target.bytes, bytes)) {
+                throw new GradleException("混淆备份已有不同内容，拒绝覆盖：${target}")
+            }
+            if (!target.exists()) target.bytes = bytes
+        }
+        saveBackup('mapping.txt', mappingFile.get().asFile.bytes)
+        saveBackup('proguard-rules.pro', rulesFile.bytes)
+        saveBackup('hardening-stats.json', privateDir.get().file('hardening-stats.json').asFile.bytes)
+        saveBackup('protection-audit.txt', privateDir.get().file('protection-audit.txt').asFile.bytes)
+        def record = "产物：${artifact.name}\n版本：${releaseVersion}\nSHA-256：${hash}\n" +
+            "混淆工具：自研 ASM 9.9.1 字符串加密与基本块重排 + ProGuard 7.9.1\n" +
+            "验证：构建、资源与入口检查、字节码加载、行为对照、加密常量审计、Gson 往返通过；实机状态见开发报告。\n" +
+            '用途：仅供内部还原崩溃堆栈，禁止随发布包公开。\n'
+        saveBackup('产物信息.txt', record.getBytes('UTF-8'))
+        logger.lifecycle("混淆静态检查通过：${renamed} 个类已改名；SHA-256：${hash}")
+        logger.lifecycle("映射已备份：${backup}；完整游戏功能仍需实机验收，启动验证见报告；映射禁止公开。")
+    }
+}
+
+tasks.register('buildRelease') {
+    group = 'build'
+    description = '构建并检查混淆发布包，映射自动保存到 05-混淆文件备份。'
+    dependsOn tasks.named('build'), tasks.named('verifyObfuscatedJar')
+}

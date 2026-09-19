@@ -8,6 +8,8 @@ import com.yiyiaddon.ui.widget.Button;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
@@ -84,7 +86,16 @@ public final class VillagerPointCards {
 
         return new PointCardGrid.PointCard(color + title,
             () -> coordLine(key), () -> dimensionLine(key),
-            List.of(List.of(setButton), List.of(deleteButton)));
+            List.of(List.of(setButton), List.of(deleteButton)))
+            .icon(() -> cardIcon(key));
+    }
+
+    /**
+     * 卡片头图标（与原版语义一一对应，未绑定也显示、不留空洞）：
+     * 绿宝石箱＝绿宝石（交易货币的来源箱）、成品交易箱＝箱子（交易产物的卸货箱）。
+     */
+    private static ItemStack cardIcon(String key) {
+        return new ItemStack(KEY_EMERALD.equals(key) ? Items.EMERALD : Items.CHEST);
     }
 
     /** 坐标行：已绑定给 {@code §7X§f1 §7Y§f2 §7Z§f3}（旧 {@code :788-789}），未绑定给 {@code §8暂未绑定}（旧 {@code :798}） */

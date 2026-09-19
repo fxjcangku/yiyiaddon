@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.villager.config.VillagerTradeSettings;
 import com.yiyiaddon.feature.villager.model.VillagerProfessionChoice;
 import com.yiyiaddon.feature.villager.model.VillagerTradeMode;
 import com.yiyiaddon.feature.villager.ui.VillagerSelectors;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
@@ -83,6 +84,9 @@ public final class VillagerSettingsPage {
     /** 多任务勾选的说明（旧 {@code :201} 逐字） */
     private static final String PIPELINE_DESCRIPTION = "勾选后该职业加入多任务队列（需在目标物品组先选好该职业的物品）";
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final VillagerTradeSettings DEFAULTS = new VillagerTradeSettings();
+
     private final VillagerConsoleScreen host;
     private final AutoVillagerTradeModule module;
 
@@ -142,26 +146,35 @@ public final class VillagerSettingsPage {
                     module.persistSettings();
                     // 模式决定「目标职业 / 多任务职业 / 各职业分组」的可见性，整页必须重排
                     host.scheduleReload();
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.mode = DEFAULTS.mode;
+                    module.persistSettings();
+                    host.scheduleReload();
+                }, "运行模式"))));
 
         stack.add(numberRow("绿宝石补给量(组)",
             "去绿宝石箱补给时，背包绿宝石补到「底限32个 + 该组数×64」即返回交易",
             1, 27, () -> (double) settings.emeraldSupplyStacks,
-            value -> settings.emeraldSupplyStacks = value.intValue()));
+            value -> settings.emeraldSupplyStacks = value.intValue(),
+            () -> (double) DEFAULTS.emeraldSupplyStacks));
 
         stack.add(numberRow("搜索范围(格)",
             "寻路模式搜索目标村民的半径，村民密集时可调小避免扫到远处村民",
             8, 256, () -> (double) settings.searchRange,
-            value -> settings.searchRange = value.intValue()));
+            value -> settings.searchRange = value.intValue(),
+            () -> (double) DEFAULTS.searchRange));
 
         stack.add(toggleRow("挂机循环(按钮)",
             "仅寻路单点/多任务模式的榨干模式生效：全部村民榨干后不结束，等待补货倒计时到点自动重新循环交易",
-            () -> settings.idleLoop, value -> settings.idleLoop = value));
+            () -> settings.idleLoop, value -> settings.idleLoop = value,
+            () -> DEFAULTS.idleLoop));
 
         stack.add(numberRow("补货等待(秒)",
             "挂机循环的补货等待时长，与村民补货冷却(2分钟)一致，默认120秒",
             20, 600, () -> (double) settings.restockWaitSeconds,
-            value -> settings.restockWaitSeconds = value.intValue()));
+            value -> settings.restockWaitSeconds = value.intValue(),
+            () -> (double) DEFAULTS.restockWaitSeconds));
 
         // 目标职业：多任务模式下隐藏（旧 :163 visible(() -> mode.get() != Mode.PIPELINE)）
         if (settings.mode != VillagerTradeMode.PIPELINE) {
@@ -173,7 +186,12 @@ public final class VillagerSettingsPage {
                         module.persistSettings();
                         // 换职业即换成另一个折叠分组，整页必须重排
                         host.scheduleReload();
-                    })))));
+                    })),
+                    ConsoleWidgets.resetCtl(() -> {
+                        settings.profession = DEFAULTS.profession;
+                        module.persistSettings();
+                        host.scheduleReload();
+                    }, "目标职业"))));
         }
     }
 
@@ -193,6 +211,7 @@ public final class VillagerSettingsPage {
                     // 勾选 / 取消决定「它那一个折叠分组」铺不铺，整页必须重排
                     host.scheduleReload();
                 },
+                () -> DEFAULTS.isPipelineSelected(professionName),
                 null));
         }
         return section;
@@ -216,12 +235,13 @@ public final class VillagerSettingsPage {
         return section;
     }
 
-    /** 某职业的价格上限行（旧 {@code :256-267}）：域 1~64、默认 32，改动即写盘 */
+    /** 某职业的价格上限行（旧 {@code :256-267}）：域 1~64、默认 32，改动即写盘；行尾 ↺ 恢复本行默认值 */
     private ConsoleRow priceRow(String professionName) {
         return numberRow(professionName + " 价格上限", PRICE_DESCRIPTION,
             VillagerTradeSettings.PRICE_LIMIT_MIN, VillagerTradeSettings.PRICE_LIMIT_MAX,
             () -> (double) module.settings().priceLimit(professionName),
-            value -> module.settings().setPriceLimit(professionName, value.intValue()));
+            value -> module.settings().setPriceLimit(professionName, value.intValue()),
+            () -> (double) DEFAULTS.priceLimit(professionName));
     }
 
     // ── 行构件组装 ──
@@ -251,7 +271,12 @@ public final class VillagerSettingsPage {
             .disabledWhen(() -> !module.settings().stopKey.isSet());
         return new ConsoleRow(host, () -> "快速停止键", STOP_KEY_DESCRIPTION, COMMENT_KEYBIND,
             List.of(new Ctl(keybind, STOP_KEY_DESCRIPTION + "（点击后按任意键绑定）"),
-                new Ctl(clear, CLEAR_HINT)));
+                new Ctl(clear, CLEAR_HINT),
+                // 出厂值 = 未绑定，动作与「清空」同源（复用同一段清空逻辑）
+                ConsoleWidgets.resetCtl(() -> {
+                    clearStopKey();
+                    host.reload();
+                }, "快速停止键")));
     }
 
     /** 清空快速停止键绑定（未绑定时按钮为禁用态，正常点不到） */
@@ -260,10 +285,11 @@ public final class VillagerSettingsPage {
         module.persistSettings();
     }
 
-    /** 开关行：改动即写盘（第 173 条） */
+    /** 开关行：改动即写盘（第 173 条）；行尾 ↺ 恢复本行默认值 */
     private ConsoleRow toggleRow(String label, String hint,
-                                 Supplier<Boolean> getter, Consumer<Boolean> setter) {
-        return toggleRow(label, hint, getter, setter, null);
+                                 Supplier<Boolean> getter, Consumer<Boolean> setter,
+                                 Supplier<Boolean> defaultValue) {
+        return toggleRow(label, hint, getter, setter, defaultValue, null);
     }
 
     /**
@@ -272,24 +298,35 @@ public final class VillagerSettingsPage {
      */
     private ConsoleRow toggleRow(String label, String hint,
                                  Supplier<Boolean> getter, Consumer<Boolean> setter,
-                                 Runnable afterChange) {
+                                 Supplier<Boolean> defaultValue, Runnable afterChange) {
         return new ConsoleRow(host, () -> label, hint, null,
             List.of(new Ctl(new SettingToggle(getter, value -> {
                 setter.accept(value);
                 module.persistSettings();
                 if (afterChange != null) afterChange.run();
-            }))));
+            })),
+                ConsoleWidgets.resetCtl(() -> {
+                    setter.accept(defaultValue.get());
+                    module.persistSettings();
+                    host.scheduleReload();
+                }, label)));
     }
 
-    /** 数字行（旧滑条 → 数字框，第 123 条）：步进 1、整数值，改动即写盘 */
+    /** 数字行（旧滑条 → 数字框，第 123 条）：步进 1、整数值，改动即写盘；行尾 ↺ 恢复本行默认值 */
     private ConsoleRow numberRow(String label, String hint, double min, double max,
-                                 Supplier<Double> getter, Consumer<Double> setter) {
+                                 Supplier<Double> getter, Consumer<Double> setter,
+                                 Supplier<Double> defaultValue) {
         return new ConsoleRow(host, () -> label, hint, null,
             List.of(new Ctl(new SettingNumberBox(min, max, 1, "%.0f",
                 getter, value -> {
                 setter.accept(value);
                 module.persistSettings();
-            }))));
+            })),
+                ConsoleWidgets.resetCtl(() -> {
+                    setter.accept(defaultValue.get());
+                    module.persistSettings();
+                    host.reload();
+                }, label)));
     }
 
     /** 枚举循环控件：候选 = 枚举中文名（旧 EnumSetting 界面渲染的同一批字面量） */

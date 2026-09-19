@@ -14,8 +14,8 @@ import com.yiyiaddon.ui.widget.Button;
 import net.minecraft.client.Minecraft;
 
 /**
- * 自动村民交易模块页：本页只做「入口」——使用说明按钮（旧 {@code :693-695} 文案逐字）、多任务模式说明行
- * （旧 {@code :699-700} 逐字）、控制台入口（第 182 条：入口必须排在「查看使用说明」上面）与一行状态摘要。
+ * 自动村民交易模块页：本页只做「入口」——使用说明正文（旧 {@code :693-695} 内容逐字，内嵌）、多任务模式说明行
+ * （旧 {@code :699-700} 逐字）、控制台入口（第 182 条：入口必须排在说明正文上面）与一行状态摘要。
  *
  * <p><b>元素顺序（与旧行号对位）</b></p>
  * <ol>
@@ -106,7 +106,7 @@ public final class AutoVillagerTradePage extends CompactModulePage implements Mo
         // 状态摘要（TextLine 现读，未启用时给灰字）
         addCore(new TextLine(this::statusLine));
 
-        // 控制台入口（第 182 条：排在「查看使用说明」之前）
+        // 控制台入口（第 182 条：排在说明正文之前）
         addCore(new CompactRow("", () -> CONSOLE_HINT,
             new Button(CONSOLE_BUTTON, this::openConsole)).centeredControl());
 

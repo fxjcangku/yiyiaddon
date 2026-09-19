@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.admindetect.config.AdminDetectorSettings;
 import com.yiyiaddon.feature.admindetect.config.AdminDetectorTexts;
 import com.yiyiaddon.feature.admindetect.ui.AdminDetectorConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.SettingToggle;
@@ -23,6 +24,9 @@ import java.util.function.Supplier;
  */
 public final class AdminRenderPage {
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AdminDetectorSettings DEFAULTS = new AdminDetectorSettings();
+
     private final AdminDetectorConsoleScreen owner;
     private final AdminDetectorModule module;
 
@@ -37,15 +41,18 @@ public final class AdminRenderPage {
 
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_ESP_BOX,
             AdminDetectorTexts.DESC_ESP_BOX, null,
-            List.of(new Ctl(toggle(() -> settings.espBox, value -> settings.espBox = value)))));
+            List.of(new Ctl(toggle(() -> settings.espBox, value -> settings.espBox = value)),
+                reset(() -> settings.espBox = DEFAULTS.espBox, AdminDetectorTexts.NAME_ESP_BOX))));
 
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_TRACER,
             AdminDetectorTexts.DESC_TRACER, null,
-            List.of(new Ctl(toggle(() -> settings.tracer, value -> settings.tracer = value)))));
+            List.of(new Ctl(toggle(() -> settings.tracer, value -> settings.tracer = value)),
+                reset(() -> settings.tracer = DEFAULTS.tracer, AdminDetectorTexts.NAME_TRACER))));
 
         stack.add(new ConsoleRow(owner, () -> AdminDetectorTexts.NAME_ALARM,
             AdminDetectorTexts.DESC_ALARM, null,
-            List.of(new Ctl(toggle(() -> settings.alarmSound, value -> settings.alarmSound = value)))));
+            List.of(new Ctl(toggle(() -> settings.alarmSound, value -> settings.alarmSound = value)),
+                reset(() -> settings.alarmSound = DEFAULTS.alarmSound, AdminDetectorTexts.NAME_ALARM))));
     }
 
     /** 开关行：改动落盘 */
@@ -54,5 +61,14 @@ public final class AdminRenderPage {
             setter.accept(value);
             ModuleManager.saveSettings(module);
         });
+    }
+
+    /** 行尾 ↺：写回本行出厂值 + 落盘 + 刷新页面 */
+    private Ctl reset(Runnable applyDefaults, String label) {
+        return ConsoleWidgets.resetCtl(() -> {
+            applyDefaults.run();
+            ModuleManager.saveSettings(module);
+            owner.reload();
+        }, label);
     }
 }

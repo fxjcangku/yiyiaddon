@@ -16,6 +16,7 @@ import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.console.ConsoleHeaderBar;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.render.MinecraftText;
@@ -42,7 +43,7 @@ import java.util.Set;
  * <p><b>逐字搬运自旧项目</b> {@code stardew/ui/StardewConsoleScreen.java}（6 页签、状态条、
  * 各页结构、按钮文案与 tooltip、确认弹窗、日志页、刷新节奏），只把外壳换成本项目的
  * {@link PanelScreen} 骨架。旧项目那些「直接渲染设置页那批 Setting」的做法在本项目没有
- * 等价物（本项目已无 Meteor Setting 体系），因此四页的可编辑项按
+ * 等价物（本项目已无旧框架 Setting 体系），因此四页的可编辑项按
  * {@code StardewSettings} / {@code StardewLogisticsStore} / {@code StardewCropPlanStore}
  * 的真实数据源逐项重建，编辑的仍是执行层在用的同一份值。</p>
  *
@@ -381,6 +382,7 @@ public final class StardewConsoleScreen extends PanelScreen implements ConsoleHo
         stack.add(new ButtonStrip(this, List.of(
             new Ctl(new Button("§7刷新", this::reload),
                 "顶部状态条每秒自动刷新；概览页整页每秒重画，其余页按这个按钮重排最新数据"),
+            ConsoleWidgets.resetDefaultsCtl(this, module, this::reload),
             new Ctl(new Button("§7关闭", this::closeToGame))), ButtonStrip.BUTTON_HEIGHT));
     }
 
@@ -482,7 +484,7 @@ public final class StardewConsoleScreen extends PanelScreen implements ConsoleHo
     /**
      * tooltip 折行：先按 {@code \n} 分行，再把每行按最大宽度折到下一行。
      *
-     * <p>旧项目 tooltip 由 Meteor 按固定宽度折行；本项目通用控件没有 tooltip 原语，
+     * <p>旧项目 tooltip 由旧框架按固定宽度折行；本项目通用控件没有 tooltip 原语，
      * 因此在这里补一个按可见宽度（含颜色码解析）折行的实现。</p>
      */
     private static List<String> wrapTip(String text, float maxWidth) {

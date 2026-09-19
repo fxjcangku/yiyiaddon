@@ -1,0 +1,11 @@
+日期：2026-09-19
+标签：v1.0-beta1
+状态：公开预发布版（Pre-release）
+地址：https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta1
+公开展示提交：2aabfc68161c046552b4f8457a8fa7f92fab094e
+产物：yiyiaddon-1.0-beta1-obfuscated.jar
+SHA-256：10ae6ac89943e888635b97a1602656b082a5481c901750b414b4d32c36e3b6e3
+GitHub 附件 digest 已回读核对一致。
+新混淆包构建、自动审计与独立 Fabric 初始化通过。
+游戏内完整功能和长期性能未实机验收。
+映射仅内部保存，未公开。详见开发报告 125。

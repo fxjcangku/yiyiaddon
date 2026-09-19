@@ -1,0 +1,26 @@
+{
+  "版本": 1,
+  "签名算法": "crop-resource-v1",
+  "参考资源内容指纹": "2b25d4d521bf",
+  "生成来源": "晴海小镇9.7资源包（开发期离线提取）",
+  "作物规则": {
+    "cabbage": { "成熟阶段": "stage_4", "收割动作": "RIGHT_CLICK", "作物资源签名": "751ad914dfda" },
+    "corn": { "成熟阶段": "stage_4", "收割动作": "RIGHT_CLICK", "作物资源签名": "6ad7147b7c33" },
+    "crimson_bracket_fungus": { "成熟阶段": "stage_3", "收割动作": "RIGHT_CLICK", "作物资源签名": "7b8298329c14" },
+    "cucumber": { "成熟阶段": "stage_5", "收割动作": "RIGHT_CLICK", "作物资源签名": "fb59ce9c9b4c" },
+    "eggplant": { "成熟阶段": "stage_5", "收割动作": "RIGHT_CLICK", "作物资源签名": "e053d9a35afe" },
+    "green_bean": { "成熟阶段": "stage_3", "收割动作": "RIGHT_CLICK", "作物资源签名": "153b20e43b44" },
+    "leek": { "成熟阶段": "stage_3", "收割动作": "RIGHT_CLICK", "作物资源签名": "21f1dbc1e0d3" },
+    "lettuce": { "成熟阶段": "stage_4", "收割动作": "RIGHT_CLICK", "作物资源签名": "0104a649dd0a" },
+    "onion": { "成熟阶段": "stage_3", "收割动作": "RIGHT_CLICK", "作物资源签名": "46df912dc171" },
+    "pepper": { "成熟阶段": "stage_4", "收割动作": "RIGHT_CLICK", "作物资源签名": "cdd0088c14f1" },
+    "pineapple": { "成熟阶段": "stage_4", "收割动作": "RIGHT_CLICK", "特殊收割": true, "作物资源签名": "f0f9f6ba5617" },
+    "pitaya": { "成熟阶段": "stage_6", "收割动作": "RIGHT_CLICK", "文档生命周期": "REGROW", "作物资源签名": "20bda85929d6" },
+    "redpacket": { "成熟阶段": "stage_6", "收割动作": "RIGHT_CLICK", "作物资源签名": "9187d7b1f549" },
+    "sweet_potato": { "成熟阶段": "stage_3", "收割动作": "RIGHT_CLICK", "作物资源签名": "19fa17c4827f" },
+    "tomato": { "成熟阶段": "stage_4", "收割动作": "RIGHT_CLICK", "文档生命周期": "REGROW", "特殊收割": true, "作物资源签名": "58c9c6427bfa" },
+    "virelia": { "成熟阶段": "stage_4", "收割动作": "RIGHT_CLICK", "作物资源签名": "9339b8b32af5" },
+    "virelo": { "成熟阶段": "stage_3", "收割动作": "RIGHT_CLICK", "作物资源签名": "4d026da37d8f" },
+    "warped_glow_fungus": { "成熟阶段": "stage_3", "收割动作": "RIGHT_CLICK", "作物资源签名": "718271bb2e3a" }
+  }
+}

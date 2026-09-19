@@ -3,6 +3,8 @@ package com.yiyiaddon.feature.respawn;
 import com.yiyiaddon.core.event.ClientEvent;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
+import com.yiyiaddon.feature.respawn.ui.RespawnPage;
+import com.yiyiaddon.ui.page.ModulePage;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;
@@ -15,9 +17,11 @@ import java.util.Set;
  * {@code AutoRespawn} 并 toggle；本项目零第三方依赖）。行为与该第三方实现的核心一致：只做一件事——
  * 玩家处于死亡状态时调用 {@code mc.player.respawn()}。</p>
  *
- * <p>刻意不做的事：不做延迟 / 时机设置项、不做配置页面（{@link #page()} 返回 {@code null}）、
- * 不实现设置读写、不做播报。默认开启（{@link #enabledByDefault()}），状态文件里一旦有记录
- * （玩家手动关过）就尊重记录值。</p>
+ * <p>刻意不做的事：不做延迟 / 时机设置项、不实现设置读写、不做播报。默认开启
+ * （{@link #enabledByDefault()}），状态文件里一旦有记录（玩家手动关过）就尊重记录值。</p>
+ *
+ * <p>模块页是纯说明页（{@link RespawnPage}）：本模块没有设置可放，但不能不接页面——不接时模块中心
+ * 点进去显示框架的「模块页面：未接入」（用户 2026-09-18 实机反馈）。</p>
  */
 public final class AutoRespawnModule extends Module {
 
@@ -70,5 +74,16 @@ public final class AutoRespawnModule extends Module {
     @Override
     public List<String> selfCheck() {
         return List.of();
+    }
+
+    /**
+     * 模块页 = 纯说明页 {@link RespawnPage}。
+     *
+     * <p>本模块没有任何设置项，但页面不能空着：不接页面时模块中心点进去显示框架的元信息页
+     * 「模块页面：未接入」，玩家会以为模块坏了（用户 2026-09-18 实机截图）。</p>
+     */
+    @Override
+    public ModulePage page() {
+        return new RespawnPage(this);
     }
 }

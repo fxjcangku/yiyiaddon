@@ -42,7 +42,7 @@ import java.util.function.Predicate;
 /**
  * 杀戮光环：攻击周围指定实体的独立战斗模块。
  *
- * <p><b>蓝本</b>：{@code 01-开发参考库/Meteor原始源码/…/systems/modules/combat/KillAura.java}
+ * <p><b>蓝本</b>：{@code 01-开发参考库/原始源码/…/systems/modules/combat/KillAura.java}
  * （527 行）逐条对齐。主流程与蓝本 {@code onTick} 同一结构：</p>
  * <pre>
  * 停机闸（:289-308）→ 选目标（:309-327）→ 自动切武器（:331-347）→ 手持物可用性（:349-352）
@@ -166,9 +166,10 @@ public final class KillAuraModule extends Module {
         registerPauseProcess();
     }
 
+    /** 分类内排序：战斗分类第一位（杀戮光环 → 飞行绕过 → 发包防踢 → 发包秒破） */
     @Override
     public int order() {
-        return 20;
+        return 10;
     }
 
     @Override

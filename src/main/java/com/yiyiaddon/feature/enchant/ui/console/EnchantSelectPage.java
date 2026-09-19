@@ -164,5 +164,11 @@ public final class EnchantSelectPage {
             if (iconStack == null) iconStack = new ItemStack(Items.ENCHANTED_BOOK);
             return ItemIconCache.getInstance().draw(canvas, iconStack, x, y, size);
         }
+
+        /** 与 drawIcon 同一份图标：统一的附魔书。 */
+        @Override
+        public ItemStack iconStack() {
+            return new ItemStack(Items.ENCHANTED_BOOK);
+        }
     }
 }

@@ -7,8 +7,12 @@ import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.TextLine;
+import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.screen.PanelScreen;
+import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
+import com.yiyiaddon.ui.widget.SettingWidget;
+import io.github.humbleui.skija.Canvas;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.util.List;
@@ -57,12 +61,17 @@ public final class ItemQuantityPage extends PanelScreen {
         for (ItemIdentity identity : targets) {
             String key = identity.identityKey();
             content().add(new CompactRow("§a" + identity.displayName(),
-                    new SettingNumberBox(1, AutoChestSettings.MAX_COUNT, 1, "%.0f",
+                    new QuantityControl(new SettingNumberBox(1, AutoChestSettings.MAX_COUNT, 1, "%.0f",
                             () -> (double) currentQuantity(key),
                             value -> {
                                 settings.setQuantity(key, (int) Math.round(value));
                                 module.persistSettings();
-                            })));
+                            }),
+                        () -> {
+                            // 出厂值 = 这一项没有单独配置（数量读回默认 64）
+                            settings.itemQuantities.remove(key);
+                            module.persistSettings();
+                        })));
         }
     }
 
@@ -70,5 +79,68 @@ public final class ItemQuantityPage extends PanelScreen {
     private int currentQuantity(String key) {
         int value = settings.quantityOf(key);
         return value == 0 ? AutoChestSettings.DEFAULT_COUNT : value;
+    }
+
+    /**
+     * 行内「数量框 + ↺」复合控件。
+     *
+     * <p>本页行构件是 {@code CompactRow}（一行只容纳一个控件），而这一页每行要同时给出数量框
+     * 与行尾恢复默认，故把两者合成一个控件交出：绘制、命中、拖动全部按内部控件自己的口径下发给它，
+     * 行高与两者间的间距与别处行内控件一致。</p>
+     */
+    private static final class QuantityControl extends SettingWidget {
+
+        /** 数量框与 ↺ 之间的间距（与控制台行内控件间距同值） */
+        private static final float GAP = 8f;
+
+        private final SettingNumberBox box;
+        private final IconButton reset;
+
+        private QuantityControl(SettingNumberBox box, Runnable resetAction) {
+            this.box = box;
+            this.reset = new IconButton(ConsoleMetrics.GLYPH_RESET, resetAction);
+        }
+
+        @Override
+        public float getWidth() {
+            return box.getWidth() + GAP + reset.getWidth();
+        }
+
+        @Override
+        public float getHeight() {
+            return Math.max(box.getHeight(), reset.getHeight());
+        }
+
+        @Override
+        public void update(float dt) {
+            box.update(dt);
+            reset.update(dt);
+        }
+
+        @Override
+        public void draw(Canvas canvas, float x, float y, float alpha) {
+            box.draw(canvas, x, boxY(y), alpha);
+            reset.draw(canvas, x + box.getWidth() + GAP, resetY(y), alpha);
+        }
+
+        @Override
+        public boolean onClick(float mx, float my, float x, float y, int button) {
+            return box.onClick(mx, my, x, boxY(y), button)
+                || reset.onClick(mx, my, x + box.getWidth() + GAP, resetY(y), button);
+        }
+
+        @Override
+        public boolean onDrag(float mx, float my, float x, float y) {
+            return box.onDrag(mx, my, x, boxY(y));
+        }
+
+        /** 内部控件在行内垂直居中（行高由两者中较高者决定） */
+        private float boxY(float y) {
+            return y + (getHeight() - box.getHeight()) / 2f;
+        }
+
+        private float resetY(float y) {
+            return y + (getHeight() - reset.getHeight()) / 2f;
+        }
     }
 }

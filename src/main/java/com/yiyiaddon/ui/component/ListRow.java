@@ -74,6 +74,8 @@ public class ListRow implements CompactElement {
 
     private float hover;
     private boolean hovered;
+    /** 首帧是否已按真实命中落位过 hover（见 draw 里的说明） */
+    private boolean hoverPrimed;
 
     public ListRow(Supplier<String> name) {
         this.name = name == null ? () -> "" : name;
@@ -151,6 +153,13 @@ public class ListRow implements CompactElement {
         GlassPanel.rim(canvas, x, y, width, HEIGHT, radius, tc.rim, alpha, 0.10f);
 
         hovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + HEIGHT;
+        // 首帧落位：列表重建（展开 / 收起分组、改过滤词）后，鼠标正下方那行若是新实例，
+        // hover 从 0 平滑上来 = 高亮「闪一下」（用户 2026-09-18：「点击这些分组的时候 有几率那个贴图会在闪一下」）。
+        // 首帧直接取真实值，动画只由真实交互触发（同 Button / IconButton / FoldSection 的口径）。
+        if (!hoverPrimed) {
+            hoverPrimed = true;
+            hover = hovered ? 1f : 0f;
+        }
         if (hover > 0.01f) {
             GlassPanel.fill(canvas, x, y, width, HEIGHT, radius, tc.surfaceHover, rowAlpha * hover);
         }

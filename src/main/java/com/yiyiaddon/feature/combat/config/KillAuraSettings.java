@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 杀戮光环（KillAura）全部设置项的数据载体。
  *
- * <p><b>蓝本</b>：{@code 01-开发参考库/Meteor原始源码/…/systems/modules/combat/KillAura.java}。
+ * <p><b>蓝本</b>：{@code 01-开发参考库/原始源码/…/systems/modules/combat/KillAura.java}。
  * 设置面逐条对齐蓝本，共 26 项，一项不少、默认值与取值域逐字相同：</p>
  * <ul>
  *     <li>General 9 项：{@code KillAura.java:57-126}；</li>

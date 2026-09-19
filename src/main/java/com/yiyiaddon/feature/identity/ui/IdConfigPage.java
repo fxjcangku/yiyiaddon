@@ -20,6 +20,7 @@ import com.yiyiaddon.ui.page.CompactModulePage;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
+import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
@@ -48,7 +49,9 @@ import java.util.function.Supplier;
  * 文字前缀 {@code §a✓ }、未选中为 {@code §7}；方块状态筛选只在「方块」分类下出现；搜索同时匹配
  * 中文名、技术 ID 与坐标（方块额外匹配语义字段）。</p>
  *
- * <p>两个独立入口「更多管理」与「§e使用说明」由 {@link IdScreens} 打开，跳转关系集中在该类。</p>
+ * <p>独立入口「更多管理」由 {@link IdScreens} 打开，跳转关系集中在该类；使用说明正文按用户
+ * 2026-09-17 口径<b>内嵌在本页末尾</b>，不再单摆「§e使用说明」按钮（正文逐字取自
+ * {@link com.yiyiaddon.feature.identity.IdConfigModule#buildHelpContent()}）。</p>
  */
 public final class IdConfigPage extends CompactModulePage implements ModulePage {
 
@@ -139,8 +142,11 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
         addCore(listSection);
         addCore(pagination());
 
-        // 使用说明：旧项目放在分页之后，作为独立入口
-        addCore(new ButtonRow(new Button("§e使用说明", this::openHelp)));
+        // 使用说明内嵌在分页之后（用户 2026-09-17 口径：不再单摆「§e使用说明」按钮，
+        // 正文逐字来自 IdConfigModule.buildHelpContent，仅去掉独立窗口的外框三行）
+        for (String line : HelpPanelScreen.inlineContent(module.buildHelpContent())) {
+            addCore(new TextLine(line));
+        }
     }
 
     /** 汇总行：旧项目面板原文格式。 */
@@ -322,12 +328,6 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
         IdScreens.openManagement(client.screen, module);
-    }
-
-    private void openHelp() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) return;
-        IdScreens.openHelp(client.screen, module);
     }
 
     // ── 列表重建 ──

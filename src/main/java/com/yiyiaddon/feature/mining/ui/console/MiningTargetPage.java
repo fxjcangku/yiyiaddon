@@ -122,7 +122,7 @@ public final class MiningTargetPage {
             () -> settings.keepWhitelist.isEmpty()));
 
         stack.add(selectorRow(TITLE_FOOD,
-            "从食物箱只拿选中的食物（只显示能吃的食物，默认常用食物，可自由增删）",
+            "只吃、也只留这里选中的食物（只显示能吃的食物；背包里白名单外的食物会被当垃圾丢掉）",
             controls::foodStatus,
             () -> controls.openFoodSelector(TITLE_FOOD),
             controls::clearFoodList,

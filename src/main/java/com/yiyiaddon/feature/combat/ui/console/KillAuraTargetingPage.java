@@ -14,6 +14,7 @@ import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.console.ConsoleStateColumn;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.render.FontRenderer;
@@ -103,6 +104,9 @@ public final class KillAuraTargetingPage {
     /** 目标实体候选（惰性建一次并缓存：注册表运行期不变，显示名解析不便宜） */
     private static List<SelectorScreen.Entry> entityEntries;
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final KillAuraSettings DEFAULTS = new KillAuraSettings();
+
     private final KillAuraConsoleScreen owner;
     private final KillAuraModule module;
     /** 名单行共用的状态列宽度（见 {@link ConsoleStateColumn}：浮动会把「点击选择」顶得左右移动） */
@@ -124,47 +128,77 @@ public final class KillAuraTargetingPage {
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_PRIORITY,
             KillAuraTexts.DESC_PRIORITY, null,
             List.of(new Ctl(new SettingSegmented(PRIORITY_LABELS,
-                () -> settings.priority.ordinal(), this::pickPriority)))));
+                    () -> settings.priority.ordinal(), this::pickPriority)),
+                resetCtl(KillAuraTexts.NAME_PRIORITY,
+                    () -> settings.priority = DEFAULTS.priority))));
 
         // 多目标数：只在「仅注视时攻击」为假时加入（对应蓝本 .visible(() -> !onlyOnLook.get())）
         if (!settings.onlyOnLook) {
             stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_MAX_TARGETS,
                 KillAuraTexts.DESC_MAX_TARGETS, null,
-                List.of(new Ctl(intBox(1, 5, () -> settings.maxTargets, value -> settings.maxTargets = value)))));
+                List.of(new Ctl(intBox(1, 5, () -> settings.maxTargets, value -> settings.maxTargets = value)),
+                    resetCtl(KillAuraTexts.NAME_MAX_TARGETS,
+                        () -> settings.maxTargets = DEFAULTS.maxTargets))));
         }
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_RANGE,
             KillAuraTexts.DESC_RANGE, null,
-            List.of(new Ctl(doubleBox(() -> settings.range, value -> settings.range = value)))));
+            List.of(new Ctl(doubleBox(() -> settings.range, value -> settings.range = value)),
+                resetCtl(KillAuraTexts.NAME_RANGE, () -> settings.range = DEFAULTS.range))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_WALLS_RANGE,
             KillAuraTexts.DESC_WALLS_RANGE, null,
-            List.of(new Ctl(doubleBox(() -> settings.wallsRange, value -> settings.wallsRange = value)))));
+            List.of(new Ctl(doubleBox(() -> settings.wallsRange, value -> settings.wallsRange = value)),
+                resetCtl(KillAuraTexts.NAME_WALLS_RANGE,
+                    () -> settings.wallsRange = DEFAULTS.wallsRange))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_PASSIVE_MOB_AGE_FILTER,
             KillAuraTexts.DESC_PASSIVE_MOB_AGE_FILTER, null,
             List.of(new Ctl(new SettingSegmented(ENTITY_AGE_LABELS,
-                () -> settings.passiveMobAgeFilter.ordinal(), this::pickPassiveAge)))));
+                    () -> settings.passiveMobAgeFilter.ordinal(), this::pickPassiveAge)),
+                resetCtl(KillAuraTexts.NAME_PASSIVE_MOB_AGE_FILTER,
+                    () -> settings.passiveMobAgeFilter = DEFAULTS.passiveMobAgeFilter))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_HOSTILE_MOB_AGE_FILTER,
             KillAuraTexts.DESC_HOSTILE_MOB_AGE_FILTER, null,
             List.of(new Ctl(new SettingSegmented(ENTITY_AGE_LABELS,
-                () -> settings.hostileMobAgeFilter.ordinal(), this::pickHostileAge)))));
+                    () -> settings.hostileMobAgeFilter.ordinal(), this::pickHostileAge)),
+                resetCtl(KillAuraTexts.NAME_HOSTILE_MOB_AGE_FILTER,
+                    () -> settings.hostileMobAgeFilter = DEFAULTS.hostileMobAgeFilter))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_IGNORE_NAMED,
             KillAuraTexts.DESC_IGNORE_NAMED, null,
-            List.of(new Ctl(toggle(() -> settings.ignoreNamed, value -> settings.ignoreNamed = value)))));
+            List.of(new Ctl(toggle(() -> settings.ignoreNamed, value -> settings.ignoreNamed = value)),
+                resetCtl(KillAuraTexts.NAME_IGNORE_NAMED,
+                    () -> settings.ignoreNamed = DEFAULTS.ignoreNamed))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_IGNORE_PASSIVE,
             KillAuraTexts.DESC_IGNORE_PASSIVE, null,
-            List.of(new Ctl(toggle(() -> settings.ignorePassive, value -> settings.ignorePassive = value)))));
+            List.of(new Ctl(toggle(() -> settings.ignorePassive, value -> settings.ignorePassive = value)),
+                resetCtl(KillAuraTexts.NAME_IGNORE_PASSIVE,
+                    () -> settings.ignorePassive = DEFAULTS.ignorePassive))));
 
         stack.add(new ConsoleRow(owner, () -> KillAuraTexts.NAME_IGNORE_TAMED,
             KillAuraTexts.DESC_IGNORE_TAMED, null,
-            List.of(new Ctl(toggle(() -> settings.ignoreTamed, value -> settings.ignoreTamed = value)))));
+            List.of(new Ctl(toggle(() -> settings.ignoreTamed, value -> settings.ignoreTamed = value)),
+                resetCtl(KillAuraTexts.NAME_IGNORE_TAMED,
+                    () -> settings.ignoreTamed = DEFAULTS.ignoreTamed))));
     }
 
     // ── 行构件 ──
+
+    /**
+     * 行内「恢复默认」：写回出厂值 → 落盘（与改动同一入口 {@link #persist()}）→ 刷新本页。
+     *
+     * @param writeDefault 只负责把这一行的设置写回出厂值，持久化与刷新由本方法统一收口
+     */
+    private Ctl resetCtl(String label, Runnable writeDefault) {
+        return ConsoleWidgets.resetCtl(() -> {
+            writeDefault.run();
+            persist();
+            owner.reload();
+        }, label);
+    }
 
     /**
      * 名单行（行样式照星露谷 / 挖矿控制台页）：名称 + 说明 …… [点击选择] [状态文字] [↻]。
@@ -240,7 +274,7 @@ public final class KillAuraTargetingPage {
      * <b>按生物分类分「玩家 / 怪物 / 动物 / 水生生物 / 环境生物 / 其他」六组</b>，组内按中文显示名排序。
      * 候选表惰性构建并静态缓存。
      *
-     * <p><b>为什么不再分「原版 / 自定义」</b>：用户 2026-09-16 要求「像 Meteor 一样分类好的」——
+     * <p><b>为什么不再分「原版 / 自定义」</b>：用户 2026-09-16 要求「像旧框架一样分类好的」——
      * 按用途分类比按命名空间分类有用得多（原来的两栏里，船、TNT、盔甲架、僵尸混在一起）。
      * Mod 实体同样按其生物分类进组，不再单列一栏。</p>
      */
@@ -387,6 +421,12 @@ public final class KillAuraTargetingPage {
         @Override
         public String group() {
             return group;
+        }
+
+        /** 与 drawIcon 同一份图标：实体模型 / 刷怪蛋都走这个实体类型。 */
+        @Override
+        public EntityType<?> iconEntity() {
+            return type;
         }
 
         @Override

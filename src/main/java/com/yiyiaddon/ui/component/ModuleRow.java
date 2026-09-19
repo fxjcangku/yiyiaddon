@@ -127,6 +127,28 @@ public final class ModuleRow {
     }
 
     /**
+     * 模块名的绘制宽度（12 号加粗）。
+     *
+     * <p>模块中心的网格列宽按它反推（{@code ModuleCenterPage#minCellWidth}）：名字必须完整可读，
+     * 宁可少排一列，也不能出现「自动图书…」——用户 2026-09-18 反馈「一些字超出框了 根本看不见名字」。</p>
+     */
+    public static float nameWidth(String name) {
+        return name == null ? 0f : FontRenderer.measureTextWidthBold(name, TITLE_SIZE);
+    }
+
+    /**
+     * 网格单元里除名字之外的固定占用宽度：左内边距 + 图标底框 + 图标后间距 + 名称与状态之间的距离
+     * + 状态徽章 + 右内边距。
+     *
+     * <p>与 {@link #drawCell} 的排版逐项对应（那里也是这几个值），改一处必须同步这里——列宽就是按
+     * 「名字 + 这一份固定占用」算出来的，两处不一致会让名字重新贴到徽章上。</p>
+     */
+    public static float cellFixedWidth(String stateText) {
+        float badge = stateText == null ? 0f : StatusBadge.width(stateText);
+        return PAD_X + ICON_BOX + ICON_GAP + BADGE_GAP + badge + PAD_X;
+    }
+
+    /**
      * 通用入口行：自带设置页的分类入口（例如 Baritone设置）复用它，右侧状态传「点击进入」。
      *
      * @param stateText 右侧状态文字；{@code null} 表示不画状态标记
@@ -190,15 +212,19 @@ public final class ModuleRow {
      * @param mouseX 本帧指针横坐标（与 {@code x、y、w} 同一坐标系）：既用于判定本格是否被悬停，
      *               也作为浮层锚点
      * @param mouseY 本帧指针纵坐标
+     * @param favorite 是否已收藏（顶部「常用」区）：是则描边换成强调色，在分类里也一眼可辨
      */
     public static void drawCell(Canvas canvas, ModuleEntry entry, float x, float y, float w,
-                                float mouseX, float mouseY, float alpha, float hover, ClickGuiThemeColors tc) {
+                                float mouseX, float mouseY, float alpha, float hover, boolean favorite,
+                                ClickGuiThemeColors tc) {
         boolean enabled = entry.enabled();
         float radius = GlassPanel.rowRadius(HEIGHT);
         int background = GlassPanel.mix(tc.module, tc.surfaceHover, hover);
 
         GlassPanel.frost(canvas, x, y, w, HEIGHT, radius, background, 0.55f, alpha);
-        GlassPanel.rim(canvas, x, y, w, HEIGHT, radius, tc.rim, alpha, 0.06f + 0.14f * hover);
+        // 收藏的格子用强调色描边（不额外占宽度）：网格里放不下星标，描边是最省的可辨标记
+        GlassPanel.rim(canvas, x, y, w, HEIGHT, radius, favorite ? tc.accent : tc.rim, alpha,
+                favorite ? 0.30f + 0.22f * hover : 0.06f + 0.14f * hover);
 
         float centerY = y + HEIGHT / 2f;
         float cursor = drawIcon(canvas, entry.icon(), x + PAD_X, centerY, alpha, tc);

@@ -8,6 +8,7 @@ import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleHeaderBar;
 import com.yiyiaddon.ui.console.ConsoleHost;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.render.MinecraftText;
@@ -33,9 +34,9 @@ import java.util.Set;
  * 直接复用）：窗口标题、状态条（两行八格）、页签行、可整体重建的正文容器、每秒自动刷新、
  * 底部「刷新 / 关闭」、tooltip 悬浮层——同一套写法与同一套数值。</p>
  *
- * <p><b>页签划分（50 号第七节 7.2，D2）：</b>概览（只读实况 + 使用说明入口）/
+ * <p><b>页签划分（50 号第七节 7.2，D2）：</b>概览（只读实况）/
  * 设置（16 个可视静态项的四个分组）/ 逐作物（15 项进独立窗口的入口，D3）/
- * 点位（六张点位卡，与模块页同一份数据）/ 日志（状态播报流水）。</p>
+ * 点位（五张点位卡：农田范围 + 四个箱子，与模块页同一份数据）/ 日志（状态播报流水）。</p>
  */
 public final class AutoFarmConsoleScreen extends PanelScreen implements ConsoleHost {
 
@@ -209,6 +210,7 @@ public final class AutoFarmConsoleScreen extends PanelScreen implements ConsoleH
         stack.add(new ButtonStrip(this, List.of(
             new Ctl(new Button("§7刷新", this::reload),
                 "顶部状态条每秒自动刷新；概览与点位页整页每秒重画，其余页按这个按钮重排最新数据"),
+            ConsoleWidgets.resetDefaultsCtl(this, module, this::reload),
             new Ctl(new Button("§7关闭", () -> {
                 if (minecraft != null) minecraft.setScreen(null);
             }))), ButtonStrip.BUTTON_HEIGHT));

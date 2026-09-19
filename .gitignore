@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
 build/
+# 发布加固工具的 Java 包名为 build，这里是源码，不能被构建目录规则忽略。
+!gradle/hardening/src/com/yiyiaddon/build/
 out/
 bin/
 loom-cache/
@@ -47,4 +49,3 @@ Thumbs.db
 # 案例档（README.md）、案例模板、工具脚本一律保留（见 开发习惯.md 第三十三章）
 04-埋点修复/**/日志-*.ndjson
 04-埋点修复/**/*.bak-*
-

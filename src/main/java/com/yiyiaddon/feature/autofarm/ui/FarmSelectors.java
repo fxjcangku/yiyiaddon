@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.autofarm.ui;
 import com.yiyiaddon.feature.autofarm.AutoFarmModule;
 import com.yiyiaddon.feature.autofarm.ui.console.AutoFarmConsoleScreen;
 import com.yiyiaddon.feature.autofarm.model.CropProfile;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.render.ItemIconCache;
@@ -37,6 +38,9 @@ public final class FarmSelectors {
     /**
      * 构建一行「作物分类选择器」：行标签 = 设置名（逐字），右侧按钮显示已选数量，
      * 点击弹出 {@link SelectorScreen}。
+     *
+     * <p>行尾 ↺ 把这一类作物选择恢复出厂值：出厂值就是空选择
+     * （{@code AutoFarmSettings} 的四张表字段都初始化为空表），因此↺ 清空本行对应的那张表。</p>
      */
     public static ConsoleRow row(AutoFarmConsoleScreen host, AutoFarmModule module,
                                  String label, String hint,
@@ -45,7 +49,12 @@ public final class FarmSelectors {
         // 行尾注释实时变化（已选数量随选择器增删），走 liveComment 工厂
         return ConsoleRow.liveComment(host, () -> label, hint, () -> "已选 " + selection.get().size(),
             List.of(new Ctl(new Button("§b配置", () -> open(host, module, label, filter, selection)),
-                "打开「" + label + "」选择器")));
+                    "打开「" + label + "」选择器"),
+                ConsoleWidgets.resetCtl(() -> {
+                    selection.get().clear();
+                    module.persistSettings();
+                    host.reload();
+                }, label)));
     }
 
     /** 打开分类选择器：候选 = 十一种作物中通过分类过滤的条目（每行带图标） */
@@ -118,6 +127,12 @@ public final class FarmSelectors {
             if (block == null) return false;
             ItemStack stack = new ItemStack(profile.harvestItem());
             return ItemIconCache.getInstance().draw(canvas, stack, x, y, size);
+        }
+
+        /** 与 drawIcon 同一份图标：作物主产物。 */
+        @Override
+        public ItemStack iconStack() {
+            return profile.harvestItem().getDefaultInstance();
         }
     }
 }

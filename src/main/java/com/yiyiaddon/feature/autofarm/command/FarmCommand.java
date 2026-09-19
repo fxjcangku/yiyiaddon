@@ -26,10 +26,12 @@ import java.util.List;
  * 回执排版走 {@link CommandMessageFormatter}。{@code 扩展} 参数域 1~128（旧 Brigadier
  * {@code integer(1,128)}）。</p>
  *
- * <p><b>静态工具与指令共用一处校验：</b>模块页六卡片的「设置 / 删除」按钮调用
- * {@link #setBinding(SiteType)} / {@link #removeBinding(SiteType)}（旧 {@code :304-349}）；
- * GUI 路径与指令路径的文案差异（{@code 请重新设置} / {@code §c§l✗ 已删除}）按旧项目原样并存，
- * 禁止合并成一套。</p>
+ * <p><b>静态工具：</b>模块页六卡片的「删除」按钮调用 {@link #removeBinding(SiteType)}
+ * （旧 {@code :304-349} 的删除分支，文案逐字保留）。「设置」不再是「准星 + 按钮」——
+ * 用户 2026-09-18 起改为游戏内左右键点选
+ * （{@link com.yiyiaddon.feature.autofarm.region.FarmSiteSelector}），旧项目那条 GUI 设置文案
+ * （{@code 请重新设置}）随旧交互一并退役；本文件的指令路径 {@code .farm 设置} <b>保持原样</b>
+ * （照旧按准星绑定，文案与失败原因不变）。</p>
  */
 public final class FarmCommand extends ClientCommand {
 
@@ -358,36 +360,6 @@ public final class FarmCommand extends ClientCommand {
     // ═══════════════════════════════════════════════════════════════════
     //  静态工具（供模块页六卡片调用，旧 :304-349 原样；文案与指令路径按旧项目并存）
     // ═══════════════════════════════════════════════════════════════════
-
-    /** 六卡片「设置」按钮：复用指令路径的校验链，GUI 文案差异按旧项目保留 */
-    public static boolean setBinding(SiteType type) {
-        FarmCommand cmd = new FarmCommand();
-        AutoFarmModule module = module();
-        if (module == null) return false;
-
-        if (module.isEnabled()) {
-            cmd.farmError("模块运行中无法修改锚点，请先关闭模块");
-            return false;
-        }
-
-        if (module.site(type) != null) {
-            cmd.farmError(type.cn() + "已绑定，请先删除旧绑定再重新设置");
-            return false;
-        }
-
-        BlockPos target = cmd.targetBlock();
-        if (target == null) {
-            cmd.farmError("准星未对准任何方块，请重新设置");
-            return false;
-        }
-        if (type.requiresContainer() && !cmd.isContainer(target)) {
-            cmd.farmError("目标方块不是容器（箱子/桶/潜影盒等），请重新设置");
-            return false;
-        }
-
-        cmd.bind(type);
-        return true;
-    }
 
     /** 六卡片「删除」按钮：未绑定提示与删除回执按旧项目原文 */
     public static void removeBinding(SiteType type) {

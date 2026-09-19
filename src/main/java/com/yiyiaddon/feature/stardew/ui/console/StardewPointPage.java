@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
 import com.yiyiaddon.feature.stardew.ui.StardewRegionListScreen;
 import com.yiyiaddon.feature.stardew.ui.StardewRenderObjectScreen;
 import com.yiyiaddon.feature.stardew.ui.StardewSprinklerListScreen;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
@@ -22,6 +23,8 @@ import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +41,9 @@ import java.util.List;
  * 的混合布局（{@link CardGrid}）仍留在这里。</p>
  */
 public final class StardewPointPage {
+
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final StardewSettings DEFAULTS = new StardewSettings();
 
     private final StardewConsoleScreen owner;
     private final StardewFarmModule module;
@@ -75,7 +81,12 @@ public final class StardewPointPage {
                 module.persistSettings();
             });
         return new ConsoleRow(owner, () -> StardewSettings.NAME_LABEL_SIZE, StardewSettings.DESC_LABEL_SIZE,
-            null, List.of(new Ctl(box)));
+            null, List.of(new Ctl(box),
+                ConsoleWidgets.resetCtl(() -> {
+                    s.labelSize = DEFAULTS.labelSize;
+                    module.persistSettings();
+                    owner.reload();
+                }, StardewSettings.NAME_LABEL_SIZE)));
     }
 
     /** 一行渲染对象：对象名 + 显示开关 + 「设置」（旧项目 StardewRenderSetting 的行结构） */
@@ -93,7 +104,25 @@ public final class StardewPointPage {
             new Ctl(toggle, "显示 / 隐藏「" + object.name() + "」"),
             new Ctl(settings, object.colorEditable()
                 ? "打开「" + object.name() + "」的显示 / 颜色 / 渲染模式"
-                : "打开「" + object.name() + "」的显示开关（颜色跟随对应点位的方框）")));
+                : "打开「" + object.name() + "」的显示开关（颜色跟随对应点位的方框）"),
+            // 本行只管显示开关，所以 ↺ 只把显示恢复出厂值（颜色 / 渲染模式在「设置」窗口里各自有 ↺）
+            ConsoleWidgets.resetCtl(() -> {
+                object.show = defaultsOf(object).show;
+                module.persistSettings();
+                owner.reload();
+            }, object.name())));
+    }
+
+    /**
+     * 该渲染对象的出厂设置实例：按对象名在出厂设置里取同一项。
+     *
+     * <p>渲染对象是设置类里的固定字段（名字唯一且不变），取不到时返回自身（等价于不动作）。</p>
+     */
+    private static StardewSettings.RenderObject defaultsOf(StardewSettings.RenderObject object) {
+        for (StardewSettings.RenderObject candidate : DEFAULTS.renderObjects()) {
+            if (candidate.name().equals(object.name())) return candidate;
+        }
+        return object;
     }
 
     /** 清空全部点位：二次确认（正文与确认按钮逐字照旧控制台） */
@@ -171,7 +200,22 @@ public final class StardewPointPage {
                 })),
                 List.of(new Button("§c删除", () -> {
                     if (module.removePoint(type)) owner.closeToGame();
-                }))));
+                })))).icon(() -> pointIcon(type));
+        }
+
+        /**
+         * 点位卡图标（与原版语义一一对应，未绑定也显示、不留空洞）：种子箱＝小麦种子、
+         * 成品箱＝小麦（收成的作物）、补水点＝水桶、岩浆箱＝岩浆桶、龙息箱＝龙息。
+         */
+        private ItemStack pointIcon(StardewPointType type) {
+            return switch (type) {
+                case SEED_BOX -> new ItemStack(Items.WHEAT_SEEDS);
+                case OUTPUT_BOX -> new ItemStack(Items.WHEAT);
+                case WATER_SOURCE -> new ItemStack(Items.WATER_BUCKET);
+                case LAVA_BOX -> new ItemStack(Items.LAVA_BUCKET);
+                case BREATH_BOX -> new ItemStack(Items.DRAGON_BREATH);
+                case SPRINKLER -> new ItemStack(Items.SPLASH_POTION);
+            };
         }
 
         private PointCard sprinklerCard() {
@@ -187,7 +231,7 @@ public final class StardewPointPage {
                         if (owner.client() != null) {
                             owner.client().setScreen(new StardewSprinklerListScreen(owner.client().screen, module));
                         }
-                    }))));
+                    })))).icon(() -> pointIcon(StardewPointType.SPRINKLER));
         }
 
         /**
@@ -229,7 +273,9 @@ public final class StardewPointPage {
                                 owner.client().setScreen(new StardewRegionListScreen(owner.client().screen, module));
                             }
                         }),
-                        new Button("§c清空", this::confirmClearRegions))));
+                        new Button("§c清空", this::confirmClearRegions))))
+                // 农田卡图标＝耕地（本卡就是圈地入口）
+                .icon(() -> new ItemStack(Items.FARMLAND));
         }
 
         /** 清空全部区域：与「清空全部点位」同款二次确认 */

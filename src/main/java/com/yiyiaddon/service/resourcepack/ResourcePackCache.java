@@ -343,7 +343,7 @@ public final class ResourcePackCache {
             File newFile = new File(dir(), target);
             if (newFile.exists()) {
                 deleteQuietly(oldFile);
-                asyncNotify("§7已存在同名缓存，保留既有文件 §8» §f" + target);
+                asyncNotify("§7检测到资源包重复下载，沿用已缓存的版本 §8» §f" + target);
             } else if (oldFile.renameTo(newFile)) {
                 asyncNotify("§a资源包已下载并落盘 §8» §f" + target);
             }

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
+  <title id="title">yiyiaddon · 让复杂操作，有条不紊。</title>
+  <desc id="desc">深色青绿几何封面。Minecraft 26.1.2 的独立 Fabric 客户端模组，当前版本 1.0-beta1，测试中。</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101d26"/><stop offset="1" stop-color="#081116"/></linearGradient>
+    <linearGradient id="top" x2="1" y2="1"><stop stop-color="#a5ffe0"/><stop offset="1" stop-color="#42bca4"/></linearGradient>
+    <linearGradient id="face" x2="0" y2="1"><stop stop-color="#318d80"/><stop offset="1" stop-color="#174342"/></linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#ffffff" stroke-opacity=".035"/></pattern>
+  </defs>
+  <rect width="1200" height="440" rx="22" fill="url(#bg)"/>
+  <rect width="1200" height="440" rx="22" fill="url(#grid)"/>
+  <g fill="none" stroke="#66d8ba" stroke-opacity=".18">
+    <ellipse cx="971" cy="243" rx="190" ry="96" transform="rotate(-30 971 243)"/>
+    <ellipse cx="971" cy="243" rx="233" ry="118" transform="rotate(-30 971 243)"/>
+    <path d="M774 355L1083 177M828 394L1137 216"/>
+  </g>
+  <g font-family="Segoe UI,Microsoft YaHei,sans-serif">
+    <rect x="54" y="46" width="29" height="5" rx="2.5" fill="#8ce8c7"/>
+    <text x="97" y="55" font-size="14" letter-spacing="3" fill="#9cafb6">独立 FABRIC 客户端模组</text>
+    <text x="50" y="162" font-size="82" font-weight="700" letter-spacing="-4" fill="#f2f7f5">yiyiaddon</text>
+    <text x="54" y="228" font-size="33" font-weight="600" fill="#d9ece6">让复杂操作，有条不紊。</text>
+    <text x="56" y="269" font-size="17" fill="#9fb3ba">模块化配置 · 中文控制台 · 自动化工作流</text>
+    <path d="M56 310H668" stroke="#ffffff" stroke-opacity=".13"/>
+    <text x="56" y="350" font-size="15" fill="#d6e8e2">Minecraft 26.1.2</text>
+    <circle cx="230" cy="345" r="2" fill="#66867e"/>
+    <text x="249" y="350" font-size="15" fill="#d6e8e2">Java 25</text>
+    <circle cx="339" cy="345" r="2" fill="#66867e"/>
+    <text x="358" y="350" font-size="15" fill="#d6e8e2">Windows</text>
+    <rect x="54" y="378" width="201" height="30" rx="15" fill="#8ce8c7" fill-opacity=".1" stroke="#8ce8c7" stroke-opacity=".25"/>
+    <circle cx="73" cy="393" r="3" fill="#8ce8c7"/>
+    <text x="87" y="398" font-size="13" fill="#a8e7d3">1.0-beta1 / 测试中</text>
+  </g>
+  <!-- 几何方块是封面插画，不是游戏截图或功能运行示意。 -->
+  <g stroke="#8ce8c7" stroke-linejoin="round">
+    <path d="M962 83L1080 150L962 218L844 150Z" fill="url(#top)"/>
+    <path d="M844 150L962 218V356L844 288Z" fill="url(#face)" stroke-opacity=".4"/>
+    <path d="M962 218L1080 150V288L962 356Z" fill="#163e3b" stroke-opacity=".45"/>
+    <path d="M883 173V310M922 195V333M1001 196V333M1040 173V310M844 196L962 264L1080 196M844 242L962 310L1080 242" fill="none" stroke-opacity=".2"/>
+    <path d="M883 128L1001 196M922 105L1040 173M883 173L1001 105M922 196L1040 128" fill="none" stroke="#154b42" stroke-opacity=".25"/>
+    <path d="M962 55V69M1100 140L1112 133M820 299L808 306" stroke-opacity=".55"/>
+  </g>
+  <rect x=".5" y=".5" width="1199" height="439" rx="22" fill="none" stroke="#ffffff" stroke-opacity=".1"/>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="270" viewBox="0 0 1200 270" role="img" aria-labelledby="t d">
+<title id="t">星露谷农场功能示意</title><desc id="d">以不同颜色的农田格子表现分区种植，旁列作物配额与补给仓储。此图为概念示意，不是游戏截图。</desc>
+<defs><pattern id="beds" width="62" height="54" patternUnits="userSpaceOnUse"><rect x="5" y="5" width="51" height="43" rx="7" fill="#254b3c" stroke="#46785b"/><path d="M31 36V20M31 29Q17 29 19 16Q31 16 31 26M31 24Q43 24 44 13Q32 13 31 24" fill="#9bbd67" stroke="#b5d884" stroke-width="1.5"/></pattern></defs>
+<rect width="1200" height="270" rx="16" fill="#101e1c"/>
+<g font-family="Segoe UI,Microsoft YaHei,sans-serif"><text x="38" y="43" font-size="12" letter-spacing="2" fill="#8ba89f">功能示意 / 星露谷农场</text>
+<text x="38" y="102" font-size="33" font-weight="600" fill="#ecf5ee">每块田，有自己的计划。</text>
+<text x="39" y="144" font-size="16" fill="#a8bdb1">分区种植　/　作物配额　/　补给仓储</text>
+<path d="M40 176H425" stroke="#355049"/><text x="39" y="214" font-size="14" fill="#9ab3a7">资源准备 → 圈定农田 → 配置目标 → 开始作业</text>
+<rect x="584" y="42" width="252" height="188" rx="12" fill="#182b23" stroke="#49664d"/>
+<rect x="587" y="49" width="248" height="162" fill="url(#beds)"/>
+<path d="M861 89H895V175H932" fill="none" stroke="#6caf92" stroke-width="2" stroke-dasharray="5 5"/>
+<rect x="918" y="45" width="230" height="72" rx="10" fill="#1b342b" stroke="#395748"/>
+<text x="937" y="74" font-size="14" fill="#d5e8d7">种植计划</text><text x="937" y="97" font-size="12" fill="#96b6a4">每种作物，独立目标数量</text>
+<rect x="918" y="147" width="230" height="72" rx="10" fill="#242f29" stroke="#4e5948"/>
+<text x="937" y="177" font-size="14" fill="#e0e5d2">后勤设施</text><text x="937" y="199" font-size="12" fill="#a8b39d">种子箱 · 成品箱 · 补水点</text></g>
+</svg>

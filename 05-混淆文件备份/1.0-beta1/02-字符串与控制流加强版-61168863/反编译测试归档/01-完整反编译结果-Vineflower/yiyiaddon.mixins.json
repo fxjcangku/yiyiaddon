@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.yiyiaddon.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CommandSuggestionsCompletionMixin",
+    "ClientLevelPredictionAccessor",
+    "ConnectionPacketMixin",
+    "GpuDeviceAccessor",
+    "GlCommandEncoderMixin",
+    "GuiRendererMixin",
+    "KeyboardHandlerAccessor",
+    "ModelManagerReloadMixin",
+    "MultiPlayerGameModeFastBreakMixin",
+    "MultiPlayerGameModePacketBreakMixin",
+    "PreeditCaptureMixin",
+    "RenderTargetMixin",
+    "ResourcePackPushMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

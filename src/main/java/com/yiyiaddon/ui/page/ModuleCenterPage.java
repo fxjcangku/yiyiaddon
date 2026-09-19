@@ -1,5 +1,7 @@
 package com.yiyiaddon.ui.page;
 
+import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.module.CategoryRegistry;
 import com.yiyiaddon.module.ModuleCategory;
 import com.yiyiaddon.module.ModuleEntry;
@@ -16,8 +18,11 @@ import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
 import io.github.humbleui.skija.Canvas;
 
+import org.lwjgl.glfw.GLFW;
+
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -50,8 +55,9 @@ import java.util.function.Consumer;
  * <p><b>分类头外观</b>：不铺底色、图标不带底框的「章节标签」形态，靠左侧强调条与悬停反馈辨识；
  * 模块行才是卡片。详见 {@link #drawGroupHeader}。</p>
  *
- * <p>展开状态存在 {@link #EXPANDED} 静态集合里（<b>默认全部收起</b>）：本页每次导航都会重建对象，
- * 状态不能随对象丢。</p>
+ * <p>展开状态存在 {@link #EXPANDED} 静态集合里（<b>默认全部收起</b>，用户 2026-09-18 起）：本页每次
+ * 导航都会重建对象，状态不能随对象丢。此外：分类头在滚动时吸顶（本页 {@code draw} 覆写），收藏的模块
+ * 排在最前的「常用」块（{@link #FAVORITES}，右键模块卡片切换，持久化在 {@code AddonConfig}）。</p>
  */
 public final class ModuleCenterPage extends CardPage {
 
@@ -72,14 +78,18 @@ public final class ModuleCenterPage extends CardPage {
     private static final float ROW_GAP = ModuleRow.ROW_GAP;
 
     /**
-     * 网格单元的最小宽度：可用宽度至少放得下这么宽，才多加一列。
+     * 网格单元的最小宽度<b>下限</b>：真正的取值为「本页最长模块名 + 图标 + 状态徽章 + 内边距」
+     * （见 {@link #minCellWidth}），这里只是防止名字都很短时格子窄到没法看。
      *
-     * <p>150 是「一格真的能读」的下限：单元里要放下图标（16 + 两侧内边距与间距共 22）＋模块名
-     * （12 号，最长五个汉字约 60）＋状态标记（约 45）。取值还要保证默认面板下「自动化」的三个模块
-     * 排成一排——面板 740、页面可用宽 501，减掉缩进 14 与两个间距 6 之后每格 158.3 &gt; 150，
-     * 正好三列（{@link #gridColumns}）；再往上取就会掉成两列，与用户要的「一排」不符。</p>
+     * <p>旧的写死值 150 的依据是「模块名最长五个汉字约 60」，用 158 的三列格宽正好排「自动化」三格
+     * （用户 2026-09-16 要的「一排」）。用户 2026-09-18 反馈「一些字超出框了 根本看不见名字」：
+     * 本页最长名「自动图书管理员」（12 号加粗约 84）在那一档只剩 65 可用，名字被截成「自动图书…」。
+     * 现改为按最长名字反推，<b>名字完整性优先于列数</b>；名字短时下限仍然兜住，不会更窄。</p>
      */
     private static final float MIN_CELL_W = 150f;
+
+    /** 本页最长模块名反推出的最小格宽（含测量余量）；{@code -1} = 待重算（清单变或首次布局时作废）。 */
+    private float minCellW = -1f;
 
     /**
      * 兜底页面宽度：第一帧刷新滚动上限时还没绘制过，页面还不知道自己的可用宽度。
@@ -123,12 +133,35 @@ public final class ModuleCenterPage extends CardPage {
     private static final String ARROW_COLLAPSED = "\uE5CC";
 
     /**
-     * 已展开的分类 id；静态保存，本页重建后仍保持。
+     * <b>已展开</b>的分类 id；静态保存，本页重建后仍保持。
      *
-     * <p><b>默认全部收起</b>（用户 2026-09-16 要求「模块中心的展开 默认能不能关掉」）：
-     * 存「已展开」而不是「已收起」，空集合即「全部收起」，不需要在初始化时预填任何东西。</p>
+     * <p><b>默认全部收起</b>（用户 2026-09-18 最终口径：「一进去全展开了」不可接受）：进页先看到
+     * 六个分类头与各自的模块数，点哪个展开哪个。存「已展开」而不是「已收起」：空集合即「全部收起」，
+     * 不需要初始化时预填，新增分类也自动是收起的
+     * （与 {@code SelectorScreen.expandedGroups} 同一口径）。</p>
      */
     private static final Set<String> EXPANDED = new HashSet<>();
+
+    /** 「常用」块的标识：它只是收藏视图，不是真分类（见 {@link #FAVORITES_CATEGORY}）。 */
+    private static final String FAVORITES_ID = "favorites";
+
+    /** 「常用」块的星标字形（Material Symbols 的 {@code star}；已按第 140 条验真：cmap 存在且未占用）。 */
+    private static final String FAVORITES_ICON = "\uE838";
+
+    /**
+     * 「常用」块的分类对象。
+     *
+     * <p>刻意<b>不进</b> {@link CategoryRegistry}：收藏是视图而不是分类，注册进去会让「模块中心显示
+     * 全部注册分类」的口径多出一个伪分类，其它页面按分类遍历时也会多出一项空分类。</p>
+     */
+    private static final ModuleCategory FAVORITES_CATEGORY =
+            new ModuleCategory(FAVORITES_ID, "常用", "收藏的模块；在模块上右键可收藏 / 取消", FAVORITES_ICON, -1);
+
+    /** 收藏的模块 id（按收藏先后有序）；与 {@link AddonConfig#favoriteModules} 同源，改动即落盘。 */
+    private static final Set<String> FAVORITES = new LinkedHashSet<>();
+
+    /** 收藏是否已从配置读过（配置只在首次访问时读一次，之后以内存中的集合为准）。 */
+    private static boolean favoritesLoaded;
 
     /** 清单里的一行：分类头（{@code module == null && !pageEntry}）、页面入口（{@code pageEntry}）或模块行。 */
     private record Row(ModuleCategory category, ModuleEntry module, boolean pageEntry) {
@@ -169,7 +202,9 @@ public final class ModuleCenterPage extends CardPage {
      */
     private void rebuildRows() {
         rows.clear();
+        loadFavorites();
         List<ModuleEntry> remaining = new ArrayList<>(ModuleRegistry.all());
+        addFavoritesBlock();
         for (ModuleCategory category : CategoryRegistry.all()) {
             // 归到「设置」导航的分类不在模块中心出现（沿用原口径）
             if (category.settingsEntry()) continue;
@@ -189,6 +224,50 @@ public final class ModuleCenterPage extends CardPage {
         setCardCount(rows.size());
     }
 
+    /**
+     * 「常用」块：收藏的模块排在最前，顺序即收藏先后。
+     *
+     * <p>收藏的模块<b>同时保留在原分类里</b>（像书签，不是搬家）：从常用区点进去和从分类点进去是同一张
+     * 卡片、同一份状态，<b>不</b>把它从 {@code remaining} 里移除。一个都没收藏时不插这一块，免得空占一行。</p>
+     */
+    private void addFavoritesBlock() {
+        List<ModuleEntry> favorites = new ArrayList<>();
+        for (String id : FAVORITES) {
+            ModuleEntry entry = ModuleRegistry.byId(id);
+            if (entry != null) favorites.add(entry);
+        }
+        if (favorites.isEmpty()) return;
+        rows.add(new Row(FAVORITES_CATEGORY, null, false));
+        if (!EXPANDED.contains(FAVORITES_ID)) return;
+        for (ModuleEntry entry : favorites) rows.add(new Row(FAVORITES_CATEGORY, entry, false));
+    }
+
+    /** 首次访问时从 {@link AddonConfig} 读收藏（{@code ;} 分隔）；失败或为空都保持空集合。 */
+    private static void loadFavorites() {
+        if (favoritesLoaded) return;
+        favoritesLoaded = true;
+        String raw = AddonConfig.favoriteModules;
+        if (raw == null || raw.isBlank()) return;
+        for (String id : raw.split(";")) {
+            String trimmed = id.trim();
+            if (!trimmed.isEmpty()) FAVORITES.add(trimmed);
+        }
+    }
+
+    /**
+     * 切换某个模块的收藏状态并立即落盘，同时在聊天栏给一句反馈。
+     *
+     * <p>落盘走 {@link AddonConfig}（UI 偏好与主题 / 缩放同一份配置），成功与否都重建清单：
+     * 常用区要立刻反映变化（第 214 条，判据与动作读同一份数据）。</p>
+     */
+    private static void toggleFavorite(ModuleEntry entry) {
+        boolean added = FAVORITES.add(entry.id());
+        if (!added) FAVORITES.remove(entry.id());
+        AddonConfig.favoriteModules = String.join(";", FAVORITES);
+        AddonConfig.save();
+        ClientChat.send("模块中心", (added ? "§a已收藏§r " : "§7已取消收藏§r ") + entry.displayName());
+    }
+
     /** 清单变了：作废上一次的网格排布（长度也变了，直接重建三个数组），下一次几何调用按新宽度重算。 */
     private void resetLayout() {
         slotOf = new int[rows.size()];
@@ -196,6 +275,7 @@ public final class ModuleCenterPage extends CardPage {
         colsOf = new int[rows.size()];
         gridRows = 0;
         layoutWidth = -1f;
+        minCellW = -1f;
     }
 
     @Override
@@ -205,7 +285,8 @@ public final class ModuleCenterPage extends CardPage {
 
     @Override
     public String getSubtitle() {
-        return UiText.t("全部功能模块，点击进入各自的设置", "All modules — click one to open its settings");
+        return UiText.t("点击进入设置 · 右键模块收藏到顶部「常用」",
+                "Click to open · Right-click to favorite");
     }
 
     @Override
@@ -290,12 +371,32 @@ public final class ModuleCenterPage extends CardPage {
      * <p>整数运算（先加一个间距再整除），不做浮点累加：浮点累加出来的列数在宽度临界点上会抖动，
      * 同一宽度可能这一帧三列、下一帧两列，界面就会闪。</p>
      *
-     * <p>默认面板（页面可用宽 501）下，减掉缩进 14 得 487，{@code (487 + 6) / (150 + 6) = 3}，
-     * 即「自动化」的三个模块正好排成一排；窗口更宽则更多列，更窄自动降列，最少一列。</p>
+     * <p>最小格宽取「{@link #MIN_CELL_W} 下限」与「{@link #minCellWidth} 按最长名字算出的值」的较大者；
+     * 默认面板（页面可用宽 501）下最长名字是「自动图书管理员」，每格约需 189，于是自动降为两列——
+     * 名字完整可读优先于列数（用户 2026-09-18 口径）。窗口更宽则列数回升，更窄继续降，最少一列。</p>
      */
-    private static int gridColumns(float contentW) {
+    private int gridColumns(float contentW) {
         float gridW = Math.max(0f, contentW - ModuleRow.INDENT);
-        return Math.max(1, (int) Math.floor((gridW + ROW_GAP) / (MIN_CELL_W + ROW_GAP)));
+        float cell = Math.max(MIN_CELL_W, minCellWidth());
+        return Math.max(1, (int) Math.floor((gridW + ROW_GAP) / (cell + ROW_GAP)));
+    }
+
+    /**
+     * 本页网格单元的最小宽度：最长模块名 + 单元固定占用（图标 / 状态徽章 / 内边距）。
+     *
+     * <p>名字必须完整显示，所以列宽由它反推，而不是写死一个数（{@link ModuleRow#nameWidth} /
+     * {@link ModuleRow#cellFixedWidth} 是与绘制同源的两个量）。加 1 像素余量抗测量误差，
+     * 避免正好卡在边界上又被 {@code ellipsize} 截掉最后一个字。结果缓存，清单变化时作废。</p>
+     */
+    private float minCellWidth() {
+        if (minCellW > 0f) return minCellW;
+        float widest = 0f;
+        for (Row row : rows) {
+            if (!isGridModule(row)) continue;
+            widest = Math.max(widest, ModuleRow.nameWidth(row.module().displayName()));
+        }
+        minCellW = widest + ModuleRow.cellFixedWidth("已启用") + 1f;
+        return minCellW;
     }
 
     /** 网格单元宽度：先扣掉单元之间的横向间距（与 {@link #ROW_GAP} 同值）再均分，同一行每格等宽。 */
@@ -354,6 +455,16 @@ public final class ModuleCenterPage extends CardPage {
 
     @Override
     protected int indexAt(float mx, float my, float originX, float originY, float contentW) {
+        // 吸顶条先命中：它画在视口顶部，与它下面滚过的卡片位置重叠，判定必须与绘制同源（见 stickyIndex）
+        int sticky = stickyIndex(originY, contentW);
+        if (sticky >= 0) {
+            float top = originY - CardLayout.TOP_INSET;
+            float left = leftOf(originX, contentW, sticky);
+            if (my >= top && my <= top + ROW_HEIGHT
+                    && mx >= left && mx <= left + widthOf(contentW, sticky)) {
+                return sticky;
+            }
+        }
         ensureLayout(contentW);
         for (int i = 0; i < rows.size(); i++) {
             float left = leftOf(originX, contentW, i);
@@ -364,6 +475,54 @@ public final class ModuleCenterPage extends CardPage {
         return -1;
     }
 
+    /**
+     * 当前应当吸顶的分类头下标；没有（还没滚过任何分类头）返回 {@code -1}。
+     *
+     * <p>取「已经滚到视口上方的分类头里最靠下的那一个」：它的模块正在屏幕上，视口顶部就该显示它的名字。
+     * 判据里的视口顶 = {@code originY - TOP_INSET}（{@code originY} 已扣掉滚动偏移），
+     * 绘制（{@link #drawStickyHeader}）与命中（{@link #indexAt}）共用这一个方法，两处不会错位。</p>
+     */
+    private int stickyIndex(float originY, float contentW) {
+        ensureLayout(contentW);
+        float viewTop = originY - CardLayout.TOP_INSET;
+        int sticky = -1;
+        for (int i = 0; i < rows.size(); i++) {
+            Row row = rows.get(i);
+            if (row.category() == null || row.module() != null || row.pageEntry()) continue;
+            if (topOf(originY, i) < viewTop + 0.5f) sticky = i;
+        }
+        return sticky;
+    }
+
+    /**
+     * 分类头吸顶：已经滚出视口顶部的那个分类头，固定画在顶部一行，滚动时始终知道自己在看哪个分类
+     * （用户 2026-09-18：「像真正的脚本辅助」）。
+     *
+     * <p>画在 {@code super.draw} <b>之后</b>：吸顶条要盖在滚过去的模块之上，否则两行内容叠在一起。
+     * 位置与命中同源（都走 {@link #stickyIndex}），所以点吸顶条 = 点那个分类头（收起 / 展开）。</p>
+     */
+    @Override
+    public void draw(Canvas canvas, float x, float y, float contentW, float contentH, float alpha,
+                     float scrollOffset, float mouseX, float mouseY) {
+        super.draw(canvas, x, y, contentW, contentH, alpha, scrollOffset, mouseX, mouseY);
+        ensureLayout(contentW);
+        int sticky = stickyIndex(y + CardLayout.TOP_INSET - scrollOffset, contentW);
+        if (sticky < 0) return;
+        float sx = leftOf(x, contentW, sticky);
+        float sw = widthOf(contentW, sticky);
+        float hover = topHover(sx, y, sw);
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        drawHeaderBackground(canvas, sx, y, sw, alpha, hover, tc, true);
+        drawHeaderContent(canvas, rows.get(sticky).category(), sx, y, sw, alpha, hover, tc);
+    }
+
+    /** 吸顶条是否被悬停：它就画在视口顶部那一行，与滚动偏移无关。 */
+    private float topHover(float x, float y, float w) {
+        float mx = frameMouseX();
+        float my = frameMouseY();
+        return mx >= x && mx <= x + w && my >= y && my <= y + ROW_HEIGHT ? 1f : 0f;
+    }
+
     @Override
     protected void drawCard(Canvas canvas, int index, float x, float y, float w, float alpha, float hover,
                             ClickGuiThemeColors tc) {
@@ -371,7 +530,8 @@ public final class ModuleCenterPage extends CardPage {
         if (row.module() != null) {
             // 同分类的模块行在网格里并排（见 ensureLayout），格子里的排版见 ModuleRow.drawCell
             if (colsOf[index] > 0) {
-                ModuleRow.drawCell(canvas, row.module(), x, y, w, frameMouseX(), frameMouseY(), alpha, hover, tc);
+                ModuleRow.drawCell(canvas, row.module(), x, y, w, frameMouseX(), frameMouseY(), alpha, hover,
+                        FAVORITES.contains(row.module().id()), tc);
             } else {
                 // 无分类的兜底模块没有并排的对象，仍按整行画（区别于网格单元的「图标 + 名称 + 状态」）
                 ModuleRow.draw(canvas, row.module(), x, y, w, alpha, hover, tc);
@@ -399,10 +559,32 @@ public final class ModuleCenterPage extends CardPage {
             router.open(category.page().get(), UiNavigationMemory.token(UiNavigationMemory.TOKEN_PAGE, category.id()));
             return;
         }
-        // 分类头：收起 / 展开
+        // 分类头：展开 / 收起
         String id = row.category().id();
         if (!EXPANDED.remove(id)) EXPANDED.add(id);
         rebuildRows();
+    }
+
+    /**
+     * 右键模块卡片 = 收藏 / 取消收藏（进入顶部「常用」区）；其余点击行为沿用基类。
+     *
+     * <p>为什么用右键而不是在卡片上加星标按钮：网格单元里「图标 + 名字 + 状态」已经把 158 宽吃满
+     * （见 {@link ModuleRow#drawCell} 的注释），再加一个按钮只能把名字挤成省略号；右键零占位，
+     * 且收藏是低频操作，不需要常驻入口。反馈由聊天栏播报 + 常驻描边 + 常用区三处给出。</p>
+     */
+    @Override
+    public boolean onClick(float mx, float my, float contentX, float contentY, float contentW,
+                           float scrollOffset, int button) {
+        if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            int index = indexAt(mx, my, contentX, contentY + CardLayout.TOP_INSET - scrollOffset, contentW);
+            if (index < 0) return false;
+            Row row = rows.get(index);
+            if (row.module() == null) return false;
+            toggleFavorite(row.module());
+            rebuildRows();
+            return true;
+        }
+        return super.onClick(mx, my, contentX, contentY, contentW, scrollOffset, button);
     }
 
     @Override
@@ -426,11 +608,35 @@ public final class ModuleCenterPage extends CardPage {
      */
     private void drawGroupHeader(Canvas canvas, ModuleCategory category, float x, float y, float w,
                                  float alpha, float hover, ClickGuiThemeColors tc) {
+        drawHeaderBackground(canvas, x, y, w, alpha, hover, tc, false);
+        drawHeaderContent(canvas, category, x, y, w, alpha, hover, tc);
+    }
+
+    /**
+     * 分类头的底。
+     *
+     * <p>常态<b>不铺底色</b>（「章节标签」形态，见 {@link #drawGroupHeader} 的注释），只有悬停时一层
+     * 很淡的反馈标明「这一行可点」。</p>
+     *
+     * <p>{@code sticky = true} 是吸顶条（本页 {@code draw} 覆写里画的那一条）的用法：改成实底 + 一条
+     * 底线 —— 吸顶条画在滚动内容之上，必须能盖住下面滚过的模块，否则两行文字会叠在一起。</p>
+     */
+    private void drawHeaderBackground(Canvas canvas, float x, float y, float w, float alpha, float hover,
+                                      ClickGuiThemeColors tc, boolean sticky) {
         float radius = ClickGuiThemeManager.current().metrics().moduleRadius();
-        // 只有悬停时给一层很淡的反馈，标明「这一行可点」
+        if (sticky) {
+            GlassPanel.frost(canvas, x, y, w, ROW_HEIGHT, radius, tc.module, 0.92f, alpha);
+            GlassPanel.fill(canvas, x, y + ROW_HEIGHT - 1f, w, 1f, 0f, tc.rim, alpha * 0.35f);
+            return;
+        }
         if (hover > 0.01f) {
             GlassPanel.frost(canvas, x, y, w, ROW_HEIGHT, radius, tc.surfaceHover, 0.30f * hover, alpha);
         }
+    }
+
+    /** 分类头的内容：强调条 + 图标 + 名称 + 模块数 + 展开箭头。吸顶条与常规行共用这一份，两处不会画歪。 */
+    private void drawHeaderContent(Canvas canvas, ModuleCategory category, float x, float y, float w,
+                                   float alpha, float hover, ClickGuiThemeColors tc) {
         // 左侧强调条：章节的起头标记，悬停时更亮
         GlassPanel.fill(canvas, x + HEADER_BAR_INSET, y + HEADER_BAR_MARGIN,
                 HEADER_BAR_WIDTH, ROW_HEIGHT - HEADER_BAR_MARGIN * 2f,
@@ -442,7 +648,10 @@ public final class ModuleCenterPage extends CardPage {
                 HEADER_ICON_GLYPH, GlassPanel.withAlpha(GlassPanel.mix(tc.accent, tc.primaryText, 0.25f), alpha));
         cursor += HEADER_ICON_BOX + HEADER_GAP;
 
-        int moduleCount = ModuleRegistry.byCategory(category.id()).size();
+        // 「常用」不算真分类（没注册进 CategoryRegistry），模块数直接读收藏集合
+        int moduleCount = FAVORITES_ID.equals(category.id())
+                ? FAVORITES.size()
+                : ModuleRegistry.byCategory(category.id()).size();
         String countText = moduleCount == 0
                 ? ""
                 : UiText.t(moduleCount + " 个模块", moduleCount + " modules");

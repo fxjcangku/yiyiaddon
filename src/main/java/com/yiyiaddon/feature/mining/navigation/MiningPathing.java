@@ -3,6 +3,9 @@ package com.yiyiaddon.feature.mining.navigation;
 import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
 import baritone.api.Settings;
+import baritone.api.event.events.PlayerUpdateEvent;
+import baritone.api.event.events.type.EventState;
+import baritone.api.event.listener.AbstractGameEventListener;
 import baritone.api.pathing.goals.GoalTwoBlocks;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.fsm.MinerState;
@@ -66,18 +69,29 @@ public final class MiningPathing {
     /** 静默窗长度（刻）：2 秒，足够覆盖 stop 后 Baritone 那一两刻内的回声 */
     private static final int RELAY_QUIET_TICKS = 40;
 
-    // ── 寻路视角（用户 2026-09-18：「寻路视角 还是没看着 男中音寻路的那条线」） ─────
+    // ── 寻路视角（用户 2026-09-18：「没看着男中音寻路的那条线」；
+    //                    2026-09-19：「寻路视角跟随抖动、不丝滑，加强算法」） ─────
     //
     // 男中音默认 freeLook = true：走路时它只把朝向「静默」发给服务端（LookBehavior.Target.Mode#resolve
-    // → `antiCheat ? SERVER : NONE`），本地视角一动不动 —— 所以寻路的那个视角看不见。
-    // 把 freeLook 关掉后走路也落到 CLIENT 分支（挖矿时本来就一直如此），视角由男中音每刻写向路径
-    // 下一个节点。此时本地视角只有男中音一个写入者，因此不抖；抖动来自第二个写入者（本模块自己写角度）。
+    // → `antiCheat ? SERVER : NONE`），本地视角一动不动。把 freeLook 关掉后走路也落到 CLIENT 分支
+    // （挖矿时本来就一直如此），玩家看得见它在往哪走、瞄向哪块。
+    //
+    // 但男中音每刻的写入是「直接跳到目标角度」：路径节点一换（转弯/上下坡/绕障碍）就是一次阶跃；
+    // 它自带的 smoothLook 只是「最近 N 刻目标角度的窗口平均」——不处理 ±180° 环绕（视角跨中线时
+    // 平均出南辕北辙的角度）、不碰俯仰、且每刻以 Δ/N 的等差步前进（角速度不连续），所以还是抖。
+    //
+    // 现改为本模块自己接管<b>可见视角</b>（见 {@link #applyViewFollow}）：PRE 阶段先读走男中音刚
+    // 写下的「本刻目标角度」——它写给服务端与射线检测的精确角度不受任何影响，保证挖矿/交互照常精准；
+    // POST 阶段再用自研平滑器写回可见视角：±180 环绕归一 + 指数趋近（角速度连续）+ 目标静止自动贴合。
+    // 一个写入者、一个目标源：转弯丝滑，对准分毫不差（见 {@link #writeSmoothedView}）。
 
     /** 男中音视角类设置的原值：只在第一次写入前抓一次，模块关闭时原样还回去（视角涉及玩家操作手感，必须还原） */
     private boolean viewOriginalsSaved;
     private boolean originalFreeLook;
     private double originalRandomLooking;
     private double originalRandomLooking113;
+    /** 男中音 {@code smoothLook} 的原值（默认 false，见 {@link #applyViewFollow}） */
+    private boolean originalSmoothLook;
 
     /**
      * 战斗期间把可见视角让回战斗逻辑。
@@ -88,6 +102,34 @@ public final class MiningPathing {
      * 「战斗期间男中音的移动朝向是 SERVER 静默模式」那条注释的由来。</p>
      */
     private boolean combatViewHold;
+
+    // ── 自研视角平滑器（用户 2026-09-19：「寻路视角跟随抖动、不丝滑，加强算法」） ─────
+    // 每刻把「男中音写下的目标角度」低通滤波成可见视角。状态字段与算法说明见 writeSmoothedView。
+
+    /** 每刻向目标趋近的比例（指数平滑因子，0~1）：越大越跟手，越小越丝滑 */
+    private static final float VIEW_SMOOTH_FACTOR = 0.35f;
+    /** 与目标差值小于该角度（度）直接贴合：消除指数趋近的无穷尾巴，对准不虚 */
+    private static final float VIEW_SNAP_EPS = 0.4f;
+    /** 目标角度连续静止这么多刻直接贴合：转弯收尾干脆，挖矿准星分毫不差 */
+    private static final int VIEW_SETTLE_TICKS = 4;
+
+    /** 平滑器事件监听器是否已挂上男中音事件总线（挂一次即可，永不摘除，用 {@link #viewFollowActive} 闸门控制） */
+    private boolean viewSmootherRegistered;
+    /** 平滑器闸门：跟随开启、未被战斗接管、且男中音确有寻路/挖矿进程时才动手 */
+    private boolean viewFollowActive;
+    /** 平滑器初值是否已从玩家当前视角取好（切换开关后重新取，避免跳变） */
+    private boolean viewSmootherSeeded;
+    /** 平滑后的当前可视图视角（本模块写回玩家的值） */
+    private float viewYaw;
+    private float viewPitch;
+    /** PRE 阶段从男中音手里读下的「本刻目标角度」；尚无样本时 yaw 为 NaN */
+    private float desiredYaw = Float.NaN;
+    private float desiredPitch;
+    /** 上一刻的目标角度：用于「目标静止」检测（yaw 同样 NaN 表示无上一刻） */
+    private float lastDesiredYaw = Float.NaN;
+    private float lastDesiredPitch;
+    /** 目标角度已连续静止的刻数 */
+    private int desiredStillTicks;
 
     public MiningPathing(AutoMinerModule module) {
         this.module = module;
@@ -358,8 +400,18 @@ public final class MiningPathing {
      *
      * <p>开：{@code freeLook = false} → 走路也走 CLIENT 分支，视角由男中音每刻写向路径下一节点；
      * 同时把每刻随机偏移 {@code randomLooking / randomLooking113} 归零——它们会在 CLIENT 模式下直接写进
-     * 可见视角（{@code randomLooking113} 默认 2 即每刻 ±1 度），正是「视角抖」的直接来源。
+     * 可见视角（{@code randomLooking113} 默认 2 即每刻 ±1 度），正是第一代「视角抖」的来源。
      * 关：三项全部还原成写入前的原值，男中音回到出厂行为（走路视角不动、鼠标完全由玩家控制）。</p>
+     *
+     * <p><b>自研平滑接管</b>（用户 2026-09-19：「视角跟随还是有一点轻微的抖动不流畅，走路的时候」；
+     * 旧版开的是男中音自带 {@code smoothLook}，它只做「最近 N 刻目标角度的窗口平均」，
+     * 三类毛病：±180° 环绕不处理（视角跨中线时平均出反方向）、俯仰不平滑、每刻 Δ/N 等差步
+     * （角速度不连续）。现改为 {@code smoothLook = false} + 本模块在
+     * {@code PlayerUpdateEvent} 的 PRE/POST 之间接管：PRE 读走男中音刚写下的精确目标角度
+     * （它写给服务端与射线检测的角度原样保留），POST 用
+     * 「环绕归一 + 指数趋近 + 静止贴合」的平滑器写回可见视角（{@link #writeSmoothedView}）。
+     * 代价是转向略滞后（约 0.2~0.3 秒），对挂机挖矿无影响；战斗期间由 {@link #setCombatViewHold}
+     * 把 {@code freeLook} 放回原值并关闭本平滑器，可见视角归战斗逻辑。</p>
      */
     public void applyViewFollow() {
         try {
@@ -368,6 +420,7 @@ public final class MiningPathing {
                 originalFreeLook = settings.freeLook.value;
                 originalRandomLooking = settings.randomLooking.value;
                 originalRandomLooking113 = settings.randomLooking113.value;
+                originalSmoothLook = settings.smoothLook.value;
                 viewOriginalsSaved = true;
             }
 
@@ -375,10 +428,132 @@ public final class MiningPathing {
             settings.freeLook.value = !follow;
             settings.randomLooking.value = follow ? 0.0 : originalRandomLooking;
             settings.randomLooking113.value = follow ? 0.0 : originalRandomLooking113;
+            // 平滑由本模块接管：男中音自带的窗口平均要么叠加抖动、要么跨 ±180 抽风，一律关掉
+            settings.smoothLook.value = false;
 
+            viewFollowActive = follow;
+            viewSmootherSeeded = false; // 重新开启时从玩家当前视角起跳，避免从旧角度猛拉
+            if (follow) {
+                ensureViewSmootherRegistered();
+            }
         } catch (Throwable e) {
             // 设置写入失败不影响主体逻辑
         }
+    }
+
+    // ── 自研视角平滑器 ────────────────────────────────────────────────────────
+
+    /**
+     * 把平滑器事件监听器挂上男中音事件总线（只挂一次）。
+     *
+     * <p>挂在男中音所有行为之后（{@code CopyOnWriteArrayList} 按注册序派发）：PRE 阶段读到的
+     * {@code player.getYRot()} 正是男中音 {@code LookBehavior} 刚写下的「本刻精确目标角度」；
+     * POST 阶段再晚于它的复原/窗口平均写入，我们写回的值就是本刻可见的最终视角。
+     * 事件总线没有摘除接口，因此用 {@link #viewFollowActive} 做软闸门，模块开关无忧。</p>
+     */
+    private void ensureViewSmootherRegistered() {
+        if (viewSmootherRegistered) return;
+        try {
+            IBaritone baritone = getBaritone();
+            if (baritone == null) return;
+            baritone.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
+                @Override
+                public void onPlayerUpdate(PlayerUpdateEvent event) {
+                    if (!viewFollowActive || !smootherGatePasses()) return;
+                    if (mc.player == null) return;
+                    if (event.getState() == EventState.PRE) {
+                        // 男中音这一刻的目标角度（已含它本刻的钳制），先记下，POST 再算
+                        desiredYaw = mc.player.getYRot();
+                        desiredPitch = mc.player.getXRot();
+                    } else if (event.getState() == EventState.POST) {
+                        writeSmoothedView();
+                    }
+                }
+            });
+            viewSmootherRegistered = true;
+        } catch (Throwable e) {
+            // 挂载失败不影响主体逻辑（视角回退男中音原生行为）
+        }
+    }
+
+    /**
+     * 平滑器闸门：只有男中音真的在「寻路 / 挖矿 / 物流寻路」时才接管可见视角。
+     *
+     * <p>其余时刻（战斗接管、挂机修复对齐、水流脱困、连锁挖矿接管）这些流程自己写精确视角，
+     * 平滑器不掺和；男中音没有进程时也不写角度，无需兜底。</p>
+     */
+    private boolean smootherGatePasses() {
+        try {
+            if (mc.player == null || mc.player.isFallFlying() || !module.isEnabled()) return false;
+            IBaritone baritone = getBaritone();
+            if (baritone == null) return false;
+            return baritone.getPathingBehavior().isPathing()
+                || baritone.getMineProcess().isActive()
+                || baritone.getCustomGoalProcess().isActive();
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    /**
+     * 自研平滑写回：把本刻目标角度低通滤波后写回可见视角。
+     *
+     * <p><b>算法三件套</b>（对应旧问题的三个病根）：</p>
+     * <ul>
+     *   <li><b>±180 环绕归一</b>：yaw 差值先归一进 [-180,180) 再参与计算——旧窗口平均在视角跨
+     *       「-179 → 179」中线时会把 (-179+179)/2=0 当平均，镜头瞬间抽向反方向，这就是最刺眼的一档抖；</li>
+     *   <li><b>指数趋近</b>：每刻消掉剩余差值的 {@code VIEW_SMOOTH_FACTOR} 比例，角速度随剩余角度
+     *       单调递减且连续——转弯是「快起慢收」的弧线，而不是旧版每刻 Δ/N 的等距顿挫；</li>
+     *   <li><b>静止贴合</b>：目标稳定（{@code VIEW_SETTLE_TICKS} 刻没变）或已足够近
+     *       （{@code VIEW_SNAP_EPS}）就直接贴合目标——指数趋近的无穷尾巴被截断，挖矿准星、
+     *       收货开箱方向的最终对准分毫不差（男中音的射线检测走它自己写下的精确角度，不经过本平滑器）。</li>
+     * </ul>
+     *
+     * <p>写入时机：本监听器注册在男中音所有行为之后，POST 后不再有男中音的视角写入，
+     * 本刻渲染拿到的就是这个值；下一刻男中音的包发送与射线检测照常使用它自己在 PRE 写的
+     * 精确角度（{@code freeLook = false} 时服务端收到的是男中音原目标角，玩家看到的是平滑角，
+     * 防疯狗反作弊且视觉丝滑）。</p>
+     */
+    private void writeSmoothedView() {
+        if (Float.isNaN(desiredYaw)) return;
+        if (!viewSmootherSeeded) {
+            viewYaw = mc.player.getYRot();
+            viewPitch = mc.player.getXRot();
+            viewSmootherSeeded = true;
+        }
+
+        float yawDelta = wrapDegrees(desiredYaw - viewYaw);
+        float pitchDelta = desiredPitch - viewPitch;
+
+        // 目标静止检测：拿上一刻目标与本刻目标比（yaw 走环绕归一后的差值）
+        boolean targetStill = !Float.isNaN(lastDesiredYaw)
+            && Math.abs(wrapDegrees(desiredYaw - lastDesiredYaw)) < VIEW_SNAP_EPS
+            && Math.abs(desiredPitch - lastDesiredPitch) < VIEW_SNAP_EPS;
+        desiredStillTicks = targetStill ? desiredStillTicks + 1 : 0;
+        lastDesiredYaw = desiredYaw;
+        lastDesiredPitch = desiredPitch;
+
+        boolean nearEnough = Math.abs(yawDelta) < VIEW_SNAP_EPS && Math.abs(pitchDelta) < VIEW_SNAP_EPS;
+        if (desiredStillTicks >= VIEW_SETTLE_TICKS || nearEnough) {
+            // 直接贴合：转弯收尾干脆、对准分毫不差
+            viewYaw = desiredYaw;
+            viewPitch = desiredPitch;
+        } else {
+            // 指数趋近：角速度连续，转大弯也是丝滑弧线
+            viewYaw = wrapDegrees(viewYaw + yawDelta * VIEW_SMOOTH_FACTOR);
+            viewPitch += pitchDelta * VIEW_SMOOTH_FACTOR;
+        }
+
+        mc.player.setYRot(viewYaw);
+        mc.player.setXRot(viewPitch);
+    }
+
+    /** 角度差归一进 [-180,180)：跨 ±180° 中线时取最短转角 */
+    private static float wrapDegrees(float angle) {
+        angle %= 360f;
+        if (angle >= 180f) angle -= 360f;
+        if (angle < -180f) angle += 360f;
+        return angle;
     }
 
     /** 战斗态进出时调用：进战斗让回可见视角（见 {@link #combatViewHold}），出战斗交回寻路视角 */
@@ -388,7 +563,7 @@ public final class MiningPathing {
         applyViewFollow();
     }
 
-    /** 模块关闭时还原视角类设置（{@code freeLook} / 两项随机偏移），不留副作用给玩家自己用男中音 */
+    /** 模块关闭时还原视角类设置（{@code freeLook} / 两项随机偏移 / {@code smoothLook}），不留副作用给玩家自己用男中音 */
     public void restoreViewSettings() {
         if (!viewOriginalsSaved) return;
         try {
@@ -396,11 +571,17 @@ public final class MiningPathing {
             settings.freeLook.value = originalFreeLook;
             settings.randomLooking.value = originalRandomLooking;
             settings.randomLooking113.value = originalRandomLooking113;
+            settings.smoothLook.value = originalSmoothLook;
         } catch (Throwable e) {
             // 还原失败不影响关闭流程
         } finally {
             viewOriginalsSaved = false;
             combatViewHold = false;
+            viewFollowActive = false;
+            viewSmootherSeeded = false;
+            desiredYaw = Float.NaN;
+            lastDesiredYaw = Float.NaN;
+            desiredStillTicks = 0;
         }
     }
 

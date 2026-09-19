@@ -289,6 +289,32 @@ public final class AdminDetectorModule extends Module {
         AdminDisconnect.disconnect(MESSAGE_MODULE, MANUAL_DISCONNECT_REASON);
     }
 
+    // ── 与自动化模块的联动 ────────────────────────────────────────────────────
+
+    /**
+     * 自动化模块（自动挖矿 / 星露谷农场）启动时自动打开本模块
+     * （用户 2026-09-19 需求：「打开自动挖矿跟星露谷农场自动打开管理员检测」）。
+     *
+     * <p><b>为什么需要</b>：这两个模块都是长时间无人值守跑图，最怕管理员悄悄摸过来 ——
+     * 检测靠「记得手动开」就一定会漏。因此它们每次真正启用成功时，把本模块一起拉起来。</p>
+     *
+     * <p><b>只开不关</b>：自动化模块关闭时<b>不会</b>反过来关掉本模块。用户可能本来就想让它一直盯着，
+     * 关掉自动化不等于解除警戒（与「修补联动杀戮光环」那种成对开关的语义不同 ——
+     * 那里关掉的是我们自己临时开的战斗）。</p>
+     *
+     * <p>用 {@link ModuleManager#setEnabledSilently} 开，再补一条带原因的单行播报：本模块命中即
+     * <b>强制断线</b>，用户必须分得清它是「自己开的」还是「被联动开的」，否则会以为模块自己抽风。
+     * 已经开着时直接返回，不重复播报。</p>
+     *
+     * @param sourceDisplayName 触发联动的模块显示名（自动挖矿 / 星露谷农场）
+     */
+    public static void linkFromAutomation(String sourceDisplayName) {
+        if (ModuleManager.isEnabled(MODULE_ID)) return;
+        // 自检没过 / 本次会话初始化失败：静默放弃，不打扰用户
+        if (!ModuleManager.setEnabledSilently(MODULE_ID, true)) return;
+        ClientChat.send(MESSAGE_MODULE, "§a§l已开启 §8▸ §e随「" + sourceDisplayName + "」自动打开");
+    }
+
     // ── 判定（旧 {@code :175-230}，方法体逐字） ──
 
     /**

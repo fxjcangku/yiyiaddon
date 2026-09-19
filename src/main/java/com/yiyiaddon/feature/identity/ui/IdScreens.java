@@ -4,7 +4,6 @@ import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.model.identity.BlockIdentity;
 import com.yiyiaddon.model.identity.EntityIdentity;
 import com.yiyiaddon.model.identity.ItemIdentity;
-import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -57,13 +56,6 @@ public final class IdScreens {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
         client.setScreen(new IdAddScreen(parent));
-    }
-
-    /** 打开「使用说明」；窗口标题为「{@code <模块名> - 使用说明}」。 */
-    public static void openHelp(Screen parent, IdConfigModule module) {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) return;
-        client.setScreen(new HelpPanelScreen(IdConfigModule.MESSAGE_MODULE, module.buildHelpContent(), parent));
     }
 
     /** 打开物品识别结果窗口。 */

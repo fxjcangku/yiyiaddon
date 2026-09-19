@@ -21,7 +21,7 @@ import java.util.Set;
  * <p>黑名单只有这一份。设置层若直接复用界面层的候选表，会造成 config → UI 的反向依赖
  * （载入设置时会顺带类加载 UI），故把过滤口径下沉到本类，两层各自加工。</p>
  *
- * <p><b>黑名单来源</b>：Meteor 蓝本 {@code EntityUtils.isAttackable}（{@code EntityUtils.java:46-48}），
+ * <p><b>黑名单来源</b>：旧框架蓝本 {@code EntityUtils.isAttackable}（{@code EntityUtils.java:46-48}），
  * 逐项 16 个：区域效果云 / 箭 / 下落方块 / 烟花火箭 / 掉落物 / 羊驼唾沫 / 光灵箭 / 末影珍珠 /
  * 喷溅药水 / 滞留药水 / 三叉戟（投掷物）/ 闪电 / 鱼漂 / 经验球 / 经验瓶 / 鸡蛋。</p>
  */

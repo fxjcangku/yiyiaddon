@@ -20,8 +20,14 @@ import java.util.List;
  * {@link #breakProgressEsp} 及其颜色两项 —— 用户 2026-09-18 追加的挖掘进度 ESP 独立开关与配色；
  * {@link #breakSpawner} —— 用户 2026-09-18 追加的刷怪笼优先破坏；
  * {@link #statusBroadcast} —— 用户 2026-09-18 追加的状态播报开关（含相同播报自动折叠）；
- * 以及 {@link #mobAvoidance} 与 {@link #lavaEspRange} 的<b>默认值</b>
- * —— 用户 2026-09-18 裁定分别改为「关」与 16 格，字段本体与旧项目一致；
+ * 以及 {@link #mobAvoidance}、{@link #lavaEspRange}、{@link #lavaAvoidRadius} 与
+ * {@link #allowParkour} 等控制台开关的<b>默认值</b>
+ * —— 2026-09-18 定稿：控制台开关与岩浆两项数值的默认值<b>一律以用户实机截图为准</b>
+ * （疾跑上坡 / 允许跑酷 / 跑酷搭桥 / 对角线上升 / 失败目标暂时跳过 / 刷怪笼优先破坏 /
+ * 寻路视角跟随 / 破坏阻挡方块 / 放置方块 / 自动整理物品栏 / 自动切换工具 / 避开岩浆 / 岩浆透视
+ * 为<b>开</b>；怪物规避 / 掉落方块暂停 / 对角线下降 / 仅挖暴露矿石 / 合法挖掘模式（含对角检测）/
+ * 寻路物流破坏方块为<b>关</b>；{@code lavaEspRange = 16}、{@code lavaAvoidRadius = 2}），
+ * 其余设置项一律保持旧项目默认值；
  * {@link #autoDisconnect} 及其 {@link #autoDisconnectHealth} —— 用户 2026-09-18 追加的自动断线
  * （血量掉到设定格数立即退出服务器，防死亡掉落））。</p>
  *
@@ -126,7 +132,14 @@ public final class MiningSettings {
     /** 保留白名单｜默认保留任意品质工具、白名单食物、目标矿物；此名单内的额外物品/方块也不会被丢弃。存物品 ID */
     public final List<String> keepWhitelist = new ArrayList<>();
 
-    /** 食物白名单｜从食物箱只拿选中的食物（只显示能吃的食物，默认常用食物，可自由增删）。存物品 ID */
+    /**
+     * 食物白名单｜自动挖矿的「食物清单」总口径（只显示能吃的食物）。
+     *
+     * <p>用户 2026-09-19 裁定「严格白名单：只吃也只留白名单食物」，四处判据全部走本名单：
+     * 吃（{@code MiningContainer#isEdible} / 状态机 {@code hasFoodToEat}）、留（{@code shouldKeep}，
+     * 白名单外的食物当垃圾丢弃）、统计（{@code countFoodStacks}）、补给取货（{@code withdrawFood}）。
+     * 想保留白名单外的某件物品，用职责独立的「保留白名单」（{@link #keepWhitelist}）。存物品 ID</p>
+     */
     public final List<String> foodWhitelist = new ArrayList<>(List.of(
         "minecraft:cooked_beef",
         "minecraft:cooked_porkchop",
@@ -134,10 +147,15 @@ public final class MiningSettings {
         "minecraft:bread"
     ));
 
-    /** 搭路方块白名单｜Baritone搭桥/填坑时使用这些方块，且只保留各一组（多余自动丢弃）。存方块 ID */
+    /** 搭路方块白名单｜Baritone搭桥/填坑/岩浆垫脚时使用这些方块，且只保留各一组（多余自动丢弃）。存方块 ID */
     public final List<String> placeBlocks = new ArrayList<>(List.of(
-        "minecraft:cobblestone",
-        "minecraft:netherrack"
+        // 2026-09-18 补全默认（用户：「踮脚方块白名单默认加上这些」）：挖矿沿途最常见的五种垫脚料，
+        // 原先只有圆石+下界岩，深板岩层里挖到的深板岩/深板岩圆石/石头填不进白名单，垫脚就没料可用
+        "minecraft:deepslate",
+        "minecraft:cobbled_deepslate",
+        "minecraft:stone",
+        "minecraft:netherrack",
+        "minecraft:cobblestone"
     ));
 
     // ━━━ 秒破（旧项目 :433-452） ━━━
@@ -162,13 +180,17 @@ public final class MiningSettings {
     public boolean bypassAnticheat = false;
 
     /**
-     * 秒破间隔（tick）｜发出破坏请求（STOP）后，开始下一块前的最小等待 tick（默认 2，取值域 0~20）。
+     * 秒破间隔（tick）｜发出破坏请求（STOP）后，开始下一块前的最小等待 tick（默认 0，取值域 0~20）。
      *
      * <p>流水线之后这个间隔不再包含「等服务端确认方块变化」的那一段（那一段已经异步化，
      * 见 {@code MiningFastBreakController} 类注释），所以它的实际含义变成「两块之间的最小间隔」：
-     * 想让秒破最快就把这里设 0，模块仍会强制留 1 刻保险；设大一点可降低被服务端/反作弊盯上的概率。</p>
+     * 0 与 1 等价 —— 模块仍会强制留 1 刻保险（{@code PIPELINE_MIN_GAP_TICKS}），
+     * 所以默认取 0（最快）；设大一点可降低被服务端/反作弊盯上的概率。</p>
+     *
+     * <p>默认值 2026-09-19 由旧项目的 2 改为 0（用户裁定）：间隔 2 等于每块白等 1 刻，
+     * 按每块服务端最少 4 刻计就是约 17% 的损失。</p>
      */
-    public int breakInterval = 2;
+    public int breakInterval = 0;
 
     // ━━━ Baritone 开关类（旧项目 :455-586） ━━━
 
@@ -196,7 +218,7 @@ public final class MiningSettings {
     /** 岩浆透视范围｜透视岩浆的扫描半径（格），默认 16 —— 只有 8 时隔着十几格的岩浆湖看不到框（用户 2026-09-18） */
     public int lavaEspRange = 16;
 
-    /** 岩浆安全距离｜透视到岩浆进入这个距离就停止挖矿并撤离（默认 2，取值域 1~4；用户 2026-09-17 追加，旧项目没有对应项） */
+    /** 岩浆安全距离｜透视到岩浆进入这个距离就停止挖矿并撤离（默认 2，取值域 1~4；2026-09-18 曾提到 3，同日按实机截图收回 2） */
     public int lavaAvoidRadius = 2;
 
     // ━━━ 连锁挖矿（用户 2026-09-17 追加，旧项目没有对应项） ━━━
@@ -224,7 +246,13 @@ public final class MiningSettings {
     /** 状态播报｜关闭后模块运行时不再发状态类播报（错误与致命提示仍保留）；相同内容的播报 5 秒内自动折叠，只显示一次 */
     public boolean statusBroadcast = true;
 
-    /** 怪物规避｜提高怪物附近路径代价，尽量绕开危险区域（用户 2026-09-18 裁定默认关闭：开着会连刷怪笼一起绕，与本项目自己的战斗/刷怪笼先挖逻辑打架） */
+    /**
+     * 怪物规避｜提高怪物附近路径代价，尽量绕开危险区域。
+     *
+     * <p><b>默认值裁定记录</b>：2026-09-18 裁定默认<b>关</b>——开着会连刷怪笼一起绕，
+     * 与本项目自己的战斗 / 刷怪笼优先破坏逻辑打架。同日「默认全开」时曾短暂翻回开，
+     * 用户看明利弊后定稿：这三项（怪物规避 / 仅挖暴露矿石 / 合法挖掘模式）<b>全关</b>。</p>
+     */
     public boolean mobAvoidance = false;
 
     /** 掉落方块暂停｜遇到沙子、沙砾等掉落方块时暂停挖掘。关闭后不掉方块不暂停，挖矿更流畅（会塌方区域建议手动开启） */
@@ -236,7 +264,9 @@ public final class MiningSettings {
      * <p><b>为什么需要它</b>：男中音默认 {@code freeLook = true}，走路时它只把朝向「静默」发给服务端
      * （{@code LookBehavior.Target.Mode#resolve} → {@code antiCheat ? SERVER : NONE}），本地视角一动不动
      * ——所以「寻路的那个视角」根本看不见。把 {@code freeLook} 关掉后走路也落到 CLIENT 分支，
-     * 视角由男中音每刻写向下一个路径节点（挖矿时本来就一直是这样），全程只有一个写入者，因此不抖。</p>
+     * 视角由男中音每刻写向下一个路径节点（挖矿时本来就一直是这样），模块再在每刻末尾用自己的
+     * 平滑器（±180 环绕归一 + 指数趋近 + 静止贴合，见 {@code MiningPathing#writeSmoothedView}）
+     * 把可见视角打磨丝滑；男中音写给服务端与射线检测的精确角度原样保留。</p>
      *
      * <p><b>关掉时</b>：完全恢复男中音原行为（走路视角不动、鼠标完全由玩家自己控制）。
      * 战斗期间视角临时让回战斗逻辑盯着怪（见 {@code MiningPathing#setCombatViewHold}）。</p>
@@ -246,18 +276,22 @@ public final class MiningSettings {
     /** 疾跑上坡｜上坡时提前一格疾跑+跳跃，提升速度 */
     public boolean sprintAscends = true;
 
+    // 2026-09-18 定稿：跑酷 / 跑酷搭桥 / 对角线上升 默认开；对角线下降、掉落方块暂停、物流破坏方块、
+    // 怪物规避、仅挖暴露矿石、合法挖掘模式（含对角检测）默认关 —— 全部以用户实机设置为准
     /** 允许跑酷｜允许跨越1-4格的跑酷跳跃（有一定风险） */
-    public boolean allowParkour = false;
+    public boolean allowParkour = true;
 
     /** 跑酷搭桥｜跑酷跳跃中途放置方块来延长距离（需开启放置方块） */
-    public boolean allowParkourPlace = false;
+    public boolean allowParkourPlace = true;
 
     /** 对角线上升｜允许斜向上跳跃，速度更快但消耗更多饥饿值 */
-    public boolean allowDiagonalAscend = false;
+    public boolean allowDiagonalAscend = true;
 
     /** 对角线下降｜允许斜向下降，速度更快但有一定风险（地狱慎用） */
     public boolean allowDiagonalDescend = false;
 
+    // 下面三项 2026-09-18 定稿默认关（用户看明利弊后：「全关」）：仅挖暴露矿石会只挖看得见的矿、
+    // 合法挖掘模式会加合法挖掘限制，两者都明显放慢节奏；与「怪物规避」同一批裁定
     /** 仅挖暴露矿石｜只挖掘能从指定距离看到的矿石，减少无效挖掘 */
     public boolean allowOnlyExposedOres = false;
 
@@ -267,7 +301,7 @@ public final class MiningSettings {
     /** 合法挖掘模式｜启用合法挖掘限制（关闭可提启效率但可能被检测） */
     public boolean legitMine = false;
 
-    /** 合法挖掘检测对角矿石｜合法挖掘时检测与已发现矿石对角相邻的矿石 */
+    /** 合法挖掘检测对角矿石｜合法挖掘时检测与已发现矿石对角相邻的矿石（合法挖掘模式关着时不生效） */
     public boolean legitMineIncludeDiagonals = false;
 
     // ━━━ 数值类（旧项目 :589-670） ━━━

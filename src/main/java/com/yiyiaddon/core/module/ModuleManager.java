@@ -59,6 +59,15 @@ public final class ModuleManager {
     /** 等待队列的重试间隔（客户端刻） */
     private static final int PENDING_RETRY_TICKS = 20;
 
+    /**
+     * 各模块的出厂设置快照：装配期（任何 {@code loadSettings} 之前）序列化一次，供「恢复默认」整份读回。
+     *
+     * <p>存快照而不是给每个模块写一份 {@code reset()}：默认值本来就写在各自的设置类字段初始化里，
+     * 再手写一遍必然有抄错、漏改的风险（第 173 条要求 saveSettings 覆盖全部设置项、loadSettings 一一对应，
+     * 快照正好是这条要求的免费产物）。</p>
+     */
+    private static final Map<String, JsonObject> FACTORY_DEFAULTS = new LinkedHashMap<>();
+
     private static int pendingRetryCounter;
 
     private static boolean bootstrapped;
@@ -95,7 +104,57 @@ public final class ModuleManager {
             if (BY_ID.putIfAbsent(module.id(), module) != null) {
                 LOGGER.warn("模块 ID 重复，保留先注册的一个：{}", module.id());
             }
+            snapshotFactoryDefaults(module);
         }
+    }
+
+    /**
+     * 记下模块的「出厂设置」快照。
+     *
+     * <p><b>时机是唯一的关键</b>：此刻模块刚构造完、{@link #restoreStates()} 还没跑，字段里就是代码里写的默认值，
+     * 因此 {@code saveSettings} 序列化出来的就是一份完整的出厂配置。之后玩家怎么改都不影响它。</p>
+     *
+     * <p>失败只是让该模块没有「恢复默认」，不影响装配流程：日志记一笔、快照不存。</p>
+     */
+    private static void snapshotFactoryDefaults(Module module) {
+        JsonObject snapshot = new JsonObject();
+        try {
+            module.saveSettings(snapshot);
+        } catch (Throwable error) {
+            LOGGER.error("模块 {} 的出厂设置无法序列化，该模块将不提供「恢复默认」", module.id(), error);
+            return;
+        }
+        FACTORY_DEFAULTS.put(module.id(), snapshot);
+    }
+
+    /**
+     * 把模块的设置整份恢复为出厂值并立刻落盘（控制台底部「恢复默认」用）。
+     *
+     * <p>走的是「装配期快照 → {@code loadSettings} 整份读回 → {@link #saveSettings(Module)} 写盘」这条路，
+     * 因此不需要每个模块各写一份 reset：凡是按第 173 条做到「saveSettings 覆盖全部设置项、
+     * loadSettings 与之一一对应」的模块，出厂值天然与代码里的默认值同源。点位 / 名单这类数据也在快照里，
+     * 所以会被一起清空（界面上的确认弹窗已明说）。</p>
+     *
+     * @return 是否成功写入（模块没快照、或读回 / 落盘抛异常时为 false）
+     */
+    public static boolean resetToDefaults(Module module) {
+        if (module == null) return false;
+        JsonObject defaults = FACTORY_DEFAULTS.get(module.id());
+        if (defaults == null) {
+            LOGGER.warn("模块 {} 没有出厂设置快照，「恢复默认」跳过", module.id());
+            return false;
+        }
+        try {
+            // deepCopy：loadSettings 的实现可能持有传入对象的引用，不能让快照本身被改写
+            module.loadSettings(defaults.deepCopy());
+        } catch (Throwable error) {
+            LOGGER.error("模块 {} 恢复默认失败", module.id(), error);
+            ClientChat.send(module.displayName(), "§c恢复默认失败：" + describe(error));
+            return false;
+        }
+        boolean saved = saveSettings(module);
+        if (saved) ClientChat.send(module.displayName(), "§a已恢复默认设置");
+        return saved;
     }
 
     private static void initializeAll() {

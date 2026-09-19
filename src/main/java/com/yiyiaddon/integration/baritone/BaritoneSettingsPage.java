@@ -4,6 +4,7 @@ import baritone.api.BaritoneAPI;
 import baritone.api.Settings;
 import baritone.api.utils.SettingsUtil;
 import com.yiyiaddon.ui.UiText;
+import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.widget.SettingColorPicker;
@@ -37,12 +38,12 @@ import java.util.function.DoubleFunction;
  *
  * <p><b>数据来源：</b>反射 Baritone 的 {@link Settings}，逐字段取 {@code Setting} 对象——不是抄一份
  * 设置清单，因此 Baritone 更新后新增的设置会自动出现，也不会出现「界面一份、执行层另一份」。
- * 分组口径与 Meteor 的 {@code pathing/BaritoneSettings} 一致：开 / 关、带小数点的数字、整数、
+ * 分组口径与旧框架的 {@code pathing/BaritoneSettings} 一致：开 / 关、带小数点的数字、整数、
  * 文字、颜色、方块名单、物品名单。</p>
  *
- * <p><b>Meteor 没做的那几类这里也做了：</b>方块映射（{@code Map<Block, List<Block>>}）、
+ * <p><b>旧框架没做的那几类这里也做了：</b>方块映射（{@code Map<Block, List<Block>>}）、
  * 文字名单（{@code List<String>}）、偏移（{@link Vec3i}）、枚举（原理图旋转 / 镜像）——
- * Meteor 直接跳过这四类，界面上根本没有入口（实机反馈「什么叫只能看不能改」）。</p>
+ * 旧框架直接跳过这四类，界面上根本没有入口（实机反馈「什么叫只能看不能改」）。</p>
  *
  * <p><b>不用手打登记名：</b>凡是要填方块 / 物品的地方一律走挑块窗口（搜索 + 图标 + 加减），
  * 只有命令前缀、文件后缀这类本来就不是登记名的文字设置才是输入框。</p>
@@ -52,6 +53,11 @@ import java.util.function.DoubleFunction;
  *
  * <p><b>写回：</b>任何改动都立刻落到 Baritone 自己的配置（{@link SettingsUtil#save(Settings)}），
  * 与 Baritone 自带界面「改完即存」的口径一致，不存在「改了但没保存」。</p>
+ *
+ * <p><b>一级行的长相与 ESP 全局设置同款</b>（用户 2026-09-18：「baritone 界面点进去改成 esp设置这样」）：
+ * {@link SettingModule#icon(String)} 图标行（行高 24、图标 + 标题 + 说明一行、右侧「共 N 项」小标与展开箭头），
+ * 行距走 {@link ModuleRow#ROW_GAP}；二级子项仍用 {@link SettingModule#compact()} 的单行双列，
+ * 保住两百多项的密度。</p>
  */
 public final class BaritoneSettingsPage extends BasePage {
 
@@ -84,6 +90,34 @@ public final class BaritoneSettingsPage extends BasePage {
      */
     private static final float LIST_LINK_WIDTH = 96f;
 
+    /**
+     * 一级行的图标（Material 符号码点，全部取自项目已验证集合，见《开发习惯》第 140 条）。
+     *
+     * <p>用户 2026-09-18：「Baritone设置没有跟其他的设置一样，别的是这样的点进去」+ ESP 全局设置的截图
+     * ——两页的一级行从此同款：行首一个图标、标题与说明并排一行、行高收到模块行的 24。
+     * 十个分组各配一个语义对得上的图标，不再是一排光秃秃的标题。</p>
+     */
+    /** 开 / 关：power 字形，与 ESP 全局设置「总开关」同一个 */
+    private static final String ICON_TOGGLE = "\uE8AC";
+    /** 小数：tune 字形（滑杆调数值） */
+    private static final String ICON_DECIMAL = "\uE429";
+    /** 整数：网格字形（一颗一颗的整数格） */
+    private static final String ICON_INTEGER = "\uE9E4";
+    /** 文字：text 字形，与 ESP 全局设置「文字」同一个 */
+    private static final String ICON_TEXT = "\uE262";
+    /** 颜色：palette 字形，与 ESP 全局设置「外观」同一个 */
+    private static final String ICON_COLOR = "\uE40A";
+    /** 方块名单：inventory 字形（一箱方块） */
+    private static final String ICON_BLOCK_LIST = "\uE1A1";
+    /** 物品名单：商店字形，与自动村民交易同一个 */
+    private static final String ICON_ITEM_LIST = "\uEA12";
+    /** 方块映射：file_map 字形（字形名已用字体表核对） */
+    private static final String ICON_MAP = "\uE231";
+    /** 其它可改项：辅助分类字形（中性兜底） */
+    private static final String ICON_MISC = "\uEF76";
+    /** 其它（只能看）：visibility 字形（只读 = 只能看） */
+    private static final String ICON_READONLY = "\uE8F4";
+
     /** 页内搜索串（小写）：既过滤子项，也决定整组是否显示。 */
     private String query = "";
 
@@ -91,16 +125,16 @@ public final class BaritoneSettingsPage extends BasePage {
     private final List<ColorBinding> colorBindings = new ArrayList<>();
 
     public BaritoneSettingsPage() {
-        Catalog bools = new Catalog("开 / 关", "只有开和关两种状态，点一下切换");
-        Catalog numbers = new Catalog("小数", "可以填小数，例如 1.5");
-        Catalog integers = new Catalog("整数", "只能填整数，不能带小数点（刻数 / 距离 / 高度 / 次数）");
-        Catalog strings = new Catalog("文字", "填一段文字");
-        Catalog colors = new Catalog("颜色", "渲染用颜色，点击色块打开调色板");
-        Catalog blockLists = new Catalog("方块名单", "点开选择实体方块（占满一格的那种）：搜索后加减，改动即时写回");
-        Catalog itemLists = new Catalog("物品名单", "只列放得下去且占满一格的方块：搜索后加减，改动即时写回");
-        Catalog maps = new Catalog("方块映射", "原理图方块 → 可替代方块；点开先选键，再加减替代方块");
-        Catalog misc = new Catalog("其它可改项", "属性名单、重复偏移、原理图旋转与镜像");
-        Catalog others = new Catalog("其它（只能看，不能改）", "函数型设置等没有修改方式的项，只展示当前值");
+        Catalog bools = new Catalog("开 / 关", "只有开和关两种状态，点一下切换", ICON_TOGGLE);
+        Catalog numbers = new Catalog("小数", "可以填小数，例如 1.5", ICON_DECIMAL);
+        Catalog integers = new Catalog("整数", "只能填整数，不能带小数点（刻数 / 距离 / 高度 / 次数）", ICON_INTEGER);
+        Catalog strings = new Catalog("文字", "填一段文字", ICON_TEXT);
+        Catalog colors = new Catalog("颜色", "渲染用颜色，点击色块打开调色板", ICON_COLOR);
+        Catalog blockLists = new Catalog("方块名单", "点开选择实体方块（占满一格的那种）：搜索后加减，改动即时写回", ICON_BLOCK_LIST);
+        Catalog itemLists = new Catalog("物品名单", "只列放得下去且占满一格的方块：搜索后加减，改动即时写回", ICON_ITEM_LIST);
+        Catalog maps = new Catalog("方块映射", "原理图方块 → 可替代方块；点开先选键，再加减替代方块", ICON_MAP);
+        Catalog misc = new Catalog("其它可改项", "属性名单、重复偏移、原理图旋转与镜像", ICON_MISC);
+        Catalog others = new Catalog("其它（只能看，不能改）", "函数型设置等没有修改方式的项，只展示当前值", ICON_READONLY);
         Settings settings = BaritoneAPI.getSettings();
         // 只遍历 Baritone 自己维护的清单：新增设置自动出现，且与 #set 命令看到的是同一份
         for (Settings.Setting<?> setting : settings.allSettings) {
@@ -174,6 +208,12 @@ public final class BaritoneSettingsPage extends BasePage {
     public String getSubtitle() {
         return UiText.t("Baritone 全部设置，按类型分组；点标题展开分组，悬停看说明；改动即时写回配置",
                 "Every Baritone setting, grouped by type; click a group to expand, hover for help");
+    }
+
+    /** 行距与 ESP 全局设置、模块中心一致（图标行必须读这一个值，绘制/命中/总高度都走它） */
+    @Override
+    protected float moduleGap() {
+        return ModuleRow.ROW_GAP;
     }
 
     /**
@@ -362,12 +402,15 @@ public final class BaritoneSettingsPage extends BasePage {
 
         private final String title;
         private final String subtitle;
+        /** 一级行的 Material 图标码点（见 {@link BaritoneSettingsPage#ICON_TOGGLE} 那一组常量） */
+        private final String icon;
         private final List<Pending> pending = new ArrayList<>();
         private final List<String> entries = new ArrayList<>();
 
-        private Catalog(String title, String subtitle) {
+        private Catalog(String title, String subtitle, String icon) {
             this.title = title;
             this.subtitle = subtitle;
+            this.icon = icon;
         }
 
         /** 登记一个设置项；名称与说明都参与页内搜索。 */
@@ -378,7 +421,9 @@ public final class BaritoneSettingsPage extends BasePage {
 
         /** 建模块并挂上全部子项（此时条数已确定） */
         private void finish() {
-            SettingModule module = new SettingModule(title, subtitle, null).compact();
+            // 图标行 + 紧凑双列：一级行与 ESP 全局设置同款，二级子项仍是单行双列
+            // （两百多项全走经典大卡要滚十几屏，这张页面的密度不能丢）
+            SettingModule module = new SettingModule(title, subtitle, null).icon(icon).compact();
             if (!pending.isEmpty()) module.badge("共 " + pending.size() + " 项");
             module.visibleWhen(() -> headerMatches() || anyEntryMatches());
             modules.add(module);

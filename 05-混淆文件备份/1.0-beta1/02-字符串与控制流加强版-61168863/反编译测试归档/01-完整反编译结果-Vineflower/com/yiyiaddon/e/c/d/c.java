@@ -1,0 +1,38 @@
+package com.yiyiaddon.e.c.d;
+
+public enum c {
+   OBSERVE(
+      (String)com.yiyiaddon.m.b.a<"s22s8ow45jew8u","OrOG3iexX+NurE87ElkKhKgFRRK8PihJZ0kH7Sp3vvA=",-2940512857005018949,-2549389179628427752,2755048760643635938,-1868770989111122819>()
+   ),
+   HARVEST(
+      (String)com.yiyiaddon.m.b.a<"s91uu5azp6qd","o2QQq9xUKVzlITlwzfjgAwfN3tJfzBWj3R5BiOvlSdA=",-8372945706888559244,-5386574536371533067,-3181810491505614619,3183471377170098668>()
+   ),
+   PLANT(
+      (String)com.yiyiaddon.m.b.a<"s1102qo9zozrbx","xTQ9aTcMYx1BKr99mZj2EJBqxaj+/IGOfFsx2EF7vLA=",3126680573013191928,8535602721733593063,-5914775760749343360,5050628544794872489>()
+   ),
+   TILL(
+      (String)com.yiyiaddon.m.b.a<"s2wqe338j76ed8","1K0+c3tz5G42ZyD+LuoMhxbzRJ7SPzrbpcEF5W0olMI=",4668383884046308935,-5951066170981702538,9194155996630462469,1784047612066479017>()
+   ),
+   COLLECT(
+      (String)com.yiyiaddon.m.b.a<"sd7bverx1p1zo","px734FhzUyLeLnvgZD+HFlrYlZvbyjHOyzr+IdrNDqo=",-6492901863679732035,166175015214251975,-3792503839529515341,7266464620599076705>()
+   ),
+   UNLOAD(
+      (String)com.yiyiaddon.m.b.a<"si4hup2hldq3d","yubp2dIPATY6iCZ6ZkimgrvgSdLo6G/qpXcFqrwUDec=",814598165017225486,-6532261268940360396,7436277153568664130,3384154646458914837>()
+   ),
+   RESTOCK(
+      (String)com.yiyiaddon.m.b.a<"s3hv26urj2nbej","3HJtwX28P0tOG+0ZrtsKLy8EmWp0x7nKxJgSJZMFyEY=",562970298960265386,5159461747897035771,4216972683639586244,7616930656237286364>()
+   ),
+   POISON_DUMP(
+      (String)com.yiyiaddon.m.b.a<"s11e0678fi57qx","42ymLVq1OJF9XRlIbyi7WE/YLeHVrYF+Mo1Mi4CunBlfYaoH",-4363066221061199575,351920517360280168,780284628392957683,-8800058855809494529>()
+   );
+
+   private final String bX;
+
+   c(String var3) {
+      this.bX = var3;
+   }
+
+   public String af() {
+      return this.bX;
+   }
+}

@@ -135,7 +135,7 @@ public final class StardewSelectionBinding {
     /**
      * 七类选择器的数据与业务：内存镜像 + 按 ServerKey 隔离落盘。
      *
-     * <p>旧项目这里是 Meteor 设置子类 {@code StardewTargetSetting}（含设置控件与计数标签）；
+     * <p>旧项目这里是旧框架设置子类 {@code StardewTargetSetting}（含设置控件与计数标签）；
      * 界面壳由界面批处理另行接入，本类只保留数据语义：{@code bindServer / persist /
      * pruneInvalid / selectedKeys / selectedCropKeys}，逐字对应旧实现。</p>
      */

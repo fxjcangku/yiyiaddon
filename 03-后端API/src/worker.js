@@ -67,8 +67,18 @@ self.addEventListener('activate', event => {
 });
 `;
 
-// 心跳超时：进程异常退出时无法保证离线请求送达，以 12 秒超时兜底自动下线
-const HEARTBEAT_TIMEOUT = 12 * 1000;
+// 心跳超时：进程异常退出时无法保证离线请求送达，以超时兜底自动下线。
+// 2026-09-18 由 12 秒放宽到 90 秒：心跳写库改为节流（见 HEARTBEAT_WRITE_INTERVAL），
+// 库里 last_heartbeat 最多滞后一个节流周期，判定窗口必须大于「节流周期 + 客户端心跳间隔」。
+const HEARTBEAT_TIMEOUT = 90 * 1000;
+
+// 心跳写库节流：客户端每 3 秒心跳一次，但同一玩家每 30 秒才真正写一次 users 表。
+// 原因（2026-09-18 实机事故）：D1 免费版每天 10 万行写入，全量心跳写库时几个小时就被打满，
+// 之后 /api/register 与 /api/heartbeat 全部 500（客户端首页「用户排名」显示 --、在线状态也停更）。
+// 节流后写入量降到约 1/10，且在线/位置/延迟的显示粒度仍是 30 秒，够用。
+// 这张表只存在 isolate 内存里，isolate 回收后最坏情况是多重写一次，不影响正确性。
+const HEARTBEAT_WRITE_INTERVAL = 30 * 1000;
+const heartbeatWriteAt = new Map();
 
 // 计算字符串的 SHA-256 十六进制摘要，用于生成不可逆的管理员 token
 async function sha256(message) {
@@ -502,6 +512,14 @@ export default {
           return jsonResponse({ success: true, skipped: true, reason: 'local_server' });
         }
 
+        // 心跳节流（见 HEARTBEAT_WRITE_INTERVAL）：同一 uuid 每 30 秒只完整处理一次——
+        // 这一次做「查身份 + 写 users + 记当日活跃 + 数在线」，中间那些心跳直接回成功。
+        // 位置 / 延迟 / 模块列表的刷新粒度因此变成 30 秒，客户端只看 ok()，返回体少几个字段无影响。
+        const lastHeartbeatWrite = heartbeatWriteAt.get(uuid) || 0;
+        if (now - lastHeartbeatWrite < HEARTBEAT_WRITE_INTERVAL) {
+          return jsonResponse({ success: true, throttled: true });
+        }
+
         // 心跳同样采集客户端连接侧地理/运营商信息（时区优先客户端真实设备时区）
         const hbcf = request.cf || {};
         const hbIp = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Real-IP') || null;
@@ -581,6 +599,9 @@ export default {
         // 记录当日活跃（用于 14 天活跃趋势），同一玩家同一天去重
         const day = new Date(now).toISOString().slice(0, 10);
         await env.DB.prepare('INSERT OR IGNORE INTO daily_active (day, uuid) VALUES (?, ?)').bind(day, effectiveUuid).run();
+
+        // 本次写库成功后再登记节流时间：写失败（例如数据库暂时不可用）时下一次心跳会立刻重试
+        heartbeatWriteAt.set(uuid, now);
 
         const onlineCount = await env.DB.prepare(
           'SELECT COUNT(*) as c FROM users WHERE last_heartbeat >= ?'

@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.autochest.config.AutoChestSettings;
 import com.yiyiaddon.feature.autochest.ui.AutoChestConsoleScreen;
 import com.yiyiaddon.model.autochest.EspStyle;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.render.world.EspColor;
@@ -40,6 +41,9 @@ public final class AutoChestRenderPage {
     private static final List<String> ESP_STYLE_LABELS = List.of(
         EspStyle.LINES.displayName(), EspStyle.SIDES.displayName(), EspStyle.BOTH.displayName());
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoChestSettings DEFAULTS = new AutoChestSettings();
+
     private final AutoChestConsoleScreen owner;
     private final AutoChestModule module;
 
@@ -58,16 +62,29 @@ public final class AutoChestRenderPage {
                 module.persistSettings();
                 // 下面四行随开关显示 / 消失，本页整页重建后才会改变
                 owner.reload();
-            })))));
+            })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.renderEsp = DEFAULTS.renderEsp;
+                    module.persistSettings();
+                    owner.reload();
+                }, "ESP高亮"))));
 
         if (settings.renderEsp) {
             stack.add(new ConsoleRow(owner, () -> "ESP框样式", DESC_ESP_STYLE, null,
                 List.of(new Ctl(new SettingSegmented(ESP_STYLE_LABELS,
-                    () -> settings.espStyle.ordinal(), this::pickEspStyle)))));
+                    () -> settings.espStyle.ordinal(), this::pickEspStyle)),
+                    ConsoleWidgets.resetCtl(() -> {
+                        settings.espStyle = DEFAULTS.espStyle;
+                        module.persistSettings();
+                        owner.reload();
+                    }, "ESP框样式"))));
 
-            stack.add(colorRow("未处理颜色", DESC_UNPROCESSED_COLOR, module.unprocessedColor()));
-            stack.add(colorRow("已处理颜色", DESC_PROCESSED_COLOR, module.processedColor()));
-            stack.add(colorRow("处理中颜色", DESC_PROCESSING_COLOR, module.processingColor()));
+            stack.add(colorRow("未处理颜色", DESC_UNPROCESSED_COLOR, module.unprocessedColor(),
+                colorOf(DEFAULTS.unprocessedColor)));
+            stack.add(colorRow("已处理颜色", DESC_PROCESSED_COLOR, module.processedColor(),
+                colorOf(DEFAULTS.processedColor)));
+            stack.add(colorRow("处理中颜色", DESC_PROCESSING_COLOR, module.processingColor(),
+                colorOf(DEFAULTS.processingColor)));
         }
     }
 
@@ -76,11 +93,28 @@ public final class AutoChestRenderPage {
      *
      * <p>只传 {@code persistSettings} 是不行的：颜色还没同步进设置项，存下去的是旧值。</p>
      *
-     * <p>行尾带可见提示（第 213 条）：色块本身只是纯色底，看不出能点。</p>
+     * <p>行尾带可见提示（第 213 条）：色块本身只是纯色底，看不出能点。颜色载体由模块持有且不可换引用，
+     * 行尾 ↺ 因此把出厂色的五个分量就地写回，再走同一条 {@code syncColorsToSettings} 落盘。</p>
      */
-    private ConsoleRow colorRow(String name, String hint, EspColor color) {
+    private ConsoleRow colorRow(String name, String hint, EspColor color, EspColor defaultColor) {
         return new ConsoleRow(owner, () -> name, hint, COMMENT_COLOR,
-            List.of(new Ctl(new SettingColorPicker(name, color, module::syncColorsToSettings))));
+            List.of(new Ctl(new SettingColorPicker(name, color, module::syncColorsToSettings)),
+                ConsoleWidgets.resetCtl(() -> {
+                    copyColor(color, defaultColor);
+                    module.syncColorsToSettings();
+                    owner.reload();
+                }, name)));
+    }
+
+    /** 出厂色（设置项里是打包 ARGB）→ 界面用的颜色对象 */
+    private static EspColor colorOf(int argb) {
+        return new EspColor(argb & 0xFFFFFF, (argb >>> 24) & 0xFF);
+    }
+
+    /** 把出厂颜色就地写给模块持有的那个颜色对象（载体不可换引用） */
+    private static void copyColor(EspColor target, EspColor source) {
+        target.rgb(source.rgb()).alpha(source.alpha()).rainbow(source.rainbow())
+            .rainbowSpeed(source.rainbowSpeed()).rainbowOffset(source.rainbowOffset());
     }
 
     /** ESP 框样式分段：改动落盘（不改变任何行可见性，无需重建本页） */

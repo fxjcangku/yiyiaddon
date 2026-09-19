@@ -9,6 +9,7 @@ import com.yiyiaddon.ui.component.SearchRow;
 import com.yiyiaddon.ui.component.SplitPanels;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
@@ -16,6 +17,8 @@ import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import io.github.humbleui.skija.Canvas;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -42,7 +45,7 @@ import java.util.function.Supplier;
  * 按品质 工具 装备」——装备库本就是「大类 → 品质 → 类型」三级结构，一级分组会把三级压成一坨）。
  * 不给父级的条目行为完全不变。</p>
  *
- * <p><b>组头右侧是「全选 / 清空」</b>（同日：「meteor不是有 一键勾选分组的功能？为什么我没有」）：
+ * <p><b>组头右侧是「全选 / 清空」</b>（同日：「旧框架不是有 一键勾选分组的功能？为什么我没有」）：
  * 点标题区折叠 / 展开该组，点右侧按钮把该组<b>当前可见（过滤后）</b>的条目一次性加入或移除。
  * 两种操作落在同一行的不同区域，互不吞并对方的点击。</p>
  *
@@ -55,6 +58,10 @@ import java.util.function.Supplier;
  * 标题右侧常显该组条目数（收起状态也看得出有多少项），折叠状态记在会话级集合
  * {@link #expandedGroups} 里，过滤词变化重建也不丢。依据《开发习惯》第二十九章第 195~196 条
  * （候选多到需要滚动必须先分类；每个分类必须可折叠且默认收起）。空分组保持旧行为（静态标题 +「§8无」）。</p>
+ *
+ * <p><b>搜索时分组一律展开、空组不显示</b>（用户 2026-09-18：「搜索到了 但是还要自己点开分组才能看到」
+ * ——要的是「输入『草』，下面直接列出带草字的关键字」）：过滤词非空时折叠记忆整体让位，命中的行直接铺在
+ * 各自标题下面，没命中的组连标题都不出现；清空搜索框后折叠状态与空组口径原样恢复。</p>
  *
  * <p>本类不持有选中数据：读 {@code selectedKeys}、写走 {@code onAdd} / {@code onRemove}，
  * 数据源始终唯一在业务侧，避免出现第二份副本。</p>
@@ -95,6 +102,32 @@ public final class SelectorScreen extends PanelScreen {
          * 译名，只有配上看键才说得清是哪一条。</p>
          */
         default String detail() {
+            return null;
+        }
+
+        /**
+         * 图标对应的物品；给了就让宿主在开窗时预热图标缓存。
+         *
+         * <p><b>为什么要预热</b>（用户 2026-09-18：「点击这些分组的时候 有几率那个贴图会在闪一下
+         * 所有的选择器都要防止」）：分组默认收起，展开那一刻才第一次绘制该组的图标，
+         * 而 {@code ItemIconCache} 的图标要排队一两帧才渲染入库 —— 于是展开分组时行里先是空的图标位、
+         * 图标随后补上，看着就是「闪一下」。宿主在 {@link #rebuild()} 时把这批图标一次性排队，
+         * 展开时已经在缓存里，闪动消失。</p>
+         *
+         * <p>默认 {@code null} = 不预热（行为与之前完全一致）；没有图标、或图标不来自物品
+         * （纯字形 / 自绘）的条目保持返回 {@code null} 即可。</p>
+         */
+        default ItemStack iconStack() {
+            return null;
+        }
+
+        /**
+         * 图标来自实体时的实体类型；给了就让宿主在开窗时预热该实体的图标（刷怪蛋或实体模型）。
+         *
+         * <p>与 {@link #iconStack()} 同一条口径，只是实体的图标走另一条缓存链路
+         * （{@code ItemIconCache#prefetchEntity}）。两者都返回 {@code null} 表示不预热。</p>
+         */
+        default EntityType<?> iconEntity() {
             return null;
         }
     }
@@ -149,6 +182,15 @@ public final class SelectorScreen extends PanelScreen {
      * 超过就截断，剩下一律靠搜索收窄（截断处会写明还有多少没列）。</p>
      */
     private static final int MAX_ROWS = 200;
+
+    /**
+     * 开窗时预热的图标条数上限（见 {@link #prefetchIcons}）。
+     *
+     * <p>与 {@link #MAX_ROWS} 同量级：分组型选择器（附魔、村民交易、装备…）整表都在这个范围内，
+     * 展开任何一个分组都不会再触发首次加载；物块 / 物品注册表这种上千项的表只热前两百条 ——
+     * 全热会把图标缓存（容量 1024）挤到清理阈值，把刚缓存的图标丢掉，反而更糟。</p>
+     */
+    private static final int PREFETCH_LIMIT = 200;
 
     /** Material Symbols：add / remove。 */
     private static final String GLYPH_ADD = "\uE145";
@@ -254,6 +296,8 @@ public final class SelectorScreen extends PanelScreen {
         content.add(searchRow);
         if (pickHint != null) content.add(pickHint);
 
+        prefetchIcons();
+
         List<String> keys = selectedKeys.get();
         Set<String> selected = new HashSet<>(keys == null ? List.of() : keys);
 
@@ -266,6 +310,28 @@ public final class SelectorScreen extends PanelScreen {
         content.add(split);
         buildColumn(split.left(), Column.CANDIDATE, selected);
         buildColumn(split.right(), Column.SELECTED, selected);
+    }
+
+    /**
+     * 预热候选 / 已选的图标（见 {@link Entry#iconStack()}）。
+     *
+     * <p>为什么预热、上限为什么是两百条：见 {@link #PREFETCH_LIMIT} 与 {@code Entry#iconStack()} 的说明。
+     * 每次 {@link #rebuild()} 都调一次 —— {@code prefetch} 幂等，已缓存 / 已在途的键直接跳过，
+     * 这里只剩一次遍历的开销。</p>
+     */
+    private void prefetchIcons() {
+        ItemIconCache cache = ItemIconCache.getInstance();
+        int limit = Math.min(entries.size(), PREFETCH_LIMIT);
+        for (int i = 0; i < limit; i++) {
+            Entry entry = entries.get(i);
+            ItemStack stack = entry.iconStack();
+            if (stack != null) {
+                cache.prefetch(stack);
+                continue;
+            }
+            EntityType<?> type = entry.iconEntity();
+            if (type != null) cache.prefetchEntity(type);
+        }
     }
 
     /**
@@ -308,7 +374,7 @@ public final class SelectorScreen extends PanelScreen {
             boolean parentTitled = !parent.getKey().isEmpty();
             List<Entry> all = flatten(children);
             if (parentTitled) {
-                if (all.isEmpty() && column == Column.SELECTED) continue;
+                if (all.isEmpty() && (column == Column.SELECTED || !filter.isEmpty())) continue;
                 target.add(all.isEmpty()
                         ? groupTitle(parent.getKey(), 1)
                         : header(column, parent.getKey(), parent.getKey(), all, selected, 1));
@@ -326,7 +392,9 @@ public final class SelectorScreen extends PanelScreen {
                 String foldKey = foldKey(parent.getKey(), child.getKey());
                 if (items.isEmpty()) {
                     // 空组只在「候选 / 点选」且单级结构时给一行「无」；二级结构下空子组直接跳过
-                    // （大类标题上已有总数，再铺一串「无」只是噪音）
+                    // （大类标题上已有总数，再铺一串「无」只是噪音）。
+                    // 搜索时同样跳过：命中结果里混着一串「无」的分组标题，只会把真正匹配的那组推下去
+                    if (!filter.isEmpty()) continue;
                     if (column != Column.SELECTED && !parentTitled && childTitled) {
                         target.add(groupTitle(child.getKey(), 1));
                         target.add(new TextLine(EMPTY_TEXT).height(EMPTY_HEIGHT));
@@ -397,7 +465,15 @@ public final class SelectorScreen extends PanelScreen {
                 .bold(true);
     }
 
+    /**
+     * 该分组当前是否展开。
+     *
+     * <p><b>搜索时一律视为展开</b>（用户 2026-09-18：「搜索到了 但是还要自己点开分组才能看到」
+     * ——要的是「输入『草』下面就列出带草字的关键字」）：过滤词非空时折叠记忆让位，命中的行直接铺在
+     * 各自标题下面；<b>集合本身不动</b>，清空搜索框后原来的折叠状态原样恢复。</p>
+     */
     private boolean isGroupExpanded(Column column, String groupKey) {
+        if (!filter.isEmpty()) return true;
         return column == Column.SELECTED
                 ? !collapsedGroups.contains(groupKey)
                 : expandedGroups.contains(groupKey);
@@ -452,8 +528,9 @@ public final class SelectorScreen extends PanelScreen {
                     .ghost();
         }
 
-        /** 该组是否展开：右栏默认展开、左栏默认收起，两个集合各记一份。 */
+        /** 该组是否展开：右栏默认展开、左栏默认收起，两个集合各记一份；搜索时一律展开（见 {@link #isGroupExpanded}）。 */
         private boolean expanded() {
+            if (!filter.isEmpty()) return true;
             return selectedColumn ? !collapsedGroups.contains(foldKey) : expandedGroups.contains(foldKey);
         }
 

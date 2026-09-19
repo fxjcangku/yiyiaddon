@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.autofarm.model.CropProfile;
 import com.yiyiaddon.feature.autofarm.model.HarvestMode;
 import com.yiyiaddon.feature.autofarm.model.PlantMode;
 import com.yiyiaddon.feature.autofarm.ui.FarmSelectors;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
@@ -32,6 +33,9 @@ import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_CYCLE;
  */
 public final class FarmSettingsPage {
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoFarmSettings DEFAULTS = new AutoFarmSettings();
+
     private final AutoFarmConsoleScreen host;
     private final AutoFarmModule module;
 
@@ -54,10 +58,12 @@ public final class FarmSettingsPage {
         AutoFarmSettings settings = module.settings();
         FoldSection section = new FoldSection("辅助工具", "settings:helper", host.collapsedSections());
         section.content().add(toggleRow("防踩踏", "农田范围内拦截跳跃键，避免踩坏耕地",
-            () -> settings.antiTrample, value -> settings.antiTrample = value));
+            () -> settings.antiTrample, value -> settings.antiTrample = value,
+            () -> DEFAULTS.antiTrample));
         section.content().add(toggleRow("自动锄地",
             "农田范围内发现草方块/泥土时，自动拿锄头锄成耕地；背包无锄头则跳过",
-            () -> settings.autoTill, value -> settings.autoTill = value));
+            () -> settings.autoTill, value -> settings.autoTill = value,
+            () -> DEFAULTS.autoTill));
         stack.add(section);
     }
 
@@ -92,7 +98,14 @@ public final class FarmSettingsPage {
                     settings.harvestMode = HarvestMode.values()[index];
                     module.onHarvestModeChanged(settings.harvestMode);
                     module.persistSettings();
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    // 走与切换同一条路径：模块钩子照原样调用
+                    settings.harvestMode = DEFAULTS.harvestMode;
+                    module.onHarvestModeChanged(settings.harvestMode);
+                    module.persistSettings();
+                    host.reload();
+                }, "收割模式"))));
         section.content().add(new ConsoleRow(host,
             () -> "补种模式",
             "顺序优先：按作物枚举顺序种满一种再种下一种；均匀轮转：启用作物轮流种保持均衡；就近跟随：空耕地种回周围已有作物的同类，保持混种分区",
@@ -101,22 +114,30 @@ public final class FarmSettingsPage {
                 index -> {
                     settings.plantMode = PlantMode.values()[index];
                     module.persistSettings();
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.plantMode = DEFAULTS.plantMode;
+                    module.persistSettings();
+                    host.reload();
+                }, "补种模式"))));
         // 杂物卸货（旧 IntSetting 1~64 无滑条，可见性条件 = 启用了会产杂物的作物）
         section.content().add(numberRow("杂物卸货",
             "杂物（毒马铃薯 + 仙人掌花）攒够多少个才卸货一次，避免捡一个就跑一次",
             1, 64, () -> (double) settings.poisonUnloadThreshold,
-            value -> settings.poisonUnloadThreshold = value.intValue()));
+            value -> settings.poisonUnloadThreshold = value.intValue(),
+            () -> (double) DEFAULTS.poisonUnloadThreshold));
 
         section.content().add(numberRow("发包速率(BPT)",
             "每 tick 最多发送多少个破坏/播种/容器操作包",
             1, 30, () -> (double) settings.bpt,
-            value -> settings.bpt = value.intValue()));
+            value -> settings.bpt = value.intValue(),
+            () -> (double) DEFAULTS.bpt));
 
         section.content().add(numberRow("收割距离",
             "能操作多远的方块，原版上限约 4.5 格，低于 3 会导致寻路卡住",
             3, 8, () -> (double) settings.reachDistance,
-            value -> settings.reachDistance = value.intValue()));
+            value -> settings.reachDistance = value.intValue(),
+            () -> (double) DEFAULTS.reachDistance));
 
         stack.add(section);
     }
@@ -128,13 +149,16 @@ public final class FarmSettingsPage {
         FoldSection section = new FoldSection("渲染显示", "settings:render", host.collapsedSections());
 
         section.content().add(toggleRow("农田边界", "只渲染农场范围的外框一圈（不填面），大农场也不卡",
-            () -> settings.renderBounds, value -> settings.renderBounds = value));
-        section.content().add(colorRow("边界框颜色", settings.boundsColor));
+            () -> settings.renderBounds, value -> settings.renderBounds = value,
+            () -> DEFAULTS.renderBounds));
+        section.content().add(colorRow("边界框颜色", settings.boundsColor, DEFAULTS.boundsColor));
         section.content().add(toggleRow("目标显示", "高亮当前正在作业的目标方块",
-            () -> settings.renderTarget, value -> settings.renderTarget = value));
-        section.content().add(colorRow("目标颜色", settings.targetColor));
+            () -> settings.renderTarget, value -> settings.renderTarget = value,
+            () -> DEFAULTS.renderTarget));
+        section.content().add(colorRow("目标颜色", settings.targetColor, DEFAULTS.targetColor));
         section.content().add(toggleRow("点位字牌", "各绑定箱头顶显示防呆标签",
-            () -> settings.renderLabels, value -> settings.renderLabels = value));
+            () -> settings.renderLabels, value -> settings.renderLabels = value,
+            () -> DEFAULTS.renderLabels));
 
         stack.add(section);
     }
@@ -144,30 +168,59 @@ public final class FarmSettingsPage {
     /** 开关行：改动即写盘（第 173 条） */
     private ConsoleRow toggleRow(String label, String hint,
                                  java.util.function.Supplier<Boolean> getter,
-                                 java.util.function.Consumer<Boolean> setter) {
+                                 java.util.function.Consumer<Boolean> setter,
+                                 java.util.function.Supplier<Boolean> defaultValue) {
         return new ConsoleRow(host, () -> label, hint, null,
             List.of(new Ctl(new SettingToggle(getter, value -> {
                 setter.accept(value);
                 module.persistSettings();
-            }))));
+            })),
+                ConsoleWidgets.resetCtl(() -> {
+                    setter.accept(defaultValue.get());
+                    module.persistSettings();
+                    host.reload();
+                }, label)));
     }
 
     /** 数字行（旧滑条 → 数字框，D-13-01）：步进 1、整数值，改动即写盘 */
     private ConsoleRow numberRow(String label, String hint, double min, double max,
                                  java.util.function.Supplier<Double> getter,
-                                 java.util.function.Consumer<Double> setter) {
+                                 java.util.function.Consumer<Double> setter,
+                                 java.util.function.Supplier<Double> defaultValue) {
         return new ConsoleRow(host, () -> label, hint, null,
             List.of(new Ctl(new SettingNumberBox(min, max, 1, "%.0f",
                 getter, value -> {
                 setter.accept(value);
                 module.persistSettings();
-            }))));
+            })),
+                ConsoleWidgets.resetCtl(() -> {
+                    setter.accept(defaultValue.get());
+                    module.persistSettings();
+                    host.reload();
+                }, label)));
     }
 
-    /** 颜色行：调色板直接改传入的 EspColor，关闭窗口即生效（第 151 条），改动即写盘；行尾带可见提示（第 213 条） */
-    private ConsoleRow colorRow(String label, com.yiyiaddon.ui.render.world.EspColor color) {
+    /**
+     * 颜色行：调色板直接改传入的 EspColor，关闭窗口即生效（第 151 条），改动即写盘；行尾带可见提示（第 213 条）。
+     *
+     * <p>颜色字段是 {@code final} 对象，行尾 ↺ 只能把出厂色的五个分量就地写回同一个对象。</p>
+     */
+    private ConsoleRow colorRow(String label, com.yiyiaddon.ui.render.world.EspColor color,
+                                com.yiyiaddon.ui.render.world.EspColor defaultColor) {
         return new ConsoleRow(host, () -> label, null, COMMENT_COLOR,
-            List.of(new Ctl(new SettingColorPicker(label, color, module::persistSettings))));
+            List.of(new Ctl(new SettingColorPicker(label, color, module::persistSettings)),
+                ConsoleWidgets.resetCtl(() -> {
+                    copyColor(color, defaultColor);
+                    module.persistSettings();
+                    host.reload();
+                }, label)));
+    }
+
+    /** 把出厂颜色就地写给行内控件持有的那个颜色对象（字段是 final，不能换引用） */
+    private static void copyColor(com.yiyiaddon.ui.render.world.EspColor target,
+                                  com.yiyiaddon.ui.render.world.EspColor source) {
+        target.rgb(source.rgb()).alpha(source.alpha()).rainbow(source.rainbow())
+            .rainbowSpeed(source.rainbowSpeed()).rainbowOffset(source.rainbowOffset());
     }
 
     /** 枚举循环控件：候选 = 枚举中文名（旧 EnumSetting 界面渲染的同一批字面量） */

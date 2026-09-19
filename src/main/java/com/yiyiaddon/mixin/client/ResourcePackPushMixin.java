@@ -1,5 +1,6 @@
 package com.yiyiaddon.mixin.client;
 
+import com.yiyiaddon.core.resourcepack.ResourcePackGate;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.service.resourcepack.ResourcePackCache;
 import net.minecraft.client.Minecraft;
@@ -18,9 +19,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 服务器资源包推送观测注入。
  *
  * <p><b>为什么必须注入：</b>原版接收资源包推送的处理不经过任何可作为订阅点的事件，
- * 而资源生命周期服务需要知道「服务器下发了哪个资源包（id / url / hash）」。此处无条件
- * 把推送喂给 {@link ResourceExtractionService}，只登记元数据，<b>不下载、不取消</b>，
- * 不影响原版资源包流程。</p>
+ * 而资源生命周期服务需要知道「服务器下发了哪个资源包（id / url / hash）」。此处先无条件
+ * 把推送喂给 {@link ResourceExtractionService}（只登记元数据，不下载），再询问
+ * {@link ResourcePackGate}：模块要接管时取消原版处理，否则原版流程照常。</p>
  *
  * <p><b>为什么从监听器自身的 {@code serverData} 取 ServerKey：</b>原版在配置阶段就下发
  * {@code ClientboundResourcePackPushPacket}，此时玩家实体尚未创建，
@@ -42,7 +43,8 @@ public abstract class ResourcePackPushMixin {
 
     @Inject(
         method = "handleResourcePackPush(Lnet/minecraft/network/protocol/common/ClientboundResourcePackPushPacket;)V",
-        at = @At("HEAD")
+        at = @At("HEAD"),
+        cancellable = true
     )
     private void yiyiaddon$observeResourcePackPush(ClientboundResourcePackPushPacket packet, CallbackInfo ci) {
         try {
@@ -56,6 +58,16 @@ public abstract class ResourcePackPushMixin {
                 () -> ResourceExtractionService.onResourcePackPush(packet, resolvedKey));
         } catch (Exception ignored) {
             // 观测异常绝不能影响原版资源包流程
+        }
+
+        // 资源包策略接管（服务器检测模块的三种模式）：判定与响应包必须在原版处理之前完成，
+        // 因此这里同步询问闸门；处理器只读设置 + 发响应包，不触碰客户端世界与界面。
+        try {
+            if (ResourcePackGate.handle(packet.id(), packet.url(), packet.hash())) {
+                ci.cancel();
+            }
+        } catch (Exception ignored) {
+            // 接管异常一律退回原版流程：宁可让玩家走原版弹窗，也不能卡在资源包界面
         }
     }
 }

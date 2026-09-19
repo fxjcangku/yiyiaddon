@@ -13,7 +13,7 @@ import java.util.Map;
  * 星露谷农场全部设置项的数据载体。
  *
  * <p>设置名、描述、默认值与取值域逐字来自旧项目
- * {@code stardew/StardewFarmModule.java:280-421}（Meteor 的 {@code Setting} 定义），
+ * {@code stardew/StardewFarmModule.java:280-421}（旧框架的 {@code Setting} 定义），
  * 禁止增删设置项、禁止改名、禁止改默认值。</p>
  *
  * <p><b>六类选择不在这里落盘：</b>旧项目里它们虽然也是设置项，但真正的持久化是

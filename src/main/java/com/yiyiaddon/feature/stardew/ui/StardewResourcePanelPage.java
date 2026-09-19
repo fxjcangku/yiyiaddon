@@ -28,8 +28,10 @@ import java.util.function.Supplier;
  *
  * <p><b>逐字搬运自旧项目</b> {@code stardew/selector/StardewResourceSetting.java}：
  * 六个字段标签（服务器名称 / 服务器地址 / 资源状态 / 资源来源 / 资源缓存 / 资源指纹）、
- * 全部动态文案分支与四个按钮（检测 / 提取、打开控制台、查看资源包、查看使用说明）的
- * 文案与 tooltip 一律照旧；模块内其余设置早已全部搬进控制台，不再在本页重复平铺。</p>
+ * 全部动态文案分支与三个按钮（检测 / 提取、打开控制台、查看资源包）的
+ * 文案与 tooltip 一律照旧；使用说明改为正文内嵌在入口区下方（用户 2026-09-17 口径：不再单摆
+ * 「§e查看使用说明」按钮），正文逐字取自 {@link StardewFarmModule#helpContent()}；模块内其余设置
+ * 早已全部搬进控制台，不再在本页重复平铺。</p>
  *
  * <p><b>值列构造照旧项目格式</b>：{@code §7标签 §8▶ 值}——标签列与分隔符是旧项目
  * {@code WFixedCell(theme.label("§7"+label)) + WFixedCell(theme.label("§8▶"))} 的原样拼接，
@@ -44,7 +46,7 @@ import java.util.function.Supplier;
  * 不可以那么长 压缩到控制台里面的跟启动按钮的旁边」）：状态文字 / 快捷键徽章 / 模块开关三件
  * 统一搬进星露谷控制台顶栏，压成右对齐的一小排
  * （{@link com.yiyiaddon.ui.console.ConsoleHeaderBar}），本页不再有那条横贯整屏的状态卡
- * （旧项目该开关由 Meteor 的 {@code ModuleScreen} 统一画在面板顶部）。</p>
+ * （旧项目该开关由旧框架的 {@code ModuleScreen} 统一画在面板顶部）。</p>
  *
  * <p><b>整页行度量与模块中心同源</b>（2026-09-16，用户看截图后要求「还有点击进去的时候 模块也要
  * 缩小 现在都不对称」）：分组标题
@@ -57,10 +59,10 @@ import java.util.function.Supplier;
  */
 public final class StardewResourcePanelPage extends CompactModulePage implements ModulePage {
 
-    /** 播报与使用说明窗口使用的模块名（旧项目原文） */
+    /** 播报使用的模块名（旧项目原文） */
     private static final String MODULE_NAME = "星露谷农场";
 
-    /** 分组标题（旧项目 Meteor 分组名原文） */
+    /** 分组标题（旧项目框架分组名原文） */
     private static final String GROUP_TITLE = "服务器资源";
 
     /**
@@ -163,11 +165,9 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
         // ③ 查看资源包：只用当前完整 ServerKey 取真实缓存文件，禁止打开其它服务器的包
         addCore(new CompactRow("", this::packHint, new Button(this::packText, this::openCachedPack)).centeredControl());
 
-        // ④ 查看使用说明
-        addCore(new CompactRow("", () -> "打开星露谷农场的完整使用说明",
-            new Button("§e查看使用说明",
-                () -> mc.setScreen(new HelpPanelScreen(MODULE_NAME, module.helpContent(), mc.screen))))
-            .centeredControl());
+        // ④ 使用说明内嵌在入口区下方（用户 2026-09-17 口径：不再单摆「§e查看使用说明」按钮，
+        // 正文逐字来自 module.helpContent()，仅去掉独立窗口的外框三行；超出由本页滚动条上下查看）
+        for (String line : HelpPanelScreen.inlineContent(module.helpContent())) addCore(new TextLine(line));
     }
 
     /**

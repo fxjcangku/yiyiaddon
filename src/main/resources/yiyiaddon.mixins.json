@@ -10,8 +10,13 @@
     "GpuDeviceAccessor",
     "GlCommandEncoderMixin",
     "GuiRendererMixin",
+    "KeyboardHandlerAccessor",
+    "LocalPlayerEatAnimationMixin",
+    "LocalPlayerScreenGuardMixin",
+    "MinecraftSetScreenMixin",
     "ModelManagerReloadMixin",
     "MultiPlayerGameModeFastBreakMixin",
+    "MultiPlayerGameModePacketBreakMixin",
     "PreeditCaptureMixin",
     "RenderTargetMixin",
     "ResourcePackPushMixin"

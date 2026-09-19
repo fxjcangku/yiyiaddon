@@ -54,7 +54,7 @@ import java.util.Set;
  * 记录 {@link ContainerRecordStore}；目标物品统一来自 ID 配置管理（{@code IdentityTargetConfig}），
  * 本模块只消费，不建立第二套物品数据库。</p>
  *
- * <p>与旧项目的接口差异：旧项目用 Meteor 的事件与自检入口，本项目统一走
+ * <p>与旧项目的接口差异：旧项目用旧框架的事件与自检入口，本项目统一走
  * {@link Module} 生命周期（{@code selfCheck} 由 {@link ModuleManager} 在启用前调用并播报缺项）。</p>
  */
 public final class AutoChestModule extends Module implements AutoChestStateMachine.Callbacks {
@@ -155,7 +155,7 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
         settings.save(json);
     }
 
-    /** 立即写回设置（界面改动即时生效，与旧项目 Meteor 设置自动保存一致） */
+    /** 立即写回设置（界面改动即时生效，与旧项目框架设置自动保存一致） */
     public void persistSettings() {
         ModuleManager.saveSettings(this);
     }

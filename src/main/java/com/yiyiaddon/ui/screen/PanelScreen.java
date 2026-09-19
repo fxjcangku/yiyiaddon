@@ -11,6 +11,8 @@ import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.component.PanelFrame;
 import com.yiyiaddon.ui.component.ScrollViewport;
 import com.yiyiaddon.ui.component.TextLine;
+import com.yiyiaddon.ui.console.ConsoleHost;
+import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ImeBridge;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
@@ -19,6 +21,7 @@ import com.yiyiaddon.ui.render.SkiaScreen;
 import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
+import com.yiyiaddon.ui.widget.SettingKeybind;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.types.RRect;
@@ -87,6 +90,20 @@ public abstract class PanelScreen extends SkiaScreen {
     private static final float DIVIDER_HEIGHT = 13f;
     /** 入场时面板的下沉距离：与缩放、淡入一起构成「弹出」观感；关闭时反向播放。 */
     private static final float ENTER_RISE = 16f;
+
+    /**
+     * 整屏控制台的面板尺寸上限（设计空间单位）。
+     *
+     * <p>主界面/模块页仍是 {@link PanelFrame#CARD_W} × {@link PanelFrame#CARD_H}（740×500）；
+     * 控制台放宽到 1080 × 760：正文区从约 250 高变成约 510 高，常见页一屏铺满。</p>
+     */
+    private static final float CONSOLE_CARD_W = 1080f;
+    private static final float CONSOLE_CARD_H = 760f;
+    /** 面板与窗口边缘的总留白（与 {@code PanelFrame} 内的同名常量同值，那边是私有的）。 */
+    private static final float DESIGN_MARGIN = 24f;
+    /** 自适应时的最小面板尺寸：窗口再小也不至于把正文压成一条。 */
+    private static final float MIN_CARD_W = 520f;
+    private static final float MIN_CARD_H = 380f;
 
     private final String windowTitle;
     /** 副标题（窗口标题下方那行灰字）；null = 不画（多数面板窗口没有副标题）。 */
@@ -203,7 +220,36 @@ public abstract class PanelScreen extends SkiaScreen {
     @Override
     protected void init() {
         super.init();
+        applyDesignSize();
         frame.update(minecraft, 0f);
+    }
+
+    /**
+     * 面板设计尺寸：默认与主界面一致，整屏控制台放大到「可用设计空间内尽量大」。
+     *
+     * <p><b>为什么控制台要更大</b>（用户 2026-09-18：「控制台的页面可以加长加宽一下吗 方便看见全部设置
+     * 不用上下滑动」）：控制台一页动辄十几行参数，740×500 的正文区只放得下八九行，改一项就得滚。
+     * 放大后常见页基本一屏铺满，滚动只剩自动登入那种三十多行的长页。</p>
+     *
+     * <p><b>为什么按可用空间自适应、而不是写死一个大尺寸</b>：{@link PanelFrame} 会把超出窗口的面板
+     * 整体等比缩小（字一起变小）。所以取「可用设计空间 − 边距」与上限的较小值：大屏吃满上限，
+     * 小屏自动收窄，字号始终按设计字号渲染。设计空间 = 窗口像素的一半（与 {@code PanelFrame} 同口径）。</p>
+     *
+     * <p>每帧都调（窗口尺寸、界面大小都可能变），命中与绘制用的是同一次 {@code frame.update} 的结果。</p>
+     */
+    protected void applyDesignSize() {
+        if (!(this instanceof ConsoleHost)) {
+            frame.setDesignSize(PanelFrame.CARD_W, PanelFrame.CARD_H);
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        float availableW = CONSOLE_CARD_W;
+        float availableH = CONSOLE_CARD_H;
+        if (client != null && client.getWindow() != null) {
+            availableW = Math.max(MIN_CARD_W, client.getWindow().getWidth() * 0.5f - DESIGN_MARGIN);
+            availableH = Math.max(MIN_CARD_H, client.getWindow().getHeight() * 0.5f - DESIGN_MARGIN);
+        }
+        frame.setDesignSize(Math.min(CONSOLE_CARD_W, availableW), Math.min(CONSOLE_CARD_H, availableH));
     }
 
     private float contentHeight() {
@@ -258,6 +304,7 @@ public abstract class PanelScreen extends SkiaScreen {
         float dt = lastRenderMs == 0L ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
         lastRenderMs = now;
 
+        applyDesignSize();
         if (frame.update(minecraft, dt)) {
             closing();
             return;
@@ -352,9 +399,16 @@ public abstract class PanelScreen extends SkiaScreen {
      * 少了这几个转发，本骨架下的输入框点得到焦点也打不进字——{@code ModuleScreen} 与
      * {@code ClickGuiScreen} 各自都写了同样的转发，这里补齐，避免 PanelScreen 系窗口
      * （双栏选择器、调色盘、更多管理页等）的输入框全部失灵。</p>
+     *
+     * <p><b>键位录制优先于输入框</b>（第 169 条同源）：{@link SettingKeybind} 的录制态同样是静态槽，
+     * 界面不转交就永远收不到按键——传送控制台「触发按键」页点开键位块后一直停在 {@code ...}
+     * （用户 2026-09-18 两次实机反馈）。</p>
      */
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (SettingKeybind.keyPressed(event)) return true;
+        // 快捷键捕获：控制台（本骨架）里的「按键行」点开后要能接住任意键
+        if (ModuleKeybindManager.captureKey(event.key())) return true;
         if (SettingTextBox.keyPressed(event)) return true;
         return super.keyPressed(event);
     }
@@ -374,6 +428,18 @@ public abstract class PanelScreen extends SkiaScreen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean consumed) {
         if (closingRequested) return false;
+        // 键位录制优先：录制中可以绑鼠标侧键，录制中吞掉整次点击，免得同时点到下层控件
+        if (SettingKeybind.mousePressed(event.button())) {
+            draggingInContent = false;
+            draggingScrollbar = false;
+            return true;
+        }
+        // 快捷键捕获：捕获中时鼠标键也要能绑（与 ModuleScreen 同款；否则点徽章后按鼠标键会误触下层控件）
+        if (ModuleKeybindManager.captureMouseButton(event.button())) {
+            draggingInContent = false;
+            draggingScrollbar = false;
+            return true;
+        }
         if (event.button() > GLFW.GLFW_MOUSE_BUTTON_RIGHT) return true;
 
         float mouseX = frame.toDesignX(event.x(), this.width);

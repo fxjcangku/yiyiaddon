@@ -144,7 +144,13 @@ public final class EspGlobalSettings {
         STARDEW("星露谷"),
         AUTO_CHEST("自动箱子"),
         VILLAGER("村民容器"),
-        ADMIN("管理员检测");
+        ADMIN("管理员检测"),
+        VISION("透视"),
+        TELEPORT("传送"),
+        /** 发包秒破的挖掘进度框与百分比标签（含排队候选方块）；关掉后本模块整层不画，设置与运行状态不动 */
+        INSTANT_BREAK("发包秒破"),
+        /** 自动骨粉的候选目标框；关掉后本模块整层不画，设置与运行状态不动 */
+        BONE_MEAL("自动骨粉");
 
         private final String label;
 
@@ -176,6 +182,9 @@ public final class EspGlobalSettings {
 
     /** 自动挖矿是否正在运行（运行期标志，不落盘；见 {@link #autoMinerRunning()}） */
     private boolean autoMinerRunning;
+
+    /** 发包秒破是否正在运行（运行期标志，不落盘；见 {@link #instantBreakRunning()}） */
+    private boolean instantBreakRunning;
 
     private EspGlobalSettings() {
     }
@@ -282,6 +291,33 @@ public final class EspGlobalSettings {
     /** 由自动挖矿模块在启用 / 关闭时写入（不触发落盘） */
     public void setAutoMinerRunning(boolean value) {
         autoMinerRunning = value;
+    }
+
+    /**
+     * 运行期标志（<b>不是用户设置，不落盘</b>）：发包秒破模块是否正在运行。
+     *
+     * <p>用户 2026-09-19：「发包秒破跟我 esp 的白色选择框有冲突，能不能发包秒破开启不要显示这个白框」
+     * —— 指的就是本设置页里的「瞄准方块高亮」。与自动挖矿同一回事：秒破开挖前会把视角转向目标方块，
+     * 准星一路扫过去，白框一直闪、挖东西时一直出现，于是在运行期间不画；模块关闭自动恢复。</p>
+     */
+    public boolean instantBreakRunning() {
+        return instantBreakRunning;
+    }
+
+    /** 由发包秒破模块在启用 / 关闭时写入（不触发落盘） */
+    public void setInstantBreakRunning(boolean value) {
+        instantBreakRunning = value;
+    }
+
+    /**
+     * 瞄准方块高亮是否应被压掉：自动挖矿 / 发包秒破运行期间都不画。
+     *
+     * <p>两者都是「转视角 + 连发破坏」地扫方块，准星所指一直在变，整格白框会闪成一片、与玩家自己的
+     * ESP 视觉互相打架（用户 2026-09-18 自动挖矿、2026-09-19 发包秒破）。玩家自己关掉
+     * {@link #blockOutline()} 之外没有别的开关 —— 这条只影响运行期间，关模块立刻恢复。</p>
+     */
+    public boolean aimOutlineSuppressed() {
+        return autoMinerRunning || instantBreakRunning;
     }
 
     /** 瞄准方块描边颜色（RGB）。 */

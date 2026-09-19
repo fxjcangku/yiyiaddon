@@ -21,11 +21,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -307,6 +309,53 @@ public final class ItemIdentifier {
         if (component == null) return null;
         String text = clean(component.getString());
         return text.isEmpty() ? null : text;
+    }
+
+    /** 「经验修补」在 zh_cn / en_us 下的显示名：内联附魔（取不到 id）时只能按玩家看到的名字认 */
+    private static final Set<String> MENDING_NAMES = Set.of("经验修补", "Mending");
+
+    /**
+     * 物品是否带「经验修补」（装备附魔 + 存储附魔都看，口径同 {@link #extractEnchantments}）。
+     *
+     * <p><b>替换掉的旧写法</b>：从世界注册表取 {@code Enchantments.MENDING} 的 holder，再
+     * {@code enchantments.getLevel(holder) > 0}。那条路依赖 holder <b>实例</b>：
+     * {@link ItemEnchantments} 内部是 {@code Object2IntOpenHashMap<Holder<Enchantment>>}，而
+     * {@code Holder.Reference} 没有覆写 {@code equals/hashCode}（引用比较）。只要物品上那条附魔的
+     * holder 不是注册表里那一个实例（服务器用数据包 / 插件给的自定义「经验修补」，或内联附魔
+     * {@code Holder.Direct}），旧写法就查成 0 级 —— 表现是「明明带着经验修补的工具被判没有经验修补」
+     * （用户 2026-09-19：带经验修补的铲子被判没附魔，于是不回去挂机点修）。</p>
+     *
+     * <p>现在直接遍历物品自己的附魔条目，命中任一条即算：</p>
+     * <ol>
+     *   <li>key 就是 {@code minecraft:mending}（{@code ResourceKey} 是 interned 的，引用比较即可）；</li>
+     *   <li>id 的路径段是 {@code mending}（自定义命名空间下的同名附魔，如 {@code xxx:mending}）；</li>
+     *   <li>显示名是「经验修补 / Mending」（连 id 都取不到的内联附魔，按玩家看到的名字认）。</li>
+     * </ol>
+     */
+    public static boolean hasMending(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        return anyMending(stack.get(DataComponents.ENCHANTMENTS))
+            || anyMending(stack.get(DataComponents.STORED_ENCHANTMENTS));
+    }
+
+    private static boolean anyMending(ItemEnchantments enchantments) {
+        if (enchantments == null || enchantments.isEmpty()) return false;
+        for (var entry : enchantments.entrySet()) {
+            if (isMending(entry.getKey())) return true;
+        }
+        return false;
+    }
+
+    /** 单条附魔是不是「经验修补」，判据见 {@link #hasMending} */
+    private static boolean isMending(Holder<Enchantment> holder) {
+        if (holder.is(Enchantments.MENDING)) return true;
+        var key = holder.unwrapKey().orElse(null);
+        if (key != null && "mending".equals(key.identifier().getPath())) return true;
+        try {
+            return MENDING_NAMES.contains(clean(holder.value().description().getString()));
+        } catch (Exception ignored) {
+            return false; // 内联附魔解不出来时不猜
+        }
     }
 
     /** 提取附魔（装备附魔 + 附魔书存储附魔） */

@@ -1,5 +1,6 @@
 package com.yiyiaddon.platform.network;
 
+import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.mixin.client.ClientLevelPredictionAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -31,6 +32,12 @@ import net.minecraft.world.phys.Vec3;
  * <p>每个包必须独立取号，不能复用同一个 sequence。</p>
  *
  * <p>本层只做协议与 Minecraft API 适配，不含「该不该挖 / 该不该种」的业务判断。</p>
+ *
+ * <p><b>为什么绕行发包闸门（{@link ClientPacketSender#sendBypassingGate}）：</b>本层的包是模块
+ * <b>按任务节奏主动批量发起</b>的交互，不是玩家手动操作。走 {@code Connection.send} 会被
+ * 「发包防踢」的限速规则拦下——默认每秒最多 8 个放置 / 8 个挖掘，而星露谷一次补水就连发 8~32 包、
+ * 批量收割一次 8~15 格，超出部分被直接丢弃，只能等下一轮重试，表现为「装水 / 破坏变慢」
+ * （用户 2026-09-19 实机反馈）。因此本层统一走核心的绕行直发通道，与秒破的 START/STOP 同一机制。</p>
  */
 public final class BlockPacketSender {
 
@@ -44,6 +51,21 @@ public final class BlockPacketSender {
 
     /** 发送一个使用物品于方块的包（内部统一取号） */
     private static boolean sendUseOnBlock(InteractionHand hand, BlockHitResult hit, BlockPos predictPos) {
+        return sendUseOnBlock(hand, hit, predictPos, null);
+    }
+
+    /**
+     * 发送一个使用物品于方块的包（内部统一取号），可选地在本地立刻落下结果方块。
+     *
+     * <p><b>为什么要 {@code placedState}</b>：原版放置走 {@code BlockItem#place}，客户端会<b>立刻</b>
+     * 把方块写进本地世界（服务端回包再对账），所以「同一刻连着放第二块、拿刚放的那块当锚点」是成立的。
+     * 本层直发包绕过原版入口，就必须自己补这一步，否则同一刻内后续放置看到的仍是岩浆 / 空气，
+     * 「一次铺一片」会退化成「一刻一块等服务器确认」。写法与 {@link #breakBlock} 的本地置空气同一口径。</p>
+     *
+     * @param placedState 放置成功后本地要写的方块状态；{@code null} 表示不写（右键交互类不改变方块）
+     */
+    private static boolean sendUseOnBlock(InteractionHand hand, BlockHitResult hit, BlockPos predictPos,
+                                          BlockState placedState) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
@@ -52,12 +74,43 @@ public final class BlockPacketSender {
         BlockState original = level.getBlockState(predictPos);
         BlockStatePredictionHandler handler = predictionHandler(level);
 
+        boolean sent;
         try (BlockStatePredictionHandler predicting = handler.startPredicting()) {
             predicting.retainKnownServerState(predictPos, original, player);
             int sequence = predicting.currentSequence();
-            player.connection.send(new ServerboundUseItemOnPacket(hand, hit, sequence));
+            sent = ClientPacketSender.sendBypassingGate(player.connection.getConnection(),
+                new ServerboundUseItemOnPacket(hand, hit, sequence));
+            // 本地立刻落块：保证同 tick 内的后续逻辑（垫脚的下一块拿它当锚点）读到的是放好的世界
+            if (sent && placedState != null) {
+                level.setBlock(predictPos, placedState, 11);
+            }
         }
-        return true;
+        return sent;
+    }
+
+    /**
+     * 往任意一面放置一块方块（岩浆垫脚铺路 / 连锁封堵用，用户 2026-09-19）。
+     *
+     * <p>命中点取锚点方块该面中心外 0.5 格，预测登记目标格（方块会被放进那一格），并<b>本地立刻落块</b>
+     * （见 {@link #sendUseOnBlock}）——垫脚要「一次铺一片」，同一刻连放多块时后一块常拿前一块当锚点。</p>
+     *
+     * <p>面能不能放由调用方先判（锚点面要 sturdy、玩家要看得见，见 {@code BlockPlacer#placeAt}）；
+     * 本层只做协议与本地预测，不做业务判断。回归值只表示「包已发出」（与原版放置一样是乐观口径：
+     * 服务端若不认，随后的方块变更包会把本地预测对账回真实状态）。</p>
+     *
+     * @param anchor     贴着的锚点方块
+     * @param face       锚点上要贴的那一面（朝向目标格）
+     * @param predictPos 会被放上方块的那一格
+     */
+    public static boolean placeBlockOn(InteractionHand hand, BlockPos anchor, Direction face,
+                                       BlockPos predictPos, BlockState placedState) {
+        if (anchor == null || face == null || predictPos == null) return false;
+        Vec3 hitVec = new Vec3(
+            anchor.getX() + 0.5 + face.getStepX() * 0.5,
+            anchor.getY() + 0.5 + face.getStepY() * 0.5,
+            anchor.getZ() + 0.5 + face.getStepZ() * 0.5);
+        BlockHitResult hit = new BlockHitResult(hitVec, face, anchor, false);
+        return sendUseOnBlock(hand, hit, predictPos, placedState);
     }
 
     /**
@@ -80,18 +133,21 @@ public final class BlockPacketSender {
         if (original.isAir()) return false;
 
         BlockStatePredictionHandler handler = predictionHandler(level);
+        boolean started;
         try (BlockStatePredictionHandler predicting = handler.startPredicting()) {
             predicting.retainKnownServerState(pos, original, player);
             int sequence = predicting.currentSequence();
-            player.connection.send(new ServerboundPlayerActionPacket(
-                ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence));
+            started = ClientPacketSender.sendBypassingGate(player.connection.getConnection(),
+                new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence));
             // 本地立刻置空气，保证同 tick 内的后续逻辑（如补种）不会读到旧状态
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 11);
         }
 
-        player.connection.send(new ServerboundPlayerActionPacket(
-            ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, pos, face));
-        return true;
+        ClientPacketSender.sendBypassingGate(player.connection.getConnection(),
+            new ServerboundPlayerActionPacket(
+                ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, pos, face));
+        return started;
     }
 
     /**

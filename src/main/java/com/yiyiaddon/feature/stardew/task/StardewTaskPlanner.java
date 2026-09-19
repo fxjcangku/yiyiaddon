@@ -18,6 +18,7 @@ import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
 import com.yiyiaddon.feature.stardew.service.StardewShelterProbe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -413,11 +414,12 @@ final class StardewTaskPlanner {
             case MATURE -> needsHarvestLearning(cell.crop().cropKey())
                 ? (canProbeHarvestLearning(cell) ? TaskType.LEARN_HARVEST : null)
                 : TaskType.HARVEST;
-            // 特殊变种需要独立工具策略；未建立可靠规则前绝不按普通作物破坏。
-            case SPECIAL -> {
-                notifySpecialCalibration(cell.crop());
-                yield null;
-            }
+            // 特殊变种（金色 / 巨型 / 变种）：本服口径是「手持原版金锄头右键」，收完回退植株，
+            // 因此与普通作物共用同一套 HARVEST 流程，只是执行层换成持工具右键。
+            // 背包里没有金锄头时绝不空手乱点（空手点特殊阶段收不掉，只会白跑一轮）。
+            case SPECIAL -> owner.executor.hasSpecialHarvestTool()
+                ? TaskType.HARVEST
+                : skipSpecialWithoutTool(cell.crop());
             case DEAD -> TaskType.CLEAR_DEAD;
             case GROWING -> resolveGrowing(cell);
             case EMPTY -> resolveEmptyPot(cell);
@@ -556,11 +558,20 @@ final class StardewTaskPlanner {
         return !owner.probedLearningStages.contains(learningKey(cell.crop().cropKey(), cell.crop().stageName()));
     }
 
-    /** 特殊变种缺少低风险可确认规则时只提示一次，绝不自动回退左键。 */
-    private void notifySpecialCalibration(CropRecognizer.CropRecognition crop) {
+    /**
+     * 特殊变种缺少金锄头时只提示一次（同一个具体阶段只报一次，绝不每轮刷屏）。
+     *
+     * <p>拿到金锄头后下一轮扫描自动恢复自动收割——这里只是「没工具就先不动它」的安全闸，
+     * 绝不回退成空手右键：空手点特殊阶段收不掉，还会白跑一趟。</p>
+     */
+    private TaskType skipSpecialWithoutTool(CropRecognizer.CropRecognition crop) {
         String key = learningKey(String.valueOf(crop.cropKey()), String.valueOf(crop.stageName()));
-        if (!owner.reportedSpecialStages.add(key)) return;
-        owner.status.state("SPECIAL:" + key, "发现特殊作物", "收割动作尚未确认，已安全跳过");
+        if (owner.reportedSpecialStages.add(key)) {
+            // 只是提示，不停机：这一格跳过，其余任务照常推进；放一把金锄头下一轮扫描就自动收。
+            owner.status.state("SPECIAL_TOOL:" + key, "发现特殊作物",
+                "背包里没有金锄头，已跳过这一格（放一把金锄头就会自动收）");
+        }
+        return null;
     }
 
     /**
@@ -1109,7 +1120,7 @@ final class StardewTaskPlanner {
     }
 
     /**
-     * 回中心点：离玩家最近的区域中心。
+     * 回中心点：离玩家最近的区域的「站得住的中心」。
      *
      * <p>区域并集的几何中心可能落在走道、田外甚至另一块地里，那儿站着不产生任何任务；
      * 「最近的那块地」才是玩家眼里自然的待命位置。</p>
@@ -1117,17 +1128,55 @@ final class StardewTaskPlanner {
     BlockPos regionCenter() {
         BlockPos player = Minecraft.getInstance().player == null
             ? null : Minecraft.getInstance().player.blockPosition();
-        BlockPos best = null;
+        StardewRegionManager.Region nearest = null;
         double bestDistance = Double.MAX_VALUE;
         for (StardewRegionManager.Region region : owner.regions) {
-            BlockPos center = region.center();
-            double distance = player == null ? 0 : center.distSqr(player);
+            double distance = player == null ? 0 : region.center().distSqr(player);
             if (distance < bestDistance) {
                 bestDistance = distance;
-                best = center;
+                nearest = region;
             }
         }
-        return best;
+        return nearest == null ? null : standableCenter(nearest);
+    }
+
+    /** 回中心落点最多向下找几格：作物载体 / 台阶会把几何中心抬高一到两格。 */
+    private static final int CENTER_STAND_DROP = 3;
+
+    /**
+     * 把区域几何中心落到一个「人真能站上去」的格子。
+     *
+     * <p><b>为什么必须落地：</b>几何中心只保证数学居中。这些服务器的作物载体（甘蔗、绊线之类）
+     * 与泥土、箱子、玻璃一样占格，中心格很容易「脚下没有支撑」或「整格被占」。回中心用的判定是最严的一套
+     * ——{@code GoalNear(半径 0)}（必须站进那一格）叠加 {@code CENTER_REACH = 0.85}，
+     * 目标格站不住时 Baritone 永远算不出一条能落地的路径：路径线一直闪、人原地不动，
+     * 每刻重发打断计算，80 刻无进展重试 3 次后拉黑并播报「无法继续寻路」
+     * （2026-09-19 实机埋点定性：中心 19841,65,-1633 脚下是甘蔗，玩家卡在 3.27 格外）。</p>
+     *
+     * <p>取法：中心列自上而下，再四邻各自自上而下，取第一个站得住的格（判据与后勤站位同源，
+     * 见 {@link ContainerApproachPlanner#standable}），且落点 XZ 必须仍在本区域内。
+     * 全部候选都站不住时回退几何中心——保留原有的重试 / 拉黑 / 播报兜底，绝不让回中心彻底失效。</p>
+     */
+    private BlockPos standableCenter(StardewRegionManager.Region region) {
+        BlockPos center = region.center();
+        if (inRegionXZ(region, center) && ContainerApproachPlanner.standable(center)) return center;
+        for (int drop = 1; drop <= CENTER_STAND_DROP; drop++) {
+            BlockPos candidate = center.below(drop);
+            if (inRegionXZ(region, candidate) && ContainerApproachPlanner.standable(candidate)) return candidate;
+        }
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            BlockPos column = center.relative(direction);
+            for (int drop = 0; drop <= CENTER_STAND_DROP; drop++) {
+                BlockPos candidate = column.below(drop);
+                if (inRegionXZ(region, candidate) && ContainerApproachPlanner.standable(candidate)) return candidate;
+            }
+        }
+        return center;
+    }
+
+    /** 落点是否仍落在该区域的 XZ 范围内（回中心不许跑到别的地块或田外）。 */
+    private static boolean inRegionXZ(StardewRegionManager.Region region, BlockPos pos) {
+        return region.containsXZ(pos.getX(), pos.getZ());
     }
 
     BlockPos regionMin() {

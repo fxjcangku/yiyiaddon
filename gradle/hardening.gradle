@@ -1,0 +1,76 @@
+// 发布加固工具独立编译；这里的 ASM 与工具源码都不加入 main 的运行类路径。
+configurations { hardeningTool }
+tasks.withType(JavaExec).matching { it.name in ['hardenJar', 'testHardening', 'auditProtectedConstants'] }.configureEach {
+    systemProperty 'file.encoding', 'UTF-8'
+    systemProperty 'stdout.encoding', 'UTF-8'
+    systemProperty 'stderr.encoding', 'UTF-8'
+}
+dependencies {
+    hardeningTool 'org.ow2.asm:asm:9.9.1'
+    hardeningTool 'org.ow2.asm:asm-tree:9.9.1'
+    hardeningTool 'org.ow2.asm:asm-commons:9.9.1'
+}
+
+def toolClasses = layout.buildDirectory.dir('hardening/tool-classes')
+def work = layout.buildDirectory.dir('obfuscation')
+def libraries = work.map { it.file('libraries.txt') }
+def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.jdk_version as int) }
+
+tasks.register('compileHardeningTool', JavaCompile) {
+    dependsOn tasks.named('compileJava')
+    source = fileTree('gradle/hardening/src') { include '**/*.java' }
+    classpath = configurations.hardeningTool + sourceSets.main.output.classesDirs
+    destinationDirectory = toolClasses
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+
+tasks.register('prepareHardeningLibraries') {
+    inputs.files(configurations.compileClasspath)
+    outputs.file(libraries)
+    doLast {
+        def target = libraries.get().asFile
+        target.parentFile.mkdirs()
+        target.setText(configurations.compileClasspath.files.collect { it.absolutePath }.sort().join('\n') + '\n', 'UTF-8')
+    }
+}
+
+tasks.register('hardenJar', JavaExec) {
+    dependsOn tasks.named('jar'), tasks.named('compileHardeningTool'), tasks.named('prepareHardeningLibraries')
+    classpath = files(toolClasses, sourceSets.main.output.classesDirs) + configurations.hardeningTool
+    javaLauncher = launcher
+    mainClass = 'com.yiyiaddon.build.HardeningTool'
+    maxHeapSize = '2g'
+    inputs.file(tasks.named('jar', Jar).flatMap { it.archiveFile })
+    inputs.file(libraries)
+    inputs.dir(toolClasses)
+    outputs.file(work.map { it.file('hardened.jar') })
+    outputs.file(work.map { it.file('hardening-stats.json') })
+    doFirst {
+        args = [tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath,
+                work.get().file('hardened.jar').asFile.absolutePath,
+                libraries.get().asFile.absolutePath, work.get().file('hardening-stats.json').asFile.absolutePath]
+    }
+}
+
+tasks.register('testHardening', JavaExec) {
+    dependsOn tasks.named('compileHardeningTool')
+    classpath = files(toolClasses, sourceSets.main.output.classesDirs) + configurations.hardeningTool
+    javaLauncher = launcher
+    mainClass = 'com.yiyiaddon.build.HardeningSelfTest'
+    jvmArgs '-Xverify:all'
+}
+
+tasks.register('auditProtectedConstants', JavaExec) {
+    dependsOn tasks.named('obfuscatedJar'), tasks.named('compileHardeningTool'), tasks.named('prepareHardeningLibraries')
+    classpath = files(toolClasses) + configurations.hardeningTool
+    javaLauncher = launcher
+    mainClass = 'com.yiyiaddon.build.ProtectionAudit'
+    jvmArgs '-Xverify:all'
+    doFirst {
+        args = [tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath,
+                tasks.named('obfuscatedJar', Jar).get().archiveFile.get().asFile.absolutePath,
+                libraries.get().asFile.absolutePath, work.get().file('protection-audit.txt').asFile.absolutePath]
+    }
+}

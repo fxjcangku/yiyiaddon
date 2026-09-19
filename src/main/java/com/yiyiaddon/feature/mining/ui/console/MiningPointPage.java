@@ -10,6 +10,7 @@ import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
@@ -21,6 +22,8 @@ import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingColorPicker;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,6 +89,9 @@ public final class MiningPointPage {
     private static final double CONTAINER_TEXT_SCALE_MAX = 4.0;
     private static final double CONTAINER_TEXT_SCALE_STEP = 0.5;
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final MiningSettings DEFAULTS = new MiningSettings();
+
     private final MiningConsoleScreen owner;
     private final AutoMinerModule module;
 
@@ -104,15 +110,17 @@ public final class MiningPointPage {
 
         stack.add(new Note(owner, "§7§l显示与颜色", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        stack.add(colorRow(NAME_MINERAL_COLOR, DESC_MINERAL_COLOR, module.mineralColor()));
-        stack.add(colorRow(NAME_FOOD_COLOR, DESC_FOOD_COLOR, module.foodColor()));
-        stack.add(colorRow(NAME_AFK_COLOR, DESC_AFK_COLOR, module.afkColor()));
+        stack.add(colorRow(NAME_MINERAL_COLOR, DESC_MINERAL_COLOR, module.mineralColor(), DEFAULTS.mineralColor));
+        stack.add(colorRow(NAME_FOOD_COLOR, DESC_FOOD_COLOR, module.foodColor(), DEFAULTS.foodColor));
+        stack.add(colorRow(NAME_AFK_COLOR, DESC_AFK_COLOR, module.afkColor(), DEFAULTS.afkColor));
         stack.add(labelSizeRow());
         stack.add(containerTextScaleRow());
         stack.add(containerTextColorRow());
         stack.add(breakProgressToggleRow());
-        stack.add(breakProgressColorRow(NAME_BREAK_BUSY_COLOR, DESC_BREAK_BUSY_COLOR, false));
-        stack.add(breakProgressColorRow(NAME_BREAK_READY_COLOR, DESC_BREAK_READY_COLOR, true));
+        stack.add(breakProgressColorRow(NAME_BREAK_BUSY_COLOR, DESC_BREAK_BUSY_COLOR, false,
+            DEFAULTS.breakProgressBusyColor));
+        stack.add(breakProgressColorRow(NAME_BREAK_READY_COLOR, DESC_BREAK_READY_COLOR, true,
+            DEFAULTS.breakProgressReadyColor));
         stack.add(new Note(owner, "§8也可以用指令：§f.wk 设置 … §8/ §f.wk 移除 …"));
     }
 
@@ -154,7 +162,20 @@ public final class MiningPointPage {
             })),
             List.of(new Button("§c删除", () -> {
                 if (module.bindingService().remove(type, true)) closeToGame();
-            }))));
+            })))).icon(() -> cardIcon(type));
+    }
+
+    /**
+     * 卡片头图标（与原版语义一一对应，未绑定也显示、不留空洞）：
+     * 矿物箱＝原金矿（矿物）、食物箱＝烤牛肉（挖矿口粮）、挂机修复点＝附魔之瓶
+     * （模块自检里「挂机修复依赖经验修补」的同一语义）。
+     */
+    private static ItemStack cardIcon(MiningPointType type) {
+        return switch (type) {
+            case MINERAL -> new ItemStack(Items.RAW_GOLD);
+            case FOOD -> new ItemStack(Items.COOKED_BEEF);
+            case AFK -> new ItemStack(Items.EXPERIENCE_BOTTLE);
+        };
     }
 
     /** 清空全部点位：二次确认（确认动作与 {@code .wk 清空} 同源，正文按本模块三个点位写） */
@@ -177,10 +198,25 @@ public final class MiningPointPage {
      * 存下去的是旧值（与自动箱子渲染页同一构造）。</p>
      *
      * <p>行尾带可见提示（第 213 条）：色块本身只是纯色底，看不出能点。</p>
+     *
+     * <p>行内 ↺ 把出厂色就地写回行内控件持有的那个颜色对象（字段是 final，不能换引用），
+     * 再走与调色板同一条同步链路（{@code syncColorsToSettings} 内部落盘）。</p>
      */
-    private ConsoleRow colorRow(String name, String description, EspColor color) {
+    private ConsoleRow colorRow(String name, String description, EspColor color, int defaultArgb) {
         return new ConsoleRow(owner, () -> name, description, COMMENT_COLOR,
-            List.of(new Ctl(new SettingColorPicker(name, color, module::syncColorsToSettings))));
+            List.of(new Ctl(new SettingColorPicker(name, color, module::syncColorsToSettings)),
+                ConsoleWidgets.resetCtl(() -> {
+                    copyColor(color, defaultArgb);
+                    module.syncColorsToSettings();
+                    owner.reload();
+                }, name)));
+    }
+
+    /** 把出厂色就地写给行内控件持有的那个颜色对象（字段是 final，不能换引用） */
+    private static void copyColor(EspColor target, int argb) {
+        EspColor source = new EspColor(argb & 0xFFFFFF, (argb >>> 24) & 0xFF);
+        target.rgb(source.rgb()).alpha(source.alpha()).rainbow(source.rainbow())
+            .rainbowSpeed(source.rainbowSpeed()).rainbowOffset(source.rainbowOffset());
     }
 
     /** 字牌大小：ESP 头顶文字的字号倍率，与三行颜色分开一行（改动落盘） */
@@ -192,7 +228,12 @@ public final class MiningPointPage {
                 settings.espScale = value;
                 module.persistSettings();
             });
-        return new ConsoleRow(owner, () -> NAME_ESP_SCALE, DESC_ESP_SCALE, null, List.of(new Ctl(box)));
+        return new ConsoleRow(owner, () -> NAME_ESP_SCALE, DESC_ESP_SCALE, null, List.of(new Ctl(box),
+            ConsoleWidgets.resetCtl(() -> {
+                settings.espScale = DEFAULTS.espScale;
+                module.persistSettings();
+                owner.reload();
+            }, NAME_ESP_SCALE)));
     }
 
     /** 容器标签字号倍率：矿物箱/食物箱头顶文字在整体字号之上再乘的系数（改动落盘） */
@@ -206,7 +247,12 @@ public final class MiningPointPage {
                 module.persistSettings();
             });
         return new ConsoleRow(owner, () -> NAME_CONTAINER_TEXT_SCALE, DESC_CONTAINER_TEXT_SCALE, null,
-            List.of(new Ctl(box)));
+            List.of(new Ctl(box),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.espContainerTextScale = DEFAULTS.espContainerTextScale;
+                    module.persistSettings();
+                    owner.reload();
+                }, NAME_CONTAINER_TEXT_SCALE)));
     }
 
     /**
@@ -232,7 +278,13 @@ public final class MiningPointPage {
             module.persistSettings();
         });
         return new ConsoleRow(owner, () -> NAME_CONTAINER_TEXT_COLOR, DESC_CONTAINER_TEXT_COLOR, COMMENT_COLOR,
-            List.of(new Ctl(picker)));
+            List.of(new Ctl(picker),
+                // 出厂值 0 = 跟随各点位颜色；整页重建后色块回到「此刻文字主色」的显示口径
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.espContainerTextColor = DEFAULTS.espContainerTextColor;
+                    module.persistSettings();
+                    owner.reload();
+                }, NAME_CONTAINER_TEXT_COLOR)));
     }
 
     /**
@@ -247,7 +299,12 @@ public final class MiningPointPage {
             settings.breakProgressEsp = value;
             module.persistSettings();
         });
-        return new ConsoleRow(owner, () -> NAME_BREAK_PROGRESS, DESC_BREAK_PROGRESS, null, List.of(new Ctl(toggle)));
+        return new ConsoleRow(owner, () -> NAME_BREAK_PROGRESS, DESC_BREAK_PROGRESS, null, List.of(new Ctl(toggle),
+            ConsoleWidgets.resetCtl(() -> {
+                settings.breakProgressEsp = DEFAULTS.breakProgressEsp;
+                module.persistSettings();
+                owner.reload();
+            }, NAME_BREAK_PROGRESS)));
     }
 
     /**
@@ -256,7 +313,7 @@ public final class MiningPointPage {
      * <p>设置项存 <b>RGB</b>，透明度由渲染层固定（面 40 / 描边 255），所以这里把调色板的 alpha 丢掉
      * —— 否则用户把 alpha 调到 0 会得到一个看不见的进度框。</p>
      */
-    private ConsoleRow breakProgressColorRow(String name, String description, boolean ready) {
+    private ConsoleRow breakProgressColorRow(String name, String description, boolean ready, int defaultRgb) {
         MiningSettings settings = module.settings();
         int current = ready ? settings.breakProgressReadyColor : settings.breakProgressBusyColor;
         EspColor carried = new EspColor(current & 0xFFFFFF, 255);
@@ -270,7 +327,18 @@ public final class MiningPointPage {
             }
             module.persistSettings();
         });
-        return new ConsoleRow(owner, () -> name, description, COMMENT_COLOR, List.of(new Ctl(picker)));
+        return new ConsoleRow(owner, () -> name, description, COMMENT_COLOR, List.of(new Ctl(picker),
+            // 出厂值只有 RGB（透明度由渲染层固定），所以只把色相写回载体
+            ConsoleWidgets.resetCtl(() -> {
+                carried.rgb(defaultRgb);
+                if (ready) {
+                    settings.breakProgressReadyColor = defaultRgb;
+                } else {
+                    settings.breakProgressBusyColor = defaultRgb;
+                }
+                module.persistSettings();
+                owner.reload();
+            }, name)));
     }
 
     /** 执行后直接回到游戏（旧项目 {@code mc.setScreen(null)}） */

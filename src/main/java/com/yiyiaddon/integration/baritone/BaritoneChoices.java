@@ -10,6 +10,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 
@@ -213,6 +214,13 @@ final class BaritoneChoices {
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
             return ItemIconCache.getInstance().drawBlock(canvas, block, x, y, size);
         }
+
+        /** 与 drawIcon 同一份图标：方块的物品形式（水、火这类没有物品形式的返回 null）。 */
+        @Override
+        public ItemStack iconStack() {
+            Item item = block.asItem();
+            return item == Items.AIR ? null : item.getDefaultInstance();
+        }
     }
 
     private record ItemEntry(String key, Item item) implements SelectorScreen.Entry {
@@ -230,6 +238,12 @@ final class BaritoneChoices {
         @Override
         public boolean drawIcon(Canvas canvas, float x, float y, float size) {
             return ItemIconCache.getInstance().draw(canvas, item.getDefaultInstance(), x, y, size);
+        }
+
+        /** 与 drawIcon 同一份图标。 */
+        @Override
+        public ItemStack iconStack() {
+            return item.getDefaultInstance();
         }
     }
 }

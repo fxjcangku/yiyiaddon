@@ -47,6 +47,14 @@ public class SettingModule {
      */
     private static final float ICON_ROW_H = ModuleRow.HEIGHT;
     /**
+     * 图标行的子项行高。
+     *
+     * <p><b>为什么比经典的 {@link #SUB_H}（44）矮：</b>一级行只有 24，二级还留 44 + 圆角底板，
+     * 实机看起来「子项的框比分组标题还大」（用户 2026-09-18 对 ESP 全局设置的截图反馈）。
+     * 收到 36（底板 30）之后层级关系恢复正常，两行文字（标题 + 说明）仍放得下。</p>
+     */
+    private static final float ICON_ROW_SUB_H = 36f;
+    /**
      * 图标行的标题 / 说明字号。
      *
      * <p>就是这两页原来的 14 / 11——收行高时<b>一个都没降</b>：说明从第二行挪到标题右侧同一行
@@ -178,11 +186,12 @@ public class SettingModule {
     /**
      * 表头是否走图标行。
      *
-     * <p>与 {@link #compact()} 互斥（{@code compact} 优先）：两套紧凑口径的子项高度不同
-     * （30 / 44），混在一起必然错位。本项目里 {@code compact()} 只有 Baritone 设置页用。</p>
+     * <p><b>与 {@link #compact()} 可以同时开</b>（用户 2026-09-18：「baritone 界面点进去改成 esp设置这样」）：
+     * 图标管一级行（24 高、图标 + 标题 + 说明一行），{@code compact} 只管二级子项的排布（单行 + 双列）。
+     * 两者原本互斥只是因为子项高度口径不同（30 / 44），现在各管一段，混在一起不再错位。</p>
      */
     private boolean iconRow() {
-        return icon != null && !compact;
+        return icon != null;
     }
 
     /** 模块占的槽高：图标行 24 / 紧凑双列 40 / 经典 56。总高度与页面排序都读它。 */
@@ -202,7 +211,8 @@ public class SettingModule {
     }
 
     private float subHeight() {
-        return compactLayout() ? COMPACT_SUB_H : SUB_H;
+        if (compactLayout()) return COMPACT_SUB_H;
+        return iconRow() ? ICON_ROW_SUB_H : SUB_H;
     }
 
     // ── 紧凑双列布局 ──
@@ -459,13 +469,8 @@ public class SettingModule {
     public void draw(Canvas canvas, float x, float y, float contentW, float alpha, float viewportTop, float viewportBottom, float mouseX, float mouseY) {
         ModuleKeybindManager.registerModule(this);
         drawStaticContent(canvas, x, y, contentW, alpha, viewportTop, viewportBottom, expandProgress, mouseX, mouseY);
-        // 紧凑模式的表头说明走悬停浮层；子项稍后登记，鼠标在子项上时后者覆盖前者（同一帧只留最后一条）
-        if (compactLayout() && mouseY >= y && mouseY <= y + headerHeight()
-                && mouseX >= x && mouseX <= x + contentW) {
-            TooltipLayer.show(subtitle, mouseX, mouseY);
-        }
-        // 图标行同理：说明挤在标题右侧，长句必然被省略，悬停给完整原文
-        if (iconRow() && mouseY >= y && mouseY <= y + headerHeight()
+        // 表头说明被截断时给完整原文：紧凑模式的单行表头与图标行都只画一行，长句必然省略
+        if ((compactLayout() || iconRow()) && mouseY >= y && mouseY <= y + headerHeight()
                 && mouseX >= x && mouseX <= x + contentW) {
             TooltipLayer.show(subtitle, mouseX, mouseY);
         }
@@ -486,28 +491,30 @@ public class SettingModule {
             return;
         }
         float sy = y + moduleHeight();
+        float subH = subHeight();
+        float boxH = subH - 6f;
         for (SubEntry sub : subEntries) {
             if (!sub.isVisible()) continue;
-            float subBottom = sy + SUB_H - 6f;
+            float subBottom = sy + boxH;
             if (subBottom > viewportTop && sy < viewportBottom && sub.widget != null) {
                 float wx = x + contentW - PAD_X - sub.widget.getWidth();
-                float wy = sy + (SUB_H - 6f - sub.widget.getHeight()) / 2f;
+                float wy = sy + (boxH - sub.widget.getHeight()) / 2f;
                 sub.widget.hover(mouseX, mouseY, wx, wy, sub.widget.getWidth());
                 sub.widget.draw(canvas, wx, wy, alpha * expandProgress);
             }
-            sy += SUB_H;
+            sy += subH;
             if (sub.group && sub.childProgress > 0.01f) {
                 float childAlpha = alpha * expandProgress * sub.childProgress;
                 for (SubEntry child : sub.children) {
                     if (!child.isVisible()) continue;
-                    float childBottom = sy + SUB_H - 6f;
+                    float childBottom = sy + boxH;
                     if (childBottom > viewportTop && sy < viewportBottom && child.widget != null) {
                         float wx = x + contentW - PAD_X - child.widget.getWidth();
-                        float wy = sy + (SUB_H - 6f - child.widget.getHeight()) / 2f;
+                        float wy = sy + (boxH - child.widget.getHeight()) / 2f;
                         child.widget.hover(mouseX, mouseY, wx, wy, child.widget.getWidth());
                         child.widget.draw(canvas, wx, wy, childAlpha);
                     }
-                    sy += SUB_H;
+                    sy += subH;
                 }
             }
         }
@@ -649,35 +656,37 @@ public class SettingModule {
         }
         // 紧凑模式的子项底板由 drawCompactCells 画（它同时还要画控件与标题），这里只画经典模式的
         if (progress > 0.01f && !compactLayout()) {
+            float subH = subHeight();
+            float boxH = subH - 6f;
             float sy = y + moduleHeight();
             for (SubEntry sub : subEntries) {
                 if (!sub.isVisible()) continue;
-                float subBottom = sy + SUB_H - 6f;
+                float subBottom = sy + boxH;
                 if (subBottom > viewportTop && sy < viewportBottom) {
                     float subAlpha = alpha * progress;
-                    GlassPanel.frost(canvas, x + 8f, sy, contentW - 8f, SUB_H - 6f, 12f, tc.subModule, 0.55f,
+                    GlassPanel.frost(canvas, x + 8f, sy, contentW - 8f, boxH, 12f, tc.subModule, 0.55f,
                             ClickGuiThemeColors.panelBackgroundAlpha(subAlpha));
-                    GlassPanel.rim(canvas, x + 8f, sy, contentW - 8f, SUB_H - 6f, 12f, tc.rim, subAlpha, 0.05f);
+                    GlassPanel.rim(canvas, x + 8f, sy, contentW - 8f, boxH, 12f, tc.rim, subAlpha, 0.05f);
                     drawClassicSubText(canvas, x, sy, contentW, 8f, sub, subAlpha, mouseX, mouseY);
                     if (sub.group && sub.hasVisibleChildren()) {
                         String arrow = sub.childProgress > 0.5f ? ARROW_EXPANDED : ARROW_COLLAPSED;
                         float aw = FontRenderer.measureTextWidth(arrow, 12f, FontRenderer.MATERIAL_SYMBOLS);
-                        FontRenderer.drawText(canvas, arrow, x + contentW - 13f - aw, sy + (SUB_H - 6f) / 2f + 5.5f, 12f, withAlpha(tc.mutedText, subAlpha), FontRenderer.MATERIAL_SYMBOLS);
+                        FontRenderer.drawText(canvas, arrow, x + contentW - 13f - aw, sy + boxH / 2f + 5.5f, 12f, withAlpha(tc.mutedText, subAlpha), FontRenderer.MATERIAL_SYMBOLS);
                     }
                 }
-                sy += SUB_H;
+                sy += subH;
                 if (sub.group && sub.childProgress > 0.01f) {
                     float subAlpha = alpha * progress * sub.childProgress;
                     for (SubEntry child : sub.children) {
                         if (!child.isVisible()) continue;
-                        float childBottom = sy + SUB_H - 6f;
+                        float childBottom = sy + boxH;
                         if (childBottom > viewportTop && sy < viewportBottom) {
-                            GlassPanel.frost(canvas, x + 16f, sy, contentW - 16f, SUB_H - 6f, 12f, tc.subModule, 0.55f,
+                            GlassPanel.frost(canvas, x + 16f, sy, contentW - 16f, boxH, 12f, tc.subModule, 0.55f,
                                     ClickGuiThemeColors.panelBackgroundAlpha(subAlpha));
-                            GlassPanel.rim(canvas, x + 16f, sy, contentW - 16f, SUB_H - 6f, 12f, tc.rim, subAlpha, 0.05f);
+                            GlassPanel.rim(canvas, x + 16f, sy, contentW - 16f, boxH, 12f, tc.rim, subAlpha, 0.05f);
                             drawClassicSubText(canvas, x, sy, contentW, 16f, child, subAlpha, mouseX, mouseY);
                         }
-                        sy += SUB_H;
+                        sy += subH;
                     }
                 }
             }
@@ -719,6 +728,13 @@ public class SettingModule {
         FontRenderer.drawTextBold(canvas, titleText, cursor, CardLayout.baseline(centerY, ICON_ROW_TITLE_SIZE),
                 ICON_ROW_TITLE_SIZE, withAlpha(tc.primaryText, alpha));
 
+        if (badge != null && !badge.isEmpty()) {
+            // 小标写在让位区里（文本右界的右侧），与展开箭头、右侧控件都不重叠
+            FontRenderer.drawText(canvas, badge, textRight + LABEL_GAP,
+                    CardLayout.baseline(centerY, ICON_ROW_SUB_SIZE), ICON_ROW_SUB_SIZE,
+                    withAlpha(tc.labelTertiary, alpha));
+        }
+
         if (subtitle == null || subtitle.isEmpty()) return;
         float descX = cursor + FontRenderer.measureTextWidthBold(titleText, ICON_ROW_TITLE_SIZE) + LABEL_GAP;
         float descMax = textRight - descX;
@@ -742,6 +758,10 @@ public class SettingModule {
             right = Math.min(right, x + contentW - EXPAND_ARROW_INSET
                     - FontRenderer.measureTextWidth(ARROW_COLLAPSED, EXPAND_ARROW_SIZE, FontRenderer.MATERIAL_SYMBOLS));
         }
+        // 小标（「共 N 项」）也占位：不让标题 / 说明一路铺到它下面
+        if (badge != null && !badge.isEmpty()) {
+            right -= FontRenderer.measureTextWidth(badge, ICON_ROW_SUB_SIZE) + LABEL_GAP;
+        }
         return right - LABEL_GAP;
     }
 
@@ -761,18 +781,22 @@ public class SettingModule {
     private void drawClassicSubText(Canvas canvas, float x, float sy, float contentW, float indent,
                                     SubEntry sub, float alpha, float mouseX, float mouseY) {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        float boxH = subHeight() - 6f;
         float textX = x + indent + PAD_X;
         float textW = classicTextWidth(contentW, sub, indent);
         String titleText = CardLayout.ellipsize(sub.title, textW, 13f);
         String descText = sub.subtitle == null ? "" : CardLayout.ellipsize(sub.subtitle, textW, 11f);
+        // 图标行的二级底板只有 30 高，两行文字的基线随之收（原来按 38 高的底板排 16 / 30）
+        float titleBaseline = iconRow() ? sy + 13f : sy + 16f;
+        float descBaseline = iconRow() ? sy + 26f : sy + 30f;
         if (descText.isEmpty()) {
-            FontRenderer.drawText(canvas, titleText, textX, sy + (SUB_H - 6f) / 2f + 4.5f, 13f,
+            FontRenderer.drawText(canvas, titleText, textX, sy + boxH / 2f + 4.5f, 13f,
                     withAlpha(tc.subModuleText, alpha));
         } else {
-            FontRenderer.drawText(canvas, titleText, textX, sy + 16f, 13f, withAlpha(tc.subModuleText, alpha));
-            FontRenderer.drawText(canvas, descText, textX, sy + 30f, 11f, withAlpha(tc.labelTertiary, alpha));
+            FontRenderer.drawText(canvas, titleText, textX, titleBaseline, 13f, withAlpha(tc.subModuleText, alpha));
+            FontRenderer.drawText(canvas, descText, textX, descBaseline, 11f, withAlpha(tc.labelTertiary, alpha));
         }
-        if (mouseX < x || mouseX > x + contentW || mouseY < sy || mouseY > sy + SUB_H - 6f) return;
+        if (mouseX < x || mouseX > x + contentW || mouseY < sy || mouseY > sy + boxH) return;
         String hint = truncatedHint(sub.title, titleText, sub.subtitle, descText);
         if (hint != null) TooltipLayer.show(hint, mouseX, mouseY);
     }
@@ -865,9 +889,11 @@ public class SettingModule {
                 return false;
             }
             float sy = y + moduleHeight();
+            float subH = subHeight();
+            float boxH = subH - 6f;
             for (SubEntry sub : subEntries) {
                 if (!sub.isVisible()) continue;
-                float subBottom = sy + SUB_H - 6f;
+                float subBottom = sy + boxH;
                 if (my >= sy && my <= subBottom) {
                     if (sub.group) {
                         sub.expanded = !sub.expanded;
@@ -875,21 +901,21 @@ public class SettingModule {
                     }
                     if (sub.widget != null) {
                         float wx = x + contentW - PAD_X - sub.widget.getWidth();
-                        float wy = sy + (SUB_H - 6f - sub.widget.getHeight()) / 2f;
+                        float wy = sy + (boxH - sub.widget.getHeight()) / 2f;
                         return sub.widget.onClick(mx, my, wx, wy, button);
                     }
                 }
-                sy += SUB_H;
+                sy += subH;
                 if (sub.group && sub.childProgress > 0.01f) {
                     for (SubEntry child : sub.children) {
                         if (!child.isVisible()) continue;
-                        float childBottom = sy + SUB_H - 6f;
+                        float childBottom = sy + boxH;
                         if (my >= sy && my <= childBottom && child.widget != null) {
                             float wx = x + contentW - PAD_X - child.widget.getWidth();
-                            float wy = sy + (SUB_H - 6f - child.widget.getHeight()) / 2f;
+                            float wy = sy + (boxH - child.widget.getHeight()) / 2f;
                             return child.widget.onClick(mx, my, wx, wy, button);
                         }
-                        sy += SUB_H;
+                        sy += subH;
                     }
                 }
             }
@@ -918,23 +944,25 @@ public class SettingModule {
                 return false;
             }
             float sy = y + moduleHeight();
+            float subH = subHeight();
+            float boxH = subH - 6f;
             for (SubEntry sub : subEntries) {
                 if (!sub.isVisible()) continue;
                 if (sub.widget instanceof SettingTextBox textBox) {
                     float wx = x + contentW - PAD_X - textBox.getWidth();
-                    float wy = sy + (SUB_H - 6f - textBox.getHeight()) / 2f;
+                    float wy = sy + (boxH - textBox.getHeight()) / 2f;
                     if (textBox.onDrag(mx, my, wx, wy)) return true;
                 }
-                sy += SUB_H;
+                sy += subH;
                 if (sub.group && sub.childProgress > 0.01f) {
                     for (SubEntry child : sub.children) {
                         if (!child.isVisible()) continue;
                         if (child.widget instanceof SettingTextBox textBox) {
                             float wx = x + contentW - PAD_X - textBox.getWidth();
-                            float wy = sy + (SUB_H - 6f - textBox.getHeight()) / 2f;
+                            float wy = sy + (boxH - textBox.getHeight()) / 2f;
                             if (textBox.onDrag(mx, my, wx, wy)) return true;
                         }
-                        sy += SUB_H;
+                        sy += subH;
                     }
                 }
             }
@@ -954,11 +982,12 @@ public class SettingModule {
     private float visibleSubHeight() {
         if (compactLayout()) return compactRowCount() * subHeight();
         float height = 0f;
+        float subH = subHeight();
         for (SubEntry sub : subEntries) {
             if (!sub.isVisible()) continue;
-            height += SUB_H;
+            height += subH;
             if (sub.group && sub.childProgress > 0.001f) {
-                height += sub.childProgress * sub.visibleChildCount() * SUB_H;
+                height += sub.childProgress * sub.visibleChildCount() * subH;
             }
         }
         return height;

@@ -17,8 +17,8 @@ import java.util.function.Supplier;
  * 键位设置控件：显示当前绑定，点一下进入录制，按键即绑定。
  *
  * <p><b>来源与自研说明</b>：旧项目用框架的 {@code KeybindSetting} + {@code WKeybind}
- * （原始源码 {@code 26.1.2/01-开发参考库/Meteor原始源码/.../gui/widgets/WKeybind.java}）。
- * 本项目不依赖旧框架，用户 2026-09-17 明确要求自研（「Meteor 的源代码也有参考价值」），
+ * （原始源码 {@code 26.1.2/01-开发参考库/原始源码/.../gui/widgets/WKeybind.java}）。
+ * 本项目不依赖旧框架，用户 2026-09-17 明确要求自研（「旧框架的源代码也有参考价值」），
  * 本控件照 {@code WKeybind} 的交互与取值模型实现，**语义逐条对齐**：</p>
  * <ul>
  *   <li>初始/结束后显示绑定名（{@link AddonKeybind#displayName()}，未绑定显示 {@code None}）；</li>

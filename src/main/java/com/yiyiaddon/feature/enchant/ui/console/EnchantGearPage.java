@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.enchant.gear.GearEnchantData;
 import com.yiyiaddon.feature.enchant.gear.TargetProfile;
 import com.yiyiaddon.feature.enchant.ui.EnchantConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.Button;
@@ -53,6 +54,9 @@ public final class EnchantGearPage {
         .map(AnvilStrategy::title)
         .toList();
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final EnchantSettings DEFAULTS = new EnchantSettings();
+
     private final EnchantConsoleScreen owner;
     private final EnchantModule module;
     /** 装备图标缓存：缓存键为装备 id（{@code null} = 未选择，同样缓存为空堆） */
@@ -76,14 +80,25 @@ public final class EnchantGearPage {
                 index -> {
                     settings.anvilStrategy = AnvilStrategy.values()[index];
                     module.persistSettings();
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.anvilStrategy = DEFAULTS.anvilStrategy;
+                    module.persistSettings();
+                    owner.reload();
+                }, "合成策略"))));
 
         // ── 装备附魔配置（旧 GearEnchantSetting 的设置行：图标 + 摘要 + 入口）──
         // 图标由本行承担：旧项目该设置行的横向列表就是「主题图标 + 配置按钮 + 摘要 + ↻」，
         // 图标即当前装备（用户 2026-09-16：「要显示装备的物品图标（例如铜镐的贴图）」）
+        // 行尾 ↺ 与配置窗口里「装备」行那枚同一语义：清空整份装备附魔配置（回到出厂空配置）
         stack.add(new ConsoleRow(owner, () -> "装备附魔配置", CONFIG_DESCRIPTION, null, List.of(
             new Ctl(new SettingText(this::summary, SUMMARY_WIDTH).alignLeft()),
-            new Ctl(new Button(CONFIG_LABEL, this::openConfig))))
+            new Ctl(new Button(CONFIG_LABEL, this::openConfig)),
+            ConsoleWidgets.resetCtl(() -> {
+                settings.gearEnchantConfig.clear();
+                module.persistSettings();
+                owner.reload();
+            }, "装备附魔配置")))
             .icon(this::gearIcon));
     }
 

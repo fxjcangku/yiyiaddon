@@ -199,7 +199,8 @@ public class ClickGuiScreen extends SkiaScreen {
 
     /** 左侧导航的根页面，顺序与 NAV_KEYS 一一对应。 */
     private List<BasePage> createRootPages() {
-        return List.of(new HomePage(), new ModuleCenterPage(router, this::openModuleScreen), new InterfacePage(), new SettingsPage(router));
+        return List.of(new HomePage(router, this::openModuleScreen),
+                new ModuleCenterPage(router, this::openModuleScreen), new InterfacePage(), new SettingsPage(router));
     }
 
     /**

@@ -6,8 +6,8 @@ import com.yiyiaddon.ui.console.PointCardGrid;
 import com.yiyiaddon.ui.component.CompactStack;
 
 /**
- * 控制台「点位」页：六张点位卡片，与模块页共用 {@link FarmPointCards} 同一份数据、
- * 同一套按钮行为与图标（D2 / D9），禁止第二份卡片实现。
+ * 控制台「点位」页：五张点位卡片（农田范围 + 四个箱子），与模块页共用 {@link FarmPointCards}
+ * 同一份数据、同一套按钮行为与图标（D2 / D9），禁止第二份卡片实现。
  */
 public final class FarmPointPage {
 

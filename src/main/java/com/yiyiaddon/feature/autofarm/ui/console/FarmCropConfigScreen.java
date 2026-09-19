@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.autofarm.AutoFarmModule;
 import com.yiyiaddon.feature.autofarm.config.AutoFarmSettings;
 import com.yiyiaddon.feature.autofarm.model.CropProfile;
 import com.yiyiaddon.ui.console.ConsoleHost;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
@@ -29,6 +30,9 @@ import java.util.Set;
  * {@link TooltipLayer}（{@code PanelScreen} 每帧自动绘制，窗口零自绘）。</p>
  */
 public final class FarmCropConfigScreen extends PanelScreen implements ConsoleHost {
+
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoFarmSettings DEFAULTS = new AutoFarmSettings();
 
     private final AutoFarmConsoleScreen host;
     private final AutoFarmModule module;
@@ -99,14 +103,16 @@ public final class FarmCropConfigScreen extends PanelScreen implements ConsoleHo
             : "该作物产物超过此组数才卸入 §6单作物箱";
         section.content().add(numberRow(profile.displayName() + "-卸货数量", unloadDesc,
             1, 36, () -> (double) settings.unloadGroups(profile),
-            value -> settings.perCropUnload.put(profile.name(), value.intValue())));
+            value -> settings.perCropUnload.put(profile.name(), value.intValue()),
+            () -> (double) DEFAULTS.unloadGroups(profile)));
 
         // 补货种子数量仅对需要补种的作物有意义，柱状物/果实不显示（旧 :199-208）
         if (profile.needsReplant()) {
             section.content().add(numberRow(profile.displayName() + "-补货种子数量",
                 "该作物种植材料低于多少组时自动去作物箱补货，卸货时始终保留这批材料",
                 1, 10, () -> (double) settings.restockGroups(profile),
-                value -> settings.perCropRestock.put(profile.name(), value.intValue())));
+                value -> settings.perCropRestock.put(profile.name(), value.intValue()),
+                () -> (double) DEFAULTS.restockGroups(profile)));
         }
         return section;
     }
@@ -121,15 +127,22 @@ public final class FarmCropConfigScreen extends PanelScreen implements ConsoleHo
         return row;
     }
 
-    /** 数字行（旧滑条 → 数字框，D-13-01）：步进 1、整数值，改动即写盘 */
+    /** 数字行（旧滑条 → 数字框，D-13-01）：步进 1、整数值，改动即写盘；行尾 ↺ 恢复本行默认值 */
     private ConsoleRow numberRow(String label, String hint, double min, double max,
                                  java.util.function.Supplier<Double> getter,
-                                 java.util.function.Consumer<Double> setter) {
+                                 java.util.function.Consumer<Double> setter,
+                                 java.util.function.Supplier<Double> defaultValue) {
         return new ConsoleRow(this, () -> label, hint, null,
             List.of(new Ctl(new SettingNumberBox(min, max, 1, "%.0f",
                 getter, value -> {
                 setter.accept(value);
                 module.persistSettings();
-            }))));
+            })),
+                ConsoleWidgets.resetCtl(() -> {
+                    setter.accept(defaultValue.get());
+                    module.persistSettings();
+                    // 本窗数值每帧读 getter，写回即刷新；这里照控制台口径刷新宿主（顺带清掉文本框焦点）
+                    host.reload();
+                }, label)));
     }
 }

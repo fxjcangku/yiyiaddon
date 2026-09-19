@@ -8,6 +8,7 @@ import com.yiyiaddon.core.event.ClientEventBus;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
+import com.yiyiaddon.feature.admindetect.AdminDetectorModule;
 import com.yiyiaddon.feature.stardew.adapter.DefaultStardewAdapter;
 import com.yiyiaddon.feature.stardew.adapter.StardewAdapter;
 import com.yiyiaddon.feature.stardew.command.StardewCommand;
@@ -68,7 +69,7 @@ import java.util.List;
  * 真实世界观察为准决定补种 / 保留。七类选择器 + 点位 + 农田记忆 + 服务器档案分层
  * 隔离，切服 / 换档互不串用。</p>
  *
- * <p>逐字搬运自旧项目 {@code stardew/StardewFarmModule.java}。框架适配点：旧 Meteor
+ * <p>逐字搬运自旧项目 {@code stardew/StardewFarmModule.java}。框架适配点：旧框架
  * {@code Setting} 体系 → {@link StardewSettings} 普通配置类；旧 {@code @EventHandler}
  * → 本类 {@code onEnable/onDisable} 里的 {@link ClientEventBus} 订阅退订；旧
  * {@code onRender3D/onRender2D} → {@link WorldOverlay} 注册的 {@link StardewRenderState}；
@@ -245,7 +246,7 @@ public final class StardewFarmModule extends Module {
         settings.save(json);
     }
 
-    /** 立即写回设置（界面改动即时生效，与旧项目 Meteor 设置自动保存一致） */
+    /** 立即写回设置（界面改动即时生效，与旧项目框架设置自动保存一致） */
     public void persistSettings() {
         ModuleManager.saveSettings(this);
     }
@@ -264,6 +265,12 @@ public final class StardewFarmModule extends Module {
     @Override
     public String icon() {
         return ICON;
+    }
+
+    /** 分类内排序：星露谷分类当前唯一模块（与其它分类的「第一位」同值，保持各分类内部一致） */
+    @Override
+    public int order() {
+        return 10;
     }
 
     /** 模块自带指令 {@code .stardew}；由运行时统一注册（与 AutoChestModule 同一注册点） */
@@ -458,7 +465,7 @@ public final class StardewFarmModule extends Module {
 
     @Override
     protected void onEnable() {
-        // 旧 Meteor：激活时才订阅事件。本项目由模块自行订阅，事件类型与旧 @EventHandler 一一对应。
+        // 旧框架：激活时才订阅事件。本项目由模块自行订阅，事件类型与旧 @EventHandler 一一对应。
         ClientEventBus.subscribe(EVENT_OWNER, ClientEventType.TICK, event -> onTick());
         ClientEventBus.subscribe(EVENT_OWNER, ClientEventType.JOIN_SERVER, event -> onGameJoined());
         ClientEventBus.subscribe(EVENT_OWNER, ClientEventType.DISCONNECT, event -> onGameLeft());
@@ -472,10 +479,14 @@ public final class StardewFarmModule extends Module {
         startupStopPending = false;
         suppressEnableAnnounce = false;
         startupCheck.resetWorldPending();
-        // 旧 Meteor 在主菜单不激活模块（runInMainMenu=false），自检只发生在世界内；本框架恢复
+        // 旧框架在主菜单不激活模块（runInMainMenu=false），自检只发生在世界内；本框架恢复
         // 「上次开启」时会在主菜单直接调用 onEnable，因此这里用同一口径跳过，等进服事件再跑，
         // 避免主菜单凭空播报一次「当前环境不是多人服务器」。
         if (mc.player != null) startupCheck.runStartupCheck();
+
+        // 联动：星露谷农场开着的时候自动打开管理员检测（用户 2026-09-19 需求）。
+        // 放在自检之后：自检可能已经把自己关掉了（不是多人服务器等），那种情况下不该把警戒一起拉起来
+        if (isEnabled()) AdminDetectorModule.linkFromAutomation(MODULE_NAME);
     }
 
     /** 框架统一播报前的钩子：本模块已自己播报启动结论时抑制重复的「已开启」 */
@@ -1456,7 +1467,7 @@ public final class StardewFarmModule extends Module {
         return statusCard.verifiedMatureCount();
     }
 
-    /** 使用说明内容（「服务器资源」面板的「查看使用说明」按钮与 {@link HelpPanelScreen} 共用） */
+    /** 使用说明内容（「服务器资源」面板模块页内嵌说明正文使用） */
     public String[] helpContent() {
         return HelpPanelScreen.buildHelpContent(
             new HelpPanelScreen.HelpSection("准备工作",
@@ -1586,7 +1597,8 @@ public final class StardewFarmModule extends Module {
                 "  §8└─ §f控制台「概览」页顶部状态栏与聊天读的是同一份快照，不打开播报也能看"
             ),
             new HelpPanelScreen.HelpSection("种植目标与成熟规则",
-                "  §8> §3.stardew 诊断 §8— §7资源扫描 / 索引 / 准星识别链路的运行时真相（换新服先跑它，不用猜）",
+                "  §8> §3.stardew 诊断 §8— §7资源扫描 / 索引 / 准星识别链路的运行时真相（换新服先跑它，不用猜）；"
+                    + "其中「特殊阶段」一行列出本服全部金色 / 巨大 / 变种阶段（都要用金锄头右键收）",
                 "  §8> §3.stardew 标记成熟 §8— §7准星对准作物，一键人工确认成熟阶段（无需手抄 ID）",
                 "  §8> §3.stardew 标记成熟 强制 §8— §7准星纠错：仅当确认旧规则有误时覆盖冲突阶段（危险）",
                 "  §8> §3.stardew 标记成熟 <作物> <阶段> §8— §7高级兜底；<TAB> 只补全本服真实存在的作物与阶段",
@@ -1652,7 +1664,7 @@ public final class StardewFarmModule extends Module {
                 "  §c注意：§f依赖 Baritone 寻路，不可用时移动任务会失败重规划",
                 "  §c注意：§f成熟判定只来自逐作物签名匹配或当前隔离域真机学习，绝不猜 max(stage)",
                 "  §c注意：§f季节检测成功本身不刷聊天；只有确定禁种时提示一次，UNKNOWN 不擅自阻止",
-                "  §c注意：§f金色番茄等特殊收割动作未确认时安全跳过并提示人工校准",
+                "  §c注意：§f金色番茄等特殊变种用金锄头右键收割，收完回退植株；没金锄头时只提示一次、不停机",
                 "  §c注意：§f关闭模块立即停止，重新开启重新观察"
             )
         );

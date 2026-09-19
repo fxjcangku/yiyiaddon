@@ -10,6 +10,7 @@ import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
+import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
@@ -25,6 +26,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
@@ -57,6 +59,9 @@ public final class AutoChestWithdrawPage {
         WithdrawMode.TARGET_COUNT.displayName(), WithdrawMode.TARGET_EMPTY.displayName(),
         WithdrawMode.TAKE_ALL.displayName());
 
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoChestSettings DEFAULTS = new AutoChestSettings();
+
     private final AutoChestConsoleScreen owner;
     private final AutoChestModule module;
 
@@ -86,7 +91,12 @@ public final class AutoChestWithdrawPage {
         stack.add(section("取物"));
         stack.add(new ConsoleRow(owner, () -> "取物模式", DESC_WITHDRAW_MODE, null,
             List.of(new Ctl(new SettingSegmented(WITHDRAW_MODE_LABELS,
-                () -> settings.withdrawMode.ordinal(), pickWithdrawMode())))));
+                () -> settings.withdrawMode.ordinal(), pickWithdrawMode())),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.withdrawMode = DEFAULTS.withdrawMode;
+                    module.persistSettings();
+                    owner.reload();
+                }, "取物模式"))));
 
         if (settings.withdrawMode == WithdrawMode.TARGET_COUNT) {
             stack.add(new ConsoleRow(owner, () -> "每种物品数量", DESC_QUANTITY, null,
@@ -105,7 +115,12 @@ public final class AutoChestWithdrawPage {
             List.of(new Ctl(intBox(1, Integer.MAX_VALUE, () -> settings.actionDelay,
                 value -> {
                     settings.actionDelay = value;
-                })))));
+                })),
+                ConsoleWidgets.resetCtl(() -> {
+                    settings.actionDelay = DEFAULTS.actionDelay;
+                    module.persistSettings();
+                    owner.reload();
+                }, "动作延迟"))));
     }
 
     /** 分区标题（与星露谷 / 挖矿控制台各页同一套样式） */
@@ -215,6 +230,13 @@ public final class AutoChestWithdrawPage {
             // （如沙子、纸），取不到才回退纯文字，不再按原版/自定义一刀切不画。
             Item item = itemById(identity.itemId());
             return item != null && ItemIconCache.getInstance().draw(canvas, item.getDefaultInstance(), x, y, size);
+        }
+
+        /** 与 drawIcon 同一份图标：按物品登记 ID 取到的物品（取不到返回 null）。 */
+        @Override
+        public ItemStack iconStack() {
+            Item item = itemById(identity.itemId());
+            return item == null ? null : item.getDefaultInstance();
         }
 
         private static Item itemById(String itemId) {

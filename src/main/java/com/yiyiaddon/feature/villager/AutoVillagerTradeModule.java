@@ -183,10 +183,10 @@ public final class AutoVillagerTradeModule extends Module {
         return "AutoVillagerTrade";
     }
 
-    /** 分类内排序权重：与同分类的自动农场 / 自动挖矿 / 自动箱子保持一致（旧项目无此字段） */
+    /** 分类内排序：自动化分类第七位（… → 自动图书管理员 → 自动村民交易 → 自动登入） */
     @Override
     public int order() {
-        return 30;
+        return 70;
     }
 
     /** 模块卡片图标（{@link #ICON}）；此前本模块没有这条覆盖，模块中心里图标位是空的 */
