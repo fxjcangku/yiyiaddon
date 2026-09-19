@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="270" viewBox="0 0 1200 270" role="img" aria-labelledby="t d">
+<title id="t">自动挖矿功能示意</title><desc id="d">用路径连接矿物、卸货和补给节点，表现采掘与后勤流程。此图为概念示意，不是游戏截图。</desc>
+<rect width="1200" height="270" rx="16" fill="#131e29"/>
+<g font-family="Segoe UI,Microsoft YaHei,sans-serif">
+<text x="38" y="43" font-size="12" letter-spacing="2" fill="#90a5bb">功能示意 / 自动挖矿</text>
+<text x="38" y="102" font-size="33" font-weight="600" fill="#eff4f9">采掘之外，后勤也有安排。</text>
+<text x="39" y="144" font-size="16" fill="#a5b5c8">目标采掘　/　满载卸货　/　食物与耐久</text>
+<path d="M40 176H465" stroke="#35465c"/><text x="39" y="214" font-size="14" fill="#97aabd">先配置点位与白名单，再启动工作流程</text>
+<g fill="none" stroke="#527899" stroke-width="2"><path d="M648 104H832V180H1060V104"/><path d="M1060 104V54H648V104" stroke-dasharray="5 6"/></g>
+<path d="M650 69L688 91V135L650 157L612 135V91Z" fill="#243c50" stroke="#80abc9"/>
+<path d="M612 91L650 113L688 91M650 113V157" fill="none" stroke="#80abc9"/>
+<path d="M625 110L636 116V128L625 122ZM655 125L666 119V131L655 137Z" fill="#96d9db"/>
+<rect x="802" y="150" width="60" height="60" rx="12" fill="#243c50" stroke="#80abc9"/>
+<path d="M815 174H849M815 180H849M832 168V194" stroke="#96bcd5" stroke-width="2"/>
+<rect x="1030" y="76" width="60" height="60" rx="12" fill="#263d45" stroke="#81b7b4"/>
+<path d="M1044 106H1076M1060 90V122" stroke="#a1d9cf" stroke-width="3"/>
+<text x="625" y="191" font-size="14" fill="#c7d6e6">采掘</text><text x="817" y="238" font-size="14" fill="#c7d6e6">卸货</text><text x="1045" y="166" font-size="14" fill="#c7d6e6">补给</text>
+</g></svg>
