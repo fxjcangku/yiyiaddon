@@ -165,6 +165,8 @@ gradlew :fabric:remapJar -Pavailable_loaders=fabric
 | Baritone Mixin 注入点 | ✅ 全部匹配 | 7 个 Baritone Mixin（含 `lambda$execute$4`、字符串常量替换这些**编译器查不到**的注入点）在 baritone 1.19.0 上全部匹配成功 —— 运行日志里出现汉化输出「已取消」即为证据 |
 | 26.2 功能回归 | ✅ 核心通过，⚠️ 有边界 | 用户实机原话「都还在 完全没问题功能也还在」；本次验证环境**未加载第三方模组**，与 Xaero / Sodium / Iris / Meteor 等的联动未覆盖 |
 | Vulkan 后端 | ⚠️ 已知限制 | 玩家把 Graphics API 切成 Vulkan 时，Skija 直连 GL 的 UI 会失效（本次未做兜底，属新增项，未获授权） |
+| 参考库审计脚本 | ✅ 已按线适配 | `01-开发参考库/工具/审计-*.js` 六个脚本改为读 `gradle.properties` 的 `minecraft_version` 自动取材，两线实跑：mixin 提取 23 个 / 注册 0 漏注入 0 死配置 / mixin 验证 34 通过 0 存疑 / import 对账 0 异常 / 负面清单 0 命中 / baritone 命令名 0 失败 |
+| 参考库人工文档 | ✅ 已逐处标注 26.2 差异 | `快速索引/`、`API参考/`、`开发机制/`、`真实代码示例/` 共 41 篇、443 处 Minecraft 全限定名引用全部核对；受 26.2 影响的条目就地加「26.2 差异」注（`Mixin.md`、`GUI与界面.md`、`实体.md`、`Tick机制.md`、`容器同步机制.md`、`实体机制.md`、`类索引.md`），另修正 3 处与版本无关的包名笔误 |
 
 **测试环境说明**：`run/mods` 里 104 个第三方模组全是 26.1.2 版，声明 `>=26.1 <26.2`，
 Fabric Loader 直接拒绝启动。编译验证与实机核对两次都按「临时移开该目录」的口径跑，
