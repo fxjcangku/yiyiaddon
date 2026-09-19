@@ -119,5 +119,28 @@ tasks.register('buildPersonal') {
     dependsOn tasks.named('build')
 }
 
+// ── 一次出两份个人版（跨两条版本线）─────────────────────────────────────────
+// 本线由外层 gradle 直接构建（不在这条链里再调一次 gradle，否则它会去等自己的项目锁）；
+// 另一条线交给 gradle/build-both.ps1：在系统临时目录建 git worktree、用独立 gradle 实例构建，
+// 构建完把 jar 拷回 build/libs/ 并加 MC 版本后缀（+26.1.2 / +26.2，两份互不覆盖），最后撤掉 worktree。
+// 用法：.\gradlew.bat buildBoth
+tasks.register('buildOtherLine', Exec) {
+    group = 'build'
+    description = '构建另一条版本线的个人版（buildBoth 的后半段）。'
+    dependsOn tasks.named('buildPersonal')
+    workingDir = projectDir
+    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', file('gradle/build-both.ps1').absolutePath,
+            '-RepoRoot', projectDir.absolutePath,
+            '-LineVersion', project.minecraft_version,
+            '-OutDir', layout.buildDirectory.dir('libs').get().asFile.absolutePath
+}
+
+tasks.register('buildBoth') {
+    group = 'build'
+    description = '一次构建两条版本线（26.1.2 与 26.2）的个人版，产物都落在 build/libs/ 且带 MC 版本后缀。'
+    dependsOn tasks.named('buildOtherLine')
+}
+
 // 发布混淆独立于开发构建；只处理本项目字节码，不改嵌套第三方依赖。
 apply from: 'gradle/obfuscation.gradle'
