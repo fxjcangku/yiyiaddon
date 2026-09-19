@@ -58,7 +58,7 @@ public final class StardewSprinklerListScreen extends PanelScreen {
 
     /** 删除后整页重建：行数、计数、播报都以磁盘为准 */
     private void rebuild() {
-        if (minecraft != null) minecraft.setScreen(new StardewSprinklerListScreen(parent, module));
+        if (minecraft != null) minecraft.gui.setScreen(new StardewSprinklerListScreen(parent, module));
     }
 
     private static String label(StardewPointManager.StardewPoint point) {
@@ -75,11 +75,11 @@ public final class StardewSprinklerListScreen extends PanelScreen {
 
     private void confirmClearAll() {
         if (minecraft == null) return;
-        minecraft.setScreen(new ConfirmPanelScreen("清空全部洒水器",
+        minecraft.gui.setScreen(new ConfirmPanelScreen("清空全部洒水器",
             List.of("§f将删除当前服务器已绑定的全部洒水器点位",
                 "§7种子箱 / 成品箱 / 补水点 / 种植区域不受影响",
                 "",
                 "§c此操作不可恢复。"),
-            "§c§l确认", module::clearSprinklerPoints, minecraft.screen));
+            "§c§l确认", module::clearSprinklerPoints, minecraft.gui.screen()));
     }
 }

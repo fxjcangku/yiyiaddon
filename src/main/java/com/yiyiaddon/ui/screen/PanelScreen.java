@@ -597,7 +597,7 @@ public abstract class PanelScreen extends SkiaScreen {
     @Override
     protected void closing() {
         if (exitToGame && this.minecraft != null) {
-            this.minecraft.setScreen(null);
+            this.minecraft.gui.setScreen(null);
             return;
         }
         super.closing();

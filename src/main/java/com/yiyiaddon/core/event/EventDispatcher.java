@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -161,16 +162,20 @@ public final class EventDispatcher {
      * <p>保留范围＝<b>玩家自己开的非容器界面</b>（游戏菜单 / 聊天 / 我们自己的控制台），
      * 死亡界面与容器界面照旧关。玩家按 ESC 关菜单走 {@code Screen#onClose} → 不经过这两个调用点，
      * 所以不会被吞掉。</p>
+     *
+     * <p><b>26.2 口径</b>：切屏入口从 {@code Minecraft} 移到了 {@code Gui}，
+     * 两个调用点调的都是 {@code Gui#setScreen}，所以入参由 {@code Minecraft} 换成 {@code Gui}
+     * （重定向拿到的接收者就是 Gui 实例本身）。</p>
      */
-    public static void closeScreenUnlessPlayerOwned(Minecraft client, Screen screen) {
-        if (client == null) return;
-        Screen current = client.screen;
+    public static void closeScreenUnlessPlayerOwned(Gui gui, Screen screen) {
+        if (gui == null) return;
+        Screen current = gui.screen();
         if (screen == null && current != null
             && !(current instanceof AbstractContainerScreen<?>)
             && !(current instanceof DeathScreen)) {
             return;
         }
-        client.setScreen(screen);
+        gui.setScreen(screen);
     }
 
     private static void dispatchQueuedPackets() {
@@ -254,9 +259,9 @@ public final class EventDispatcher {
             }
         } else if (packet instanceof ClientboundSetPlayerTeamPacket p) {
             p.getParameters().ifPresent(parameters -> {
-                publishText(ServerTextEvent.TEAM_DISPLAY, parameters.getDisplayName(), "");
-                publishText(ServerTextEvent.TEAM_PREFIX, parameters.getPlayerPrefix(), "");
-                publishText(ServerTextEvent.TEAM_SUFFIX, parameters.getPlayerSuffix(), "");
+                publishText(ServerTextEvent.TEAM_DISPLAY, parameters.displayName(), "");
+                publishText(ServerTextEvent.TEAM_PREFIX, parameters.playerPrefix(), "");
+                publishText(ServerTextEvent.TEAM_SUFFIX, parameters.playerSuffix(), "");
             });
         } else if (packet instanceof ClientboundBossEventPacket p) {
             p.dispatch(new ClientboundBossEventPacket.Handler() {

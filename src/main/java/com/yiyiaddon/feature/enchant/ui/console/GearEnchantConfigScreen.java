@@ -316,13 +316,13 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
 
     private static Screen currentScreen() {
         Minecraft client = Minecraft.getInstance();
-        return client == null ? null : client.screen;
+        return client == null ? null : client.gui.screen();
     }
 
     private static void openScreen(Screen screen) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || screen == null) return;
-        client.setScreen(screen);
+        client.gui.setScreen(screen);
     }
 
     // ── 候选项 ──

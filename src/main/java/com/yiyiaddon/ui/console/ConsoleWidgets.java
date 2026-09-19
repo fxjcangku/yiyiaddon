@@ -110,7 +110,7 @@ public final class ConsoleWidgets {
      * @param onReset 恢复成功后要执行的刷新动作，一般传窗口自己的 {@code reload}
      */
     public static Ctl resetDefaultsCtl(Screen parent, Module module, Runnable onReset) {
-        return new Ctl(new Button(RESET_BUTTON, () -> Minecraft.getInstance().setScreen(
+        return new Ctl(new Button(RESET_BUTTON, () -> Minecraft.getInstance().gui.setScreen(
             ConfirmPanelScreen.inPlace("恢复默认设置",
                 List.of("§7把「§f" + module.displayName() + "§7」的全部设置恢复为出厂值。",
                     "§7已绑定的点位、已填的名单会一并清空。",

@@ -123,7 +123,7 @@ public final class IdConfigModule extends Module {
         }
         // 与「ID识别」模块保持同一模式口径：非「自动保存」时只弹结果窗口，识别本身不写盘
         if (identifyMode() != IdentifyMode.AUTO_SAVE) {
-            client.execute(() -> IdScreens.openItemResult(identity, client.screen));
+            client.execute(() -> IdScreens.openItemResult(identity, client.gui.screen()));
             return;
         }
         if (IdentityService.shared().addItem(identity) != null) {
@@ -152,7 +152,7 @@ public final class IdConfigModule extends Module {
         }
         // 与「ID识别」模块保持同一模式口径：非「自动保存」时只弹结果窗口，识别本身不写盘
         if (identifyMode() != IdentifyMode.AUTO_SAVE) {
-            client.execute(() -> IdScreens.openBlockResult(identity, client.screen));
+            client.execute(() -> IdScreens.openBlockResult(identity, client.gui.screen()));
             return;
         }
         IdentityService service = IdentityService.shared();
@@ -335,8 +335,8 @@ public final class IdConfigModule extends Module {
     private void showConfirm(String title, List<String> lines, String confirmLabel, Runnable action) {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        Screen parent = client.screen;
-        client.execute(() -> client.setScreen(new ConfirmPanelScreen(title, lines, confirmLabel, action, parent)));
+        Screen parent = client.gui.screen();
+        client.execute(() -> client.gui.setScreen(new ConfirmPanelScreen(title, lines, confirmLabel, action, parent)));
     }
 
     // ── 说明面板 ──

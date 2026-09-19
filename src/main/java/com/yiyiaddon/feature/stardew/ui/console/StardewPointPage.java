@@ -78,7 +78,7 @@ public final class StardewPointPage {
     /** 打开「渲染设置 · 对象名」窗口（共用件 RenderObjectScreen，六个点位模块同一份实现） */
     private void openRenderScreen(EspRenderObject object) {
         if (owner.client() == null) return;
-        owner.client().setScreen(new RenderObjectScreen(owner.client().screen, object,
+        owner.client().gui.setScreen(new RenderObjectScreen(owner.client().gui.screen(), object,
             defaultsOf(object), module::persistSettings));
     }
 
@@ -97,12 +97,12 @@ public final class StardewPointPage {
     /** 清空全部点位：二次确认（正文与确认按钮逐字照旧控制台） */
     private void openClearConfirm() {
         if (owner.client() == null) return;
-        owner.client().setScreen(new ConfirmPanelScreen("清空全部点位",
+        owner.client().gui.setScreen(new ConfirmPanelScreen("清空全部点位",
             List.of("§f将删除当前服务器已绑定的全部点位",
                 "§7种子箱 · 成品箱 · 补水点 · 洒水器（种植区域在「农田」卡片里单独清空）",
                 "",
                 "§c此操作不可恢复。"),
-            "§c§l确认", module::clearAllPoints, owner.client().screen));
+            "§c§l确认", module::clearAllPoints, owner.client().gui.screen()));
     }
 
     /**
@@ -198,7 +198,7 @@ public final class StardewPointPage {
                     })),
                     List.of(new Button("§e管理", () -> {
                         if (owner.client() != null) {
-                            owner.client().setScreen(new StardewSprinklerListScreen(owner.client().screen, module));
+                            owner.client().gui.setScreen(new StardewSprinklerListScreen(owner.client().gui.screen(), module));
                         }
                     })))).icon(() -> pointIcon(StardewPointType.SPRINKLER));
         }
@@ -239,7 +239,7 @@ public final class StardewPointPage {
                     List.of(
                         new Button("§e管理", () -> {
                             if (owner.client() != null) {
-                                owner.client().setScreen(new StardewRegionListScreen(owner.client().screen, module));
+                                owner.client().gui.setScreen(new StardewRegionListScreen(owner.client().gui.screen(), module));
                             }
                         }),
                         new Button("§c清空", this::confirmClearRegions))))
@@ -250,12 +250,12 @@ public final class StardewPointPage {
         /** 清空全部区域：与「清空全部点位」同款二次确认 */
         private void confirmClearRegions() {
             if (owner.client() == null) return;
-            owner.client().setScreen(new ConfirmPanelScreen("清空全部种植区域",
+            owner.client().gui.setScreen(new ConfirmPanelScreen("清空全部种植区域",
                 List.of("§f将删除当前服务器已划分的全部种植区域",
                     "§7地里的作物不会被挖掉，只是这些地不再被管理",
                     "",
                     "§c此操作不可恢复。"),
-                "§c§l确认", module::clearRegions, owner.client().screen));
+                "§c§l确认", module::clearRegions, owner.client().gui.screen()));
         }
 
         @Override

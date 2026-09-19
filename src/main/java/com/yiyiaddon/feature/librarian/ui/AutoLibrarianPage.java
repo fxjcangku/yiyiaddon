@@ -87,6 +87,6 @@ public final class AutoLibrarianPage extends CompactModulePage implements Module
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new LibrarianConsoleScreen(module));
+        client.gui.setScreen(new LibrarianConsoleScreen(module));
     }
 }

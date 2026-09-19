@@ -327,7 +327,7 @@ public final class IdConfigPage extends CompactModulePage implements ModulePage 
     private void openManagement() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        IdScreens.openManagement(client.screen, module);
+        IdScreens.openManagement(client.gui.screen(), module);
     }
 
     // ── 列表重建 ──

@@ -171,6 +171,6 @@ public final class EnchantPage extends CompactModulePage implements ModulePage {
         if (client == null) return;
         // 控制台「点位」页要显示磁盘上的真实绑定，打开前重读一次（点位写入全部即时落盘，重读不丢数据）
         module.pointStore().reload();
-        client.setScreen(new EnchantConsoleScreen(client.screen, module));
+        client.gui.setScreen(new EnchantConsoleScreen(client.gui.screen(), module));
     }
 }

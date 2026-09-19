@@ -100,12 +100,12 @@ public final class EnchantSelectPage {
     private void openSelector(EnchantSettings.EnchantGroup group) {
         List<SelectorScreen.Entry> entries = new ArrayList<>();
         for (String name : group.entries()) entries.add(new EnchantEntry(name));
-        Screen parent = Minecraft.getInstance() == null ? null : Minecraft.getInstance().screen;
+        Screen parent = Minecraft.getInstance() == null ? null : Minecraft.getInstance().gui.screen();
         SelectorScreen screen = new SelectorScreen(group.title(), parent, entries,
             () -> module.settings().selectedIn(group.entries()),
             key -> change(group, key, true),
             key -> change(group, key, false));
-        if (Minecraft.getInstance() != null) Minecraft.getInstance().setScreen(screen);
+        if (Minecraft.getInstance() != null) Minecraft.getInstance().gui.setScreen(screen);
     }
 
     /** 增 / 减一个词条：整组回写（旧 {@code apply} 语义）并立即落盘 */

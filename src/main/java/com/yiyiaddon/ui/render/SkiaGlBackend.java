@@ -1,7 +1,8 @@
 package com.yiyiaddon.ui.render;
 
+import com.mojang.blaze3d.opengl.FrameBufferAttachment;
 import com.mojang.blaze3d.opengl.GlDevice;
-import com.mojang.blaze3d.opengl.GlTexture;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.GpuDeviceBackend;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.yiyiaddon.mixin.client.GpuDeviceAccessor;
@@ -14,6 +15,8 @@ import io.github.humbleui.skija.FramebufferFormat;
 import io.github.humbleui.skija.Surface;
 import io.github.humbleui.skija.SurfaceOrigin;
 import net.minecraft.client.Minecraft;
+
+import java.util.List;
 
 import static org.lwjgl.opengl.GL11.GL_CULL_FACE;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
@@ -48,16 +51,26 @@ public final class SkiaGlBackend {
     /**
      * 取 Minecraft 主 RenderTarget 的 GL Framebuffer 名字。
      *
+     * <p><b>26.2 口径</b>：主 RenderTarget 不再挂在 {@code Minecraft} 上（26.1.2 的
+     * {@code Minecraft#getMainRenderTarget} 已移除），改由 {@code GameRenderer#mainRenderTarget} 提供；
+     * Framebuffer 的拼装也从 {@code GlTexture#getFbo} 收进了 {@code FrameBufferCache}，
+     * 因此这里取颜色纹理与深度纹理两个 attachment 后交给缓存去建 / 复用同一个 FBO。</p>
+     *
      * <p>{@code RenderSystem.getDevice()} 返回的是持有后端的 {@code GpuDevice} 包装，
      * 真正的 {@code GlDevice} 在 {@code backend} 字段里，因此经 {@link GpuDeviceAccessor}
      * 取出后再判定类型。取不到时回落到当前绑定的 draw framebuffer。</p>
      */
     public static int mainFramebufferId() {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.getMainRenderTarget().getColorTexture() instanceof GlTexture texture) {
+        RenderTarget mainTarget = minecraft.gameRenderer.mainRenderTarget();
+        if (mainTarget != null && mainTarget.getColorTexture() instanceof FrameBufferAttachment color) {
             GpuDeviceBackend backend = ((GpuDeviceAccessor) RenderSystem.getDevice()).yiyiaddon$backend();
             if (backend instanceof GlDevice glDevice) {
-                return texture.getFbo(glDevice.directStateAccess(), minecraft.getMainRenderTarget().getDepthTexture());
+                FrameBufferAttachment depth = mainTarget.getDepthTexture() instanceof FrameBufferAttachment attachment
+                        ? attachment
+                        : null;
+                return glDevice.frameBufferCache().getFbo(
+                        glDevice.directStateAccess(), List.of(color), depth);
             }
         }
         int[] binding = new int[1];

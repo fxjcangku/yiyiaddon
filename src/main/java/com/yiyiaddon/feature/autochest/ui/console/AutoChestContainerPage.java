@@ -107,7 +107,7 @@ public final class AutoChestContainerPage {
     /** 打开子界面（容器类型勾选）；关闭后回到控制台，由 {@code init} 里的重建刷新计数 */
     private void openSubScreen(Screen screen) {
         if (owner.client() == null || screen == null) return;
-        owner.client().setScreen(screen);
+        owner.client().gui.setScreen(screen);
     }
 
     /** 整数设置框：步进 1，改动落盘（取值域与旧项目一致，无可配置上限） */

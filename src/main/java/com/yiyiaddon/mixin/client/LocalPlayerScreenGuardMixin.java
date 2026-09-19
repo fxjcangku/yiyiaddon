@@ -1,7 +1,7 @@
 package com.yiyiaddon.mixin.client;
 
 import com.yiyiaddon.core.event.EventDispatcher;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,21 +21,25 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * 两处都只是原版自己的清理，交给 {@link EventDispatcher#closeScreenUnlessPlayerOwned} 判断：
  * 目标本来就是「关界面」时，若当前是玩家自己开的非容器界面（游戏菜单等）就保留，
  * 其余一律照原样执行。玩家按 ESC 关菜单走 {@code Screen#onClose}，不经过这两处，不会被吞。</p>
+ *
+ * <p><b>26.2 口径</b>：这两处原版调的都是 {@code Gui#setScreen}（不再是
+ * {@code Minecraft#setScreen}），因此重定向的接收者由 {@code Minecraft} 换成 {@code Gui}。
+ * 语义与改动前逐字一致。</p>
  */
 @Mixin(LocalPlayer.class)
 public abstract class LocalPlayerScreenGuardMixin {
 
     @Redirect(method = "clientSideCloseContainer",
         at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/Minecraft;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
-    private void yiyiaddon$keepPlayerScreenOnContainerClose(Minecraft client, Screen screen) {
-        EventDispatcher.closeScreenUnlessPlayerOwned(client, screen);
+            target = "Lnet/minecraft/client/gui/Gui;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
+    private void yiyiaddon$keepPlayerScreenOnContainerClose(Gui gui, Screen screen) {
+        EventDispatcher.closeScreenUnlessPlayerOwned(gui, screen);
     }
 
     @Redirect(method = "handlePortalTransitionEffect",
         at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/Minecraft;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
-    private void yiyiaddon$keepPlayerScreenInPortal(Minecraft client, Screen screen) {
-        EventDispatcher.closeScreenUnlessPlayerOwned(client, screen);
+            target = "Lnet/minecraft/client/gui/Gui;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
+    private void yiyiaddon$keepPlayerScreenInPortal(Gui gui, Screen screen) {
+        EventDispatcher.closeScreenUnlessPlayerOwned(gui, screen);
     }
 }

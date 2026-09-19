@@ -173,7 +173,7 @@ public final class ConfirmPanelScreen extends PanelScreen {
     @Override
     protected void closing() {
         if (nextScreen != null && this.minecraft != null) {
-            this.minecraft.setScreen(nextScreen);
+            this.minecraft.gui.setScreen(nextScreen);
             return;
         }
         super.closing();

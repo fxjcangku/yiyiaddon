@@ -4,6 +4,7 @@ import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.service.resourcepack.ResourcePackCache;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.locale.Language;
 
 /** 玩家可见的世界信息唯一入口；显示名不参与任何存档键或服务器隔离计算。 */
 public final class WorldContextFormatter {
@@ -63,7 +64,7 @@ public final class WorldContextFormatter {
         }
         String key = normalized.replace(':', '.').replace('/', '.');
         for (String prefix : new String[]{"dimension.", "dimension_name."}) {
-            if (!I18n.exists(prefix + key)) continue;
+            if (!Language.getInstance().has(prefix + key)) continue;
             String name = I18n.get(prefix + key);
             if (name.codePoints().anyMatch(c -> c >= 0x3400 && c <= 0x9fff)) return name;
         }

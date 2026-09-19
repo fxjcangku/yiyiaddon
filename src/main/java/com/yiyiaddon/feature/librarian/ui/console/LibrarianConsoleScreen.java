@@ -117,7 +117,7 @@ public final class LibrarianConsoleScreen extends PanelScreen implements Console
     /** 当前屏幕（模块页）；客户端未就绪时返回 {@code null}（ESC 直接回游戏，不抛异常） */
     private static Screen currentScreen() {
         Minecraft client = Minecraft.getInstance();
-        return client == null ? null : client.screen;
+        return client == null ? null : client.gui.screen();
     }
 
     // ── 生命周期 ──
@@ -157,7 +157,7 @@ public final class LibrarianConsoleScreen extends PanelScreen implements Console
     private void onTick() {
         if (++autoRefreshTicks < AUTO_REFRESH_TICKS) return;
         autoRefreshTicks = 0;
-        if (minecraft == null || minecraft.screen != this) return;
+        if (minecraft == null || minecraft.gui.screen() != this) return;
         // 鼠标按住时不重建：正在按的那个按钮会被摘掉，抬起事件落到空处，表现为按钮「卡住」
         if (mousePressed(GLFW.GLFW_MOUSE_BUTTON_LEFT) || mousePressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) return;
 
@@ -261,7 +261,7 @@ public final class LibrarianConsoleScreen extends PanelScreen implements Console
                 "顶部状态条每秒自动刷新；概览页整页每秒重画，其余页按这个按钮重排最新数据"),
             ConsoleWidgets.resetDefaultsCtl(this, module, this::reload),
             new Ctl(new Button("§7关闭", () -> {
-                if (minecraft != null) minecraft.setScreen(null);
+                if (minecraft != null) minecraft.gui.setScreen(null);
             }))), ButtonStrip.BUTTON_HEIGHT));
     }
 

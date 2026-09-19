@@ -132,7 +132,7 @@ public final class LibrarianSelectors {
         Set<String> candidateKeys = new HashSet<>();
         for (EnchantEntry entry : entries) candidateKeys.add(entry.key());
 
-        client.setScreen(new SelectorScreen(TARGET_LABEL, host,
+        client.gui.setScreen(new SelectorScreen(TARGET_LABEL, host,
             List.<SelectorScreen.Entry>copyOf(entries),
             () -> List.copyOf(module.settings().targetEnchantments()),
             key -> {

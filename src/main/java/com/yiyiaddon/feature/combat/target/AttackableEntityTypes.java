@@ -1,7 +1,9 @@
 package com.yiyiaddon.feature.combat.target;
 
+import com.yiyiaddon.platform.identity.EntityIdentifier;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypeIds;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,11 +30,11 @@ import java.util.Set;
 public final class AttackableEntityTypes {
 
     /** 不可攻击实体（蓝本 16 项，逐字） */
-    private static final Set<EntityType<?>> NOT_ATTACKABLE = Set.of(
-        EntityType.AREA_EFFECT_CLOUD, EntityType.ARROW, EntityType.FALLING_BLOCK, EntityType.FIREWORK_ROCKET,
-        EntityType.ITEM, EntityType.LLAMA_SPIT, EntityType.SPECTRAL_ARROW, EntityType.ENDER_PEARL,
-        EntityType.EXPERIENCE_BOTTLE, EntityType.SPLASH_POTION, EntityType.LINGERING_POTION, EntityType.TRIDENT,
-        EntityType.LIGHTNING_BOLT, EntityType.FISHING_BOBBER, EntityType.EXPERIENCE_ORB, EntityType.EGG);
+    private static final Set<EntityType<?>> NOT_ATTACKABLE = EntityIdentifier.typesOf(
+        EntityTypeIds.AREA_EFFECT_CLOUD, EntityTypeIds.ARROW, EntityTypeIds.FALLING_BLOCK, EntityTypeIds.FIREWORK_ROCKET,
+        EntityTypeIds.ITEM, EntityTypeIds.LLAMA_SPIT, EntityTypeIds.SPECTRAL_ARROW, EntityTypeIds.ENDER_PEARL,
+        EntityTypeIds.EXPERIENCE_BOTTLE, EntityTypeIds.SPLASH_POTION, EntityTypeIds.LINGERING_POTION, EntityTypeIds.TRIDENT,
+        EntityTypeIds.LIGHTNING_BOLT, EntityTypeIds.FISHING_BOBBER, EntityTypeIds.EXPERIENCE_ORB, EntityTypeIds.EGG);
 
     /** 注册表迭代序（原版在前、模组实体在后，与注册表一致；需要别的顺序由调用方自行排） */
     private static List<EntityType<?>> cache;

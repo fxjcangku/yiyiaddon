@@ -506,7 +506,7 @@ public final class VillagerTradeFSM {
         // 服务端会把 player.containerMenu 换成村民菜单，而玩家看的是自己那个箱子的界面 ——
         // 他接下来的点击就按村民菜单的 containerId 发出去（错位、丢物品）。
         // 期间原状态重入只清计时，玩家关掉界面后自然续上，不会等到 OPEN_TIMEOUT 被换掉。
-        if (mc.screen instanceof AbstractContainerScreen<?>) {
+        if (mc.gui.screen() instanceof AbstractContainerScreen<?>) {
             enterState(VillagerTradeState.OPENING_MENU);
             return;
         }
@@ -585,9 +585,9 @@ public final class VillagerTradeFSM {
 
         // 界面被意外关闭：本次村民会话结束
         if (!(player.containerMenu instanceof MerchantMenu)) {
-            // 只有玩家背包屏幕真的开着（mc.screen 是 InventoryScreen）才算玩家手动干预；
+            // 只有玩家背包屏幕真的开着（mc.gui.screen() 是 InventoryScreen）才算玩家手动干预；
             // containerMenu == inventoryMenu 只是「无容器打开」的默认态，不能据此误判玩家打开背包
-            if (mc.screen instanceof InventoryScreen) {
+            if (mc.gui.screen() instanceof InventoryScreen) {
                 fail("检测到玩家打开背包，交易已中断");
                 return;
             }

@@ -78,14 +78,14 @@ public final class FarmPointCards {
                 return;
             }
             Minecraft client = Minecraft.getInstance();
-            if (client != null) client.setScreen(null);
+            if (client != null) client.gui.setScreen(null);
         });
         Button deleteButton = new Button("§c删除", () -> {
             // 一次删掉整块地：两个角属于同一个范围，留一个下来只会变成绑不完整的坏状态
             FarmCommand.removeBinding(SiteType.START);
             FarmCommand.removeBinding(SiteType.END);
             Minecraft client = Minecraft.getInstance();
-            if (client != null) client.setScreen(null);
+            if (client != null) client.gui.setScreen(null);
         });
 
         return new PointCardGrid.PointCard("§a农田范围", info1, info2,
@@ -120,12 +120,12 @@ public final class FarmPointCards {
                 return;
             }
             Minecraft client = Minecraft.getInstance();
-            if (client != null) client.setScreen(null);
+            if (client != null) client.gui.setScreen(null);
         });
         Button deleteButton = new Button("§c删除", () -> {
             FarmCommand.removeBinding(type);
             Minecraft client = Minecraft.getInstance();
-            if (client != null) client.setScreen(null);
+            if (client != null) client.gui.setScreen(null);
         });
 
         return new PointCardGrid.PointCard(color + title, info1, info2,

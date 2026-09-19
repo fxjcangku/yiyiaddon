@@ -210,8 +210,8 @@ public final class EspSettingsPage extends BasePage {
      */
     private void openHelp() {
         Minecraft client = Minecraft.getInstance();
-        client.setScreen(new HelpPanelScreen(getTitle(),
-            HelpPanelScreen.buildHelpContent(HELP_SECTIONS), client.screen));
+        client.gui.setScreen(new HelpPanelScreen(getTitle(),
+            HelpPanelScreen.buildHelpContent(HELP_SECTIONS), client.gui.screen()));
     }
 
     /**

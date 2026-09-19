@@ -401,9 +401,9 @@ public final class ModuleManager {
         if (client == null) return;
         client.execute(() -> {
             // 已经在看这类结论时不叠窗：多个模块同时缺项时聊天里有全部，面板不重复弹
-            if (client.screen instanceof ConfirmPanelScreen) return;
-            client.setScreen(ConfirmPanelScreen.notice(module.displayName() + " · 启动自检未通过",
-                "§7共 §e" + problems.size() + " §7项问题，已禁止启动：", problems, client.screen,
+            if (client.gui.screen() instanceof ConfirmPanelScreen) return;
+            client.gui.setScreen(ConfirmPanelScreen.notice(module.displayName() + " · 启动自检未通过",
+                "§7共 §e" + problems.size() + " §7项问题，已禁止启动：", problems, client.gui.screen(),
                 () -> new ModuleScreen(ModuleEntries.of(module), null)));
         });
     }

@@ -126,7 +126,7 @@ public final class LibrarianOrchestrator {
         // 静默容器只在没有玩家界面时跑）：直接冻住状态机 —— 状态计时也一并冻住，
         // 玩家看背包期间不会等到超时被 fail，关掉界面自然续上。
         // 我方静默打开的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
-        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
+        if (Minecraft.getInstance().gui.screen() instanceof AbstractContainerScreen<?>) return;
         stateMachine.tick();
     }
 

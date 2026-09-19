@@ -58,7 +58,7 @@ public final class FarmCropConfigScreen extends PanelScreen implements ConsoleHo
     public void removed() {
         super.removed();
         // 关窗回控制台：主页面摘要随关窗刷新（第 201 条同款联动）
-        if (minecraft != null && minecraft.screen == host) minecraft.execute(host::reload);
+        if (minecraft != null && minecraft.gui.screen() == host) minecraft.execute(host::reload);
     }
 
     /** 登记本帧要显示的 tooltip：走项目全局 TooltipLayer，窗口不自绘（实现 {@link ConsoleHost}） */

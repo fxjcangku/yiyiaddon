@@ -145,6 +145,6 @@ public final class AutoVillagerTradePage extends CompactModulePage implements Mo
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new VillagerConsoleScreen(module));
+        client.gui.setScreen(new VillagerConsoleScreen(module));
     }
 }

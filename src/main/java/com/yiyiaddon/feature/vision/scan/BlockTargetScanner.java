@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.vision.scan;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
@@ -204,15 +205,15 @@ public final class BlockTargetScanner {
 
             int sectionBaseY = (minSectionY + index) << 4;
             // 段中心与玩家的竖直距离超过「覆盖范围 + 半个段高」的段整段跳过
-            if (Math.abs(sectionBaseY + LevelChunkSection.SECTION_HEIGHT / 2 - centerY) > VERTICAL_REACH + 8) continue;
+            if (Math.abs(sectionBaseY + SectionPos.SECTION_SIZE / 2 - centerY) > VERTICAL_REACH + 8) continue;
             // 段级预筛：该段的调色板里没有目标方块类型 → 直接跳过，不逐格
             if (!section.maybeHas(state -> targets.contains(state.getBlock()))) continue;
 
-            for (int localY = 0; localY < LevelChunkSection.SECTION_HEIGHT; localY++) {
+            for (int localY = 0; localY < SectionPos.SECTION_SIZE; localY++) {
                 int worldY = sectionBaseY + localY;
                 if (Math.abs(worldY - centerY) > VERTICAL_REACH) continue;
-                for (int localZ = 0; localZ < LevelChunkSection.SECTION_WIDTH; localZ++) {
-                    for (int localX = 0; localX < LevelChunkSection.SECTION_WIDTH; localX++) {
+                for (int localZ = 0; localZ < SectionPos.SECTION_SIZE; localZ++) {
+                    for (int localX = 0; localX < SectionPos.SECTION_SIZE; localX++) {
                         BlockState state = section.getBlockState(localX, localY, localZ);
                         if (!targets.contains(state.getBlock())) continue;
                         double dx = baseX + localX + 0.5 - centerX;

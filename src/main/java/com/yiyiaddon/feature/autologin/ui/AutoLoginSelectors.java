@@ -55,7 +55,7 @@ public final class AutoLoginSelectors {
     private static void pick(Screen parent, String settingName, Consumer<String> onPick) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || settingName == null) return;
-        client.setScreen(SelectorScreen.pick(AutoLoginTexts.SELECT_TITLE_PREFIX + settingName, parent,
+        client.gui.setScreen(SelectorScreen.pick(AutoLoginTexts.SELECT_TITLE_PREFIX + settingName, parent,
             itemCandidates(), onPick));
     }
 

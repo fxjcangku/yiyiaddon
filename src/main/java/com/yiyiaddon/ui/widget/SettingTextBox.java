@@ -252,7 +252,7 @@ public class SettingTextBox extends SettingWidget {
         ImeBridge.clearPreedit();
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft != null) {
-            ImeBridge.focus(minecraft.screen, box.lastX, box.lastY, box.getWidth(), box.getHeight());
+            ImeBridge.focus(minecraft.gui.screen(), box.lastX, box.lastY, box.getWidth(), box.getHeight());
         }
     }
 

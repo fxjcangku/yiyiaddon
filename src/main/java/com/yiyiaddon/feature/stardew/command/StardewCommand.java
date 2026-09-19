@@ -830,7 +830,7 @@ public final class StardewCommand extends ClientCommand {
         if (module == null) return;
         // 指令在聊天屏的 sendChat 流程里执行，紧接着聊天屏会关闭自身；此处同步 setScreen 会被
         // 立即覆盖（表现为「点了没反应」），因此必须推迟一帧再开（与 .id 指令同一套做法）。
-        mc.execute(() -> mc.setScreen(new StardewConsoleScreen(mc.screen, module)));
+        mc.execute(() -> mc.gui.setScreen(new StardewConsoleScreen(mc.gui.screen(), module)));
     }
 
     /** {@code .stardew 季节}：季节识别结论 + 最近一次真实证据 */

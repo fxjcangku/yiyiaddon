@@ -234,11 +234,11 @@ public final class StardewRegionSelector {
     /**
      * 弹出「这块地种什么」窗口（作物待定模式）。
      *
-     * <p>面板打开期间 {@code mc.screen != null}，选区接管判定自然失效，鼠标可以正常点按钮。</p>
+     * <p>面板打开期间 {@code mc.gui.screen() != null}，选区接管判定自然失效，鼠标可以正常点按钮。</p>
      */
     private void openCropChooser() {
-        if (mc.screen != null) return;
-        mc.setScreen(new StardewRegionCropScreen(null, module, firstCorner, secondCorner,
+        if (mc.gui.screen() != null) return;
+        mc.gui.setScreen(new StardewRegionCropScreen(null, module, firstCorner, secondCorner,
             (key, name) -> createRegion(key, name, secondCorner), () -> cancel(false)));
     }
 
@@ -274,7 +274,7 @@ public final class StardewRegionSelector {
         if (!isActive()) return false;
         if (mc.player == null || mc.level == null) return false;
         if (player != mc.player || hand != InteractionHand.MAIN_HAND) return false;
-        return mc.screen == null;
+        return mc.gui.screen() == null;
     }
 
     /** 手上这一击算不算点角（默认「不限」，指定选点工具后变成白名单） */

@@ -113,7 +113,7 @@ public final class AutoFarmPage extends CompactModulePage implements ModulePage 
         WaterESPModule water = waterModule();
         if (water != null && client != null) {
             ModuleManager.setEnabled(WaterESPModule.MODULE_ID, !water.isEnabled());
-            client.setScreen(null);
+            client.gui.setScreen(null);
         }
     }
 
@@ -127,6 +127,6 @@ public final class AutoFarmPage extends CompactModulePage implements ModulePage 
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new AutoFarmConsoleScreen(client.screen, module));
+        client.gui.setScreen(new AutoFarmConsoleScreen(client.gui.screen(), module));
     }
 }

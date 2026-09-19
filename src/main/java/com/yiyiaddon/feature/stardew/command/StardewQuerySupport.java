@@ -325,7 +325,7 @@ public final class StardewQuerySupport {
      * 说明商品在客户端根本不持有，学名只能靠买下来 / 种下去。</p>
      */
     private static String openScreenSummary() {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = Minecraft.getInstance().gui.screen();
         if (screen == null) return "无（没开界面）";
         AbstractContainerMenu menu = ContainerAccess.openMenu();
         int slots = 0;

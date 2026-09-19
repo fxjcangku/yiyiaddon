@@ -38,7 +38,7 @@ public final class BossBarProbe {
     public static List<Component> displayedNames() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gui == null) return List.of();
-        Object overlay = mc.gui.getBossOverlay();
+        Object overlay = mc.gui.hud.getBossOverlay();
         if (overlay == null) return List.of();
         Map<?, ?> events = events(overlay);
         if (events == null || events.isEmpty()) return List.of();

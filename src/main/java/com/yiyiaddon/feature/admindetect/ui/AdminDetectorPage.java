@@ -128,6 +128,6 @@ public final class AdminDetectorPage extends CompactModulePage implements Module
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new AdminDetectorConsoleScreen(client.screen, module));
+        client.gui.setScreen(new AdminDetectorConsoleScreen(client.gui.screen(), module));
     }
 }

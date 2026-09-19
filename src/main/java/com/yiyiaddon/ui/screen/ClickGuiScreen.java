@@ -243,7 +243,7 @@ public class ClickGuiScreen extends SkiaScreen {
         draggingInContent = false;
         draggingScrollbar = false;
         SettingTextBox.clearFocus();
-        minecraft.setScreen(new ModuleScreen(entry, this));
+        minecraft.gui.setScreen(new ModuleScreen(entry, this));
     }
 
     /** 重建当前分类的页面（重置后刷新控件状态）。 */

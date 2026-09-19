@@ -40,7 +40,7 @@ public final class FarmPerCropPage {
 
         stack.add(new com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip(host, List.of(
             new com.yiyiaddon.ui.console.ConsoleWidgets.Ctl(
-                new Button("§b逐作物独立配置", () -> host.client().setScreen(
+                new Button("§b逐作物独立配置", () -> host.client().gui.setScreen(
                     new FarmCropConfigScreen(host, module))),
                 "按作物分组折叠：卸货数量 / 补货种子数量，行文案与旧项目逐字一致")),
             com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip.BUTTON_HEIGHT));

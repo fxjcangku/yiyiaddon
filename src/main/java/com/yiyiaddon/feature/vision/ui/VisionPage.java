@@ -70,6 +70,6 @@ public final class VisionPage extends CompactModulePage implements ModulePage {
     private void openConsole() {
         net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new VisionConsoleScreen(client.screen, module));
+        client.gui.setScreen(new VisionConsoleScreen(client.gui.screen(), module));
     }
 }

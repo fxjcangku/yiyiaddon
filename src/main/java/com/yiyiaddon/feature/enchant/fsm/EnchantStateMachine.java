@@ -36,8 +36,8 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.AnvilMenu;
-import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.EnchantmentMenu;
 import net.minecraft.world.inventory.GrindstoneMenu;
@@ -86,6 +86,11 @@ import java.util.List;
  *       旧点位字段（{@code posBook} 等 14 个）→ {@link com.yiyiaddon.feature.enchant.repository.EnchantPointStore}。</li>
  *   <li>旧 {@code 目标装备}</b>解析走 {@code BuiltInRegistries.ITEM}（旧项目走
  *       {@code level.registryAccess()}；物品是静态注册表，取值等价）。</li>
+ *   <li><b>目标模式互斥与运行中切换</b>（用户 2026-09-19 报缺陷后修正）：
+ *       ① {@code rebuildActiveTasks} 只取当前模式该用的词条组（旧项目 13 组合并，
+ *       导致切到自定义附魔后仍在跑原版附魔书勾的词条）；
+ *       ② 运行中切换模式走 {@link #restartForModeSwitch(EnchantTargetMode)} 重启，
+ *       不带着旧模式的任务列表 / GEAR 运行态继续跑。</li>
  * </ol>
  */
 public final class EnchantStateMachine {
@@ -111,6 +116,14 @@ public final class EnchantStateMachine {
     private EnchantState state = EnchantState.IDLE;
     /** 启动检查链全部通过后为 true；启动失败或关闭时为 false（见类注释第 2 条） */
     private boolean active;
+    /**
+     * 本次激活时的目标模式（旧项目没有这一项）。
+     *
+     * <p>运行中把「目标模式」切走时，已建好的任务列表与 GEAR 运行态都属于旧模式，必须按新模式重启，
+     * 否则会出现「切到自定义附魔，还在附魔原版附魔书的词条」甚至 GEAR 运行态为空指针。
+     * 每次激活链走完都记下当前值，因此只有「激活之后又切换」才会触发重启。</p>
+     */
+    private EnchantTargetMode lastTargetMode = null;
     private String lastNotifiedState = "";
     /** 发包附魔提示去重锁：整次运行只在首次进入附魔阶段播一句，避免附魔→砂轮循环每轮刷屏 */
     private boolean 发包附魔提示已播 = false;
@@ -240,6 +253,7 @@ public final class EnchantStateMachine {
         killAuraEnabledByUs = false;
 
         announceGearStartup();
+        lastTargetMode = module.settings().targetMode;
         active = true;
     }
 
@@ -290,6 +304,7 @@ public final class EnchantStateMachine {
         ));
         int extensionTasks = activeTasks.size() - vanillaTasks;
         announceStartup(activeTasks.size(), vanillaTasks, extensionTasks);
+        lastTargetMode = module.settings().targetMode;
         active = true;
     }
 
@@ -303,6 +318,32 @@ public final class EnchantStateMachine {
     /** 旧 {@code toggle()}：本模块自己判定要停机时调用（延后一帧关，避免生命周期重入） */
     private void disableSelf() {
         mc.execute(() -> ModuleManager.setEnabledSilently(EnchantModule.MODULE_ID, false));
+    }
+
+    /**
+     * 运行中目标模式被切换：按新模式重新走一次「启动自检 → 启动链」。
+     *
+     * <p><b>为什么是重启而不是就地改状态</b>：三种模式互斥，词条列表（{@code rebuildActiveTasks}）、
+     * GEAR 的装备队列 / 铁砧计划、以及容器相位都是模式私有的运行态；就地改写一定会留下旧模式的残留
+     * （旧项目正是如此：切到自定义附魔后 {@code activeTasks} 还是上一次建好的那份）。走
+     * {@link ModuleManager} 重启可复用既有的自检与激活链（第 169 条：同一份逻辑不写两遍），
+     * 新模式点位没配好时会照常给出「还差 N 项没配好」的提示。</p>
+     *
+     * <p>关闭用静默、开启用带播报：玩家刚点的是「切换模式」，只需要看到一条切模式说明 +
+     * 「已开启」（或自检缺项），不需要再看一条「已关闭」。</p>
+     */
+    private void restartForModeSwitch(EnchantTargetMode mode) {
+        stopKillAura();
+        pathing.stop();
+        // 停掉可能还开着的静默容器：容器相位是模式私有运行态，不关掉会带到新模式
+        container.closeContainer();
+        container.resetMergeBooks();
+        active = false;
+        module.info("§7目标模式已切换为 " + highlightFunction(mode.title()) + "§7，正在按新模式重新启动...");
+        mc.execute(() -> {
+            ModuleManager.setEnabledSilently(EnchantModule.MODULE_ID, false);
+            ModuleManager.setEnabled(EnchantModule.MODULE_ID, true);
+        });
     }
 
     // ── 启动播报（旧 :958-982 / :2063-2087） ──
@@ -418,6 +459,17 @@ public final class EnchantStateMachine {
     public void tick() {
         if (!active) return;
         if (mc.player == null || mc.level == null) return;
+
+        // 运行中切换目标模式：旧模式的任务列表 / 运行态整体作废（BOOK 与 CUSTOM 的词条按模式取用、
+        // GEAR 另有装备队列与铁砧计划），必须按新模式重走一次「自检 → 启动链」才干净。
+        // 旧项目 目标模式.onChanged 只重排界面、不动运行态，于是切了模式仍在跑旧模式的词条。
+        EnchantTargetMode mode = module.settings().targetMode;
+        if (lastTargetMode != null && lastTargetMode != mode) {
+            restartForModeSwitch(mode);
+            return;
+        }
+        lastTargetMode = mode;
+
         if (!module.pointStore().matchesCurrentContext()) {
             module.error("检测到服务器或维度发生变化，已停止寻路并关闭模块！");
             stopKillAura();
@@ -858,13 +910,13 @@ public final class EnchantStateMachine {
         }
         if (!container.chestMenuOpen()) return;
 
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
 
         switch (guiPhase) {
             case 0 -> {
                 boolean hasFreeSlot = false;
-                for (int i = 0; i < handler.getRowCount() * 9; i++) {
+                for (int i = 0; i < container.containerSlotCount(handler); i++) {
                     if (handler.getSlot(i).getItem().isEmpty()) { hasFreeSlot = true; break; }
                 }
                 if (!hasFreeSlot) {
@@ -949,7 +1001,7 @@ public final class EnchantStateMachine {
         }
         if (!container.chestMenuOpen()) return;
 
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
 
         Item targetItem = isLapis ? Items.LAPIS_LAZULI : Items.BOOK;
@@ -968,7 +1020,7 @@ public final class EnchantStateMachine {
         }
 
         int grabbed = 0;
-        for (int i = 0; i < handler.getRowCount() * 9 && grabbed < needCount; i++) {
+        for (int i = 0; i < container.containerSlotCount(handler) && grabbed < needCount; i++) {
             ItemStack stack = handler.getSlot(i).getItem();
             if (stack.getItem() == targetItem) {
                 int movedCount = stack.getCount();
@@ -1236,10 +1288,10 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
         // 每 tick 取一件目标装备，最多「每批取用数量」件（只取 gearTargetItem，其他装备不拿）
-        for (int i = 0; i < handler.getRowCount() * 9; i++) {
+        for (int i = 0; i < container.containerSlotCount(handler); i++) {
             ItemStack stack = handler.getSlot(i).getItem();
             if (stack.is(gearTargetItem)) {
                 mc.gameMode.handleContainerInput(syncId, i, 0, ContainerInput.QUICK_MOVE, mc.player);
@@ -1523,7 +1575,7 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
         // 复用「青金石补给组数」计算补足数量（与附魔书模式同一标准）
         int current = container.countInInventory(Items.LAPIS_LAZULI);
@@ -1534,7 +1586,7 @@ public final class EnchantStateMachine {
             return;
         }
         // 从青金石箱 QUICK_MOVE 青金石
-        for (int i = 0; i < handler.getRowCount() * 9; i++) {
+        for (int i = 0; i < container.containerSlotCount(handler); i++) {
             if (handler.getSlot(i).getItem().is(Items.LAPIS_LAZULI)) {
                 mc.gameMode.handleContainerInput(syncId, i, 0, ContainerInput.QUICK_MOVE, mc.player);
                 guiTick = module.settings().guiDelayTick;
@@ -1753,7 +1805,7 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
 
         // 铁砧可堆叠：QUICK_MOVE 会把整组一起拿走。改为「拿起整堆 → 右键放 1 个到背包 → 剩下的放回箱子」，只取 1 个。
@@ -1761,7 +1813,7 @@ public final class EnchantStateMachine {
         switch (guiPhase) {
             case 0 -> {
                 gearAnvilChestSlot = -1;
-                for (int i = 0; i < handler.getRowCount() * 9; i++) {
+                for (int i = 0; i < container.containerSlotCount(handler); i++) {
                     if (isAnvilItem(handler.getSlot(i).getItem())) {
                         gearAnvilChestSlot = i;
                         break;
@@ -2095,12 +2147,12 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
         switch (guiPhase) {
             case 0 -> {
                 boolean hasFreeSlot = false;
-                for (int i = 0; i < handler.getRowCount() * 9; i++) {
+                for (int i = 0; i < container.containerSlotCount(handler); i++) {
                     if (handler.getSlot(i).getItem().isEmpty()) { hasFreeSlot = true; break; }
                 }
                 if (!hasFreeSlot) {
@@ -2179,39 +2231,40 @@ public final class EnchantStateMachine {
     /**
      * 重建附魔书 / 自定义模式的目标词条列表（旧 {@code rebuildActiveTasks:1720-1738}）。
      *
-     * <p><b>用户 2026-09-16 裁定修正</b>：旧项目的 {@code enchantmentGroups} 数组
-     * （{@code :1722-1726}）只列了剑、斧、弓、护甲与 8 个原版组，<b>漏掉了「工具与通用附魔属性」组</b>
-     * （该组在 {@code :545} 是真实存在的多选控件，箱子里能勾却被这里忽略，表现为「勾了不干活」）。
-     * 本项目按用户裁定补上该组，位置与 CUSTOM 页的控件顺序一致（护甲之后、原版组之前），
-     * 差异登记见 {@code 45-阶段11-...差异清单.md} 的 D10。</p>
+     * <p><b>用户 2026-09-19 裁定：词条只取当前目标模式该用的那几组，两种模式绝不互相污染。</b>
+     * 旧项目把 13 个多选组一次性全并进来（{@code :1722-1726}），于是「原版附魔书」模式勾的词条
+     * 在切到「自定义附魔」后照样生效 —— 实机表现就是「切到自定义附魔了，还在附魔上一个模式的词条，
+     * 自定义那边一个都没勾也能跑」。现在按模式取用：</p>
+     * <ul>
+     *   <li>{@code BOOK} → {@link EnchantSettings#BOOK_GROUPS} 的 8 个原版组；</li>
+     *   <li>{@code CUSTOM} → {@link EnchantSettings#CUSTOM_GROUPS} 的 5 个扩展组
+     *       + {@code 自定义附魔目标} 文本项（该页只在 CUSTOM 可见，故只在 CUSTOM 并入）。</li>
+     * </ul>
+     *
+     * <p><b>用户 2026-09-16 裁定修正（D10）依然成立</b>：旧数组漏掉的「工具与通用附魔属性」组，
+     * 现在作为 {@link EnchantSettings#CUSTOM_GROUPS} 的第 5 组一并纳入，位置与 CUSTOM 页控件顺序一致。</p>
      */
     private void rebuildActiveTasks() {
         activeTasks.clear();
-        List<List<String>> enchantmentGroups = List.of(
-            EnchantSettings.SWORD_ENCHANTS,
-            EnchantSettings.AXE_ENCHANTS,
-            EnchantSettings.BOW_ENCHANTS,
-            EnchantSettings.ARMOR_ENCHANTS,
-            EnchantSettings.OTHER_ENCHANTS,
-            EnchantSettings.VANILLA_ARMOR_ENCHANTS,
-            EnchantSettings.VANILLA_MELEE_ENCHANTS,
-            EnchantSettings.VANILLA_TOOL_ENCHANTS,
-            EnchantSettings.VANILLA_BOW_ENCHANTS,
-            EnchantSettings.VANILLA_FISHING_ENCHANTS,
-            EnchantSettings.VANILLA_TRIDENT_ENCHANTS,
-            EnchantSettings.VANILLA_CROSSBOW_ENCHANTS,
-            EnchantSettings.VANILLA_COMMON_ENCHANTS
-        );
-        for (List<String> group : enchantmentGroups) {
-            for (String entry : group) {
+        EnchantTargetMode mode = module.settings().targetMode;
+        // GEAR 模式不走词条抽取流程（它只认「装备附魔配置」里的极品方案），给空列表即可
+        List<EnchantSettings.EnchantGroup> groups = switch (mode) {
+            case BOOK -> EnchantSettings.BOOK_GROUPS;
+            case CUSTOM -> EnchantSettings.CUSTOM_GROUPS;
+            case GEAR -> List.of();
+        };
+        for (EnchantSettings.EnchantGroup group : groups) {
+            for (String entry : group.entries()) {
                 if (module.settings().isSelected(entry) && !activeTasks.contains(entry)) {
                     activeTasks.add(entry);
                 }
             }
         }
-        for (String task : module.settings().customEnchantTargets) {
-            String normalized = normalizeEnchantmentText(task);
-            if (!normalized.isEmpty() && !activeTasks.contains(normalized)) activeTasks.add(normalized);
+        if (mode == EnchantTargetMode.CUSTOM) {
+            for (String task : module.settings().customEnchantTargets) {
+                String normalized = normalizeEnchantmentText(task);
+                if (!normalized.isEmpty() && !activeTasks.contains(normalized)) activeTasks.add(normalized);
+            }
         }
     }
 

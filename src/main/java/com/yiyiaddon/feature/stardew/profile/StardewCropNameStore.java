@@ -302,7 +302,7 @@ public final class StardewCropNameStore {
      * 「这个界面到底吃不吃得到商品」的地方。每个界面只记一次，不会刷屏。</p>
      */
     private static void reportObservation(AbstractContainerMenu menu) {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = Minecraft.getInstance().gui.screen();
         if (screen == null) {
             lastObservedScreen = null;
         } else {
@@ -335,7 +335,7 @@ public final class StardewCropNameStore {
      * 世界 / 渲染器 / 网络这些巨大的对象图，绝不无限递归。</p>
      */
     private static void observeOpenScreen() {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = Minecraft.getInstance().gui.screen();
         if (screen == null) {
             lastScreenStacks = 0;
             return;

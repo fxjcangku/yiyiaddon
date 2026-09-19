@@ -138,7 +138,7 @@ public final class EnchantGearPage {
     private void openConfig() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new GearEnchantConfigScreen(owner, module));
+        client.gui.setScreen(new GearEnchantConfigScreen(owner, module));
     }
 
     /**

@@ -78,6 +78,6 @@ public final class ReconnectPage extends CompactModulePage implements ModulePage
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new ReconnectConsoleScreen(client.screen, module));
+        client.gui.setScreen(new ReconnectConsoleScreen(client.gui.screen(), module));
     }
 }

@@ -123,12 +123,12 @@ public final class IdentityModulePage extends CompactModulePage implements Modul
      */
     private void confirmReset() {
         Minecraft client = Minecraft.getInstance();
-        client.setScreen(ConfirmPanelScreen.inPlace("恢复默认设置",
+        client.gui.setScreen(ConfirmPanelScreen.inPlace("恢复默认设置",
             List.of("§7把「§f" + module.displayName() + "§7」的全部设置恢复为出厂值。",
                 "§8确认后立刻写回配置文件，无法撤销。"),
             "§a§l恢复默认",
             () -> ModuleManager.resetToDefaults(module),
-            client.screen));
+            client.gui.screen()));
     }
 
     /** 当前识别模式的说明文本。 */

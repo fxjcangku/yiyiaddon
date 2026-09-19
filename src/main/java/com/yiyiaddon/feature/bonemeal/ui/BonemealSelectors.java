@@ -44,7 +44,7 @@ public final class BonemealSelectors {
         Minecraft client = Minecraft.getInstance();
         if (client == null || module == null || group == null) return;
         List<String> selected = group.of(module.settings());
-        client.setScreen(new SelectorScreen(BonemealTexts.selectTitle(group.label()), parent, blockCandidates(),
+        client.gui.setScreen(new SelectorScreen(BonemealTexts.selectTitle(group.label()), parent, blockCandidates(),
             () -> new ArrayList<>(selected),
             key -> change(module, selected, key, true),
             key -> change(module, selected, key, false)));

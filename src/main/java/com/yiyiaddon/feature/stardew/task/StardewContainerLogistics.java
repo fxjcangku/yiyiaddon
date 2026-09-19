@@ -51,7 +51,7 @@ final class StardewContainerLogistics {
         // 静默容器只在没有玩家界面时跑）。此时若继续静默开箱，会把 player.containerMenu
         // 悄悄换成箱子菜单，玩家背包里的点击就按箱子的 containerId 发出去（错位、丢物品）。
         // 我方开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
-        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
+        if (Minecraft.getInstance().gui.screen() instanceof AbstractContainerScreen<?>) return;
 
         if (owner.targetContainer == null || owner.containerApproach == null || owner.activeCrop == null
             || !owner.selectedCropKeys.contains(owner.activeCrop.cropKey())) {

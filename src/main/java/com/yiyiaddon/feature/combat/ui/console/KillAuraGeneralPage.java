@@ -283,7 +283,7 @@ public final class KillAuraGeneralPage {
     private void openWeaponSelector() {
         if (owner.client() == null) return;
         List<String> weapons = module.settings().weapons;
-        owner.client().setScreen(new SelectorScreen(KillAuraTexts.NAME_WEAPONS, owner.client().screen,
+        owner.client().gui.setScreen(new SelectorScreen(KillAuraTexts.NAME_WEAPONS, owner.client().gui.screen(),
             weaponCandidates(),
             () -> new ArrayList<>(weapons),
             key -> changeWeapons(key, true),

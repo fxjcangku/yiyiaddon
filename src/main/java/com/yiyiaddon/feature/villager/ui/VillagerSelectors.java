@@ -362,7 +362,7 @@ public final class VillagerSelectors {
     private static void openScreen(VillagerConsoleScreen host, SelectorScreen screen) {
         Minecraft client = host.client();
         if (client == null || screen == null) return;
-        client.setScreen(screen);
+        client.gui.setScreen(screen);
     }
 
     /** 物品大类：标题（含 {@code §} 前缀）+ 排序权重（标签页注册顺序） */

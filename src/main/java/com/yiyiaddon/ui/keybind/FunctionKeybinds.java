@@ -73,7 +73,7 @@ public final class FunctionKeybinds {
     /** 由核心 tick 每刻调用一次（不新增 Fabric 注册点） */
     public static void tick(Minecraft client) {
         if (client == null) return;
-        boolean allowed = client.screen == null
+        boolean allowed = client.gui.screen() == null
             && !ModuleKeybindManager.isCapturing()
             && !SettingKeybind.isCapturing();
 

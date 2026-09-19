@@ -42,7 +42,7 @@ public final class InterfacePage extends BasePage {
                 .addSub(UiText.t("主题选择", "Theme"), UiText.t("点击进入主题缩略图预览", "Click to open the theme thumbnail preview"),
                         new SettingLink(() -> ClickGuiThemeManager.current().displayName(), () -> {
                             Minecraft minecraft = Minecraft.getInstance();
-                            if (minecraft != null && minecraft.screen instanceof ClickGuiScreen screen) {
+                            if (minecraft != null && minecraft.gui.screen() instanceof ClickGuiScreen screen) {
                                 screen.openThemePreview();
                             }
                         })));

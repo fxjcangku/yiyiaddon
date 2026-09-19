@@ -141,7 +141,7 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
     // ── 挑块 ──
 
     private void pickKey() {
-        Minecraft.getInstance().setScreen(SelectorScreen.pick("选择映射键", this,
+        Minecraft.getInstance().gui.setScreen(SelectorScreen.pick("选择映射键", this,
             BaritoneChoices.entries(BaritoneChoices.Kind.BLOCK), id -> {
                 Block block = BaritoneChoices.blockOf(id);
                 if (block == null) return;
@@ -158,7 +158,7 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
             return;
         }
         Block key = selected;
-        Minecraft.getInstance().setScreen(SelectorScreen.pick("给「" + key.getName().getString() + "」添加替代方块",
+        Minecraft.getInstance().gui.setScreen(SelectorScreen.pick("给「" + key.getName().getString() + "」添加替代方块",
             this, BaritoneChoices.entries(BaritoneChoices.Kind.BLOCK), id -> {
                 Block block = BaritoneChoices.blockOf(id);
                 if (block == null) return;

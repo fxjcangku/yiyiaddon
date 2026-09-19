@@ -81,6 +81,6 @@ public final class WaterPage extends CompactModulePage implements ModulePage {
     private void openConsole() {
         net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new WaterConsoleScreen(client.screen, module));
+        client.gui.setScreen(new WaterConsoleScreen(client.gui.screen(), module));
     }
 }

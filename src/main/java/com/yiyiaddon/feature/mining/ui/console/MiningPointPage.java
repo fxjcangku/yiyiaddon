@@ -184,12 +184,12 @@ public final class MiningPointPage {
     /** 清空全部点位：二次确认（确认动作与 {@code .wk 清空} 同源，正文按本模块三个点位写） */
     private void openClearConfirm() {
         if (owner.client() == null) return;
-        owner.client().setScreen(new ConfirmPanelScreen("清空全部点位",
+        owner.client().gui.setScreen(new ConfirmPanelScreen("清空全部点位",
             List.of("§f将删除当前服务器已绑定的全部点位",
                 "§7矿物箱 · 食物箱 · 挂机修复点",
                 "",
                 "§c此操作不可恢复。"),
-            "§c§l确认", WkCommand::clearAllBindings, owner.client().screen));
+            "§c§l确认", WkCommand::clearAllBindings, owner.client().gui.screen()));
     }
 
     // ── 显示与颜色 ──
@@ -197,7 +197,7 @@ public final class MiningPointPage {
     /** 打开「渲染设置 · 对象名」窗口（共用件 RenderObjectScreen，六个点位模块同一份实现） */
     private void openRenderScreen(EspRenderObject object) {
         if (owner.client() == null) return;
-        owner.client().setScreen(new RenderObjectScreen(owner.client().screen, object,
+        owner.client().gui.setScreen(new RenderObjectScreen(owner.client().gui.screen(), object,
             defaultsOf(object), module::persistSettings));
     }
 
@@ -338,7 +338,7 @@ public final class MiningPointPage {
 
     /** 执行后直接回到游戏（旧项目 {@code mc.setScreen(null)}） */
     private void closeToGame() {
-        owner.client().setScreen(null);
+        owner.client().gui.setScreen(null);
     }
 
     /** 卡片标题配色（旧 {@code :1561-1566}）：矿物箱金 / 食物箱绿 / 挂机修复点粉 */

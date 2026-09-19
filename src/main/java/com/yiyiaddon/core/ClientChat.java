@@ -57,7 +57,7 @@ public final class ClientChat {
         if (text == null) return;
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-            if (mc.gui != null) mc.gui.setOverlayMessage(Component.literal(text), false);
+            if (mc.gui != null) mc.gui.hud.setOverlayMessage(Component.literal(text), false);
         });
     }
 

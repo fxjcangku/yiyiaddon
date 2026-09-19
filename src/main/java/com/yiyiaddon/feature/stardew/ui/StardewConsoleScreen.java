@@ -180,7 +180,7 @@ public final class StardewConsoleScreen extends PanelScreen implements ConsoleHo
         if (++autoRefreshTicks < AUTO_REFRESH_TICKS) return;
         autoRefreshTicks = 0;
         // 鼠标按住时不重建：正在按的那个按钮会被摘掉，抬起事件落到空处，表现为按钮「卡住」
-        if (minecraft == null || minecraft.screen != this) return;
+        if (minecraft == null || minecraft.gui.screen() != this) return;
         if (mousePressed(GLFW.GLFW_MOUSE_BUTTON_LEFT) || mousePressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) return;
 
         StardewConsoleData next = module.consoleData();
@@ -236,7 +236,7 @@ public final class StardewConsoleScreen extends PanelScreen implements ConsoleHo
      * 播完才真正关窗，观感上就是「点了没反应、界面还开着」。</p>
      */
     public void closeToGame() {
-        if (minecraft != null) minecraft.setScreen(null);
+        if (minecraft != null) minecraft.gui.setScreen(null);
     }
 
     // ── 重建 ──

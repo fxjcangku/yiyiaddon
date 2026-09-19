@@ -4,12 +4,14 @@ import com.yiyiaddon.feature.combat.ui.console.KillAuraTargetingPage;
 import com.yiyiaddon.feature.mining.ui.MiningRegistry;
 import com.yiyiaddon.feature.vision.VisionModule;
 import com.yiyiaddon.feature.vision.config.VisionTexts;
+import com.yiyiaddon.platform.identity.EntityIdentifier;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypeIds;
 import net.minecraft.world.entity.MobCategory;
 
 import java.util.ArrayList;
@@ -53,7 +55,7 @@ public final class VisionSelectors {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
         List<String> selected = module.settings().blockTargets;
-        client.setScreen(new SelectorScreen(VisionTexts.SELECT_BLOCK_TITLE, parent,
+        client.gui.setScreen(new SelectorScreen(VisionTexts.SELECT_BLOCK_TITLE, parent,
             blockCandidates(),
             () -> new ArrayList<>(selected),
             key -> change(module, selected, key, true),
@@ -65,7 +67,7 @@ public final class VisionSelectors {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
         List<String> selected = module.settings().entityTargets;
-        client.setScreen(new SelectorScreen(VisionTexts.SELECT_ENTITY_TITLE, parent,
+        client.gui.setScreen(new SelectorScreen(VisionTexts.SELECT_ENTITY_TITLE, parent,
             entityCandidates(),
             () -> new ArrayList<>(selected),
             key -> change(module, selected, key, true),
@@ -143,7 +145,7 @@ public final class VisionSelectors {
         if (id == null) return false;
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(id);
         if (type == null) return false;
-        if (type == EntityType.PLAYER) return true;
+        if (type == EntityIdentifier.typeOf(EntityTypeIds.PLAYER)) return true;
         return type.getCategory() != MobCategory.MISC;
     }
 }

@@ -167,7 +167,7 @@ public final class VisionConsoleScreen extends PanelScreen implements ConsoleHos
         if (++autoRefreshTicks < AUTO_REFRESH_TICKS) return;
         autoRefreshTicks = 0;
         // 鼠标按住时不重建：正在按的那个按钮会被摘掉，抬起事件落到空处
-        if (minecraft == null || minecraft.screen != this) return;
+        if (minecraft == null || minecraft.gui.screen() != this) return;
         if (mousePressed(GLFW.GLFW_MOUSE_BUTTON_LEFT) || mousePressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) return;
 
         if (tab == Tab.OVERVIEW) {
@@ -234,7 +234,7 @@ public final class VisionConsoleScreen extends PanelScreen implements ConsoleHos
                 "顶部状态条每秒自动刷新；概览页整页每秒重画，其余页按这个按钮重排最新数据"),
             ConsoleWidgets.resetDefaultsCtl(this, module, this::reload),
             new Ctl(new Button("§7关闭", () -> {
-                if (minecraft != null) minecraft.setScreen(null);
+                if (minecraft != null) minecraft.gui.setScreen(null);
             }))), ButtonStrip.BUTTON_HEIGHT));
     }
 

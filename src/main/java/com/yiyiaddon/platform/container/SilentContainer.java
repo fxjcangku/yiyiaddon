@@ -78,7 +78,7 @@ public final class SilentContainer {
      */
     public static boolean isLevelLoadingHijack(String screenClassName) {
         if (screenClassName == null || screenClassName.isBlank()) return false;
-        if (Minecraft.getInstance().screen == null) return false;
+        if (Minecraft.getInstance().gui.screen() == null) return false;
         return LevelLoadingScreen.class.getName().equals(screenClassName);
     }
 

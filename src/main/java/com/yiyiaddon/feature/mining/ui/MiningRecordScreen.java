@@ -213,7 +213,7 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
         lines.add("§7别的服务器 / 存档的点位坐标在本服不适用，所以不允许复原。");
         lines.add("");
         lines.add("§7这条记录仍可用「详情」查看、「替换」覆盖、「删除」清掉。");
-        minecraft.setScreen(ConfirmPanelScreen.noticeInPlace("不能复原：不是本服的记录", lines, this));
+        minecraft.gui.setScreen(ConfirmPanelScreen.noticeInPlace("不能复原：不是本服的记录", lines, this));
     }
 
     /**
@@ -223,7 +223,7 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
      */
     private void confirmReplace(ConfigRecord record) {
         if (!module.sameScopeAs(record)) {
-            minecraft.setScreen(ConfirmPanelScreen.noticeInPlace("不能替换：不是本服的记录",
+            minecraft.gui.setScreen(ConfirmPanelScreen.noticeInPlace("不能替换：不是本服的记录",
                 List.of("§f这条记录属于 §f" + record.displayName(),
                     "§7当前" + (WorldIdentity.isSingleplayer() ? "存档" : "服务器") + "是 §f"
                         + module.currentScopeName() + "§7，与它不一致。",
@@ -278,7 +278,7 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
         // 整份设置：控制台全部设置页 + 秒破 + 男中音全部调优 + ESP，逐项摊开（用户 2026-09-18：
         // 「保存的信息 我全配置页面的设置包括秒破 男中音设置的」）
         lines.addAll(MiningConfigDigest.lines(settings));
-        minecraft.setScreen(ConfirmPanelScreen.noticeInPlace("配置记录详情", lines, this));
+        minecraft.gui.setScreen(ConfirmPanelScreen.noticeInPlace("配置记录详情", lines, this));
     }
 
     // ── 小工具 ──
@@ -290,7 +290,7 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
      */
     private void confirm(String title, List<String> lines, String confirmLabel, Runnable action) {
         if (minecraft == null) return;
-        minecraft.setScreen(ConfirmPanelScreen.inPlace(title, lines, confirmLabel, action, this));
+        minecraft.gui.setScreen(ConfirmPanelScreen.inPlace(title, lines, confirmLabel, action, this));
     }
 
     /**

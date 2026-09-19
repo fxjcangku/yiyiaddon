@@ -50,10 +50,10 @@ public final class UpdateService {
                 ClickGuiScreen parent = manualParent;
                 manualParent = null;
                 // 玩家已离开请求页面时不抢回界面；失败也只留状态，不复用旧结果冒充检查成功。
-                if (client.screen == parent && parent.canShowUpdatePrompt()
+                if (client.gui.screen() == parent && parent.canShowUpdatePrompt()
                         && !status.equals("暂时无法检查") && hasUpdate()) {
                     SESSION.claimPrompt(true, true);
-                    client.setScreen(new UpdatePanelScreen(latest, parent));
+                    client.gui.setScreen(new UpdatePanelScreen(latest, parent));
                 }
             }
         }
@@ -64,10 +64,10 @@ public final class UpdateService {
             // 请求与客户端创建均在后台执行；总超时还覆盖响应体读取阶段。
             pending = CompletableFuture.supplyAsync(UpdateService::fetch).orTimeout(15, TimeUnit.SECONDS);
         }
-        boolean safe = client.getOverlay() == null && (client.screen instanceof TitleScreen
-                || client.screen instanceof ClickGuiScreen gui && gui.canShowUpdatePrompt());
+        boolean safe = client.gui.overlay() == null && (client.gui.screen() instanceof TitleScreen
+                || client.gui.screen() instanceof ClickGuiScreen gui && gui.canShowUpdatePrompt());
         if (SESSION.claimPrompt(safe, hasUpdate() && !preferences.isSkipped(latest.version()))) {
-            client.setScreen(new UpdatePanelScreen(latest, client.screen));
+            client.gui.setScreen(new UpdatePanelScreen(latest, client.gui.screen()));
         }
     }
 

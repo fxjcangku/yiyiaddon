@@ -118,6 +118,6 @@ public final class AutoChestPage extends CompactModulePage implements ModulePage
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new AutoChestConsoleScreen(client.screen, module));
+        client.gui.setScreen(new AutoChestConsoleScreen(client.gui.screen(), module));
     }
 }

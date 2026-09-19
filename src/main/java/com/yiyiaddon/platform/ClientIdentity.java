@@ -78,10 +78,16 @@ public final class ClientIdentity {
                 .orElse("unknown");
     }
 
-    /** Minecraft 版本类型（release / snapshot 等）。 */
+    /**
+     * Minecraft 版本类型（release / snapshot 等）。
+     *
+     * <p><b>26.2 口径</b>：{@code Minecraft#getVersionType()} 已移除，改用
+     * {@code SharedConstants#getCurrentVersion()} 的 {@code stable()} 判定 ——
+     * 正式版为 {@code release}，其余（快照 / 预发布）为 {@code snapshot}。</p>
+     */
     public static String minecraftVersion() {
         try {
-            return Minecraft.getInstance().getVersionType();
+            return net.minecraft.SharedConstants.getCurrentVersion().stable() ? "release" : "snapshot";
         } catch (Exception e) {
             return "unknown";
         }

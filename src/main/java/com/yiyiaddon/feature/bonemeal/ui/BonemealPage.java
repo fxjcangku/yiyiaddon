@@ -109,6 +109,6 @@ public final class BonemealPage extends CompactModulePage implements ModulePage 
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new BonemealConsoleScreen(client.screen, module));
+        client.gui.setScreen(new BonemealConsoleScreen(client.gui.screen(), module));
     }
 }

@@ -74,7 +74,7 @@ public final class StardewRegionListScreen extends PanelScreen {
      */
     private void openCropPicker(StardewRegionManager.Region region) {
         if (minecraft == null) return;
-        minecraft.setScreen(new StardewTargetSelectScreen(this, module, StardewSelectorCategory.CROP,
+        minecraft.gui.setScreen(new StardewTargetSelectScreen(this, module, StardewSelectorCategory.CROP,
             region.cropKey(), crop -> {
                 String failure = module.changeRegionCrop(region.index(), crop.cropKey(), crop.chineseName());
                 Minecraft client = Minecraft.getInstance();
@@ -82,17 +82,17 @@ public final class StardewRegionListScreen extends PanelScreen {
                 if (failure != null) {
                     // 没换成（地里还有作物 / 区域档写不进去）：原因摆到屏幕中间，聊天里也有一份，
                     // 别让人以为「点了没反应」（与启动自检同一套面板与配色）
-                    client.setScreen(ConfirmPanelScreen.notice("星露谷农场 · 没换成",
+                    client.gui.setScreen(ConfirmPanelScreen.notice("星露谷农场 · 没换成",
                         "§7这块地还没清出来：", List.of(failure), this));
                     return;
                 }
-                client.setScreen(new StardewRegionListScreen(parent, module));
+                client.gui.setScreen(new StardewRegionListScreen(parent, module));
             }));
     }
 
     /** 删除后整页重建：行数、计数都以磁盘为准 */
     private void rebuild() {
-        if (minecraft != null) minecraft.setScreen(new StardewRegionListScreen(parent, module));
+        if (minecraft != null) minecraft.gui.setScreen(new StardewRegionListScreen(parent, module));
     }
 
     private static String label(StardewRegionManager.Region region) {
@@ -109,7 +109,7 @@ public final class StardewRegionListScreen extends PanelScreen {
     private void confirmClearAll() {
         if (minecraft == null) return;
         // 清空后回到上一层（控制台会重建正文），避免本页留着一排已经删掉的区域
-        minecraft.setScreen(new ConfirmPanelScreen("清空全部种植区域",
+        minecraft.gui.setScreen(new ConfirmPanelScreen("清空全部种植区域",
             List.of("§f将删除当前服务器已划分的全部种植区域",
                 "§7地里的作物不会被挖掉，只是这些地不再被管理",
                 "",

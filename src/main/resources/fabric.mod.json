@@ -3,7 +3,7 @@
   "id": "yiyiaddon",
   "version": "${version}",
   "name": "yiyiaddon",
-  "description": "Standalone Fabric client addon for Minecraft 26.1.2.",
+  "description": "Standalone Fabric client addon for Minecraft 26.2.",
   "authors": [
     "yiyiaddon"
   ],

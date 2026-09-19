@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.tags.BlockItemTags;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
@@ -819,18 +820,23 @@ public final class MiningVeinMiner {
     /**
      * 矿石族别：同一族的矿石算「同类」（因此深板岩钻石矿与原版钻石矿、深层铁矿与铁矿都能连）。
      *
-     * <p>用原版 {@link BlockTags} 判定，不做方块 id 字符串匹配——模组矿石只要自己进了对应的
+     * <p>用原版 {@code *_ores} 标签判定，不做方块 id 字符串匹配——模组矿石只要自己进了对应的
      * {@code *_ores} 标签就自动生效。</p>
+     *
+     * <p><b>26.2 口径</b>：煤 / 红石 / 青金石 / 钻石 / 绿宝石这五个标签从 {@link BlockTags}
+     * 移到了 {@code BlockItemTags}，且那边是 {@code BlockItemTagId}（方块侧 + 物品侧成对），
+     * 取 {@code block()} 拿回方块侧的 {@code TagKey}，与旧的 {@code BlockTags.X} 是同一个标签。
+     * 铜 / 铁 / 金三个仍留在 {@link BlockTags}。</p>
      */
     private static int oreFamily(BlockState state) {
-        if (state.is(BlockTags.COAL_ORES)) return 1;
+        if (state.is(BlockItemTags.COAL_ORES.block())) return 1;
         if (state.is(BlockTags.COPPER_ORES)) return 2;
         if (state.is(BlockTags.IRON_ORES)) return 3;
         if (state.is(BlockTags.GOLD_ORES)) return 4;
-        if (state.is(BlockTags.REDSTONE_ORES)) return 5;
-        if (state.is(BlockTags.LAPIS_ORES)) return 6;
-        if (state.is(BlockTags.DIAMOND_ORES)) return 7;
-        if (state.is(BlockTags.EMERALD_ORES)) return 8;
+        if (state.is(BlockItemTags.REDSTONE_ORES.block())) return 5;
+        if (state.is(BlockItemTags.LAPIS_ORES.block())) return 6;
+        if (state.is(BlockItemTags.DIAMOND_ORES.block())) return 7;
+        if (state.is(BlockItemTags.EMERALD_ORES.block())) return 8;
         // 下界石英没有对应的 *_ores 标签（本版本 BlockTags 无 QUARTZ_ORES），直接按方块判
         if (state.is(Blocks.NETHER_QUARTZ_ORE)) return 9;
         if (state.is(Blocks.ANCIENT_DEBRIS)) return 10;

@@ -18,7 +18,7 @@ public record RenderCamera(Vec3 position, Matrix4f viewProjection, float screenW
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft == null || minecraft.level == null || minecraft.player == null) return null;
 
-        Camera camera = minecraft.gameRenderer.getMainCamera();
+        Camera camera = minecraft.gameRenderer.mainCamera();
         if (!camera.isInitialized()) return null;
 
         float width = minecraft.getWindow().getGuiScaledWidth();

@@ -68,7 +68,7 @@ public final class FarmSelectors {
             entries.add(new Entry(blockId(profile), profile));
         }
 
-        host.client().setScreen(new SelectorScreen(label, host, entries,
+        host.client().gui.setScreen(new SelectorScreen(label, host, entries,
             () -> List.copyOf(selection.get().keySet()),
             key -> {
                 if (candidateKeys(filter).contains(key)) {

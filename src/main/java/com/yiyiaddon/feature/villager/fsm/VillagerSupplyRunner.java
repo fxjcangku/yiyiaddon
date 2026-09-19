@@ -235,7 +235,7 @@ final class VillagerSupplyRunner {
      * @return true = 本 tick 不推进
      */
     private boolean holdForPlayerScreen(VillagerTradeState state) {
-        if (!(mc.screen instanceof AbstractContainerScreen<?>)) return false;
+        if (!(mc.gui.screen() instanceof AbstractContainerScreen<?>)) return false;
         host.enterState(state);
         return true;
     }

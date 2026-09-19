@@ -52,7 +52,7 @@ public final class SkiaBlurRenderer {
     }
 
     public boolean render(Minecraft client, float x, float y, float width, float height, float radius, int tintColor, float strength) {
-        if (client == null || client.getWindow() == null || client.getMainRenderTarget() == null) return false;
+        if (client == null || client.getWindow() == null || client.gameRenderer.mainRenderTarget() == null) return false;
         int framebufferId = mainFramebufferId(client);
         Canvas canvas = framebufferBackend.begin(framebufferId);
         DirectContext context = framebufferBackend.getContext();
@@ -76,7 +76,7 @@ public final class SkiaBlurRenderer {
      */
     public Image captureRegionImage(DirectContext context, float x, float y, float width, float height) {
         Minecraft client = Minecraft.getInstance();
-        if (context == null || client == null || client.getWindow() == null || client.getMainRenderTarget() == null) {
+        if (context == null || client == null || client.getWindow() == null || client.gameRenderer.mainRenderTarget() == null) {
             return null;
         }
         ensureNativeLoaded();
@@ -86,7 +86,7 @@ public final class SkiaBlurRenderer {
     }
 
     public boolean renderRegions(Minecraft client, List<Region> regions, int tintColor, float strength) {
-        if (client == null || client.getWindow() == null || client.getMainRenderTarget() == null || regions == null || regions.isEmpty()) {
+        if (client == null || client.getWindow() == null || client.gameRenderer.mainRenderTarget() == null || regions == null || regions.isEmpty()) {
             return false;
         }
         float left = Float.MAX_VALUE;

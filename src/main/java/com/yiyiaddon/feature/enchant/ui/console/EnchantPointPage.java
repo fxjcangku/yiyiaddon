@@ -77,7 +77,7 @@ public final class EnchantPointPage {
     /** 打开「渲染设置 · 对象名」窗口（共用件 RenderObjectScreen，六个点位模块同一份实现） */
     private void openRenderScreen(EspRenderObject object) {
         if (owner.client() == null) return;
-        owner.client().setScreen(new RenderObjectScreen(owner.client().screen, object,
+        owner.client().gui.setScreen(new RenderObjectScreen(owner.client().gui.screen(), object,
             defaultsOf(object), module::persistSettings));
     }
 
@@ -125,6 +125,6 @@ public final class EnchantPointPage {
 
     /** 执行后直接回到游戏（旧项目 {@code mc.setScreen(null)}） */
     private void closeToGame() {
-        owner.client().setScreen(null);
+        owner.client().gui.setScreen(null);
     }
 }

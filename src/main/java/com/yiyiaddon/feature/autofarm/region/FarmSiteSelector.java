@@ -300,7 +300,7 @@ public final class FarmSiteSelector {
      * 不该逼人先切空手）；模式内的一切左右键都不落到世界里。</p>
      */
     private boolean shouldTakeOver(net.minecraft.world.entity.player.Player player, InteractionHand hand) {
-        return active && hand == InteractionHand.MAIN_HAND && player != null && mc.screen == null;
+        return active && hand == InteractionHand.MAIN_HAND && player != null && mc.gui.screen() == null;
     }
 
     /** 准星命中的方块坐标，没命中返回 {@code null}（{@link BlockHitResult} 本身即「命中方块」） */

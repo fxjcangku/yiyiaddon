@@ -316,7 +316,7 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
         // （用户 2026-09-19 统一口径：静默容器只在没有玩家界面时跑）——冻住状态机，
         // 状态计时一并冻住，玩家看背包期间不会把箱子误判成「开箱失败」而跳过。
         // 我方静默开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
-        if (!(client.screen instanceof AbstractContainerScreen<?>)) {
+        if (!(client.gui.screen() instanceof AbstractContainerScreen<?>)) {
             stateMachine.tick();
         }
 

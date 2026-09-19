@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.combat.config.KillAuraTexts;
 import com.yiyiaddon.feature.combat.target.AttackableEntityTypes;
 import com.yiyiaddon.feature.combat.target.SortPriority;
 import com.yiyiaddon.feature.combat.ui.KillAuraConsoleScreen;
+import com.yiyiaddon.platform.identity.EntityIdentifier;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
@@ -31,6 +32,7 @@ import io.github.humbleui.skija.Canvas;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypeIds;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -306,7 +308,7 @@ public final class KillAuraTargetingPage {
      * 其余按 {@code MobCategory} 归类。
      */
     private static String groupOf(EntityType<?> type) {
-        if (type == EntityType.PLAYER) return GROUP_PLAYER;
+        if (type == EntityIdentifier.typeOf(EntityTypeIds.PLAYER)) return GROUP_PLAYER;
         return switch (type.getCategory()) {
             case MONSTER -> GROUP_MONSTER;
             case CREATURE -> GROUP_ANIMAL;
@@ -339,7 +341,7 @@ public final class KillAuraTargetingPage {
     private void openEntitySelector() {
         if (owner.client() == null) return;
         List<String> types = module.settings().entityTypes;
-        owner.client().setScreen(new SelectorScreen(KillAuraTexts.NAME_ENTITY_TYPES, owner.client().screen,
+        owner.client().gui.setScreen(new SelectorScreen(KillAuraTexts.NAME_ENTITY_TYPES, owner.client().gui.screen(),
             entityCandidates(),
             () -> new ArrayList<>(types),
             key -> changeEntityTypes(key, true),
@@ -501,37 +503,37 @@ public final class KillAuraTargetingPage {
         // ── 一、没有刷怪蛋的生物：这一级只在实体渲染图不可用时兜底 ──
         // 巨人：原版 GiantMobRenderer 用的就是僵尸模型 + 僵尸贴图（放大 6 倍），正常走实体渲染图；
         // 模型渲不出来时以僵尸刷怪蛋兜底 —— 同样是「僵尸形象」，不会出现用户点名的绿色方块
-        Map.entry(EntityType.GIANT, Items.ZOMBIE_SPAWN_EGG),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.GIANT), Items.ZOMBIE_SPAWN_EGG),
         // 幻术师：灾厄村民里的施法者，同族中形象最接近唤魔者，模型渲不出来时以唤魔者刷怪蛋兜底
-        Map.entry(EntityType.ILLUSIONER, Items.EVOKER_SPAWN_EGG),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.ILLUSIONER), Items.EVOKER_SPAWN_EGG),
         // 玩家：玩家渲染器只认 AbstractClientPlayer（合成的玩家实体拿不到渲染器，模型路径必然不可用）；
         // 真实玩家头像另有出路（管理员检测页走 PlayerFaceCache），这里是通用兜底，脑袋最直白
-        Map.entry(EntityType.PLAYER, Items.PLAYER_HEAD),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.PLAYER), Items.PLAYER_HEAD),
         // 人偶：假人渲染器只认 ClientMannequin（由客户端世界生成的实体），合成的 MANNEQUIN 实体拿不到
         // 渲染器；它与盔甲架同类（可摆姿势的摆件），注册表里也没有对应物品，用盔甲架图标
-        Map.entry(EntityType.MANNEQUIN, Items.ARMOR_STAND),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.MANNEQUIN), Items.ARMOR_STAND),
         // ── 二、非生物实体（都是 MISC 分类，不进第 ② 级）：没有「生物形象」可取，静态物品更清楚 ──
         // 拴绳结：本体只是拴在栅栏上的一个绳结，实体渲染图是几个像素的结，拴绳物品更易辨识
-        Map.entry(EntityType.LEASH_KNOT, Items.LEAD),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.LEASH_KNOT), Items.LEAD),
         // 荧光展示框：空框的渲染图与普通物品展示框完全同形，只有荧光墨囊图标能体现「荧光」
-        Map.entry(EntityType.GLOW_ITEM_FRAME, Items.GLOW_INK_SAC),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.GLOW_ITEM_FRAME), Items.GLOW_INK_SAC),
         // 以下全是抛射物 / 攻击效果 / 不可见实体：原版要么用 ThrownItemRenderer 把物品模型画进 3D
         // （渲染图与物品图标本就是同一个东西），要么（不祥之物生成器）本体根本不渲染，故一律静态物品
-        Map.entry(EntityType.EYE_OF_ENDER, Items.ENDER_EYE),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.EYE_OF_ENDER), Items.ENDER_EYE),
         // 旋风人的风弹：实体 breeze_wind_charge，物品只有 wind_charge
-        Map.entry(EntityType.BREEZE_WIND_CHARGE, Items.WIND_CHARGE),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.BREEZE_WIND_CHARGE), Items.WIND_CHARGE),
         // 火球三件套：注册表里只有 fire_charge / dragon_breath，没有火球物品
-        Map.entry(EntityType.FIREBALL, Items.FIRE_CHARGE),
-        Map.entry(EntityType.SMALL_FIREBALL, Items.FIRE_CHARGE),
-        Map.entry(EntityType.DRAGON_FIREBALL, Items.DRAGON_BREATH),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.FIREBALL), Items.FIRE_CHARGE),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.SMALL_FIREBALL), Items.FIRE_CHARGE),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.DRAGON_FIREBALL), Items.DRAGON_BREATH),
         // 凋灵之首与凋灵骷髅头同形
-        Map.entry(EntityType.WITHER_SKULL, Items.WITHER_SKELETON_SKULL),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.WITHER_SKULL), Items.WITHER_SKELETON_SKULL),
         // 潜影贝子弹：用壳指代（潜影贝本体走刷怪蛋）
-        Map.entry(EntityType.SHULKER_BULLET, Items.SHULKER_SHELL),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.SHULKER_BULLET), Items.SHULKER_SHELL),
         // 唤魔者尖牙：瞬时攻击效果实体（不是生物），用唤魔者的刷怪蛋指代来源，原版没有尖牙物品
-        Map.entry(EntityType.EVOKER_FANGS, Items.EVOKER_SPAWN_EGG),
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.EVOKER_FANGS), Items.EVOKER_SPAWN_EGG),
         // 不祥之物生成器：原版本体不渲染任何东西（不可见实体），渲染图必然是空的，只能用物品表示
-        Map.entry(EntityType.OMINOUS_ITEM_SPAWNER, Items.OMINOUS_BOTTLE)
+        Map.entry(EntityIdentifier.typeOf(EntityTypeIds.OMINOUS_ITEM_SPAWNER), Items.OMINOUS_BOTTLE)
     );
 
     /**

@@ -125,9 +125,9 @@ public final class AdminListPage {
             entries.add(new PlayerEntry(candidate, PlayerListProbe.skin(candidate)));
         }
 
-        client.setScreen(new SelectorScreen(
+        client.gui.setScreen(new SelectorScreen(
             whitelist ? AdminDetectorTexts.NAME_WHITELIST : AdminDetectorTexts.NAME_BLACKLIST,
-            client.screen,
+            client.gui.screen(),
             entries,
             () -> new ArrayList<>(selected),
             key -> change(selected, key, true),

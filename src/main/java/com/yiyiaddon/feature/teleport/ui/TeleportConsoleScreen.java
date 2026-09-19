@@ -145,7 +145,7 @@ public final class TeleportConsoleScreen extends PanelScreen implements ConsoleH
     private void onTick() {
         if (++autoRefreshTicks < AUTO_REFRESH_TICKS) return;
         autoRefreshTicks = 0;
-        if (minecraft == null || minecraft.screen != this) return;
+        if (minecraft == null || minecraft.gui.screen() != this) return;
         if (mousePressed(GLFW.GLFW_MOUSE_BUTTON_LEFT) || mousePressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) return;
 
         if (tab == Tab.OVERVIEW) {
@@ -229,7 +229,7 @@ public final class TeleportConsoleScreen extends PanelScreen implements ConsoleH
                 "顶部状态条每秒自动刷新；概览页整页每秒重画，其余页按这个按钮重排最新数据"),
             ConsoleWidgets.resetDefaultsCtl(this, module, this::reload),
             new Ctl(new Button("§7关闭", () -> {
-                if (minecraft != null) minecraft.setScreen(null);
+                if (minecraft != null) minecraft.gui.setScreen(null);
             }))), ButtonStrip.BUTTON_HEIGHT));
     }
 

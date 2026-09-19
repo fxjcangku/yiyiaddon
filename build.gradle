@@ -9,7 +9,7 @@ base {
 }
 
 loom {
-    // 将 26.1.2 包私有的 GlDevice 提升为可访问（Skija 取主 Framebuffer 名字所需）
+    // 将包私有的 GlDevice 提升为可访问（Skija 取主 Framebuffer 名字所需）
     accessWidenerPath = file('src/main/resources/yiyiaddon.accesswidener')
 
     runs {
@@ -51,7 +51,7 @@ repositories {
 }
 
 dependencies {
-    // 26.1.2 为官方/原生名称体系，Loom 直接使用 Mojang artifacts，无需 mappings 声明
+    // 26.1 起为官方/原生名称体系（26.2 相同），Loom 直接使用 Mojang artifacts，无需 mappings 声明
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
@@ -74,7 +74,7 @@ dependencies {
     include "io.github.humbleui:skija-windows-arm64:${project.skija_version}"
 
     // 开发环境正版登录（DevAuth Neo，MIT）：只在开发运行时存在，不进发布产物。
-    // 用了 localRuntime 而不是 modLocalRuntime —— 26.1.2 走官方名称体系，不需要再做映射。
+    // 用了 localRuntime 而不是 modLocalRuntime —— 26.1 起走官方名称体系（26.2 相同），不需要再做映射。
     localRuntime 'maven.modrinth:dev-auth-neo:1.1.1'
 }
 

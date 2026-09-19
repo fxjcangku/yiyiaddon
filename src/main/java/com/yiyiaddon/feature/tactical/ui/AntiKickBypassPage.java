@@ -124,6 +124,6 @@ public final class AntiKickBypassPage extends CompactModulePage implements Modul
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new AntiKickBypassConsoleScreen(client.screen, module));
+        client.gui.setScreen(new AntiKickBypassConsoleScreen(client.gui.screen(), module));
     }
 }

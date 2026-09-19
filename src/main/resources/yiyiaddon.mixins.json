@@ -13,12 +13,12 @@
     "KeyboardHandlerAccessor",
     "LocalPlayerEatAnimationMixin",
     "LocalPlayerScreenGuardMixin",
+    "MinecraftFramePresentMixin",
     "MinecraftSetScreenMixin",
     "ModelManagerReloadMixin",
     "MultiPlayerGameModeFastBreakMixin",
     "MultiPlayerGameModePacketBreakMixin",
     "PreeditCaptureMixin",
-    "RenderTargetMixin",
     "ResourcePackPushMixin"
   ],
   "injectors": {

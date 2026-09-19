@@ -541,7 +541,7 @@ public final class LeyuanRouteService {
             lastScreenFingerprint = 0;
             return true;
         }
-        if (mc.screen != null || mc.gameMode == null || mc.getConnection() == null || mc.player == null) return false;
+        if (mc.gui.screen() != null || mc.gameMode == null || mc.getConnection() == null || mc.player == null) return false;
         if (menuUseCooldown > 0) {
             menuUseCooldown--;
             return false;
@@ -712,7 +712,7 @@ public final class LeyuanRouteService {
             }
             return;
         }
-        if (mc.screen != null || mc.getConnection() == null || mc.player == null) return;
+        if (mc.gui.screen() != null || mc.getConnection() == null || mc.player == null) return;
         if (scanClickTicks > 0) {
             scanClickTicks--;
             if (scanClickTicks == 1) performLeftClick();
@@ -791,7 +791,7 @@ public final class LeyuanRouteService {
         if (mc.player.containerMenu != null && mc.player.containerMenu != mc.player.inventoryMenu) {
             return mc.player.containerMenu;
         }
-        if (mc.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen) {
+        if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen) {
             return screen.getMenu();
         }
         return null;

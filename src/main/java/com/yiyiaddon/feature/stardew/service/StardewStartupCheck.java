@@ -311,8 +311,8 @@ public final class StardewStartupCheck {
      */
     private void showNotice(String title, String headline, List<String> items) {
         mc.execute(() -> {
-            if (mc.screen instanceof ConfirmPanelScreen) return;
-            mc.setScreen(ConfirmPanelScreen.notice(title, headline, items, mc.screen,
+            if (mc.gui.screen() instanceof ConfirmPanelScreen) return;
+            mc.gui.setScreen(ConfirmPanelScreen.notice(title, headline, items, mc.gui.screen(),
                 () -> new ModuleScreen(ModuleEntries.of(module), null)));
         });
     }

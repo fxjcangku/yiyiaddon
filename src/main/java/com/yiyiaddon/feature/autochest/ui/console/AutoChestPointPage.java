@@ -124,12 +124,12 @@ public final class AutoChestPointPage {
     /** 二次确认窗（与旧项目同一构造与文案）；确认动作沿用旧项目「执行后回到游戏」 */
     private void confirm(String title, String message, Runnable action) {
         if (owner.client() == null) return;
-        owner.client().setScreen(new ConfirmPanelScreen(title, List.of(message),
-            "§c§l确认", action, owner.client().screen));
+        owner.client().gui.setScreen(new ConfirmPanelScreen(title, List.of(message),
+            "§c§l确认", action, owner.client().gui.screen()));
     }
 
     /** 执行后直接回到游戏（旧项目 {@code mc.setScreen(null)}） */
     private void closeToGame() {
-        if (owner.client() != null) owner.client().setScreen(null);
+        if (owner.client() != null) owner.client().gui.setScreen(null);
     }
 }

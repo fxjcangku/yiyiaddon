@@ -85,7 +85,7 @@ public final class SettingColorPicker extends SettingWidget {
     public boolean onClick(float mx, float my, float x, float y, int button) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft == null) return false;
-        minecraft.setScreen(new ColorPickerScreen(title, color, minecraft.screen, onChange));
+        minecraft.gui.setScreen(new ColorPickerScreen(title, color, minecraft.gui.screen(), onChange));
         return true;
     }
 }

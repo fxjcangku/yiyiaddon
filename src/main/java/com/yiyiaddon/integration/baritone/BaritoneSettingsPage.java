@@ -314,7 +314,7 @@ public final class BaritoneSettingsPage extends BasePage {
      */
     private SettingLink listButton(String title, BaritoneChoices.Kind kind, Settings.Setting<?> setting) {
         return new SettingLink(() -> BaritoneChoices.ids(setting, kind).size() + " 项",
-            () -> open(new SelectorScreen(title, Minecraft.getInstance().screen,
+            () -> open(new SelectorScreen(title, Minecraft.getInstance().gui.screen(),
                 BaritoneChoices.entries(kind),
                 () -> BaritoneChoices.ids(setting, kind),
                 id -> change(setting, kind, id, true),
@@ -330,20 +330,20 @@ public final class BaritoneSettingsPage extends BasePage {
     /** 文字名单（{@code List<String>}）：点开一个「输入一行 + 减号」的编辑器 */
     private SettingLink textListButton(String title, Settings.Setting<?> setting) {
         return new SettingLink(() -> stringList(setting).size() + " 项",
-            () -> open(new BaritoneTextListScreen(Minecraft.getInstance().screen, title,
+            () -> open(new BaritoneTextListScreen(Minecraft.getInstance().gui.screen(), title,
                 () -> stringList(setting), list -> write(setting, list)))).width(LIST_LINK_WIDTH);
     }
 
     /** 方块映射（{@code Map<Block, List<Block>>}）：点开一个「选键 → 加减替代方块」的编辑器 */
     private SettingLink mapButton(String title, Settings.Setting<?> setting) {
         return new SettingLink(() -> mapValue(setting).size() + " 组",
-            () -> open(new BaritoneBlockMapScreen(Minecraft.getInstance().screen, title,
+            () -> open(new BaritoneBlockMapScreen(Minecraft.getInstance().gui.screen(), title,
                 () -> mapValue(setting), map -> write(setting, map)))).width(LIST_LINK_WIDTH);
     }
 
     /** 切换界面：只有主线程能调（界面切换由输入事件驱动，因此这里一定是主线程） */
     private static void open(Screen screen) {
-        Minecraft.getInstance().setScreen(screen);
+        Minecraft.getInstance().gui.setScreen(screen);
     }
 
     @SuppressWarnings("unchecked")

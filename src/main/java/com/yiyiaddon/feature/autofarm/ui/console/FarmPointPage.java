@@ -53,7 +53,7 @@ public final class FarmPointPage {
     /** 打开「渲染设置 · 对象名」窗口（共用件 {@link RenderObjectScreen}） */
     private void openRenderScreen(EspRenderObject object) {
         if (host.client() == null) return;
-        host.client().setScreen(new RenderObjectScreen(host.client().screen, object,
+        host.client().gui.setScreen(new RenderObjectScreen(host.client().gui.screen(), object,
             defaultsOf(object), module::persistSettings));
     }
 

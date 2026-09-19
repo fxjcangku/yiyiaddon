@@ -70,7 +70,7 @@ public abstract class SkiaScreen extends Screen {
 
     /** 由帧末 Mixin 在主 Framebuffer blit 之前调用。 */
     public final void renderSkiaFrame() {
-        if (!framePending || this.minecraft == null || this.minecraft.screen != this) {
+        if (!framePending || this.minecraft == null || this.minecraft.gui.screen() != this) {
             framePending = false;
             // 这一帧不画面板，但隐藏格子可能已经落地：本帧抽帧时还轮得到本界面（画了格子），
             // 帧末却已经换了界面 —— 两边都不收尾，屏幕中央那两行放大的原版图标会裸露一帧
@@ -128,7 +128,7 @@ public abstract class SkiaScreen extends Screen {
 
     protected void closing() {
         if (this.minecraft != null) {
-            this.minecraft.setScreen(this.parent);
+            this.minecraft.gui.setScreen(this.parent);
         }
     }
 }

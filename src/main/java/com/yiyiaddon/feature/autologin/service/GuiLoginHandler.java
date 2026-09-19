@@ -64,7 +64,7 @@ public final class GuiLoginHandler {
      * <p>状态保存在本实例上，模块不要每 tick 新建处理器，
      * 否则 ticks 永远回到 1，只会填密码、永远点不到登录按钮。</p>
      *
-     * @param screen   当前屏幕（模块传 mc.screen）
+     * @param screen   当前屏幕（模块传 mc.gui.screen()）
      * @param password 登录密码
      * @return true 表示本 tick 首次识别到登录界面（调用方据此提示一次）
      */

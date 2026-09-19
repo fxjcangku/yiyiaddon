@@ -178,7 +178,7 @@ public final class SubserverRouteService {
             listener.notify("菜单点击完成，正在确认目标区域。");
             return;
         }
-        if (!(mc.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)
+        if (!(mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)
             || mc.gameMode == null || mc.player == null) {
             return;
         }

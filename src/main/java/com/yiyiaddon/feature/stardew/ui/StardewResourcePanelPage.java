@@ -264,10 +264,10 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
      * 打开控制台。
      *
      * <p>控制台窗口（概览 / 种植 / 运行 / 后勤 / 点位 / 日志）由控制台批次的工程师实现，
-     * 约定入口为 {@code new StardewConsoleScreen(minecraft.screen, module)}。</p>
+     * 约定入口为 {@code new StardewConsoleScreen(minecraft.gui.screen(), module)}。</p>
      */
     private void openConsole() {
-        mc.setScreen(new StardewConsoleScreen(mc.screen, module));
+        mc.gui.setScreen(new StardewConsoleScreen(mc.gui.screen(), module));
     }
 
     /**

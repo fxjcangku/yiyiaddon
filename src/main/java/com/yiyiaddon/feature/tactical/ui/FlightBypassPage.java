@@ -127,6 +127,6 @@ public final class FlightBypassPage extends CompactModulePage implements ModuleP
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new FlightBypassConsoleScreen(client.screen, module));
+        client.gui.setScreen(new FlightBypassConsoleScreen(client.gui.screen(), module));
     }
 }

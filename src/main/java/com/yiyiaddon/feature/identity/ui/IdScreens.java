@@ -35,14 +35,14 @@ public final class IdScreens {
                 module::openRootDirectory,
                 () -> openDataClean(self[0], module));
         self[0] = management;
-        client.setScreen(management);
+        client.gui.setScreen(management);
     }
 
     /** 打开「ID 数据清理」；「返回」回到「ID 更多管理」。 */
     public static void openDataClean(Screen parent, IdConfigModule module) {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new IdDataCleanScreen(parent,
+        client.gui.setScreen(new IdDataCleanScreen(parent,
                 module::confirmClearItems,
                 module::confirmClearEntities,
                 module::confirmClearBlocks,
@@ -55,27 +55,27 @@ public final class IdScreens {
     public static void openAdd(Screen parent) {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new IdAddScreen(parent));
+        client.gui.setScreen(new IdAddScreen(parent));
     }
 
     /** 打开物品识别结果窗口。 */
     public static void openItemResult(ItemIdentity identity, Screen parent) {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new IdResultScreen(identity, parent));
+        client.gui.setScreen(new IdResultScreen(identity, parent));
     }
 
     /** 打开方块识别结果窗口。 */
     public static void openBlockResult(BlockIdentity identity, Screen parent) {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new IdBlockResultScreen(identity, parent));
+        client.gui.setScreen(new IdBlockResultScreen(identity, parent));
     }
 
     /** 打开实体识别结果窗口。 */
     public static void openEntityResult(EntityIdentity identity, Screen parent) {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new IdEntityResultScreen(identity, parent));
+        client.gui.setScreen(new IdEntityResultScreen(identity, parent));
     }
 }

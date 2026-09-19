@@ -33,6 +33,7 @@ import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.network.Connection;
 
 import java.util.Set;
 
@@ -70,7 +71,7 @@ import java.util.Set;
  *         主菜单三处 {@code instanceof} 判定改为「类名相等」或
  *         {@code Class.forName(类名)} + {@code isAssignableFrom}（与自动农场 / 自动挖矿同一等价改写）。</li>
  *     <li><b>取消界面</b>：旧 {@code event.setCancelled(true)} → 新 {@code event.cancel()}，
- *         派发方收到取消后 {@code client.setScreen(null)}，等价「静默容器菜单」。</li>
+ *         派发方收到取消后 {@code client.gui.setScreen(null)}，等价「静默容器菜单」。</li>
  *     <li><b>关闭模块</b>：旧 {@code toggle()} → {@code ModuleManager.setEnabled(MODULE_ID, false)}。
  *         {@link #onEnable()} 内的环境自关闭延到下一帧（旧基类注释同口径：避免状态机重入），
  *         事件与每刻路径内同步关闭。</li>
@@ -449,9 +450,9 @@ public final class AutoLoginModule extends Module {
 
         // GUI 自动登录：每 tick 检查当前屏幕。服务器用对话屏登录时，屏幕在进服加载阶段就会弹出，
         // 此时 mc.player 仍为 null，所以这里只判断屏幕，不能等玩家实体出现。
-        if (settings.autoLogin && settings.guiLogin && mc.screen != null) {
+        if (settings.autoLogin && settings.guiLogin && mc.gui.screen() != null) {
             String password = settings.loginPassword;
-            if (!password.isEmpty() && guiLoginHandler.tryHandle(mc.screen, password)) {
+            if (!password.isEmpty() && guiLoginHandler.tryHandle(mc.gui.screen(), password)) {
                 notify("已识别 GUI 登录框，正在自动填写密码...");
             }
         }
@@ -930,10 +931,18 @@ public final class AutoLoginModule extends Module {
      *
      * <p>正版验证服在登录握手阶段启用连接加密，离线服不会启用。不能比较会话 UUID 与世界 UUID：
      * 代理转发 UUID 的离线服也可能保持两者一致（旧实现注释照旧）。</p>
+     *
+     * <p><b>26.2 口径</b>：{@code Connection#isEncrypted()} 已被移除，且连接里不再保存「已加密」布尔值，
+     * 加密状态只剩「管线里装没装 {@code CipherDecoder}」这一种表现。这里按
+     * {@code setEncryptionKey} 的装配方式判断（它把解密处理器插在 {@code splitter} 之前、命名为
+     * {@code decrypt}），与旧布尔值同源同义。读的是包私有字段 {@code channel}，
+     * 已随本模组的 accessWidener 放开。</p>
      */
     private boolean isAuthenticatedServer() {
         if (mc.player == null || mc.level == null || mc.getConnection() == null) return false;
-        return mc.getConnection().getConnection().isEncrypted();
+        Connection connection = mc.getConnection().getConnection();
+        if (connection == null || connection.channel == null) return false;
+        return connection.channel.pipeline().get("decrypt") != null;
     }
 
     /**

@@ -162,7 +162,7 @@ public final class AutoChestWithdrawPage {
         }
         for (ItemIdentity identity : custom) entries.add(new ItemEntry(identity, false));
 
-        client.setScreen(new SelectorScreen("目标物品", client.screen, entries,
+        client.gui.setScreen(new SelectorScreen("目标物品", client.gui.screen(), entries,
             () -> new ArrayList<>(IdentityTargetConfig.selectedItemKeys()),
             key -> IdentityTargetConfig.setItemSelected(key, true),
             key -> IdentityTargetConfig.setItemSelected(key, false)));
@@ -171,7 +171,7 @@ public final class AutoChestWithdrawPage {
     /** 打开子界面（每种物品数量）；关闭后回到控制台 */
     private void openSubScreen(Screen screen) {
         if (owner.client() == null || screen == null) return;
-        owner.client().setScreen(screen);
+        owner.client().gui.setScreen(screen);
     }
 
     /** 目标物品计数（与旧项目逐字同源）：{@code 未选择目标（共 N 项）} / {@code 已选 X / N 项} */

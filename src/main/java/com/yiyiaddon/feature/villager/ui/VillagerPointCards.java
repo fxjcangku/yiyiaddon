@@ -135,6 +135,6 @@ public final class VillagerPointCards {
     /** 绑定按钮点击后关界面（旧 {@code mc.setScreen(null)} 原样；客户端未就绪时不动） */
     private static void closeScreen() {
         Minecraft client = Minecraft.getInstance();
-        if (client != null) client.setScreen(null);
+        if (client != null) client.gui.setScreen(null);
     }
 }

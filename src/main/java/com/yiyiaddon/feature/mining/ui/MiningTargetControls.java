@@ -332,12 +332,12 @@ public final class MiningTargetControls {
     private void openScreen(Screen screen) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || screen == null) return;
-        client.setScreen(screen);
+        client.gui.setScreen(screen);
     }
 
     /** 上级屏幕（选择器关闭后回到来源页面） */
     private static Screen currentScreen() {
         Minecraft client = Minecraft.getInstance();
-        return client == null ? null : client.screen;
+        return client == null ? null : client.gui.screen();
     }
 }

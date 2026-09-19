@@ -13,6 +13,7 @@ import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.EnchantmentMenu;
 import net.minecraft.world.inventory.GrindstoneMenu;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -99,12 +100,24 @@ public final class EnchantContainer {
      * <p>全流程共用这一处换算：菜单前若干槽是容器本体，之后是玩家背包（最后 36 槽）。</p>
      */
     public int containerSlotOf(AbstractContainerMenu handler, int invSlot) {
-        int containerSize = handler.slots.size() - INVENTORY_SLOTS;
+        int containerSize = containerSlotCount(handler);
         if (invSlot < 9) {
             return containerSize + 27 + invSlot;
         } else {
             return containerSize + (invSlot - 9);
         }
+    }
+
+    /**
+     * 容器本体占用的槽位数（菜单总槽位 − 玩家背包 36 槽）。
+     *
+     * <p><b>取代只能对箱子用的 {@code getRowCount() * 9}</b>：潜影盒的菜单是
+     * {@link ShulkerBoxMenu}（{@code extends AbstractContainerMenu}，没有 {@code getRowCount}），
+     * 用行数换算的地方在潜影盒成品箱上会直接判成「界面没打开」→ 每 tick 重发开箱包（反复打开）。
+     * 箱子 / 陷阱箱 / 木桶 / 潜影盒共用这一条算式，与 {@link #containerSlotOf} 同一来源。</p>
+     */
+    public int containerSlotCount(AbstractContainerMenu handler) {
+        return Math.max(0, handler.slots.size() - INVENTORY_SLOTS);
     }
 
     // ── 空白书堆叠合并（旧 :1823-1870） ──
@@ -220,9 +233,20 @@ public final class EnchantContainer {
         return mc.player != null && mc.player.containerMenu instanceof GrindstoneMenu;
     }
 
-    /** 箱子菜单是否已打开（书本箱/青金石箱/成品箱/装备箱/铁砧箱共用 ChestMenu） */
+    /**
+     * 方块容器菜单是否已打开（书本箱/青金石箱/成品箱/装备箱/铁砧箱共用）。
+     *
+     * <p><b>潜影盒必须一起认</b>：箱子 / 陷阱箱 / 木桶开出 {@link ChestMenu}，但潜影盒开出的是
+     * {@link ShulkerBoxMenu}（Minecraft 里两者互不相干）。旧项目只判 {@code instanceof ChestMenu}，
+     * 潜影盒做的成品箱永远判成「没打开」→ 状态机每 tick 重发一次开箱包（实机表现：潜影盒反复打开）。</p>
+     */
     public boolean chestMenuOpen() {
-        return mc.player != null && mc.player.containerMenu instanceof ChestMenu;
+        return mc.player != null && isBlockContainerMenu(mc.player.containerMenu);
+    }
+
+    /** 是否为方块容器菜单：箱子 / 陷阱箱 / 木桶（{@link ChestMenu}）与潜影盒（{@link ShulkerBoxMenu}） */
+    public static boolean isBlockContainerMenu(AbstractContainerMenu menu) {
+        return menu instanceof ChestMenu || menu instanceof ShulkerBoxMenu;
     }
 
     /** 铁砧菜单是否已打开 */

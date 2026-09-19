@@ -69,7 +69,7 @@ public final class StardewPlantingPage {
     public void build(CompactStack stack) {
         for (SelectorDef def : SELECTORS) {
             Button select = new Button("点击选择",
-                () -> owner.client().setScreen(new StardewTargetSelectScreen(owner.client().screen, module, def.category)));
+                () -> owner.client().gui.setScreen(new StardewTargetSelectScreen(owner.client().gui.screen(), module, def.category)));
             // 空态禁用：判据来自 module.selection(def.category).selectedKeys()（与下面的清空动作同源，
             // 见 selectionKeys：它返回的就是这份选中的内存镜像，与模块运行时同一个 List 实例）；
             // 逐帧求值见 IconButton#disabledWhen(Supplier)

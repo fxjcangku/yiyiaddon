@@ -133,6 +133,6 @@ public final class ServerDetectorPage extends CompactModulePage implements Modul
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new ServerDetectorConsoleScreen(client.screen, module));
+        client.gui.setScreen(new ServerDetectorConsoleScreen(client.gui.screen(), module));
     }
 }

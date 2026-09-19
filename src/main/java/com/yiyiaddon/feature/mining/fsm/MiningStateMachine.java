@@ -1242,7 +1242,7 @@ public final class MiningStateMachine {
 
         // 界面开合守卫（见 uiOpenTicks 字段注释）：界面开着时挖矿必然停摆，不能算卡死。
         // 关闭界面后若开了较久，重走一次 mine 启动流程，把 Baritone 可能已被自己的卡死检测取消的 mine 拉回来。
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             uiOpenTicks++;
         } else if (uiOpenTicks > 0) {
             boolean needRestart = uiOpenTicks > UI_RELAX_TICKS;
@@ -1254,7 +1254,7 @@ public final class MiningStateMachine {
                 mineRestartCooldown = 100; // 与「区块未就绪重启」同一口径：重启后给 5 秒观察期
             }
         }
-        boolean uiOpen = mc.screen != null;
+        boolean uiOpen = mc.gui.screen() != null;
 
         // 卡死检测（两种模式共用）：速度监测，3 分钟持续低速判定卡死（旧 :430-449）
         double currentSpeed = Math.sqrt(
@@ -1797,7 +1797,7 @@ public final class MiningStateMachine {
             return;
         }
         // 界面开着时不计米（见 uiOpenTicks 字段注释）：那段时间挖不停是原版语义，不是被水卡住
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             waterStuckTicks = 0;
             waterNoMoveTicks = 0;
             lastWaterSample = null;
@@ -2562,8 +2562,8 @@ public final class MiningStateMachine {
         // 静默容器只在没有玩家界面时跑）。往下走会在玩家看背包时静默开箱，把 containerMenu
         // 悄悄换成箱子菜单，玩家背包里的点击就按箱子的 containerId 发出去（错位、丢物品）。
         // 我方开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
-        if (mc.screen instanceof AbstractContainerScreen<?>) return;
-        if (mc.screen != null && !(mc.screen instanceof PauseScreen)) {
+        if (mc.gui.screen() instanceof AbstractContainerScreen<?>) return;
+        if (mc.gui.screen() != null && !(mc.gui.screen() instanceof PauseScreen)) {
             // 游戏菜单 / 控制台等非容器界面：没必要占着容器，周期性收掉，但不打断流程
             if (stateTick % 20 == 0) module.getContainer().closeContainer();
             return;
@@ -2699,8 +2699,8 @@ public final class MiningStateMachine {
             // 「我本来是这个界面的，然后卸货触发就把我这个界面关掉了」）——发包开箱、点槽位、发指令
             // 全都与客户端界面无关，关掉它只会把人从菜单里踢回游戏（镜头被抢）
             // 玩家自己开着容器界面（背包 / 创造背包）时只等不做（同卸货阶段，见上）
-            if (mc.screen instanceof AbstractContainerScreen<?>) return;
-            if (mc.screen != null && !(mc.screen instanceof PauseScreen) && stateTick % 20 == 0) {
+            if (mc.gui.screen() instanceof AbstractContainerScreen<?>) return;
+            if (mc.gui.screen() != null && !(mc.gui.screen() instanceof PauseScreen) && stateTick % 20 == 0) {
                 module.getContainer().closeContainer();
             }
             module.getContainer().openContainer(foodChest.pos());

@@ -94,6 +94,6 @@ public final class AutoLoginPage extends CompactModulePage implements ModulePage
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new AutoLoginConsoleScreen(client.screen, module));
+        client.gui.setScreen(new AutoLoginConsoleScreen(client.gui.screen(), module));
     }
 }

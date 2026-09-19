@@ -1112,7 +1112,7 @@ public final class MiningContainer {
         if (isPlayerInventoryClickBlocked()) {
             foodLog(20, "副手口粮 ▸ 搬不进去：容器开着(containerId={}, 界面={})，等收尾",
                 mc.player.containerMenu == null ? -1 : mc.player.containerMenu.containerId,
-                mc.screen == null ? "无" : mc.screen.getClass().getSimpleName());
+                mc.gui.screen() == null ? "无" : mc.gui.screen().getClass().getSimpleName());
             return;
         }
         int slot = findBestFoodSlot(0, 35, mc.player.getFoodData(), false);
@@ -1235,7 +1235,7 @@ public final class MiningContainer {
                 // 容器还开着：此刻换槽会被客户端当窗口不匹配吞掉，先收尾容器，下一轮再搬
                 eatLog(20, "搬食物被容器挡住 ▸ 先收容器(containerId={}, 界面={})",
                     mc.player.containerMenu == null ? -1 : mc.player.containerMenu.containerId,
-                    mc.screen == null ? "无" : mc.screen.getClass().getSimpleName());
+                    mc.gui.screen() == null ? "无" : mc.gui.screen().getClass().getSimpleName());
                 closeContainer();
                 return;
             }
@@ -1280,7 +1280,7 @@ public final class MiningContainer {
         eatLog(0, "起手 ▸ {}槽位{} 选中槽{} {} x{} · 容器id{} · 界面{}",
             eatFromOffhand ? "副手" : "主手", slot, inventory.getSelectedSlot(), eatItem, eatCountBefore,
             mc.player.containerMenu == null ? -1 : mc.player.containerMenu.containerId,
-            mc.screen == null ? "无" : mc.screen.getClass().getSimpleName());
+            mc.gui.screen() == null ? "无" : mc.gui.screen().getClass().getSimpleName());
     }
 
     /**

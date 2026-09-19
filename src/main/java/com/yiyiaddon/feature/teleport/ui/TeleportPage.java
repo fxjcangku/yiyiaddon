@@ -108,6 +108,6 @@ public final class TeleportPage extends CompactModulePage implements ModulePage 
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new TeleportConsoleScreen(client.screen, module));
+        client.gui.setScreen(new TeleportConsoleScreen(client.gui.screen(), module));
     }
 }

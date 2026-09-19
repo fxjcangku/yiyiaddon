@@ -100,7 +100,7 @@ public final class ReconnectOverviewPage {
     private void confirmTest() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(ConfirmPanelScreen.inPlace(
+        client.gui.setScreen(ConfirmPanelScreen.inPlace(
             ReconnectTexts.CONFIRM_TEST_TITLE,
             List.of(
                 ReconnectTexts.CONFIRM_TEST_HEADLINE,

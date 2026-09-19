@@ -37,7 +37,7 @@ public final class PacketBreakSelectors {
         Minecraft client = Minecraft.getInstance();
         if (client == null || module == null) return;
         List<String> selected = module.settings().targetBlocks;
-        client.setScreen(new SelectorScreen(PacketBreakTexts.SELECT_TITLE, parent, blockCandidates(),
+        client.gui.setScreen(new SelectorScreen(PacketBreakTexts.SELECT_TITLE, parent, blockCandidates(),
             () -> new ArrayList<>(selected),
             key -> change(module, selected, key, true),
             key -> change(module, selected, key, false)));

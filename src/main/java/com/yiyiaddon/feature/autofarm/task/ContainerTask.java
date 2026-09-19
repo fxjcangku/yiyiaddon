@@ -44,7 +44,7 @@ public abstract class ContainerTask implements FarmTask {
         // 静默容器只在没有玩家界面时跑）。此时若继续静默开箱，会把 player.containerMenu
         // 悄悄换成箱子菜单，玩家背包里的点击就按箱子的 containerId 发出去（错位、丢物品）。
         // 我方静默开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
-        if (mc.screen instanceof AbstractContainerScreen<?>) return TaskResult.IN_PROGRESS;
+        if (mc.gui.screen() instanceof AbstractContainerScreen<?>) return TaskResult.IN_PROGRESS;
 
         // 目标箱必须是容器
         if (!(mc.level.getBlockEntity(boxPos) instanceof Container)) {

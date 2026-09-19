@@ -218,7 +218,7 @@ public final class IdIdentifyModule extends Module {
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ITEM,
                 identity.displayName(), List.of(), null, null);
-        client.execute(() -> IdScreens.openItemResult(identity, client.screen));
+        client.execute(() -> IdScreens.openItemResult(identity, client.gui.screen()));
         return summary;
     }
 
@@ -254,7 +254,7 @@ public final class IdIdentifyModule extends Module {
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.BLOCK,
                 identity.displayName(), List.of(), null, null);
-        client.execute(() -> IdScreens.openBlockResult(identity, client.screen));
+        client.execute(() -> IdScreens.openBlockResult(identity, client.gui.screen()));
         return summary;
     }
 
@@ -278,7 +278,7 @@ public final class IdIdentifyModule extends Module {
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ENTITY,
                 identity.displayName(), List.of(), null, null);
-        client.execute(() -> IdScreens.openEntityResult(identity, client.screen));
+        client.execute(() -> IdScreens.openEntityResult(identity, client.gui.screen()));
         return summary;
     }
 
