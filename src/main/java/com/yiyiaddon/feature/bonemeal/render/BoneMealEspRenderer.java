@@ -25,7 +25,7 @@ import net.minecraft.core.BlockPos;
  * 禁止常驻注册（第 142 条）。</p>
  *
  * <p><b>ESP 总闸</b>：本层已挂进「ESP 全局设置 → 各模块 ESP → 自动骨粉」
- * （{@code EspGlobalSettings.Layer.BONE_MEAL}，按 [76 号](../../../../../02-开发报告/项目开发报告/76-复盘-新增模块接入ESP总闸的步骤与加固.md)
+ * （{@code EspGlobalSettings.Layer.BONE_MEAL}，按 [76 号](../../../../../02-开发报告/项目开发报告/03-复盘/76-复盘-新增模块接入ESP总闸的步骤与加固.md)
  * 三步落地：枚举项 + {@code EspSettingsPage.layerHint} case + 渲染入口判断）。</p>
  */
 public final class BoneMealEspRenderer {
