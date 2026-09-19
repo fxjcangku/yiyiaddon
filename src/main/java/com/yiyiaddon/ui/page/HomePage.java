@@ -15,6 +15,7 @@ import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.service.ActivityLog;
 import com.yiyiaddon.service.HomeStats;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
+import com.yiyiaddon.ui.RegionNames;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
@@ -83,6 +84,14 @@ public final class HomePage extends BasePage {
     private static final float VALUE_BASELINE = 32f;
     private static final float CELL_ROW_H = 42f;
     private static final float CELL_GAP = 6f;
+    /**
+     * 数值字号：基准 12 号，放不下逐档降到 {@link #FITTED_MIN_SIZE}。
+     *
+     * <p>降档而不是一律截断，是为了让长值（IPv6、长模块名）尽量完整可读；再小就伤可读性，
+     * 所以到 9 号为止，剩下的交给 {@link CardLayout#ellipsize}。</p>
+     */
+    private static final float VALUE_SIZE = 12f;
+    private static final float FITTED_MIN_SIZE = 9f;
     /** 键值网格顶边相对卡片顶部的间距（账户卡与「本次会话」卡共用）。 */
     private static final float GRID_TOP_GAP = 8f;
     /** 「本次会话」标题占据的高度；数据格从标题下方开始。 */
@@ -145,24 +154,6 @@ public final class HomePage extends BasePage {
     private static final int COLOR_GOOD = 0x22C55E;
     private static final int COLOR_BAD = 0xEF4444;
     private static final int COLOR_WARN = 0xF59E0B;
-
-    /** 常见出口地区码 → 中文名；未收录的码原样展示。 */
-    private static final Map<String, String> REGION_NAMES = Map.ofEntries(
-            Map.entry("CN", "中国"), Map.entry("HK", "香港"), Map.entry("TW", "台湾"),
-            Map.entry("MO", "澳门"), Map.entry("JP", "日本"), Map.entry("KR", "韩国"),
-            Map.entry("SG", "新加坡"), Map.entry("MY", "马来西亚"), Map.entry("TH", "泰国"),
-            Map.entry("VN", "越南"), Map.entry("PH", "菲律宾"), Map.entry("ID", "印度尼西亚"),
-            Map.entry("IN", "印度"), Map.entry("US", "美国"), Map.entry("CA", "加拿大"),
-            Map.entry("MX", "墨西哥"), Map.entry("BR", "巴西"), Map.entry("AR", "阿根廷"),
-            Map.entry("GB", "英国"), Map.entry("DE", "德国"), Map.entry("FR", "法国"),
-            Map.entry("NL", "荷兰"), Map.entry("BE", "比利时"), Map.entry("CH", "瑞士"),
-            Map.entry("AT", "奥地利"), Map.entry("SE", "瑞典"), Map.entry("NO", "挪威"),
-            Map.entry("FI", "芬兰"), Map.entry("DK", "丹麦"), Map.entry("PL", "波兰"),
-            Map.entry("ES", "西班牙"), Map.entry("IT", "意大利"), Map.entry("PT", "葡萄牙"),
-            Map.entry("IE", "爱尔兰"), Map.entry("CZ", "捷克"), Map.entry("RO", "罗马尼亚"),
-            Map.entry("UA", "乌克兰"), Map.entry("TR", "土耳其"), Map.entry("RU", "俄罗斯"),
-            Map.entry("AE", "阿联酋"), Map.entry("SA", "沙特阿拉伯"), Map.entry("IL", "以色列"),
-            Map.entry("AU", "澳大利亚"), Map.entry("NZ", "新西兰"), Map.entry("ZA", "南非"));
 
     /** 画刷静态复用：卡片底，避免每帧新建 Skia 原生对象。 */
     private static final Paint CARD_BG = new Paint().setAntiAlias(true);
@@ -364,11 +355,12 @@ public final class HomePage extends BasePage {
     }
 
     /**
-     * 账户卡：紧凑账户条 + 六项等宽数据格（三列两行）。
+     * 账户卡：紧凑账户条 + 六项数据格（首行四项等宽，次行 1:2 —— 跨两列的 IP 格才放得下 IPv6）。
      *
-     * <p>格子顺序：用户排名 / 使用人数 / 后端状态，网络地区 / IP / 最后同步。
+     * <p>格子顺序：用户排名 / 使用人数 / 后端状态 / 最后同步，网络地区 / IP。
      * 里面的「网络状态」被 IP 顶掉了 —— 出口 IP 探得出来就说明网络通，同一件事不再占两格；
-     * IP 按数据上色（主题高亮色），不再挤在账户条的 ID 后面（用户 2026-09-18：「IP 跑到框外了」）。</p>
+     * IP 按数据上色（主题高亮色），不再挤在账户条的 ID 后面（用户 2026-09-18：「IP 跑到框外了」）。
+     * IP 格还兼挂出口提示（探测到代理时右上角一枚角标），具体见 {@link #proxyBadge()}。</p>
      */
     private void drawDataCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc) {
         drawCardBg(canvas, x, y, w, dataCardH(), alpha, tc);
@@ -397,13 +389,14 @@ public final class HomePage extends BasePage {
                 rank > 0 ? "#" + rank : UNKNOWN,
                 totalUsers > 0 ? String.format(Locale.ROOT, "%,d", totalUsers) : UNKNOWN,
                 backend ? UiText.t("正常", "Online") : UiText.t("异常", "Offline"),
-                regionName(HomeStats.countryCode()),
+                regionLabel(HomeStats.countryCode(), HomeStats.region()),
                 ip == null || ip.isBlank() ? UNKNOWN : ip,
                 syncTime()
         };
         // 后端可达看后端、地区与 IP 的取数看网络：探测失败时 IP 那格会显示占位而不是空着
         int[] colors = {valueC, valueC, backend ? goodC : badC, valueC,
                 network ? accentC : badC, valueC};
+        String[] badges = {null, null, null, null, proxyBadge(), null};
 
         float rowW = w - CARD_PAD * 2f;
         float gridY = y + ACCOUNT_H + GRID_TOP_GAP;
@@ -411,7 +404,7 @@ public final class HomePage extends BasePage {
                 labels, values, colors, labelC, alpha, tc);
         drawMetricRow(canvas, x + CARD_PAD, gridY + CELL_ROW_H + CELL_GAP,
                 rowW, ACCOUNT_COLUMNS, ACCOUNT_COLUMNS,
-                labels, values, colors, labelC, alpha, tc);
+                labels, values, colors, labelC, alpha, tc, badges, COLOR_WARN);
     }
 
     /**
@@ -687,6 +680,17 @@ public final class HomePage extends BasePage {
     private void drawMetricRow(Canvas canvas, float x, float y, float w, int columns, int from,
                                String[] labels, String[] values, int[] valueColors, int labelC,
                                float alpha, ClickGuiThemeColors tc) {
+        drawMetricRow(canvas, x, y, w, columns, from, labels, values, valueColors,
+                labelC, alpha, tc, null, 0);
+    }
+
+    /**
+     * 一行等宽数据格 + 角标：{@code badges} 与 {@code values} 同序，某项为 null 时不画。
+     * 角标画在<b>本格内</b>的标签行右端，不另开格子、也不占数值行的宽度。
+     */
+    private void drawMetricRow(Canvas canvas, float x, float y, float w, int columns, int from,
+                               String[] labels, String[] values, int[] valueColors, int labelC,
+                               float alpha, ClickGuiThemeColors tc, String[] badges, int badgeColor) {
         float colW = (w - CELL_GAP * (columns - 1)) / columns;
         for (int i = 0; i < columns; i++) {
             int index = from + i;
@@ -694,9 +698,41 @@ public final class HomePage extends BasePage {
             GlassPanel.frost(canvas, cx, y, colW, CELL_ROW_H, 8f, tc.field, 0.42f, alpha);
             GlassPanel.rim(canvas, cx, y, colW, CELL_ROW_H, 8f, tc.rim, alpha, 0.05f);
             FontRenderer.drawText(canvas, labels[index], cx + 9f, y + LABEL_BASELINE, 10f, labelC);
-            FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(values[index], colW - 18f, 12f),
-                    cx + 9f, y + VALUE_BASELINE, 12f, valueColors[index]);
+
+            String badge = badges == null ? null : badges[index];
+            if (badge != null) {
+                float badgeW = FontRenderer.measureTextWidth(badge, 10f);
+                FontRenderer.drawText(canvas, badge, cx + colW - 9f - badgeW, y + LABEL_BASELINE,
+                        10f, GlassPanel.withAlpha(badgeColor, alpha));
+            }
+            float valueMax = colW - 18f;
+            String value = drawFittedText(values[index], valueMax);
+            if (!value.isEmpty()) {
+                FontRenderer.drawTextBold(canvas, value, cx + 9f, y + VALUE_BASELINE,
+                        drawFittedSize(values[index], valueMax), valueColors[index]);
+            }
         }
+    }
+
+    /**
+     * 数值排版：从 12 号逐档缩到 9 号，优先整条放下，真放不下才截断。
+     *
+     * <p>IP 长度不固定（IPv4 15 字符、IPv6 最长 39 字符），固定 12 号在窄格里只能截成
+     * {@code 2600:1f14:...} 把尾段丢掉（用户 2026-09-20：「ip太长成....了」）。
+     * 宽度一律用与 {@link CardLayout#ellipsize} 相同的度量，保证「量得下」就等于「画得下」。</p>
+     */
+    private static float drawFittedSize(String text, float maxWidth) {
+        if (text == null || text.isBlank()) return FITTED_MIN_SIZE;
+        for (float size = VALUE_SIZE; size > FITTED_MIN_SIZE; size -= 1f) {
+            if (FontRenderer.measureTextWidth(text, size) <= maxWidth) return size;
+        }
+        return FITTED_MIN_SIZE;
+    }
+
+    /** 与 {@link #drawFittedSize} 配套的文本：放得下原样返回，放不下才按最终字号截断。 */
+    private static String drawFittedText(String text, float maxWidth) {
+        if (text == null) return "";
+        return CardLayout.ellipsize(text, maxWidth, drawFittedSize(text, maxWidth));
     }
 
     /** 卡片圆角底。 */
@@ -965,11 +1001,25 @@ public final class HomePage extends BasePage {
         return !IDLE_STATES.contains(state);
     }
 
-    /** 地区码转中文名；未收录时原样返回，无数据返回占位。 */
-    private static String regionName(String countryCode) {
-        if (countryCode == null || countryCode.isBlank()) return UNKNOWN;
-        String code = countryCode.trim().toUpperCase(Locale.ROOT);
-        return REGION_NAMES.getOrDefault(code, code);
+    /** 网络地区：国名 + 一级行政区；与国名重名（港澳台）时只显示一次，无数据返回占位。 */
+    private static String regionLabel(String countryCode, String region) {
+        String country = RegionNames.country(countryCode);
+        String area = RegionNames.region(region);
+        if (country == null) return area == null ? UNKNOWN : area;
+        if (area == null || area.equals(country)) return country;
+        return country + " · " + area;
+    }
+
+    /**
+     * IP 格右上角的出口提示：探测到代理才挂，移动网络（{@code MOBILE}）不算 ——
+     * 蜂窝出口被探测源标成 proxy，但那是运营商，不是代理，写成「疑似 VPN」会误导。
+     */
+    private static String proxyBadge() {
+        String type = HomeStats.proxyType();
+        if (type == null || type.isBlank() || "MOBILE".equalsIgnoreCase(type)) return null;
+        if ("TOR".equalsIgnoreCase(type)) return UiText.t("疑似 TOR", "Likely TOR");
+        if ("PROXY".equalsIgnoreCase(type)) return UiText.t("疑似代理", "Likely proxy");
+        return UiText.t("疑似 VPN", "Likely VPN");
     }
 
     /** 最近一次成功同步的本地时间；从未成功过返回占位。 */
