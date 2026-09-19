@@ -1,6 +1,7 @@
 package com.yiyiaddon.platform.container;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -43,6 +44,23 @@ public final class ContainerAccess {
     public static Inventory inventory() {
         LocalPlayer player = Minecraft.getInstance().player;
         return player == null ? null : player.getInventory();
+    }
+
+    /**
+     * 当前可操作的服务端菜单：**静默容器优先，屏幕容器兜底**。
+     *
+     * <p>与 {@link #openMenu()} 的差别只在最后那步兜底：{@code containerMenu} 不是真容器时，
+     * 再看 {@code mc.screen} 是不是容器界面。给「界面已被本模组静默、只剩 {@code containerMenu} 可用」
+     * 的点击流程用（自动挖矿点 RTP 选单、自动登入的两条菜单路线）——
+     * 这几条不能依赖 Screen 是否存在，否则静默一开就点不动了。</p>
+     */
+    public static AbstractContainerMenu activeMenu() {
+        AbstractContainerMenu menu = openMenu();
+        if (menu != null) return menu;
+        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> screen) {
+            return screen.getMenu();
+        }
+        return null;
     }
 
     /** 是否已经打开了一个真正的容器（而非自身背包） */

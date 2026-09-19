@@ -831,6 +831,15 @@ public final class AutoMinerModule extends Module {
             getContainer().closeContainer();
             return;
         }
+        // RTP 选单：由 /rtp 触发、服务端推过来的容器界面，本模块要从 containerMenu 里点关键词槽位。
+        // 界面必须压掉（否则真的弹出来抢鼠标），但容器<b>绝不能收</b> —— 收掉等于把选单关掉，
+        // 那个槽位就永远点不到了（用户 2026-09-19：「rtp 打开 gui 点击 之前打开 gui 是没动画的
+        // 现在有动画还抢鼠标」）。所以这里只 cancel，不走 rejectPlayerContainer。
+        // 静默后 handleGuiAutoClick 读的仍是 containerMenu（原版在 setScreen 之前就已赋好值）。
+        if (cmdManager.isWaitingForGui() && SilentContainer.isContainerScreen(screenClassName)) {
+            event.cancel();
+            return;
+        }
         // 只有「本模块自己在做容器事务」时才静默（用户 2026-09-19）：挂机时玩家手动去开自己的箱子，
         // 界面必须照常显示，不能被当成「模块自己在开箱」拦掉（卸货 / 补给期间的静默开箱照旧生效）
         if (getContainer().isOperatingContainer() && SilentContainer.isContainerScreen(screenClassName)) {

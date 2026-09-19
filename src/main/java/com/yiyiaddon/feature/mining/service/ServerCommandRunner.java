@@ -194,6 +194,18 @@ public final class ServerCommandRunner {
     }
 
     /**
+     * 是否正在等 RTP 选单出现（等到了 / 超时后都为 false）。
+     *
+     * <p>给界面静默用：RTP 选单是<b>服务端推过来</b>的容器，既不是玩家手动开的、也不是本模块发包开的，
+     * {@code MiningContainer#isOperatingContainer()}（只认「我方发包开箱」）认不出它，
+     * 于是界面会真的弹出来抢走鼠标（用户 2026-09-19：「rtp 打开 gui 点击 之前打开 gui 是没动画的
+     * 现在有动画还抢鼠标」）。</p>
+     */
+    public boolean isWaitingForGui() {
+        return waitingForGui;
+    }
+
+    /**
      * 指令是否正在执行中（用于阻塞状态机）
      */
     public boolean isCommandExecuting() {

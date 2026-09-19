@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.autologin.service;
 
 import com.yiyiaddon.feature.autologin.config.AutoLoginSettings;
 import com.yiyiaddon.feature.autologin.model.ServerEntryMode;
+import com.yiyiaddon.platform.container.ContainerAccess;
 import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -178,8 +179,11 @@ public final class SubserverRouteService {
             listener.notify("菜单点击完成，正在确认目标区域。");
             return;
         }
-        if (!(mc.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen)
-            || mc.gameMode == null || mc.player == null) {
+        // 菜单数据从容器取，不从 Screen 取（用户 2026-09-19：「检查一下所有打开 gui 的 都要以自动挖矿
+        // 这个为准」）：本服务运行时界面已由 AutoLoginModule 静默（不抢鼠标），mc.screen 为 null，
+        // 只认 Screen 会永远点不到菜单。口径与自动挖矿点 RTP 选单、乐园路线的 activeMenu() 一致。
+        AbstractContainerMenu handler = ContainerAccess.activeMenu();
+        if (handler == null || mc.gameMode == null || mc.player == null) {
             return;
         }
 
@@ -188,7 +192,6 @@ public final class SubserverRouteService {
             menuStep++;
             return;
         }
-        AbstractContainerMenu handler = screen.getMenu();
         for (int i = 0; i < handler.slots.size(); i++) {
             Slot slot = handler.getSlot(i);
             if (slot.container == mc.player.getInventory() || !ServerTextKit.matchesKeyword(slot.getItem(), keyword)) {
