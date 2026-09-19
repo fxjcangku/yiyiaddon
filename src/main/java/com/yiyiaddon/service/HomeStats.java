@@ -33,6 +33,8 @@ public final class HomeStats {
 
     private static volatile String ip;
     private static volatile String countryCode;
+    private static volatile String region;
+    private static volatile String proxyType;
     private static volatile boolean networkReachable;
 
     private HomeStats() {
@@ -76,6 +78,21 @@ public final class HomeStats {
         return countryCode;
     }
 
+    /** 一级行政区英文原名；探测源未给出时为 null。 */
+    public static String region() {
+        return region;
+    }
+
+    /**
+     * 出口被判定为代理的类型：{@code VPN} / {@code TOR} / {@code PROXY} / {@code MOBILE}。
+     *
+     * <p>取探测源的原始类型而不是 {@code proxy} 布尔值 —— {@code MOBILE}（蜂窝网络）也会被探测源
+     * 标成 proxy，但那是运营商出口、不是代理，界面上不能当成 VPN 提示。</p>
+     */
+    public static String proxyType() {
+        return proxyType;
+    }
+
     public static int rank() {
         return rank;
     }
@@ -95,6 +112,8 @@ public final class HomeStats {
             ClientNetworkInfo network = NetworkInfoProbe.resolve();
             ip = network.ip();
             countryCode = network.countryCode();
+            region = network.region();
+            proxyType = network.proxyType();
             networkReachable = network.ip() != null;
 
             StatsSnapshot stats = StatsService.fetch();

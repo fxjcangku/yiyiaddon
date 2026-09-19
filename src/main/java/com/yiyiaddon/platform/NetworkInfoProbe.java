@@ -133,8 +133,16 @@ public final class NetworkInfoProbe {
             if (proxyType == null) proxyType = "VPN";
         }
 
-        return new ClientNetworkInfo(chosen.ip(), chosen.country(), chosen.isp(), chosen.asOrg(),
-                chosen.asn(), proxy, proxyType);
+        return new ClientNetworkInfo(chosen.ip(), chosen.country(), firstRegion(primary, secondary, fallback),
+                chosen.isp(), chosen.asOrg(), chosen.asn(), proxy, proxyType);
+    }
+
+    /** 行政区名取三路中第一个非空值：主源只给国家码时仍能补出省/州。 */
+    private static String firstRegion(Probe... probes) {
+        for (Probe probe : probes) {
+            if (probe != null && probe.region() != null && !probe.region().isBlank()) return probe.region();
+        }
+        return null;
     }
 
     private static Probe firstPresent(Probe... probes) {
@@ -158,8 +166,8 @@ public final class NetworkInfoProbe {
             String type = Json.bool(json, "is_tor", false) || Json.bool(json, "tor", false) ? "TOR"
                     : Json.bool(json, "is_vpn", false) || Json.bool(json, "vpn", false) ? "VPN"
                     : Json.bool(json, "is_proxy", false) || Json.bool(json, "proxy", false) ? "PROXY" : null;
-            return new Probe(ip, Json.string(json, "country_code", null), Json.string(json, "org", null),
-                    Json.string(json, "org", null), asn, proxy || type != null, type);
+            return new Probe(ip, Json.string(json, "country_code", null), Json.string(json, "region", null),
+                    Json.string(json, "org", null), Json.string(json, "org", null), asn, proxy || type != null, type);
         } catch (Exception e) {
             return null;
         }
@@ -168,7 +176,7 @@ public final class NetworkInfoProbe {
     private static Probe fromIpApiCom() {
         try {
             HttpApi.Response response = HttpApi.getAbsolute(
-                    "http://ip-api.com/json/?fields=query,countryCode,proxy,mobile,hosting,isp,org,as,asname,timezone",
+                    "http://ip-api.com/json/?fields=query,countryCode,regionName,proxy,mobile,hosting,isp,org,as,asname,timezone",
                     SOURCE_TIMEOUT);
             JsonObject json = response.json();
             if (json == null) return null;
@@ -182,7 +190,8 @@ public final class NetworkInfoProbe {
             boolean mobile = Json.bool(json, "mobile", false);
             String type = proxied ? "PROXY" : hosting ? "VPN" : mobile ? "MOBILE" : null;
             return new Probe(Json.string(json, "query", null), Json.string(json, "countryCode", null),
-                    isp, asOrg, asnNumber(Json.string(json, "as", null)), type != null, type);
+                    Json.string(json, "regionName", null), isp, asOrg, asnNumber(Json.string(json, "as", null)),
+                    type != null, type);
         } catch (Exception e) {
             return null;
         }
@@ -198,7 +207,7 @@ public final class NetworkInfoProbe {
             String address = ip.find() ? ip.group(1) : null;
             String country = loc.find() ? loc.group(1) : null;
             if (address == null && country == null) return null;
-            return new Probe(address, country, null, null, -1, false, null);
+            return new Probe(address, country, null, null, null, -1, false, null);
         } catch (Exception e) {
             return null;
         }
@@ -227,7 +236,7 @@ public final class NetworkInfoProbe {
         return false;
     }
 
-    private record Probe(String ip, String country, String isp, String asOrg, int asn, boolean proxy,
+    private record Probe(String ip, String country, String region, String isp, String asOrg, int asn, boolean proxy,
                          String proxyType) {
     }
 }
