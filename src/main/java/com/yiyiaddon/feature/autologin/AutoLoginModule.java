@@ -645,13 +645,19 @@ public final class AutoLoginModule extends Module {
             return;
         }
         // 背包放行：玩家按 E 必须能开背包（生存 / 创造都算）。同时收掉我方静默容器，
-        // 否则玩家在背包里的点击会按自用路线菜单的 containerId 发出去（错位、丢物品）
+        // 否则玩家在背包里的点击会按路线菜单的 containerId 发出去（错位、丢物品）
         if (SilentContainer.isPlayerInventory(screenClassName)) {
-            if (leyuanRoute.isRunning()) SilentContainer.releaseSilentContainer();
+            if (leyuanRoute.isRunning() || subserverRoute.isRunning()) {
+                SilentContainer.releaseSilentContainer();
+            }
             return;
         }
-        // 自用路线运行中静默容器菜单：取消屏幕显示（不抢鼠标），菜单数据仍由 containerMenu 同步发包点击
-        if (leyuanRoute.isRunning() && SilentContainer.isContainerScreen(screenClassName)) {
+        // 两条菜单路线运行中静默容器菜单：取消屏幕显示（不抢鼠标），菜单数据仍由 containerMenu 同步发包点击。
+        // 通用子服菜单路线（subserverRoute）原先没进门控 —— 它同样会把服务器的选择界面弹出来抢鼠标；
+        // 而它自己的点击代码原来只认 mc.screen，所以「不静默」当时反而是能跑的：两处必须一起改
+        // （用户 2026-09-19：「检查一下所有打开 gui 的 都要以自动挖矿这个为准」）。
+        if ((leyuanRoute.isRunning() || subserverRoute.isRunning())
+            && SilentContainer.isContainerScreen(screenClassName)) {
             // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
             SilentContainer.rejectPlayerContainer();
             event.cancel();

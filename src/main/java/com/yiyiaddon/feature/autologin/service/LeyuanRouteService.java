@@ -4,6 +4,7 @@ import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.feature.autologin.config.AutoLoginSettings;
 import com.yiyiaddon.feature.autologin.model.LeyuanRouteState;
 import com.yiyiaddon.feature.autologin.model.LeyuanWelcomeEntryMode;
+import com.yiyiaddon.platform.container.ContainerAccess;
 import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -785,16 +786,11 @@ public final class LeyuanRouteService {
             && mc.player.containerMenu != mc.player.inventoryMenu;
     }
 
-    /** 旧 {@code leyuanActiveMenu}：先静默容器，再屏幕容器 */
+    /** 旧 {@code leyuanActiveMenu}：先静默容器，再屏幕容器 —— 菜单来源统一到 {@link ContainerAccess#activeMenu()} */
     private AbstractContainerMenu activeMenu() {
+        // player / gameMode 的空判留在本层：调用点会直接 mc.gameMode.handleContainerInput(...)
         if (mc.player == null || mc.gameMode == null) return null;
-        if (mc.player.containerMenu != null && mc.player.containerMenu != mc.player.inventoryMenu) {
-            return mc.player.containerMenu;
-        }
-        if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen) {
-            return screen.getMenu();
-        }
-        return null;
+        return ContainerAccess.activeMenu();
     }
 
     // ── 内部 ──

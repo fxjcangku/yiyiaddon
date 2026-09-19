@@ -180,3 +180,87 @@ if (SilentContainer.isContainerScreen(cls) && 本模块正在做容器操作()) 
 - 挂机时按 E 打开背包：背包正常可用（点击不错位），关掉后自动化自动续上；
 - 挂机时按 ESC 开游戏菜单 / 打开本模组控制台：菜单不被关，自动化照跑；
 - 被传送 / 重生时玩家界面不被「加载地形中」顶掉（沿用 128 号复盘的机制）。
+
+## 九、追加修复：RTP 选单落在门控盲区（用户 2026-09-19）
+
+**现象**（用户原话）：
+> 「自动挖矿发包 打开 gui 还是会抢我的鼠标 rtp 打开 gui 点击 之前打开 gui 是没动画的
+> 现在有动画还抢鼠标 你看看之前没改的版本 这个打开 gui 点击的代码跟现在的做对比看看是不是改坏了」
+
+**取证**：`git log -S "getContainer().isOperatingContainer() && SilentContainer.isContainerScreen"` →
+门控由提交 `689e4e5`（即本复盘）引入。取该提交的父版本对照 `AutoMinerModule#onOpenScreen`：
+
+```java
+// 改造前（模块开着就拦一切容器界面）
+if (InventoryScreen.class.getName().equals(screenClassName)) return;
+if (isContainerScreen(screenClassName)) event.cancel();
+
+// 改造后（第五节的门控）
+if (getContainer().isOperatingContainer() && SilentContainer.isContainerScreen(screenClassName)) { ... }
+```
+
+**根因**：RTP 选单是**服务端推过来**的容器（`/rtp` → `ClientboundOpenScreenPacket` → `handleOpenScreen`），
+既不是玩家手动开的、也不是本模块发包开的 → `isOperatingContainer()`（`openingPos != null`）为 `false`
+→ 界面真的弹出来：抢鼠标 + 完整走一遍界面打开过程。它正好落在第五节那道门控的盲区里 ——
+那道门控是为「挂机时玩家手动开自己的箱子要照常显示」而加的，没考虑「服务端主动推的选单」。
+
+**修法**（最小改动，**不动**第五节那条门控）：
+
+| 位置 | 改动 |
+| --- | --- |
+| `feature/mining/service/ServerCommandRunner#isWaitingForGui`（新增） | 暴露「正在等 RTP 选单」这个相位（`waitingForGui`，等到 / 超时后都为 false） |
+| `feature/mining/AutoMinerModule#onOpenScreen` | 在「玩家背包」之后、「容器门控」之前插一条：`cmdManager.isWaitingForGui() && isContainerScreen(cls)` → **只 `event.cancel()`** |
+
+**为什么这条分支不能走 `rejectPlayerContainer()`**：后者会把容器收掉
+（`ContainerAccess.closeContainer()`），而 RTP 选单一旦被收掉，`handleGuiAutoClick()` 要点的那个槽位
+就永远点不到了 —— 那是「拒玩家开箱」的语义，不是「静默我自己的界面」。
+
+**为什么静默后点击照常**：`handleGuiAutoClick()` 读的是 `player.containerMenu`；
+原版 `handleOpenScreen` 在 `setScreen` **之前**就已把 `containerMenu` 赋好，
+取消 `setScreen` 不影响它（与其它静默容器同一条依据，见 `EventDispatcher#onScreenOpen` 注释）。
+
+**验收**：`compileJava --rerun-tasks` → BUILD SUCCESSFUL。实机待验：`/rtp` 后选单不弹、不抢鼠标，
+关键词槽位照常被点掉、传送照常完成；挂机时手动开自己的箱子仍照常显示（第五节门控未被削弱）。
+
+## 十、全模块 GUI 打开审计（用户 2026-09-19：「都要以自动挖矿这个为准」）
+
+**口径**：把第九节修好后的自动挖矿当基准，逐模块核对四件事 ——
+① 拦 `LevelLoadingScreen`；② 背包放行 + 收我方静默容器；③ 门控为真时静默容器界面；
+④ **模块要用的界面由谁开**：我方发包 / 交互开的（有 `markOwnContainerOpen()` 打点）走 ③ 即可，
+**服务端主动推、我方没打点的**必须单独一条「只 cancel、绝不收容器」的分支（第九节的 RTP 就是这类）。
+
+| 模块 | ① 拦加载页 | ② 背包放行 | ③ 门控静默 | ④ 服务端推来的界面 | 结论 |
+| --- | --- | --- | --- | --- | --- |
+| 自动挖矿 | ✓ | ✓ | `isOperatingContainer()` | **RTP 选单**：已补专用分支（第九节） | ✅ |
+| 自动登入 | ✓ | ✓ | `leyuanRoute.isRunning()` | 两条菜单路线**都由我方 useItem 触发**，均有打点 | ⚠️ 门控漏了子服路线，见下 |
+| 自动村民交易 | ✓ | ✓ | `fsm.isUsingContainerScreen()` | 村民菜单（交互触发，`VillagerTradeFSM:541` 有打点） | ✅ |
+| 图书管理员 | ✓ | ✓ | `orchestrator.isUsingTradeScreen()` | 村民菜单（`MerchantTradeOps:74` 有打点） | ✅ |
+| 自动附魔 | ✓ | ✓ | `shouldSuppressScreen()` | 讲台 / 铁砧菜单（`EnchantContainer:207` 有打点） | ✅ |
+| 星露谷农场 | ✓ | ✓ | `coordinator.usingSilentContainer()` | 箱子（`StardewContainerLogistics:85` 有打点） | ✅ |
+| 自动农场 | ✓ | ✓ | `task.exclusive()` | 只有自己开的箱子（`ContainerTask:110` 有打点） | ✅ |
+| 自动箱子 | ✓ | ✓ | `isInteractingWithTarget()` | 只有自己开的箱子（`ChestInteractionService:130` 有打点） | ✅ |
+| 自动重连 | — | — | — | 只认断线页 / 主菜单，不碰容器 | ✅ |
+
+**查出的第二处同类问题：自动登入 · 通用子服菜单路线（`SubserverRouteService`）**。它是「服务端推界面」
+却两半都没对齐基准的一例：
+
+1. `AutoLoginModule#onOpenScreen` 的 ③ 只判 `leyuanRoute.isRunning()`，**没算 `subserverRoute`**
+   → 子服路线跑起来时服务器的选择界面照弹、鼠标被抢；
+2. 而它自己的点击代码又**只认 `mc.screen`**（`tick()` 里 `mc.screen instanceof AbstractContainerScreen`
+   + `screen.getMenu()`）—— 所以当时「不静默」反而是能跑的，两处必须一起改，只改一处就点不动菜单。
+
+**改法**（第 169 条：菜单来源只留一份）
+
+| 位置 | 改动 |
+| --- | --- |
+| `platform/container/ContainerAccess#activeMenu`（新增） | 服务端菜单统一入口：**静默容器优先（`openMenu()`）、屏幕容器兜底**；用 `openMenu()` 表达，不复制判据 |
+| `feature/autologin/service/SubserverRouteService#tick` | 菜单来源由 `mc.screen` 换成 `ContainerAccess.activeMenu()`（静默后仍有菜单可点） |
+| `feature/autologin/service/LeyuanRouteService#activeMenu` | 私有实现删掉，改为委托共用件（空判留在本层：调用点会直接 `mc.gameMode.handleContainerInput`） |
+| `feature/autologin/AutoLoginModule#onOpenScreen` | ③ 门控与 ② 的收容器都加上 `subserverRoute.isRunning()` |
+
+**边界**：子服路线若在中途被玩家开背包打断（我方收容器），它下一轮会重新 useItem 打开菜单；
+点击步已推进到一半时会等到 `menuTimeout` 播报「等待子服菜单超时」——
+与乐园路线同一套自愈口径，不新增停机路径。
+
+**验收**：`compileJava --rerun-tasks` → BUILD SUCCESSFUL。实机待验：通用子服菜单路线全程不弹界面、不抢鼠标，
+菜单步骤照常逐步点掉；乐园路线行为不变。
