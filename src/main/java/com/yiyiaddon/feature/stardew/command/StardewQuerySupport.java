@@ -222,12 +222,14 @@ public final class StardewQuerySupport {
         // ── 扫描 / 索引 ──
         List<StardewResourceScanner.ScannedModel> scanned = StardewResourceScanner.scan();
         int itemDef = 0;
+        int dispatch = 0;
         int itemModel = 0;
         int blockModel = 0;
         Set<String> namespaces = new LinkedHashSet<>();
         for (StardewResourceScanner.ScannedModel model : scanned) {
             switch (model.kind()) {
                 case ITEM_DEF -> itemDef++;
+                case DISPATCH -> dispatch++;
                 case ITEM_MODEL -> itemModel++;
                 case BLOCK_MODEL -> blockModel++;
             }
@@ -235,6 +237,7 @@ public final class StardewQuerySupport {
             if (namespace != null) namespaces.add(namespace);
         }
         lines.add("§f扫描 §8▸ §f" + scanned.size() + " 条 §8(items " + itemDef
+            + " / 派发 " + dispatch
             + " / item模型 " + itemModel + " / block模型 " + blockModel + ")");
         lines.add("§f命名空间 §8▸ §f" + (namespaces.isEmpty() ? "无" : String.join("、", namespaces)));
 

@@ -9,6 +9,7 @@ import com.yiyiaddon.model.resource.ResourcePhase;
 import com.yiyiaddon.model.resource.ResourceScanResult;
 import com.yiyiaddon.model.resource.ResourceSource;
 import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.platform.resource.ItemModelDispatchIndex;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
@@ -306,6 +307,9 @@ public final class ResourceExtractionService {
     public static void onReloadApplied() {
         reloadApplied = true;
         reloadGeneration++;
+        // 派发表是按"当前生效资源"读出来的：资源一换就必须作废，否则会用上一份包的
+        // （基础物品 + 阈值 → 模型）映射去识别新包的物品，表现为张冠李戴
+        ItemModelDispatchIndex.invalidate();
         if (extractionRequested
             && (phase == ResourcePhase.READY || phase == ResourcePhase.NO_CONTENT)) {
             automaticRefreshPending = true;
@@ -656,7 +660,7 @@ public final class ResourceExtractionService {
         int itemDefs = 0;
         for (StardewResourceScanner.ScannedModel model : StardewResourceScanner.scan()) {
             scanned++;
-            if (model.itemDef() && StardewResourceScanner.isStardew(model.modelId())) itemDefs++;
+            if (model.logicalItem() && StardewResourceScanner.isStardew(model.modelId())) itemDefs++;
         }
         if (scanned == 0) {
             return "§c当前服务器未检测到可识别的星露谷资源，未建立资源档案。"
@@ -729,9 +733,9 @@ public final class ResourceExtractionService {
         Set<String> shelters = new LinkedHashSet<>();
 
         for (StardewResourceScanner.ScannedModel model : StardewResourceScanner.scan()) {
-            if (!model.itemDef() || !StardewResourceScanner.isStardew(model.modelId())) continue;
-            StardewSelectorCategory category =
-                StardewSelectorCategory.classify(StardewResourceScanner.STARDEW_NAMESPACE, model.modelName());
+            // 计数判据与索引层完全同源（唯一入口）：items/ 物品定义 与 资源包派发表模型都算物品定义，
+            // 编号家族的非法序号（sprinkler_1_item 之类零件模型）不算，两边数出来的数必须一致
+            StardewSelectorCategory category = StardewResourceIndex.logicalCategoryOf(model);
             if (category == null) continue;
             String canonical = StardewResourceIndex.canonicalOf(category, model.modelName());
             switch (category) {

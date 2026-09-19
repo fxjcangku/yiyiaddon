@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
 import com.yiyiaddon.platform.identity.ItemIdentityMatcher;
+import com.yiyiaddon.platform.resource.ItemModelDispatchIndex;
 import com.yiyiaddon.service.identity.IdentityService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
@@ -249,11 +250,31 @@ public final class StardewInventoryService {
         return model == null ? null : model.toString();
     }
 
-    /** 用 item_model 组件精确匹配 */
+    /**
+     * 物品栈当前生效的自定义模型键：{@code item_model} 组件优先，缺失时退回资源包派发表反查。
+     *
+     * <p>ItemsAdder / Nexo 这类布局的物品<b>没有 {@code item_model} 组件</b>，身份写在
+     * {@code custom_model_data} 里（真机取证：{@code minecraft:paper} + 阈值 10579 → 玉米种子）。
+     * 派发表由资源包自带，因此识别不依赖玩家事先 {@code .id} 手工入库。</p>
+     */
+    public static String resolvedModelOf(ItemStack stack) {
+        String model = itemModelOf(stack);
+        if (model != null) return model;
+        return ItemModelDispatchIndex.get().modelKeyOf(stack);
+    }
+
+    /**
+     * 用模型键匹配一个真实 ItemStack。
+     *
+     * <p><b>判据只有这一处</b>（工具匹配、种子匹配、产物匹配全部汇到这里）：
+     * 先比 {@code item_model} 组件，再比资源包派发表反查结果。两条都不命中才算不匹配——
+     * 少了第二条，旧布局服务器上会把"背包里明明有的种子"判成没有。</p>
+     */
     public static boolean matchesModel(ItemStack stack, String model) {
         if (model == null) return false;
         String actual = itemModelOf(stack);
-        return model.equals(actual);
+        if (model.equals(actual)) return true;
+        return ItemModelDispatchIndex.get().matches(stack, model);
     }
 
     /**

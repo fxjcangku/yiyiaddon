@@ -1,5 +1,6 @@
 package com.yiyiaddon.feature.stardew.profile;
 
+import com.yiyiaddon.platform.resource.ItemModelDispatchIndex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.locale.Language;
 import net.minecraft.resources.Identifier;
@@ -55,6 +56,16 @@ public final class StardewResourceScanner {
     public enum Kind {
         /** {@code items/*.json}：ITEM_MODEL 组件的合法取值（可渲染物品图标） */
         ITEM_DEF,
+        /**
+         * 资源包派发表（{@code assets/<ns>/items/*.json} 里"基础物品 + custom_model_data"的阈值派发）
+         * 指向的自定义模型。
+         *
+         * <p>ItemsAdder / Nexo 这类插件生成的包<b>不提供 items/ 物品定义</b>，自定义物品挂在原版基础物品上
+         * 按阈值派发（真机取证：jmy.seasonmc.xyz 的包用 {@code minecraft:paper} 阈值表派发出全部作物种子与工具）。
+         * 它是这类布局下唯一的物品定义来源，因此与 {@link #ITEM_DEF} 同级参与建档与计数，但预览要走
+         * "基础物品 + custom_model_data"（见 ItemModelDispatchIndex）。</p>
+         */
+        DISPATCH,
         /** {@code models/item/*.json}：物品模型引用（仅兜底/排查） */
         ITEM_MODEL,
         /** {@code models/block/*.json}：方块世界模型（盆 dry/wet、洒水器识别用） */
@@ -82,6 +93,21 @@ public final class StardewResourceScanner {
         /** 是否 items/ 物品定义（可渲染的 ITEM_MODEL 取值） */
         public boolean itemDef() {
             return kind == Kind.ITEM_DEF;
+        }
+
+        /** 是否由资源包派发表给出的自定义模型（旧布局的物品定义来源） */
+        public boolean dispatch() {
+            return kind == Kind.DISPATCH;
+        }
+
+        /**
+         * 是否一条"可建逻辑对象的物品条目"（items/ 物品定义，或派发表给出的自定义模型）。
+         *
+         * <p>计数（资源生命周期服务）与建档（索引层）必须用同一个判据，禁止各写一份，否则会出现
+         * 「服务说已就绪、选择器里却没有条目」这类两边口径不一致的事故。</p>
+         */
+        public boolean logicalItem() {
+            return kind == Kind.ITEM_DEF || kind == Kind.DISPATCH;
         }
 
         /** 供选择器展示的名称：有翻译用翻译，无翻译用原始末段名 */
@@ -126,8 +152,50 @@ public final class StardewResourceScanner {
             }
         }
 
+        // 派发表（"基础物品 + custom_model_data"布局）：物品定义不在 items/ 下，需要额外取一遍。
+        // 放在最后：同一模型键若已有 items/ 物品定义（更优，可直接渲染图标），先到先占保留它。
+        if (seen.size() < MAX_ENTRIES) scanDispatch(seen);
+
         result.addAll(seen.values());
         return result;
+    }
+
+    /**
+     * 枚举资源包派发表里属于星露谷命名空间的模型（旧布局的物品定义来源）。
+     *
+     * <p>事实来源是 {@link ItemModelDispatchIndex}（它已经把生效资源包、overlays 与优先级都处理好了），
+     * 这里只做一件事：把每个模型键变成一个条目，逻辑名取末段（{@code customcrops:item/crops/corn/corn_seeds}
+     * → {@code corn_seeds}）。取末段而不是整条路径，是因为后续建档、分类、阶段清单全部按扁平逻辑名工作，
+     * 收敛成同一种形态才不会出现 {@code crops/corn/corn_seeds} 与 {@code corn_seeds} 两份身份。</p>
+     */
+    private static void scanDispatch(Map<String, ScannedModel> seen) {
+        Map<String, ItemModelDispatchIndex.PreviewSpec> models =
+            ItemModelDispatchIndex.get().modelsIn(STARDEW_NAMESPACE);
+        for (Map.Entry<String, ItemModelDispatchIndex.PreviewSpec> entry : models.entrySet()) {
+            if (seen.size() >= MAX_ENTRIES) return;
+            String modelId = entry.getKey();
+            if (modelId == null) continue;
+            ItemModelDispatchIndex.PreviewSpec spec = entry.getValue();
+            String source = "资源包派发:" + spec.itemId()
+                + (spec.threshold() == null ? "" : " 阈值 " + spec.threshold());
+            String modelName = lastSegment(modelId);
+            if (modelName.isBlank()) continue;
+            ScannedModel dispatched = new ScannedModel(modelId, modelName,
+                resolveLocalizedName(STARDEW_NAMESPACE, modelName), modelName, source, Kind.DISPATCH);
+
+            ScannedModel existing = seen.get(modelId);
+            if (existing != null) {
+                // 真机事故：包里的 models/item/** 与派发模型是同一批模型键，先前的 models/item 条目会把
+                // 派发条目整批挡掉（同一 id 先到先占），于是"扫到 148 条、0 条物品定义"——
+                // 物品定义明明就在包里，却被低价值的模型引用条目顶掉了。
+                // 处置：同一模型键若已被 models/item/** 收下且不是 items/ 物品定义，就用派发条目覆盖它
+                // （同一个资源、更完整的信息，LinkedHashMap 覆盖保留原位置，不打乱世界模型分支顺序）。
+                if (existing.itemDef() || existing.block()) continue;
+                seen.put(modelId, dispatched);
+                continue;
+            }
+            seen.put(modelId, dispatched);
+        }
     }
 
     /** 枚举某个包 / 命名空间下指定目录的资源，回填到去重映射 */

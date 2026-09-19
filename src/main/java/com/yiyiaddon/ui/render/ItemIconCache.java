@@ -23,6 +23,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.level.block.Block;
 import org.joml.Matrix3x2fStack;
 import org.joml.Quaternionf;
@@ -526,17 +527,27 @@ public final class ItemIconCache {
     }
 
     /**
-     * 缓存键：注册表物品 id + {@code ITEM_MODEL} 组件 + 图标边长。
+     * 缓存键：注册表物品 id + {@code ITEM_MODEL} 组件 + {@code CUSTOM_MODEL_DATA} 组件 + 图标边长。
      *
      * <p><b>必须带上 {@code ITEM_MODEL}：</b>资源包的自定义物品没有注册表条目，预览时统一用
      * {@code Items.PAPER} 承载并靠 {@code ITEM_MODEL} 指定真实模型（见
      * {@code StardewPreview}），只按注册表 id 取键会让所有自定义物品挤成同一个键，
      * 于是除第一件外永远命中不到自己的图标。</p>
+     *
+     * <p><b>也必须带上 {@code CUSTOM_MODEL_DATA}：</b>旧布局（ItemsAdder / Nexo 等）整服的自定义物品
+     * 共用同一个原版载体，图标之间的区别<b>只</b>体现在 {@code custom_model_data} 上（真机取证：
+     * {@code minecraft:paper} 一张派发表承载 221 个条目、{@code minecraft:apple} 承载全部作物产物）。
+     * 先前少了这一段，种子/肥料/洒水器/温室玻璃全挤成 {@code minecraft:paper|32} 一个键，
+     * 于是每一行都画成第一件物品的贴图——用户 2026-09-20 反馈的「图标全部错误」。</p>
      */
     private static String keyOf(ItemStack stack) {
         String base = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         Identifier model = stack.get(DataComponents.ITEM_MODEL);
-        return (model == null ? base : base + "#" + model) + "|" + ICON_SIZE;
+        CustomModelData custom = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+        StringBuilder key = new StringBuilder(base);
+        if (model != null) key.append('#').append(model);
+        if (custom != null) key.append('@').append(custom);
+        return key.append('|').append(ICON_SIZE).toString();
     }
 
     /** 第 {@code index} 个隐藏格子的 X：整行居中，取整以免与回读区域出现半像素错位。 */
