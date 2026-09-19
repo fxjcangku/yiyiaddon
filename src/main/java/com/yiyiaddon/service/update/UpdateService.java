@@ -83,10 +83,21 @@ public final class UpdateService {
             if (response.statusCode() != 200 || response.body().length > MAX_RESPONSE) {
                 throw new IllegalStateException("发布检查响应不可用");
             }
-            return ReleaseCatalog.newest(new String(response.body(), java.nio.charset.StandardCharsets.UTF_8));
+            return ReleaseCatalog.newest(new String(response.body(), java.nio.charset.StandardCharsets.UTF_8),
+                    gameVersion());
         } catch (Exception error) {
             throw new IllegalStateException("发布检查失败", error);
         }
+    }
+
+    /**
+     * 运行中的 Minecraft 版本号（26.1.2 / 26.2 这种），用来只认本线的发布附件；
+     * 取不到时返回空串，判据那边退回不筛（宁可多提示也不要漏提示）。
+     */
+    private static String gameVersion() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("minecraft")
+                .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                .orElse("");
     }
 
     public static boolean hasUpdate() {

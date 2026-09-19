@@ -20,16 +20,27 @@ public final class ReleaseCatalog {
     private ReleaseCatalog() { }
 
     /**
-     * 发布包名：`yiyiaddon-<版本>.zip|.jar`，或带 MC 版本的 `yiyiaddon-<版本>-<MC 版本>.zip|.jar`
-     * （两条版本线版本号相同，靠 MC 版本后缀区分）。个人版是 `...-personal+<MC 版本>.jar`，
-     * 不是发布包，不能据此提示更新。
+     * 发布包名：本线是 `yiyiaddon-<版本>-<本线 MC 版本>.zip|.jar`，或老口径的 `yiyiaddon-<版本>.zip|.jar`。
+     * 个人版是 `...-personal+<MC 版本>.jar`，不是发布包，不能据此提示更新。
+     *
+     * <p><b>为什么必须按 MC 版本筛</b>：两条版本线的版本号相同、共用同一份发布列表，
+     * 若不管附件属于哪条线，某次只挂了 26.2 的包时 26.1.2 的玩家也会被提示更新，
+     * 点进去只拿得到一个 Fabric 会直接拒绝加载的包。`minecraftVersion` 为空（运行时取不到）时
+     * 退回不筛，宁可多提示也不要漏提示。</p>
      */
-    private static boolean isReleaseAsset(String name, String number) {
-        return name.matches("yiyiaddon-" + Pattern.quote(number) + "(-[0-9][0-9A-Za-z.]*)?\\.(zip|jar)");
+    private static boolean isReleaseAsset(String name, String number, String minecraftVersion) {
+        String own = minecraftVersion == null || minecraftVersion.isBlank()
+                ? "-[0-9][0-9A-Za-z.]*"
+                : "-" + Pattern.quote(minecraftVersion);
+        return name.matches("yiyiaddon-" + Pattern.quote(number) + "(" + own + ")?\\.(zip|jar)");
     }
 
-    /** 按版本值选择最新包，不依赖 GitHub 返回顺序，忽略草稿、坏条目和未传完的包。 */
-    public static Release newest(String json) {
+    /**
+     * 按版本值选择最新包，不依赖 GitHub 返回顺序，忽略草稿、坏条目和未传完的包。
+     *
+     * @param minecraftVersion 运行中的 Minecraft 版本号（如 26.1.2 / 26.2），用于只认本线的附件
+     */
+    public static Release newest(String json, String minecraftVersion) {
         Release newest = null;
         for (JsonElement element : JsonParser.parseString(json).getAsJsonArray()) {
             try {
@@ -43,7 +54,7 @@ public final class ReleaseCatalog {
                 for (JsonElement asset : item.getAsJsonArray("assets")) {
                     JsonObject file = asset.getAsJsonObject();
                     String name = file.get("name").getAsString();
-                    if (isReleaseAsset(name, number)
+                    if (isReleaseAsset(name, number, minecraftVersion)
                             && "uploaded".equals(file.get("state").getAsString()) && file.get("size").getAsLong() > 0) {
                         ready = true;
                     }
