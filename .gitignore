@@ -7,8 +7,9 @@ out/
 bin/
 loom-cache/
 
-# Fabric / 运行期
-run/
+# Fabric / 运行期（运行目录按版本分流：run-26.1.2/ 与 run-26.2/，见 开发习惯.md 第 232 条）
+/run/
+/run-*/
 logs/
 crash-reports/
 .fabric/

@@ -14,6 +14,9 @@ loom {
 
     runs {
         client {
+            // 运行目录按本线版本分流：26.1.2 与 26.2 各用独立目录，mods / config / 存档互不污染。
+            // 目录名对应 .gitignore 的 /run-*/，不进版本库。依据：开发习惯.md 第三十六章第 232 条。
+            runDir = file("run-${project.minecraft_version}")
             // 固定玩家名：离线 UUID 由名字派生，随机名会导致每次启动都是"新玩家"
             programArgs '--username', 'yiyijia'
             // 开发期窗口尺寸：面板按「窗口像素的一半」做设计空间，窗口太小会让面板整体缩得很难看清
