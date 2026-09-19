@@ -1,7 +1,0 @@
-{
-    "minecraft_version":  "26.1.2",
-    "data_version":  1,
-    "source":  "Minecraft Wiki + Minecraft 26.1.2 反编译源码 + 游戏数据包标签",
-    "generated_at":  "2026-09-01 19:23:00",
-    "note":  "运行时只读取本目录静态数据，禁止联网查询 Wiki"
-}
