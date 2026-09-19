@@ -225,7 +225,11 @@ tasks.register('verifyObfuscatedJar') {
         // 备份放在 build 外，产物信息以完整摘要绑定映射；同名备份不得静默覆盖。
         // 验证任务不声明 outputs，因此即使 JAR 命中缓存也会检查 / 补齐备份。
         // 中文标签方便定位；完整摘要保存在产物信息中，同前缀冲突仍由下方逐文件校验拒绝覆盖。
-        def backup = new File(backupRoot, '02-字符串与控制流加强版-' + hash.substring(0, 8))
+        // 目录名带版本线：两条线版本号相同，只看摘要一眼分不出属于 26.1.2 还是 26.2。
+        // 加线标之前建的归档沿用旧名，免得同一产物在盘上出现两份映射。
+        def named = new File(backupRoot, "02-字符串与控制流加强版-${project.minecraft_version}-" + hash.substring(0, 8))
+        def legacy = new File(backupRoot, '02-字符串与控制流加强版-' + hash.substring(0, 8))
+        def backup = !named.exists() && legacy.exists() ? legacy : named
         backup.mkdirs()
         def saveBackup = { String name, byte[] bytes ->
             def target = new File(backup, name)
