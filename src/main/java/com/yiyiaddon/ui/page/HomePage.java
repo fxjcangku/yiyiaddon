@@ -422,33 +422,32 @@ public final class HomePage extends BasePage {
      * 头像走 {@link PlayerFaceCache}：只画皮肤贴图的脸与帽子层，是 2D 头像，不需要 3D 模型与联网。</p>
      *
      * <p>UUID 不属于首页需要持续判断的信息，而且 36 个字符会把身份状态推到卡片远端；首页因此不再显示 UUID。
-     * 身份文字紧跟用户名并分段着色：正版为绿色，离线为橙色。{@code FontRenderer} 是 Skia 自绘、
+     * 身份标签放在用户名<b>前面</b>（`正版：yiyijia` / `离线：yiyijia`），先看到自己是不是正版；
+     * 分段着色：正版为绿色，离线为红色。{@code FontRenderer} 是 Skia 自绘、
      * 不解析 {@code §} 颜色码，所以颜色必须靠分段绘制传入，不能写进字符串。</p>
      */
     private void drawAccountStrip(Canvas canvas, float x, float y, float w, float alpha,
                                   ClickGuiThemeColors tc, boolean premium) {
         int nameC = GlassPanel.withAlpha(tc.primaryText, alpha);
-        int accountC = GlassPanel.withAlpha(premium ? COLOR_GOOD : COLOR_WARN, alpha);
+        int accountC = GlassPanel.withAlpha(premium ? COLOR_GOOD : COLOR_BAD, alpha);
 
         float avatarX = x + CARD_PAD;
         float avatarY = y + (ACCOUNT_H - ACCOUNT_AVATAR) / 2f;
         PlayerFaceCache.draw(canvas, localSkin(), avatarX, avatarY, ACCOUNT_AVATAR);
 
-        // 身份状态紧跟用户名，不再为了右对齐横跨整张卡片。
-        String account = premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline");
+        // 标签在前、名字在后；标签先量宽，名字按剩余宽度省略，保证标签不会被挤掉。
+        String account = (premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline")) + "：";
         float accountW = FontRenderer.measureTextWidth(account, 12f);
         float textX = avatarX + ACCOUNT_AVATAR + 10f;
-        float nameMax = Math.max(60f, x + w - CARD_PAD - accountW - 8f - textX);
 
         String name = ClientIdentity.name();
         String nameLabel = CardLayout.ellipsize(
-                (name == null || name.isBlank() ? UNKNOWN : name) + "：", nameMax, 13f);
+                name == null || name.isBlank() ? UNKNOWN : name,
+                Math.max(60f, x + w - CARD_PAD - accountW - 8f - textX), 13f);
         float baseline = CardLayout.baseline(y + ACCOUNT_H / 2f, 13f);
-        FontRenderer.drawTextBold(canvas,
-                nameLabel, textX, baseline, 13f, nameC);
-        FontRenderer.drawTextBold(canvas, account,
-                textX + FontRenderer.measureTextWidth(nameLabel, 13f) + 4f,
-                baseline, 12f, accountC);
+        FontRenderer.drawTextBold(canvas, account, textX, baseline, 12f, accountC);
+        FontRenderer.drawTextBold(canvas, nameLabel,
+                textX + accountW + 4f, baseline, 13f, nameC);
     }
 
     /**
