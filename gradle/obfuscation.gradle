@@ -12,6 +12,8 @@ def originalJar = tasks.named('jar', Jar).flatMap { it.archiveFile }
 def protectedClasses = privateDir.map { it.file('classes.jar') }
 def generatedConfig = privateDir.map { it.file('proguard.pro') }
 def mappingFile = privateDir.map { it.file('mapping.txt') }
+// 从 JDK 运行时镜像导出的 java.* 类文件（仅在工具链 JDK 不带 jmods 时使用，见 prepareObfuscation）
+def jdkImageLibraries = privateDir.map { it.file('jdk-image') }
 def releaseVersion = project.version.toString()
 def backupRoot = file("05-混淆文件备份/${releaseVersion}")
 def releaseLauncher = javaToolchains.launcherFor {
@@ -20,6 +22,47 @@ def releaseLauncher = javaToolchains.launcherFor {
 
 apply from: 'gradle/hardening.gradle'
 def hardenedJar = privateDir.map { it.file('hardened.jar') }
+
+// ProGuard 的 -libraryjars 里那份 java.* 类库从哪来：优先工具链 JDK 自带的 jmods；
+// JDK 24 起允许发行不带 jmods 的安装（JEP 493），本机的 Adoptium 25 就是这种，此时改用
+// JDK 自带的 jimage 从运行时镜像 lib/modules 导出一次类文件。两条路都走不通就直接报错 ——
+// 少了它 ProGuard 会把 java.* 全判成未解析，报十二万条 "can't find superclass java.lang.Object"。
+def javaLibraries = { File jdkHome, File exportDir ->
+    def jmods = new File(jdkHome, 'jmods')
+    if (jmods.isDirectory()) {
+        return fileTree(jmods).matching { include '*.jmod' }.files.sort()
+    }
+    def image = new File(jdkHome, 'lib/modules')
+    if (!image.isFile()) {
+        throw new GradleException("工具链 JDK 既没有 jmods 也没有 lib/modules，取不到 java.* 类库：${jdkHome}")
+    }
+    def jimage = new File(jdkHome, 'bin/jimage' + (System.getProperty('os.name').toLowerCase().contains('win') ? '.exe' : ''))
+    exportDir.deleteDir()
+    exportDir.mkdirs()
+    project.services.get(org.gradle.process.ExecOperations).exec {
+        commandLine jimage.absolutePath, 'extract', '--dir', exportDir.absolutePath, image.absolutePath
+    }
+    // jimage 导出的布局是 <目录>/<模块名>/<包路径>，而 ProGuard 读目录时要求「文件路径 = 类名」，
+    // 不然每个类都报一次 unexpectedly contains class（两万多条）。所以把模块名那一层抹掉，
+    // 顺手丢掉 module-info.class —— jmods 那一支本来就是排除它的。
+    // 注意：拍平后根目录下会多出 java/、jdk/ 这些包目录，撤模块目录只能按拍平前的快照删，
+    // 不能事后按「根目录下的目录」删，那会把包目录一起删光。
+    def moduleDirs = exportDir.listFiles().findAll { it.isDirectory() }
+    def moves = []
+    moduleDirs.each { moduleDir ->
+        moduleDir.eachFileRecurse { f ->
+            if (f.isFile() && f.name.endsWith('.class') && f.name != 'module-info.class') {
+                moves << [f, new File(exportDir, moduleDir.toPath().relativize(f.toPath()).toString())]
+            }
+        }
+    }
+    moves.each { from, to ->
+        to.parentFile.mkdirs()
+        if (to.exists()) { from.delete() } else { from.renameTo(to) }
+    }
+    moduleDirs.each { it.deleteDir() }
+    return [exportDir]
+}
 
 // 每次从实际工具链与编译类路径生成配置，避免写死本机缓存路径。
 tasks.register('prepareObfuscation') {
@@ -40,9 +83,8 @@ tasks.register('prepareObfuscation') {
         configurations.compileClasspath.files.findAll { it.isFile() }.sort().each {
             lines.add("-libraryjars ${quote(it)}(!META-INF/versions/**;!module-info.class)")
         }
-        def jmods = new File(releaseLauncher.get().metadata.installationPath.asFile, 'jmods')
-        fileTree(jmods).matching { include '*.jmod' }.files.sort().each {
-            lines.add("-libraryjars ${quote(it)}(!**.jar;!module-info.class)")
+        javaLibraries(releaseLauncher.get().metadata.installationPath.asFile, jdkImageLibraries.get().asFile).each {
+            lines.add("-libraryjars ${quote(it)}${it.name.endsWith('.jmod') ? '(!**.jar;!module-info.class)' : ''}")
         }
         def target = generatedConfig.get().asFile
         target.parentFile.mkdirs()
@@ -69,7 +111,9 @@ tasks.register('obfuscateClasses', JavaExec) {
 // 只替换 class；资源、Fabric 元数据、嵌套 Baritone / Skija JAR 原样复制。
 def releaseJar = tasks.register('obfuscatedJar', Jar) {
     dependsOn tasks.named('obfuscateClasses')
-    archiveClassifier = ''
+    // 发布包名带 MC 版本（yiyiaddon-1.0-beta1-26.1.2.jar）：两条版本线的发布包
+    // 版本号相同，不带 MC 版本会重名分不清谁能装；个人版反而是老名字不带（见 231 条）。
+    archiveClassifier = project.minecraft_version
     destinationDirectory = layout.buildDirectory.dir('release')
     preserveFileTimestamps = false
     reproducibleFileOrder = true
@@ -213,11 +257,12 @@ tasks.register('verifyObfuscatedJar') {
 }
 
 // 对外 ZIP 只包含通过检查的发布 JAR，两层文件名均不暴露构建处理方式。
+// ZIP 名与内部 JAR 名一致（同为 yiyiaddon-<版本>-<MC 版本>），下载页面一眼能看出装哪个版本。
 tasks.register('releaseZip', Zip) {
     dependsOn tasks.named('verifyObfuscatedJar')
     archiveBaseName = base.archivesName
     archiveVersion = project.version.toString()
-    archiveClassifier = ''
+    archiveClassifier = project.minecraft_version
     destinationDirectory = layout.buildDirectory.dir('release')
     preserveFileTimestamps = false
     reproducibleFileOrder = true
