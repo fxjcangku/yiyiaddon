@@ -76,8 +76,13 @@ public class ClickGuiScreen extends SkiaScreen {
 
     /** 侧栏宽度。 */
     private static final float SIDEBAR_W = 190f;
-    /** 侧栏文字 / 搜索框的左右内缩。 */
-    private static final float SIDEBAR_PAD_X = 18f;
+    /** 侧栏品牌卡、搜索框与导航项共用的左右内缩。 */
+    private static final float SIDEBAR_PAD_X = 12f;
+    /** 品牌信息卡的几何；文字在卡内再缩进，形成完整的左侧视觉锚点。 */
+    private static final float BRAND_TOP = 10f;
+    private static final float BRAND_H = 76f;
+    private static final float BRAND_RADIUS = 12f;
+    private static final float BRAND_TEXT_PAD_X = 14f;
     /**
      * 内容区顶部相对面板的距离，以及页头基线相对所在列顶部的偏移。
      *
@@ -90,13 +95,13 @@ public class ClickGuiScreen extends SkiaScreen {
      */
     private static final float CONTENT_TOP = 16f;
     private static final float HEADER_TITLE_Y = 22f;
-    private static final float HEADER_SUBTITLE_Y = 39f;
-    private static final float HEADER_SLOGAN_Y = 56f;
-    /** 搜索框：标语基线之下留的空隙与自身高度。 */
-    private static final float SEARCH_TOP_GAP = 11f;
-    private static final float SEARCH_H = 28f;
+    private static final float HEADER_SUBTITLE_Y = 41f;
+    private static final float HEADER_SLOGAN_Y = 58f;
+    /** 搜索框：品牌卡之下留的空隙与自身高度。 */
+    private static final float SEARCH_TOP_GAP = 10f;
+    private static final float SEARCH_H = 32f;
     /** 搜索框到第一个导航项的距离。 */
-    private static final float NAV_TOP_GAP = 16f;
+    private static final float NAV_TOP_GAP = 14f;
     /**
      * 内容区头部高度（标题区）：标题 + 副标题之下留给内容的空间。
      *
@@ -267,7 +272,7 @@ public class ClickGuiScreen extends SkiaScreen {
         float headerSubtitleY = cardY + CONTENT_TOP + HEADER_SUBTITLE_Y;
         float headerSloganY = cardY + CONTENT_TOP + HEADER_SLOGAN_Y;
         float searchX = cardX + SIDEBAR_PAD_X;
-        float searchY = headerSloganY + SEARCH_TOP_GAP;
+        float searchY = cardY + BRAND_TOP + BRAND_H + SEARCH_TOP_GAP;
         float searchW = sidebarW - SIDEBAR_PAD_X * 2f;
         float tabStartY = searchY + SEARCH_H + NAV_TOP_GAP;
         float tabH = 38f;
@@ -471,10 +476,20 @@ public class ClickGuiScreen extends SkiaScreen {
                 // 整窗高光：玻璃边缘的细亮线
                 GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.20f);
 
-                FontRenderer.drawTextBold(canvas, "yiyiaddon", cardX + SIDEBAR_PAD_X, headerTitleY, 17f, withAlpha(tc.primaryText, alpha));
-                FontRenderer.drawText(canvas, versionLine(), cardX + SIDEBAR_PAD_X, headerSubtitleY, 11f, withAlpha(tc.secondaryText, alpha));
+                float brandX = cardX + SIDEBAR_PAD_X;
+                float brandY = cardY + BRAND_TOP;
+                float brandW = sidebarW - SIDEBAR_PAD_X * 2f;
+                GlassPanel.frost(canvas, brandX, brandY, brandW, BRAND_H, BRAND_RADIUS,
+                        tc.module, 0.48f, alpha);
+                GlassPanel.rim(canvas, brandX, brandY, brandW, BRAND_H, BRAND_RADIUS,
+                        tc.rim, alpha, 0.08f);
+                float brandTextX = brandX + BRAND_TEXT_PAD_X;
+                FontRenderer.drawTextBold(canvas, "yiyiaddon", brandTextX, headerTitleY, 21f,
+                        withAlpha(tc.primaryText, alpha));
+                FontRenderer.drawText(canvas, versionLine(), brandTextX, headerSubtitleY, 11f,
+                        withAlpha(tc.accent, alpha));
                 FontRenderer.drawText(canvas, UiText.t("本扩展免费 为爱发电", "Free for all, made with love"),
-                        cardX + SIDEBAR_PAD_X, headerSloganY, 11f, withAlpha(tc.labelTertiary, alpha));
+                        brandTextX, headerSloganY, 10f, withAlpha(tc.labelTertiary, alpha));
                 drawSearchBox(canvas, searchX, searchY, searchW, searchH, alpha, dt, tc);
 
                 // 选中指示块滑到当前导航项，项内文字随滑块位置在普通色与反色之间过渡
@@ -727,7 +742,10 @@ public class ClickGuiScreen extends SkiaScreen {
         // 侧栏搜索框此前是实心 searchBackground，比同页的霜化玻璃行更暗，像一块贴上去的深色板。
         GlassPanel.textField(canvas, x, y, width, height, 10f, tc, searchFocusAlpha, alpha);
 
-        FontRenderer.drawText(canvas, "\uE8B6", x + 9f, y + 19f, 12f, withAlpha(tc.searchIcon, alpha), FontRenderer.MATERIAL_SYMBOLS);
+        float textBaseline = y + height / 2f + 4.5f;
+        float cursorY = y + (height - 14f) / 2f;
+        FontRenderer.drawText(canvas, "\uE8B6", x + 10f, y + height / 2f + 5f,
+                12f, withAlpha(tc.searchIcon, alpha), FontRenderer.MATERIAL_SYMBOLS);
         float textX = x + 28f;
         float textW = Math.max(1f, width - 36f);
         boolean empty = searchText.isEmpty();
@@ -738,13 +756,13 @@ public class ClickGuiScreen extends SkiaScreen {
 
         canvas.save();
         canvas.clipRect(Rect.makeXYWH(textX, y + 2f, textW, height - 4f));
-        FontRenderer.drawText(canvas, display, textX - (empty ? 0f : searchTextOffset), y + 18.5f, 10f,
+        FontRenderer.drawText(canvas, display, textX - (empty ? 0f : searchTextOffset), textBaseline, 10f,
                 withAlpha(empty ? tc.searchTextPlaceholder : tc.searchText, alpha));
         if (searchFocused) {
             float cursorPulse = 0.35f + 0.65f * (0.5f + 0.5f * (float) Math.sin(searchCursorTime * 6f));
             float cursorX = textX + Math.min(textW - 1f, Math.max(0f, realTextWidth - searchTextOffset));
             searchLinePaint.setColor(withAlpha(tc.searchCursor, alpha * cursorPulse));
-            canvas.drawRect(Rect.makeXYWH(cursorX, y + 7f, 1f, 14f), searchLinePaint);
+            canvas.drawRect(Rect.makeXYWH(cursorX, cursorY, 1f, 14f), searchLinePaint);
             drawSearchPreedit(canvas, cursorX, textX + textW, y, height, alpha, tc);
         }
         canvas.restore();
@@ -770,7 +788,8 @@ public class ClickGuiScreen extends SkiaScreen {
         if (maxWidth <= 1f) return;
         canvas.save();
         canvas.clipRect(Rect.makeXYWH(cursorX, y + 2f, maxWidth, height - 4f));
-        FontRenderer.drawText(canvas, composition, cursorX, y + 18.5f, 10f, withAlpha(tc.searchText, alpha));
+        FontRenderer.drawText(canvas, composition, cursorX, y + height / 2f + 4.5f,
+                10f, withAlpha(tc.searchText, alpha));
         float underline = Math.min(maxWidth, FontRenderer.measureTextWidth(composition, 10f));
         searchLinePaint.setColor(withAlpha(tc.accent, alpha * 0.85f));
         canvas.drawRect(Rect.makeXYWH(cursorX, y + height - 5f, underline, 1f), searchLinePaint);
