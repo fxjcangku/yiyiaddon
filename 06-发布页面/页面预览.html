@@ -337,9 +337,98 @@ Java 版本与操作系统：
 <h3>作品与致谢</h3>
 <p>本仓库用于作品展示、版本说明与发布包分发。许可与第三方组件信息见 <a href="https://github.com/fxjcangku/yiyiaddon/blob/master/LICENSE">LICENSE</a> 和 <a href="https://github.com/fxjcangku/yiyiaddon/blob/master/CREDITS">CREDITS</a>，各组件遵循其原有许可。请尊重作者及第三方贡献者的成果。</p>
 <p><sub>Minecraft 是 Mojang Synergies AB 的商标。本项目是非官方客户端模组，与 Mojang 或 Microsoft 无关联。</sub></p>
-</article><article class="markdown" id="release" hidden><p>1.0 首个测试版发布。</p>
-<p>适用于 Minecraft 26.x（当前支持 26.1.2 与 26.2，26.3 及以后暂不支持）/ Fabric。下载与你游戏版本对应的 ZIP 后解压，将其中的 JAR 放入 mods 文件夹。</p>
-<p>欢迎体验，遇到问题请通过 Issues 反馈。</p>
+</article><article class="markdown" id="release" hidden><p>独立 Fabric 客户端模组：把种植、采掘、交易、后勤这些重复劳动接成能一直跑的流程。</p>
+<h2 id="支持范围">支持范围</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th align="left">项目</th>
+<th align="left">要求</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">游戏</td>
+<td align="left">Minecraft <strong>26.x</strong>（当前支持 <strong>26.1.2</strong> 与 <strong>26.2</strong>；<strong>26.3 及以后暂不支持</strong>）</td>
+</tr>
+<tr>
+<td align="left">加载器</td>
+<td align="left">Fabric Loader <strong>0.19.5</strong> 或更新兼容版本</td>
+</tr>
+<tr>
+<td align="left">依赖</td>
+<td align="left">与游戏版本对应的 Fabric API：26.1.2 用 <code>0.155.2+26.1.2</code>，26.2 用 <code>0.161.0+26.2</code></td>
+</tr>
+<tr>
+<td align="left">Java</td>
+<td align="left"><strong>25</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="下载与安装">下载与安装</h2>
+<p><strong>按你的游戏版本下对应那个包，装错会无法启动。</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th align="left">游戏版本</th>
+<th align="left">下载</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">26.1.2</td>
+<td align="left"><code>yiyiaddon-1.0-beta1-26.1.2.zip</code></td>
+</tr>
+<tr>
+<td align="left">26.2</td>
+<td align="left"><code>yiyiaddon-1.0-beta1-26.2.zip</code></td>
+</tr>
+</tbody></table></div>
+<p>解压后，把里面的 JAR 和对应版本的 Fabric API 一起放进实例的 <code>mods</code> 文件夹，<strong>不要直接把 ZIP 丢进去</strong>。</p>
+<h2 id="本版内容">本版内容</h2>
+<p>首个测试版，已接入的部分功能（完整说明见仓库首页）：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th align="left">方向</th>
+<th align="left">模块</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">农场</td>
+<td align="left"><strong>星露谷农场</strong>：识别服务器资源、分区与混种、作物配额、日常照料、种子与成品仓储</td>
+</tr>
+<tr>
+<td align="left">采集</td>
+<td align="left"><strong>自动挖矿</strong>（寻路采掘、满载卸货、食物与工具补给）、<strong>自动农场</strong>、<strong>自动骨粉</strong></td>
+</tr>
+<tr>
+<td align="left">交易</td>
+<td align="left"><strong>自动附魔</strong>、<strong>自动村民交易</strong>、<strong>自动图书管理员</strong></td>
+</tr>
+<tr>
+<td align="left">整理</td>
+<td align="left"><strong>ID 识别 / ID 配置</strong>、<strong>自动箱子</strong>（多种工作方式与逐物品取物数量）</td>
+</tr>
+<tr>
+<td align="left">显示</td>
+<td align="left"><strong>透视</strong>、<strong>水源显示</strong>、<strong>ESP 全局设置</strong></td>
+</tr>
+</tbody></table></div>
+<h2 id="更新日志">更新日志</h2>
+<ul>
+<li><strong>新增</strong>：首个测试版，上面这些模块与统一的操作界面。</li>
+<li><strong>修复</strong>：首次发布，暂无。</li>
+<li><strong>变更</strong>：首次发布，暂无。</li>
+</ul>
+<blockquote>
+<p>之后的每个版本按 <strong>新增 / 修复 / 变更</strong> 三段写：修了什么 bug、加了什么功能、改了什么行为。没有的一段直接不写，不要写“无”。</p>
+</blockquote>
+<h2 id="已知问题">已知问题</h2>
+<ul>
+<li>完整游戏内功能与长期性能仍在测试中，建议先用独立实例，并备份存档与配置。</li>
+<li>星露谷农场、自动挖矿依赖对应服务器的资源包与传送指令配置，不承诺兼容所有自定义服务器。</li>
+<li><strong>26.3 及以后暂不支持。</strong></li>
+</ul>
+<h2 id="问题反馈">问题反馈</h2>
+<p>到 <a href="https://github.com/fxjcangku/yiyiaddon/issues">Issues</a> 反馈，写清模组版本、游戏版本、复现步骤和预期/实际结果；崩溃请附日志或崩溃报告。发送前请删掉账号、令牌等个人信息。</p>
 </article><div class="foot">正文来自发布草稿 · GitHub 实际排版以平台渲染为准</div></main></div>
 <script>
 // 切换仅改变本地预览，不执行上传、下载或任何发布操作。
