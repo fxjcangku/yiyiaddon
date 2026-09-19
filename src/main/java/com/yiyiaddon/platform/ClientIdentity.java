@@ -79,6 +79,20 @@ public final class ClientIdentity {
     }
 
     /**
+     * 运行中的 Minecraft 版本号（26.1.2 / 26.2 这种）；拿不到时返回空串。
+     *
+     * <p>两条版本线的模组版本号相同，界面上靠它区分装的是哪条线，
+     * 更新检查也用它只认本线的发布附件（空串等于不筛，宁可多提示也不要漏提示）。</p>
+     *
+     * <p>别和 {@link #minecraftVersion()} 混了：那个是版本<b>类型</b>（release / snapshot）。</p>
+     */
+    public static String gameVersion() {
+        return FabricLoader.getInstance().getModContainer("minecraft")
+                .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                .orElse("");
+    }
+
+    /**
      * Minecraft 版本类型（release / snapshot 等）。
      *
      * <p><b>26.2 口径</b>：{@code Minecraft#getVersionType()} 已移除，改用

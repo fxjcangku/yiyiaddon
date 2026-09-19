@@ -84,20 +84,10 @@ public final class UpdateService {
                 throw new IllegalStateException("发布检查响应不可用");
             }
             return ReleaseCatalog.newest(new String(response.body(), java.nio.charset.StandardCharsets.UTF_8),
-                    gameVersion());
+                    ClientIdentity.gameVersion());
         } catch (Exception error) {
             throw new IllegalStateException("发布检查失败", error);
         }
-    }
-
-    /**
-     * 运行中的 Minecraft 版本号（26.1.2 / 26.2 这种），用来只认本线的发布附件；
-     * 取不到时返回空串，判据那边退回不筛（宁可多提示也不要漏提示）。
-     */
-    private static String gameVersion() {
-        return net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("minecraft")
-                .map(container -> container.getMetadata().getVersion().getFriendlyString())
-                .orElse("");
     }
 
     public static boolean hasUpdate() {
@@ -132,11 +122,13 @@ public final class UpdateService {
         Util.getPlatform().openUri(URI.create(ReleaseCatalog.REPOSITORY + "/issues/new?body=" + query));
     }
 
-    /** 标签取当前真实版本，预发布标识统一以中文测试版展示。 */
+    /** 标签取当前真实版本，预发布标识统一以中文测试版展示；带上游戏版本，两条版本线模组版本号相同，靠它区分。 */
     public static String versionLabel() {
         String current = ClientIdentity.version();
         ReleaseVersion version = ReleaseVersion.parse(current);
-        return "v" + current + " · " + (version == null ? "开发版" : version.qualifier().isEmpty() ? "正式版" : "测试版");
+        String game = ClientIdentity.gameVersion();
+        return "v" + current + (game.isEmpty() ? "" : " · " + game) + " · "
+                + (version == null ? "开发版" : version.qualifier().isEmpty() ? "正式版" : "测试版");
     }
 
     public static void openRepository() { Util.getPlatform().openUri(ReleaseCatalog.REPOSITORY); }
