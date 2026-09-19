@@ -21,6 +21,7 @@ import com.yiyiaddon.feature.enchant.repository.EnchantPointStore;
 import com.yiyiaddon.feature.enchant.service.EnchantBindingService;
 import com.yiyiaddon.feature.enchant.service.EnchantContainer;
 import com.yiyiaddon.feature.enchant.ui.EnchantPage;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
@@ -181,12 +182,21 @@ public final class EnchantModule extends Module {
      * 事件分派：{@code SCREEN_OPEN} ← 旧 {@code onOpenScreen:986-1014}（静默容器）。
      *
      * <p>容器操作状态下模块自己发包打开的容器界面一律取消显示（不抢鼠标），
-     * 数据仍由 {@code mc.player.containerMenu} 同步，状态机照常发包操作。</p>
+     * 数据仍由 {@code mc.player.containerMenu} 同步，状态机照常发包操作。
+     * 玩家自己开着界面时，原版传送会把「加载地形中」无条件盖上来（用户 2026-09-19）：拦掉。</p>
      */
     @Override
     public void onEvent(ClientEvent event) {
         if (event == null || event.type() != ClientEventType.SCREEN_OPEN) return;
-        if (fsm.onScreenOpen(event.payload())) event.cancel();
+        if (SilentContainer.isLevelLoadingHijack(event.payload())) {
+            event.cancel();
+            return;
+        }
+        if (fsm.onScreenOpen(event.payload())) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
+            event.cancel();
+        }
     }
 
     /** 每刻推进状态机（旧 {@code onTick:1036-1098} 的全部前置门控与 30 态分派都在状态机内） */

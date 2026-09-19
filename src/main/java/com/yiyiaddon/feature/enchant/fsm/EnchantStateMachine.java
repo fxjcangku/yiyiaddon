@@ -25,10 +25,8 @@ import com.yiyiaddon.feature.enchant.vanilla.EnchantPlanningEngine;
 import com.yiyiaddon.feature.enchant.vanilla.TargetMatcher;
 import com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantDatabase;
 import com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantRuleValidator;
+import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -372,10 +370,8 @@ public final class EnchantStateMachine {
         if (mc.player == null) return false;
 
         // 玩家打开背包：模块静默打开的容器菜单还开着就先关掉，避免 containerMenu 状态不一致导致闪退
-        if (InventoryScreen.class.getName().equals(screenClassName)) {
-            if (mc.player.containerMenu != null && mc.player.containerMenu != mc.player.inventoryMenu) {
-                mc.player.closeContainer();
-            }
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
+            SilentContainer.releaseSilentContainer();
             // 玩家打开背包打断了静默容器操作：重置容器相位，关闭背包后状态机能从头重新打开菜单，
             // 否则 guiPhase 停留在操作中相位，菜单已关闭却无法重开，状态机卡死
             guiPhase = 0;
@@ -406,9 +402,8 @@ public final class EnchantStateMachine {
         // 玩家手动打开背包（生存/创造）永远放行，只静默模块自己操作的容器。
         // 创造模式下 InventoryScreen.init 会立即切到 CreativeModeInventoryScreen，
         // 若误静默它会导致 InventoryScreen 停在未初始化状态（配方书 book 为 null）而闪退。
-        if (InventoryScreen.class.getName().equals(screenClassName)) return false;
-        if (CreativeModeInventoryScreen.class.getName().equals(screenClassName)) return false;
-        if (!isContainerScreen(screenClassName)) return false;
+        if (SilentContainer.isPlayerInventory(screenClassName)) return false;
+        if (!SilentContainer.isContainerScreen(screenClassName)) return false;
         return state == EnchantState.ENCHANTING || state == EnchantState.GRINDING
             || state == EnchantState.STORING || state == EnchantState.RESTOCKING
             // 原版装备附魔（GEAR）的容器操作同样静默，避免界面闪烁并抢走玩家输入
@@ -416,15 +411,6 @@ public final class EnchantStateMachine {
             || state == EnchantState.GEAR_RESTOCK_LAPIS || state == EnchantState.GEAR_GRINDING
             || state == EnchantState.GEAR_ANVIL || state == EnchantState.GEAR_TAKE_ANVIL
             || state == EnchantState.GEAR_STORE_OUTPUT;
-    }
-
-    /** 该界面类名是否为原版容器界面（事件载荷只带类名，不带界面对象） */
-    private static boolean isContainerScreen(String screenClassName) {
-        try {
-            return AbstractContainerScreen.class.isAssignableFrom(Class.forName(screenClassName));
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     // ── Tick 主循环（旧 :1036-1098） ──

@@ -253,12 +253,14 @@ public final class StardewRenderState {
 
     private void onRender2D(EspRenderer renderer, List<StardewPointActions.NearbySprinkler> preview,
                             boolean nearbyOnly) {
+        // 本模块所有世界文字一律加粗（用户 2026-09-19：「所有的点位模块都要字体加粗」）：
+        // §l 前缀是唯一做法，MinecraftText 的测量与绘制都认它（居中宽度不会算错）。
         // 预览字牌：它是「临时看范围」的显式动作，不受点位字牌开关约束
         for (StardewPointActions.NearbySprinkler nearby : preview) {
             if (isBound(nearby.pos())) continue;
             int side = radiusOfLevel(nearby.definition().sprinklerIndex()) * 2 + 1;
             BlockPos pos = nearby.pos();
-            renderer.text(nearby.definition().displayName() + " · " + side + "×" + side,
+            renderer.text("§l" + nearby.definition().displayName() + " · " + side + "×" + side,
                 pos.getX() + 0.5, pos.getY() + 1.6, pos.getZ() + 0.5,
                 settings.labelSize, PREVIEW_LINE, PREVIEW_LINE.alpha() / 255f, true);
         }
@@ -266,7 +268,7 @@ public final class StardewRenderState {
         for (BlockPos mismatchPos : coordinator.regionMismatchCells()) {
             StardewRegionManager.Region region = regionManager.at(mismatchPos, StardewContext.dimension());
             String want = region == null ? "本区域作物" : region.cropName();
-            renderer.text("错位 · 应为 " + want,
+            renderer.text("§l错位 · 应为 " + want,
                 mismatchPos.getX() + 0.5, mismatchPos.getY() + 1.6, mismatchPos.getZ() + 0.5,
                 settings.labelSize, MISMATCH_LINE, 1.0f, true);
         }
@@ -327,9 +329,9 @@ public final class StardewRenderState {
     /**
      * 区域字牌：挂在区域矩形中心上方，文字是「区域 N · 作物 · 维度」。
      *
-     * <p><b>不加距离</b>（用户 2026-09-19 定稿：「星露谷农场的那个区域选点不要加距离，保持之前的就好了」）：
-     * 它是「这块地是什么」的标识，不是可传送 / 可跑过去的点位，距离没有意义；
-     * 点位字牌（种子箱 / 成品箱 / 补水点 / 岩浆箱 / 龙息箱）才写「[世界]名字[距离]」。</p>
+     * <p><b>保持原样</b>（用户 2026-09-19 定稿：「星露谷农场的那个区域选点不要加距离，保持之前的就好了」）：
+     * 它是「这块地是什么」的标识，不是可传送 / 可跑过去的点位，故既不写成点位那套 {@code [世界]名字}，
+     * 也不带距离；点位字牌（种子箱 / 成品箱 / 补水点 / 岩浆箱 / 龙息箱）才走 {@link PointLabelText}。</p>
      */
     private void renderRegionLabel(EspRenderer renderer, StardewRegionManager.Region region) {
         EspColor color = renderRegions.color();
@@ -338,7 +340,8 @@ public final class StardewRenderState {
         // 颜色跟随「种植区域」，但透明度用满：那一项默认是半透明的方框色，照搬会把字也画成半透明
         // （实机反馈「颜色太不明显」）；高度抬到框底上方 2.6 格，不再贴着地面（实机反馈「太低了」）。
         // 维度直接读在这块地自己的档上：区域按维度划分，站着看不出这块地属于哪个维度（实机反馈）。
-        renderer.text("区域 " + region.index() + " · " + region.cropName()
+        // 加粗（§l）同本模块其余世界文字（用户 2026-09-19：「所有的点位模块都要字体加粗」）。
+        renderer.text("§l区域 " + region.index() + " · " + region.cropName()
                 + " · " + WorldIdentity.dimensionDisplayName(region.dimension()),
             centerX, regionFrameY(region) + 2.6, centerZ, settings.labelSize, color, 1.0f, true);
     }
@@ -362,8 +365,8 @@ public final class StardewRenderState {
      * <p>大箱子（相邻两格同一套方块）画的是两格并集的外框，字牌若还挂在「点位绑定的那一格」正上方，
      * 就会偏向一侧——实机表现就是「字牌没居中」。这里按同一个并集算中心，字牌正对框中心。</p>
      *
-     * <p>内容与样式按用户 2026-09-19 的口径：一律写「[世界]名字[距离]」，由 {@link PointLabelText}
-     * 统一加粗、取 UI 主题色、带底板（唯一不写维度与距离的是自动农场那两个选点角，不在本类）。</p>
+     * <p>内容与样式按用户 2026-09-19 的口径：一律写「[世界]名字」（不带距离），由 {@link PointLabelText}
+     * 统一加粗、取主题强调色、带底板（唯一不写世界前缀的是自动农场那两个选点角，不在本类）。</p>
      */
     private void renderLabel(EspRenderer renderer, StardewPointType type, String text, boolean nearbyOnly) {
         StardewPointManager.StardewPoint p = pointManager.get(type);
@@ -377,9 +380,9 @@ public final class StardewRenderState {
             centerX = (box.minX + box.maxX) * 0.5;
             centerZ = (box.minZ + box.maxZ) * 0.5;
         }
-        // 字牌样式统一走 PointLabelText（加粗 + UI 主题色 + 底板 + 居中），内容一律「[世界]名字[距离]」
-        // —— 用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域之外都要标上」，
-        // 星露谷这边没有例外项（种植区域字牌另算，它本来就不写距离）
+        // 字牌样式统一走 PointLabelText（加粗 + 主题强调色 + 底板 + 居中），内容一律「[世界]名字」
+        // —— 用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域之外都要标上」+「距离不要了」，
+        // 星露谷这边五个点位没有例外项（种植区域字牌另算，它是「区域 N · 作物 · 维度」，不是点位）
         double labelY = p.pos().getY() + 1.4;
         PointLabelText.containerLabel(renderer, text, p.dimension(), centerX, labelY, centerZ,
             settings.labelSize);

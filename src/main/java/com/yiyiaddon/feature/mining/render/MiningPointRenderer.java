@@ -34,8 +34,8 @@ import java.util.Set;
  * {@link MiningSettings#espContainerTextScale}，并在 {@link MiningSettings#espContainerTextColor}
  * 非 0 时以它为主色（用户 2026-09-17 追加的两项）；不设时字牌颜色跟随界面主题（用户 2026-09-19
  * 「跟随我的主题颜色同步切换」）。<b>挂机修复点不是容器</b>：不乘容器倍率、不参与容器主色；
- * 三个点位都写 {@code [世界]名字[距离]}（用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域
- * 之外都要标上」，排版同一天由用户给出）。</p>
+ * 三个点位都写 {@code [世界]名字}（用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域
+ * 之外都要标上」+「[主世界]点位名字 距离不要了」，排版同一天由用户给出）。</p>
  *
  * <p><b>呈现口径（含历史沿革）</b>：</p>
  * <ul>
@@ -44,8 +44,10 @@ import java.util.Set;
  *       （旧 {@code :31-65}）在其后**再追加**「当前维度名 + 距离」，最终显示
  *       {@code §6[矿物箱] §7(主世界) §7(主世界) §8[45m]}（维度名写两遍）。</li>
  *   <li>用户 2026-09-16 曾拍板「保留重复，一比一」；<b>2026-09-19 用户给出统一排版
- *       {@code [世界]名称[距离]} 后，本模块并入该排版，重复的维度名随之去掉</b>（后令覆盖前令）。
- *       点位名（{@code [矿物箱]} / {@code [食物箱]} / {@code [挂机修复点]}）原样保留，方括号是名字的一部分。</li>
+ *       {@code [世界]名字} 后，本模块并入该排版，重复的维度名随之去掉</b>（后令覆盖前令）。
+ *       距离段同样按用户 2026-09-19 后续指令「距离不要了」去掉。
+ *       点位名（矿物箱 / 食物箱 / 挂机修复点）只留纯名字，方括号归 {@link PointLabelText#text} 的维度段用
+ *       （用户 2026-09-19：「点位文字显示格式都改成 {@code [维度]名称}，名称不用带 {@code []}」）。</li>
  *   <li>点位方块描边框：旧项目点位只有浮空文字、无框线；本项目按自己的 ESP 语言加了描边框
  *       （<b>用户 2026-09-16 拍板：留着</b>），属 UI 呈现差异，文案与配色不变。
  *       2026-09-18 起框支持大箱子：双箱按原版连接方向并成 2×1×1 的整框（判据照星露谷农场的
@@ -54,10 +56,10 @@ import java.util.Set;
  *       锚点跟原来完全一致。</li>
  *   <li>距离门限：{@code > 128} 格不画；距离口径为 {@code mc.player.position()} 到
  *       「方块中心上方 1.5 格」的直线距离（旧 {@code :34-37}）。</li>
- *   <li>岩浆颜色：填充沿用旧项目（{@code 0xFF3200 @40} 系半透明岩浆红），描边改为亮青
- *       （旧项目的 {@code 0xFF5A00} 描边与岩浆同色，裸露岩浆上等于隐形，用户 2026-09-18 反馈）；
+ *   <li>岩浆颜色：填充与描边都是一对<b>深红</b>（用户 2026-09-19：「岩浆 esp 渲染默认改成深红色
+ *       现在跟寻路线条撞色了」——上一版描边是亮青，与接管后的 Baritone 寻路主线撞在一起）；
  *       距离门限与每 10 tick 重扫一次同旧项目。渲染模式为 {@code Both}
- *       （底部可透出地形的橙红块 + 清晰棱线），详见 {@link #LAVA_SIDE} 的注释。</li>
+ *       （底部可透出地形的深红块 + 深红棱线），详见 {@link #LAVA_SIDE} 的注释。</li>
  * </ul>
  */
 public final class MiningPointRenderer {
@@ -84,14 +86,19 @@ public final class MiningPointRenderer {
     /**
      * 岩浆固定配色：填充（半透明）/ 描边（不透明）。
      *
-     * <p><b>本轮修正</b>（用户 2026-09-18：「透视岩浆还是没框，那种纯色的方块裸露的没显示」）：
-     * 之前描边用的 {@code 0xFF5A00} 与岩浆自身的橙红几乎同色，于是<b>只有被石头埋着的岩浆</b>
-     * （背景是灰石）看得到框，<b>裸露在外的岩浆</b>整片糊在一起——正是用户描述的现象。
-     * 现按「填充保留旧项目的岩浆红、描边改成与岩浆互补的亮青」配成一对：对比度不依赖背景，
-     * 埋着的和裸露的都一眼可见。</p>
+     * <p><b>2026-09-18</b>（用户：「透视岩浆还是没框，那种纯色的方块裸露的没显示」）：描边曾用
+     * {@code 0xFF5A00}，与岩浆自身的橙红几乎同色，于是只有被石头埋着的岩浆看得到框、裸露岩浆整片糊住；
+     * 当时改成亮青 {@code 0x36E2FF}，靠<b>色相</b>拉开对比。</p>
+     *
+     * <p><b>2026-09-19</b>（用户：「岩浆 esp 渲染默认改成深红色 现在跟寻路线条撞色了」）：亮青那条反而和
+     * 接管后的 Baritone 寻路主线（薄荷青 {@code 0x63C9B8}）撞了 —— 寻路时满屏都是青线，岩浆框混在里面
+     * 认不出来。现换成一对<b>深红</b>：给岩浆的固有印象色，且与现有 ESP 主色（青 / 蓝 / 绿 / 琥珀）
+     * 都不同族；与岩浆本体则靠<b>亮度差</b>分开（深红亮度约为岩浆的 1/4）—— 裸露岩浆上是深红棱线压橙红面，
+     * 被埋的岩浆上是深红棱线压灰石面，两边都还有对比。填充同时从 {@code 0xFF3200 @55} 收深到深红，
+     * 让整块岩浆透出「这是危险格」的暗红体感，而不是原来那种几乎看不见的橙红。</p>
      */
-    private static final EspColor LAVA_SIDE = new EspColor(0xFF3200, 55);
-    private static final EspColor LAVA_LINE = new EspColor(0x36E2FF, 245);
+    private static final EspColor LAVA_SIDE = new EspColor(0x7A0F12, 95);
+    private static final EspColor LAVA_LINE = new EspColor(0xC02832, 245);
 
     /** 岩浆框线宽：比点位框粗一档（点位框 3.0 → 此处 4.5），保证在明亮岩浆面上也能看清棱线 */
     private static final float LAVA_LINE_THICKNESS = 4.5f;
@@ -125,9 +132,9 @@ public final class MiningPointRenderer {
         if (mc.player == null || mc.level == null) return;
 
         MiningSettings settings = module.settings();
-        draw(renderer, MiningPointType.MINERAL, "[矿物箱]", settings.renderMineralBox);
-        draw(renderer, MiningPointType.FOOD, "[食物箱]", settings.renderFoodBox);
-        draw(renderer, MiningPointType.AFK, "[挂机修复点]", settings.renderAfkPoint);
+        draw(renderer, MiningPointType.MINERAL, "矿物箱", settings.renderMineralBox);
+        draw(renderer, MiningPointType.FOOD, "食物箱", settings.renderFoodBox);
+        draw(renderer, MiningPointType.AFK, "挂机修复点", settings.renderAfkPoint);
 
         renderLava(renderer);
     }
@@ -162,10 +169,10 @@ public final class MiningPointRenderer {
         boolean container = type != MiningPointType.AFK;
         float size = (float) (settings.espScale * (container ? settings.espContainerTextScale : 1.0));
 
-        // 三个点位统一排版「[世界]名字[距离]」（用户 2026-09-19 定稿，取代旧项目那份「维度名写两遍」的
+        // 三个点位统一排版「[世界]名字」（用户 2026-09-19 定稿，取代旧项目那份「维度名写两遍 + 距离」的
         // 原文输出），样式走共用件（加粗 + 底板 + 居中）。颜色：容器默认跟随 UI 主题，
         // 「容器标签文字颜色」非 0 时以它为先；挂机修复点始终跟随主题。
-        PointLabelText.rawLabel(renderer, PointLabelText.text(labelHead, point.dimension(), labelPos.x, labelPos.y, labelPos.z),
+        PointLabelText.rawLabel(renderer, PointLabelText.text(labelHead, point.dimension()),
             labelPos.x, labelPos.y, labelPos.z, size,
             container ? settings.espContainerTextColor : 0);
     }

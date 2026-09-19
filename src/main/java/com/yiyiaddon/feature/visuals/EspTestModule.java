@@ -221,7 +221,8 @@ public final class EspTestModule extends Module {
 
             float size = (float) (TEXT_BASE_SIZE * (TEXT_BASE_DISTANCE / Math.max(distance, 1d)));
             size = Math.max(TEXT_MIN_SIZE, Math.min(size, TEXT_MAX_SIZE));
-            renderer.text(entity.getName().getString(), center.x, box.maxY + 0.35d, center.z,
+            // §l = 加粗（用户 2026-09-19：「所有的点位模块都要字体加粗」，当时未覆盖本测试模块，后续补上）
+            renderer.text("§l" + entity.getName().getString(), center.x, box.maxY + 0.35d, center.z,
                     size, WHITE, 1f, true);
         }
     }

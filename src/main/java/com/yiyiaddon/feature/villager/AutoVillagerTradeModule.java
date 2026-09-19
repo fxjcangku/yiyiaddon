@@ -18,14 +18,12 @@ import com.yiyiaddon.feature.villager.model.VillagerTradeTarget;
 import com.yiyiaddon.feature.villager.render.ContainerESP;
 import com.yiyiaddon.feature.villager.repository.VillagerBindingStore;
 import com.yiyiaddon.feature.villager.ui.AutoVillagerTradePage;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.navigation.FarmNav;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -343,35 +341,33 @@ public final class AutoVillagerTradeModule extends Module {
     /**
      * 静默容器：交易运行中打开村民交易界面/箱子屏幕时取消显示（不抢鼠标），
      * 交易界面数据仍由 mc.player.containerMenu 同步，SelectTrade/取绿宝石照常发包。
-     * 排除背包(InventoryScreen)与创造模式背包(CreativeModeInventoryScreen)：
-     * 玩家手动按 E 打开背包必须放行，不能被模块拦掉。
-     * 创造模式下按 E 会先开 InventoryScreen、init 检测创造模式后转 CreativeModeInventoryScreen，
-     * 若后者被拦掉会导致 RecipeBookComponent.book 未初始化（init 未走 super）而 NPE 闪退。
      *
-     * <p>事件载荷只带界面类名（不含界面对象），故旧 {@code event.screen instanceof
-     * AbstractContainerScreen<?>} 改判类名是否可赋值给 {@link AbstractContainerScreen}
-     * （与 {@code AutoFarmModule} / {@code AutoMinerModule} 同一等价改写）。</p>
+     * <p>界面判据（背包放行 / 容器界面 / 传送加载界面劫持）统一走
+     * {@link SilentContainer}，本模块只保留自己的相位复位出口
+     * {@link VillagerTradeFSM#onPlayerInventoryOpened()}（第 169 条：同类逻辑只留一份）。</p>
      */
     private void onOpenScreen(ClientEvent event) {
         if (mc.player == null) return;
         String screenClassName = event.payload();
         if (!isEnabled()) return;
-        // 背包放行：玩家按 E 必须能开背包
-        if (InventoryScreen.class.getName().equals(screenClassName)) return;
-        // 创造模式背包同样放行（拦掉会让 RecipeBookComponent.book 未初始化而 NPE）
-        if (CreativeModeInventoryScreen.class.getName().equals(screenClassName)) return;
-        if (isContainerScreen(screenClassName)) {
-            event.cancel();
-        }
-    }
 
-    /** 该界面类名是否为原版容器界面（旧 {@code instanceof AbstractContainerScreen<?>} 的类名等价物） */
-    private static boolean isContainerScreen(String screenClassName) {
-        if (screenClassName == null || screenClassName.isBlank()) return false;
-        try {
-            return AbstractContainerScreen.class.isAssignableFrom(Class.forName(screenClassName));
-        } catch (Throwable ignored) {
-            return false;
+        // 玩家自己开着界面时，原版传送会把「加载地形中」无条件盖上来（用户 2026-09-19）：拦掉
+        if (SilentContainer.isLevelLoadingHijack(screenClassName)) {
+            event.cancel();
+            return;
+        }
+        // 背包放行：玩家按 E 必须能开背包（生存 / 创造都算）。收掉我方静默容器并退回开箱相位，
+        // 否则玩家在背包里的点击会按箱子的 containerId 发出去（错位、丢物品）
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
+            fsm.onPlayerInventoryOpened();
+            return;
+        }
+        // 只有「本模块自己在用容器 / 菜单」时才静默（用户 2026-09-19）：挂机时玩家手动去开自己的箱子，
+        // 界面必须照常显示，不能被当成「模块自己在开界面」拦掉
+        if (fsm.isUsingContainerScreen() && SilentContainer.isContainerScreen(screenClassName)) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
+            event.cancel();
         }
     }
 
@@ -495,7 +491,7 @@ public final class AutoVillagerTradeModule extends Module {
                     .append("\n§e⚠ 玩家自主　§8▸ 只自动交易，绿宝石/背包由你手动管理");
             }
             if (settings.idleLoop && settings.mode != VillagerTradeMode.LOCAL) {
-                report.append("\n§d⏳ 挂机循环　§8▸ 榨干后等待补货 ")
+                report.append("\n§d⚠ 挂机循环　§8▸ 榨干后等待补货 ")
                     .append(highlightText(settings.restockWaitSeconds + " 秒")).append("§r§f 自动循环");
             }
         }

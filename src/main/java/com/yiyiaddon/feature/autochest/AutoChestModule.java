@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.yiyiaddon.command.ClientCommand;
 import com.yiyiaddon.config.identity.IdentityTargetConfig;
 import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.core.event.ClientEvent;
+import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.autochest.command.AutoChestCommand;
@@ -19,6 +21,7 @@ import com.yiyiaddon.model.autochest.ContainerType;
 import com.yiyiaddon.model.autochest.ContainerTypeRegistry;
 import com.yiyiaddon.model.autochest.ScanMode;
 import com.yiyiaddon.model.autochest.WithdrawMode;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.repository.autochest.ChestPointStore;
 import com.yiyiaddon.repository.autochest.ContainerRecordStore;
@@ -27,6 +30,7 @@ import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -248,14 +252,73 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
         WorldOverlay.unregister(MODULE_ID);
     }
 
+    // ── 事件 ──
+
+    @Override
+    public Set<ClientEventType> subscribedEvents() {
+        return Set.of(ClientEventType.TICK, ClientEventType.SCREEN_OPEN);
+    }
+
+    @Override
+    public void onEvent(ClientEvent event) {
+        if (event == null || event.type() != ClientEventType.SCREEN_OPEN) return;
+        onOpenScreen(event);
+    }
+
+    /**
+     * 静默容器（用户 2026-09-19：「凡是有开箱子的模块，都要跟自动附魔一样不抢鼠标」）。
+     *
+     * <p>改造前本模块是唯一「有开箱行为却完全不订阅 {@code SCREEN_OPEN}」的模块 ——
+     * 开箱时箱子界面正常弹出、抢走鼠标与键盘，与挖矿 / 农场 / 星露谷 / 村民 / 附魔都不一致。
+     * 现在三条一起补齐，判据全部走共用件 {@link SilentContainer}（第 169 条）：</p>
+     * <ol>
+     *   <li>自己发包开箱时取消容器界面：不建界面、鼠标一动不动，数据仍由 {@code containerMenu} 同步；</li>
+     *   <li>玩家按 E 开背包时把静默容器收掉：静默模式下走不到 {@code AbstractContainerScreen#onClose}，
+     *       不收就会留下 {@code containerMenu != inventoryMenu} —— 背包里的点击按容器的 containerId
+     *       发出去会错位；</li>
+     *   <li>玩家自己开着界面时，拦掉原版传送/重生无条件盖上来「加载地形中」的界面。</li>
+     * </ol>
+     */
+    private void onOpenScreen(ClientEvent event) {
+        if (mc.player == null || !isEnabled()) return;
+        String screenClassName = event.payload();
+
+        if (SilentContainer.isLevelLoadingHijack(screenClassName)) {
+            event.cancel();
+            return;
+        }
+
+        // 玩家按 E 开背包（含创造背包）永远放行；顺手收掉我方静默容器并复位本模块的容器相位，
+        // 否则状态机会停在「开箱中」那一步上不动
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
+            if (SilentContainer.releaseSilentContainer()) {
+                interaction.reset();
+                stateMachine.reset();
+            }
+            return;
+        }
+
+        // 只有「正在与锁定容器交互」时才静默，玩家手动开别人的箱子照常放行
+        if (isInteractingWithTarget() && SilentContainer.isContainerScreen(screenClassName)) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
+            event.cancel();
+        }
+    }
+
     // ── 每刻 ──
 
     @Override
     public void onTick(Minecraft client) {
         if (client.player == null || client.level == null) return;
 
-        // 状态机推进
-        stateMachine.tick();
+        // 状态机推进。玩家自己开着容器界面（背包 / 创造背包 / 自己的箱子）时只等不做
+        // （用户 2026-09-19 统一口径：静默容器只在没有玩家界面时跑）——冻住状态机，
+        // 状态计时一并冻住，玩家看背包期间不会把箱子误判成「开箱失败」而跳过。
+        // 我方静默开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
+        if (!(client.screen instanceof AbstractContainerScreen<?>)) {
+            stateMachine.tick();
+        }
 
         // 视角同步：开箱走的是静默发包，不改玩家朝向；不补这一步就会出现「背对着箱子开箱」
         syncViewToTarget();

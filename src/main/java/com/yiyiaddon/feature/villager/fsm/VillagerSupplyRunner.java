@@ -5,8 +5,10 @@ import com.yiyiaddon.feature.villager.logistics.UnloadService;
 import com.yiyiaddon.feature.villager.navigation.VillagerNavigationService;
 import com.yiyiaddon.feature.villager.repository.VillagerBindingStore;
 import com.yiyiaddon.feature.villager.trade.TradeEngine;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.network.BlockPacketSender;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -89,6 +91,7 @@ final class VillagerSupplyRunner {
             host.fail("未绑定绿宝石箱");
             return;
         }
+        if (holdForPlayerScreen(VillagerTradeState.SUPPLY_OPEN)) return;
         if (host.stateTicks() > VillagerTradeFSM.OPEN_TIMEOUT) {
             host.fail("无法打开绿宝石箱");
             return;
@@ -97,12 +100,17 @@ final class VillagerSupplyRunner {
             host.enterState(VillagerTradeState.SUPPLY_TAKE);
             return;
         }
-        if (host.stateTicks() % 10 == 0 && !BlockPacketSender.interactBlock(InteractionHand.MAIN_HAND, box, Direction.UP)) {
-            host.fail("绿宝石箱交互失败");
+        if (host.stateTicks() % 10 == 0) {
+            // 打点「我方刚开箱」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+            SilentContainer.markOwnContainerOpen();
+            if (!BlockPacketSender.interactBlock(InteractionHand.MAIN_HAND, box, Direction.UP)) {
+                host.fail("绿宝石箱交互失败");
+            }
         }
     }
 
     void tickSupplyTake() {
+        if (holdForPlayerScreen(VillagerTradeState.SUPPLY_TAKE)) return;
         if (host.stateTicks() == 1) {
             supplyService().start(host.emeraldThreshold() + host.supplyStacks() * 64);
         }
@@ -169,6 +177,7 @@ final class VillagerSupplyRunner {
             host.fail("未绑定成品交易箱");
             return;
         }
+        if (holdForPlayerScreen(VillagerTradeState.UNLOAD_OPEN)) return;
         if (host.stateTicks() > VillagerTradeFSM.OPEN_TIMEOUT) {
             host.fail("无法打开成品交易箱");
             return;
@@ -177,12 +186,17 @@ final class VillagerSupplyRunner {
             host.enterState(VillagerTradeState.UNLOAD_TAKE);
             return;
         }
-        if (host.stateTicks() % 10 == 0 && !BlockPacketSender.interactBlock(InteractionHand.MAIN_HAND, box, Direction.UP)) {
-            host.fail("成品交易箱交互失败");
+        if (host.stateTicks() % 10 == 0) {
+            // 打点「我方刚开箱」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+            SilentContainer.markOwnContainerOpen();
+            if (!BlockPacketSender.interactBlock(InteractionHand.MAIN_HAND, box, Direction.UP)) {
+                host.fail("成品交易箱交互失败");
+            }
         }
     }
 
     void tickUnloadTake() {
+        if (holdForPlayerScreen(VillagerTradeState.UNLOAD_TAKE)) return;
         if (host.stateTicks() == 1) {
             unloadService().start(host.targets());
         }
@@ -208,6 +222,23 @@ final class VillagerSupplyRunner {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     //  工具方法
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /**
+     * 玩家自己开着容器界面（背包 / 创造背包）时只等不做。
+     *
+     * <p>此时若继续静默开箱，会把 {@code player.containerMenu} 悄悄换成箱子菜单，玩家背包里的
+     * 点击就按箱子的 containerId 发出去（错位、丢物品）。我方开箱的界面一律被 SCREEN_OPEN
+     * 拦掉，所以这里能看到的容器界面就是玩家自己的。等待期间原状态重入、只清计时，
+     * 玩家看背包不算卡住，关掉背包后自然续上。</p>
+     *
+     * @param state 调用方当前状态
+     * @return true = 本 tick 不推进
+     */
+    private boolean holdForPlayerScreen(VillagerTradeState state) {
+        if (!(mc.screen instanceof AbstractContainerScreen<?>)) return false;
+        host.enterState(state);
+        return true;
+    }
 
     /**
      * 判断绑定箱子的维度是否等于当前玩家所在维度（用字符串 contains 兼容裸 ID 与旧 ResourceKey 格式）。

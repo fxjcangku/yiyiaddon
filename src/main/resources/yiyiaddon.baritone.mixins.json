@@ -9,7 +9,8 @@
     "BaritoneHelpCommandMixin",
     "BaritoneHelperTranslationMixin",
     "BaritonePaginatorMixin",
-    "BaritoneSetCommandMixin"
+    "BaritoneSetCommandMixin",
+    "BaritoneSettingsSaveMixin"
   ],
   "injectors": {
     "defaultRequire": 0

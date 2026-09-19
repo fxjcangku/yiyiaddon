@@ -24,12 +24,11 @@ import com.yiyiaddon.feature.autologin.service.RegisterHandler;
 import com.yiyiaddon.feature.autologin.service.ServerTextKit;
 import com.yiyiaddon.feature.autologin.service.SubserverRouteService;
 import com.yiyiaddon.feature.autologin.ui.AutoLoginPage;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.ui.page.ModulePage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.ServerData;
@@ -639,9 +638,21 @@ public final class AutoLoginModule extends Module {
             handleDisconnect();
             return;
         }
+        // 玩家自己开着界面时，原版传送会把「加载地形中」无条件盖上来（用户 2026-09-19）：拦掉
+        if (SilentContainer.isLevelLoadingHijack(screenClassName)) {
+            event.cancel();
+            return;
+        }
+        // 背包放行：玩家按 E 必须能开背包（生存 / 创造都算）。同时收掉我方静默容器，
+        // 否则玩家在背包里的点击会按自用路线菜单的 containerId 发出去（错位、丢物品）
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
+            if (leyuanRoute.isRunning()) SilentContainer.releaseSilentContainer();
+            return;
+        }
         // 自用路线运行中静默容器菜单：取消屏幕显示（不抢鼠标），菜单数据仍由 containerMenu 同步发包点击
-        if (leyuanRoute.isRunning() && isContainerScreen(screenClassName)
-            && !InventoryScreen.class.getName().equals(screenClassName)) {
+        if (leyuanRoute.isRunning() && SilentContainer.isContainerScreen(screenClassName)) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
             event.cancel();
             return;
         }
@@ -923,16 +934,6 @@ public final class AutoLoginModule extends Module {
     private boolean isAuthenticatedServer() {
         if (mc.player == null || mc.level == null || mc.getConnection() == null) return false;
         return mc.getConnection().getConnection().isEncrypted();
-    }
-
-    /** 该界面类名是否为原版容器界面（旧 {@code instanceof AbstractContainerScreen<?>} 的类名等价物） */
-    private static boolean isContainerScreen(String screenClassName) {
-        if (screenClassName == null || screenClassName.isBlank()) return false;
-        try {
-            return AbstractContainerScreen.class.isAssignableFrom(Class.forName(screenClassName));
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     /**

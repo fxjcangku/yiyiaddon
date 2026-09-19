@@ -28,11 +28,10 @@ import com.yiyiaddon.feature.autofarm.scan.FarmScanner;
 import com.yiyiaddon.feature.autofarm.task.FarmTask;
 import com.yiyiaddon.feature.autofarm.task.HarvestTask;
 import com.yiyiaddon.feature.autofarm.task.PlantTask;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.service.container.ContainerService;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -337,21 +336,28 @@ public final class AutoFarmModule extends Module {
     private void onOpenScreen(ClientEvent event) {
         if (mc.player == null || !isEnabled()) return;
         String screenClassName = event.payload();
-        // 旧判定 `!(screen instanceof InventoryScreen)`：背包必须放行
-        if (InventoryScreen.class.getName().equals(screenClassName)) return;
-        if (!isContainerScreen(screenClassName)) return;
+
+        // 玩家自己开着界面时，原版传送会把「加载地形中」无条件盖上来（用户 2026-09-19）：拦掉
+        if (SilentContainer.isLevelLoadingHijack(screenClassName)) {
+            event.cancel();
+            return;
+        }
+
+        // 玩家按 E 开背包（生存 / 创造都算）：背包永远放行，但要把我方静默容器收掉 ——
+        // 不收的话玩家在背包里的点击会按箱子的 containerId 发出去（错位、丢物品）。
+        // 收掉后物流任务会在 ContainerTask 的玩家界面守卫处「只等不做」，玩家关背包自然续上。
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
+            SilentContainer.releaseSilentContainer();
+            return;
+        }
+
+        if (!SilentContainer.isContainerScreen(screenClassName)) return;
 
         FarmTask task = controller.currentTask();
-        if (task != null && task.exclusive()) event.cancel();
-    }
-
-    /** 该界面类名是否为原版容器界面（旧 {@code instanceof AbstractContainerScreen<?>} 的类名等价物） */
-    private static boolean isContainerScreen(String screenClassName) {
-        if (screenClassName == null || screenClassName.isBlank()) return false;
-        try {
-            return AbstractContainerScreen.class.isAssignableFrom(Class.forName(screenClassName));
-        } catch (Throwable ignored) {
-            return false;
+        if (task != null && task.exclusive()) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
+            event.cancel();
         }
     }
 

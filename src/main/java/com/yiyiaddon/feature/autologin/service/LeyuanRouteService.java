@@ -4,6 +4,7 @@ import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.feature.autologin.config.AutoLoginSettings;
 import com.yiyiaddon.feature.autologin.model.LeyuanRouteState;
 import com.yiyiaddon.feature.autologin.model.LeyuanWelcomeEntryMode;
+import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.InteractionHand;
@@ -561,6 +562,8 @@ public final class LeyuanRouteService {
             mc.player.setXRot(pitch);
             ClientPacketSender.sendMoveRotation(yaw, pitch, mc.player.onGround(), mc.player.horizontalCollision);
         }
+        // 打点「我方刚开菜单」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+        SilentContainer.markOwnContainerOpen();
         mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
         pendingMenuSlot = -1;
         menuUseCooldown = 10;

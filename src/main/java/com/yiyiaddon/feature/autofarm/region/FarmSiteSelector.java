@@ -344,7 +344,8 @@ public final class FarmSiteSelector {
                 + Math.max(firstCorner.getX(), cursor.getX())) / 2.0f + 0.5f;
             float centerZ = (Math.min(firstCorner.getZ(), cursor.getZ())
                 + Math.max(firstCorner.getZ(), cursor.getZ())) / 2.0f + 0.5f;
-            renderer.text(sizeX + " × " + sizeZ, centerX,
+            // §l = 加粗（用户 2026-09-19：「所有的点位模块都要字体加粗」，MinecraftText 的测量与绘制都认）
+            renderer.text("§l" + sizeX + " × " + sizeZ, centerX,
                 Math.min(firstCorner.getY(), cursor.getY()) + 1.6, centerZ,
                 LABEL_SIZE, PREVIEW_LINE, 1.0f, true);
             return;

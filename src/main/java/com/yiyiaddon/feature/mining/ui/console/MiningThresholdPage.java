@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.mining.ui.console;
 
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.config.MiningSettings;
+import com.yiyiaddon.feature.mining.service.ToolDurability;
 import com.yiyiaddon.feature.mining.ui.MiningConsoleScreen;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
@@ -9,6 +10,7 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
+import net.minecraft.client.Minecraft;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -54,9 +56,17 @@ public final class MiningThresholdPage {
                 resetInt("食物阈值", () -> DEFAULTS.hungerThreshold, null,
                     value -> settings.hungerThreshold = value))));
 
+        // 耐久阈值上限自动跟着手持工具走：主手优先、主手不是工具时看副手（用户 2026-09-19 拍板
+        // 「上限改成只看手持那把」→ 随后确认「副手也算作手持」），两边都不是工具时用原版最高工具耐久兜底。
+        // 用户原话：「你要自动算手里拿的镐子自动计算耐久度」
+        // —— 上限写死成 3000 那种就会高于工具满耐久，一设就变成「工具不是满耐久就得修」的往返死循环。
+        // 上限在每次打开 / 切页签 / 点刷新重建本页时重算（控制台重建走 rebuild）。
+        int toolMax = ToolDurability.heldToolDurability(Minecraft.getInstance().player);
+        int thresholdMax = Math.max(toolMax, MiningSettings.DURABILITY_THRESHOLD_FALLBACK_MAX);
+
         stack.add(new ConsoleRow(owner, () -> "耐久阈值",
-            "工具剩余耐久低于此值时前往挂机点修补（下界合金镐耐久 2031，上限已放宽）；无经验修补的工具修不了，不前往挂机点、只提示", null,
-            List.of(new Ctl(intBox(1, 3000, () -> settings.durabilityThreshold,
+            "工具剩余耐久低于此值时前往挂机点修补（上限自动取你手持工具的满耐久：木镐 59 / 钻石镐 1561 / 下界合金镐 2031，主手不是工具时看副手，都没拿工具时按 2031）；无经验修补的工具修不了，不前往挂机点、只提示", null,
+            List.of(new Ctl(intBox(1, thresholdMax, () -> settings.durabilityThreshold,
                     value -> settings.durabilityThreshold = value, null)),
                 resetInt("耐久阈值", () -> DEFAULTS.durabilityThreshold, null,
                     value -> settings.durabilityThreshold = value))));

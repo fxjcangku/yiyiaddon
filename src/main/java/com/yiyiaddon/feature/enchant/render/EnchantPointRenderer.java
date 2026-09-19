@@ -22,14 +22,15 @@ import net.minecraft.client.Minecraft;
  *
  * <p><b>显示 / 字号独立可配</b>（用户 2026-09-19：「所有标点选择点位位置的模块 参照星露谷农场的
  * 点位设置」）：六个点位各有自己的 {@link EspRenderObject}，先判它的 {@code show} 再画
- * （对象颜色管那个点位的方框）；字号取
+ * （对象颜色管字牌的颜色，见下）；字号取
  * {@link com.yiyiaddon.feature.enchant.config.EnchantSettings#labelSize}；<b>字牌本身</b>的样式统一走
- * {@link PointLabelText}（加粗 + UI 主题色 + 底板），内容一律「[世界]名字[距离]」。
+ * {@link PointLabelText}（加粗 + 底板 + 居中），内容一律「[世界]名字」。
  * {@code ESP标点} 仍是总开关：关掉它六个字牌一起不画。</p>
  *
- * <p><b>为什么字牌颜色不再取点位自己的颜色</b>：用户 2026-09-19 的口径是字牌跟随界面主题
- * （换主题同步切换）；点位颜色设置仍然决定那个点位的方框颜色，两件事互不牵扯。文案里自带的
- * {@code §} 色码同样在 {@link PointLabelText} 里被剥掉，否则会盖掉主题色。</p>
+ * <p><b>字牌颜色为什么取点位自己的颜色</b>：本模块六个点位<b>只画字牌、不画方框</b>，文字是这个颜色设置
+ * 唯一能影响的东西；若字牌也去跟主题色，这六条设置就成了点了没反应的死项（用户 2026-09-19 实机反馈
+ * 「怎么都没颜色」）。有方框的模块（星露谷 / 农场 / 挖矿 / 村民 / 自动箱子）才是「颜色管框、字牌跟主题强调色」。
+ * 文案里自带的 {@code §} 色码同样在 {@link PointLabelText} 里被剥掉，否则会盖掉设置色。</p>
  *
  * <p>渲染通道沿用本项目 {@code ui/render/world} 的世界叠加层（与
  * {@code feature/mining/render/MiningPointRenderer} 同一做法）：其余（显示距离、文字底板、图元预算）
@@ -75,14 +76,17 @@ public final class EnchantPointRenderer {
         EnchantPoint point = module.pointStore().get(type);
         if (point == null) return;
 
-        // 样式统一走共用件 PointLabelText（加粗 + UI 主题色 + 底板 + 居中）；字号取设置里的「字牌大小」。
-        // 内容一律「[世界]名字[距离]」—— 用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域
-        // 之外都要标上」，本模块六个点位全部照标。
+        // 样式统一走共用件 PointLabelText（加粗 + 底板 + 居中）；字号取设置里的「字牌大小」。
+        // 内容一律「[世界]名字」（不带距离）—— 用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域
+        // 之外都要标上」+「[主世界]点位名字 距离不要了」，本模块六个点位全部照标。
+        // 颜色：本模块是<b>唯一「只画字牌、不画方框」</b>的模块，字牌是这个点位颜色设置唯一能影响的东西，
+        // 因此把自己的颜色（含彩虹，逐帧解析）作为覆盖色传给共用件；其余模块有方框，那边字牌跟主题强调色。
+        // 用户 2026-09-19 实机反馈「怎么都没颜色」正是这里：颜色只认主题、六个点位的设置全成了死设置。
         double x = point.x() + 0.5;
         double y = point.y() + LABEL_Y_OFFSET;
         double z = point.z() + 0.5;
         PointLabelText.containerLabel(renderer, label, currentDimensionId(), x, y, z,
-            (float) module.settings().labelSize);
+            (float) module.settings().labelSize, object.color.currentRgb());
     }
 
     /** 当前世界维度键（点位按当前上下文渲染，故维度就是玩家所在维度；未进世界返回 {@code null}） */

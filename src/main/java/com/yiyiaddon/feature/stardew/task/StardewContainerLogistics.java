@@ -2,12 +2,14 @@ package com.yiyiaddon.feature.stardew.task;
 
 import com.yiyiaddon.feature.stardew.navigation.ContainerApproachPlanner;
 import com.yiyiaddon.platform.container.ContainerAccess;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.task.StardewCoordinator.Phase;
 import com.yiyiaddon.feature.stardew.task.StardewCoordinator.RestockBlock;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -45,6 +47,12 @@ final class StardewContainerLogistics {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     void interactLogistics() {
+        // 玩家自己开着容器界面（背包 / 创造背包）时只等不做（用户 2026-09-19 统一口径：
+        // 静默容器只在没有玩家界面时跑）。此时若继续静默开箱，会把 player.containerMenu
+        // 悄悄换成箱子菜单，玩家背包里的点击就按箱子的 containerId 发出去（错位、丢物品）。
+        // 我方开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
+        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
+
         if (owner.targetContainer == null || owner.containerApproach == null || owner.activeCrop == null
             || !owner.selectedCropKeys.contains(owner.activeCrop.cropKey())) {
             owner.phase = Phase.REPLAN;
@@ -73,6 +81,8 @@ final class StardewContainerLogistics {
                 }
                 owner.broker.reset();
                 BlockPos interactPos = owner.containerApproach.interactPos();
+                // 打点「我方刚开箱」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+                SilentContainer.markOwnContainerOpen();
                 if (!owner.adapter.face(interactPos)
                     || !owner.adapter.interactBlock(InteractionHand.MAIN_HAND, interactPos, Direction.UP)) {
                     owner.retryCount++;

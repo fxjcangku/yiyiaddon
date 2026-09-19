@@ -44,6 +44,7 @@ import com.yiyiaddon.feature.stardew.task.StardewCoordinator;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleData;
 import com.yiyiaddon.feature.stardew.ui.StardewResourcePanelPage;
 import com.yiyiaddon.platform.GameProbe;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
@@ -52,8 +53,6 @@ import com.yiyiaddon.ui.render.world.WorldOverlay;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
@@ -727,27 +726,24 @@ public final class StardewFarmModule extends Module {
         String screenClassName = event.payload();
         if (!isEnabled()) return;
         if (mc.player == null) return;
-        if (InventoryScreen.class.getName().equals(screenClassName)
-            || CreativeModeInventoryScreen.class.getName().equals(screenClassName)) {
+
+        // 玩家自己开着界面时，原版传送会把「加载地形中」无条件盖上来（用户 2026-09-19）：拦掉
+        if (SilentContainer.isLevelLoadingHijack(screenClassName)) {
+            event.cancel();
+            return;
+        }
+        // 玩家按 E 开背包（生存 / 创造都算）：背包永远放行，但要终止后台箱子事务 ——
+        // 两个菜单争用同一个 containerMenu 会让玩家背包里的点击按箱子的 containerId 发出去
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
             coordinator.interruptSilentContainer();
             return;
         }
         // 后台物流只取消界面渲染，服务端同步的 containerMenu 继续供状态机安全发包。
-        if (coordinator.usingSilentContainer() && isContainerScreen(screenClassName)) {
+        if (coordinator.usingSilentContainer() && SilentContainer.isContainerScreen(screenClassName)) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
             event.cancel();
         }
-    }
-
-    /** 该界面类名是否为原版容器界面（旧 {@code AbstractContainerScreen<?>} 判定的类名等价物） */
-    private static boolean isContainerScreen(String screenClassName) {
-        if (screenClassName == null || screenClassName.isBlank()) return false;
-        Class<?> type = null;
-        try {
-            type = Class.forName(screenClassName);
-        } catch (Throwable ignored) {
-            return false;
-        }
-        return net.minecraft.client.gui.screens.inventory.AbstractContainerScreen.class.isAssignableFrom(type);
     }
 
     public void configureCoordinator(String serverKey, String dimension) {

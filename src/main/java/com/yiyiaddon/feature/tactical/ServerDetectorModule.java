@@ -585,7 +585,7 @@ public final class ServerDetectorModule extends Module {
             // 让服务器认为客户端已应用资源包，跳过下载直接进服。
             ClientPacketSender.sendResourcePackResponse(packId, ServerboundResourcePackPacket.Action.ACCEPTED);
             ClientPacketSender.sendResourcePackResponse(packId, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED);
-            ResourcePackCache.asyncNotify("§a✔ 已拦截资源包 §8(暴力绕过)");
+            ResourcePackCache.asyncNotify("§a✓ 已拦截资源包 §8(暴力绕过)");
             return true;
         } else if (mode == ResourcePackMode.AUTO_DOWNLOAD) {
             // required 和 optional 都必须放行原版：cancel 原版处理会让服务器一直等待

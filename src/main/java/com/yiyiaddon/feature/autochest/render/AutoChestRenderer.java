@@ -81,7 +81,7 @@ public final class AutoChestRenderer {
             renderer.blockBox(target.pos().getX(), target.pos().getY(), target.pos().getZ(),
                     color, color, shapeMode, LINE_THICKNESS);
 
-            // 头顶字牌：写「[世界]名字[距离]」（共用件 PointLabelText：加粗 + UI 主题色 + 底板 + 居中，
+            // 头顶字牌：写「[世界]名字」（共用件 PointLabelText：加粗 + 主题强调色 + 底板 + 居中，
             // 用户 2026-09-19）；字号走设置项「字牌大小」（实际字号再由渲染器乘全局「文字大小倍率」），
             // 三态区分仍由框色表达
             double centerX = target.pos().getX() + 0.5;

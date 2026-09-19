@@ -26,14 +26,15 @@ import net.minecraft.world.phys.AABB;
  *   <li>目标：当前任务的目标方块高亮（旧默认线 + 面，旧 {@code renderTarget}）；</li>
  *   <li>四个箱子：单作物箱 / 多作物箱 / 种子补货箱 / 杂物箱各画一个独立方框，
  *       大箱子（相邻两格同一套箱子方块）按两格并集画一个框（照星露谷渲染层的写法）；</li>
- *   <li>字牌：点位头顶的防呆标签（走 {@link EspRenderer#text}，旧 {@code renderLabel} 的等价物）。</li>
+ *   <li>字牌：四个箱子头顶的防呆标签（走 {@link EspRenderer#text}，旧 {@code renderLabel} 的等价物）；
+ *       农田两个角是区域选点，不画字牌（用户 2026-09-19：「这个不显示，默认渲染 ESP 就可以了」）。</li>
  * </ul>
  *
  * <p><b>显示 / 颜色 / 渲染模式全部来自各自独立的 {@link EspRenderObject}</b>
  * （用户 2026-09-19：「所有标点选择点位位置的模块参照星露谷农场的点位设置」）：
  * 关掉任意一类不影响其它类，颜色在绘制瞬间解析（彩虹色随 {@link EspColor} 免费获得）。
- * 字牌的样式另走共用件 {@link PointLabelText}（加粗 + UI 主题色 + 底板）：四个箱子是容器，
- * 写「[世界]名字[距离]」；「农场点位1 / 农场点位2」是选点，只写名字。</p>
+ * 字牌的样式另走共用件 {@link PointLabelText}（加粗 + 主题强调色 + 底板）：
+ * 四个箱子是容器，写「[世界]名字」。</p>
  */
 public final class FarmRenderer {
 
@@ -82,11 +83,10 @@ public final class FarmRenderer {
         renderBox(renderer, SiteType.SEED_STORAGE, settings.renderSeedBox);
         renderBox(renderer, SiteType.POISON_STORAGE, settings.renderPoisonBox);
 
-        // 字牌：六点位防呆标签统一受「点位字牌」显示开关约束
+        // 字牌：只给四个箱子挂防呆标签，统一受「点位字牌」显示开关约束
         if (settings.renderLabels.show) {
-            // 两个角是「选点」，只写名字；四个箱子是容器，写名字 + 维度 + 距离（用户 2026-09-19 口径）
-            label(renderer, SiteType.START, "农场点位1");
-            label(renderer, SiteType.END, "农场点位2");
+            // 农田两个角（农场点位1 / 农场点位2）是区域选点，用户 2026-09-19 定稿不画字牌
+            // ——「这个不显示，默认渲染 ESP 就可以了」；农场范围由「农场边界」那个框表达
             boxLabel(renderer, SiteType.SINGLE_STORAGE, "单作物箱");
             boxLabel(renderer, SiteType.MULTI_STORAGE, "多作物箱");
             boxLabel(renderer, SiteType.SEED_STORAGE, "种子补货箱");
@@ -140,8 +140,8 @@ public final class FarmRenderer {
     /**
      * 箱子字牌（容器）：挂在方框正上方；大箱子水平居中于两格并集，否则字牌会偏向一侧。
      *
-     * <p>样式与内容统一走 {@link PointLabelText}（用户 2026-09-19）：加粗 + UI 主题色 + 底板，
-     * 容器写「[世界]名字[距离]」，字号取设置里的「字牌大小」。</p>
+     * <p>样式与内容统一走 {@link PointLabelText}（用户 2026-09-19）：加粗 + 主题强调色 + 底板，
+     * 容器写「[世界]名字」，字号取设置里的「字牌大小」。</p>
      */
     private void boxLabel(EspRenderer renderer, SiteType type, String text) {
         FarmSite site = module.site(type);
@@ -158,19 +158,5 @@ public final class FarmRenderer {
         double labelY = pos.getY() + 1.4;
         PointLabelText.containerLabel(renderer, text, site.dimension(), centerX, labelY, centerZ,
             module.settings().labelSize);
-    }
-
-    /**
-     * 画单个点位头顶字牌：农田两个角属于<b>选点</b>（不是容器），按用户 2026-09-19 的口径
-     * 「选点的不用」——只写名字，不写维度与距离。
-     */
-    private void label(EspRenderer renderer, SiteType type, String text) {
-        FarmSite site = module.site(type);
-        if (site == null || !site.inCurrentDimension()) return;
-        BlockPos pos = site.pos();
-        double labelY = pos.getY() + 1.4;
-        double centerX = pos.getX() + 0.5;
-        double centerZ = pos.getZ() + 0.5;
-        PointLabelText.nameLabel(renderer, text, centerX, labelY, centerZ, module.settings().labelSize);
     }
 }

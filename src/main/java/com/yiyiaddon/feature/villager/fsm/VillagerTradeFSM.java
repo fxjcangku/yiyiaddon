@@ -10,7 +10,9 @@ import com.yiyiaddon.feature.villager.navigation.VillagerNavigationService;
 import com.yiyiaddon.feature.villager.trade.TradeEngine;
 import com.yiyiaddon.feature.villager.trade.TradeMatcher;
 import com.yiyiaddon.platform.container.ContainerAccess;
+import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -500,6 +502,15 @@ public final class VillagerTradeFSM {
             return;
         }
 
+        // 玩家自己开着容器界面时只等不做（同补给 / 卸货的守卫）：此时若继续交互村民，
+        // 服务端会把 player.containerMenu 换成村民菜单，而玩家看的是自己那个箱子的界面 ——
+        // 他接下来的点击就按村民菜单的 containerId 发出去（错位、丢物品）。
+        // 期间原状态重入只清计时，玩家关掉界面后自然续上，不会等到 OPEN_TIMEOUT 被换掉。
+        if (mc.screen instanceof AbstractContainerScreen<?>) {
+            enterState(VillagerTradeState.OPENING_MENU);
+            return;
+        }
+
         if (stateTicks > OPEN_TIMEOUT || player.distanceTo(currentVillager) > INTERACT_RANGE) {
             // 寻路模式优先回到工作站重新找位，村民可能离开工作站了
             if (mode != VillagerTradeMode.LOCAL && currentWorkstation != null && openRetries == 0) {
@@ -526,6 +537,8 @@ public final class VillagerTradeFSM {
             if (mc.gameMode != null) {
                 // 只在交互发包瞬间转视角，避免每 tick 覆盖玩家视角（不抢鼠标/视角）
                 faceVillager(player, currentVillager);
+                // 打点「我方刚开菜单」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+                SilentContainer.markOwnContainerOpen();
                 mc.gameMode.interact(player, currentVillager,
                     new EntityHitResult(currentVillager), InteractionHand.MAIN_HAND);
             }
@@ -767,7 +780,7 @@ public final class VillagerTradeFSM {
      */
     private void tickWaitingRestock() {
         if (stateTicks == 1) {
-            log("§d⏳ 全部村民已榨干 §8▸ 等待补货 " + (restockWaitTicks / 20) + " 秒后循环");
+            log("§d⚠ 全部村民已榨干 §8▸ 等待补货 " + (restockWaitTicks / 20) + " 秒后循环");
             return;
         }
 
@@ -926,6 +939,40 @@ public final class VillagerTradeFSM {
     void enterClosing(TradeRoute route) {
         afterCloseRoute = route;
         enterState(VillagerTradeState.CLOSING_MENU);
+    }
+
+    /**
+     * 本模块当前是否正在使用容器界面：打开交易界面 / 交易中 / 关界面 / 补给 / 卸货。
+     *
+     * <p>给界面静默做状态门控用（用户 2026-09-19）：只有 true 时才取消容器界面显示 ——
+     * 玩家挂机时手动去开自己的箱子照常显示界面，不会被模块当成「自己在开界面」静默掉。
+     * 原地模式的「等待玩家」不在其中：那个相位本就是等玩家自己补给 / 卸货，玩家要开自己的箱子。</p>
+     */
+    public boolean isUsingContainerScreen() {
+        return switch (currentState) {
+            case OPENING_MENU, TRADING, CLOSING_MENU,
+                 SUPPLY_OPEN, SUPPLY_TAKE, UNLOAD_OPEN, UNLOAD_TAKE -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * 玩家自己按 E 打开了背包（生存 / 创造背包）：收掉我方静默容器，并把「取货」相位退回「开箱」。
+     *
+     * <p>静默模式下容器界面被取消，走不到 {@code AbstractContainerScreen#onClose}，服务端会一直认为
+     * 箱子开着；此时玩家在背包里的点击会按箱子的 {@code containerId} 发出去（错位、丢物品）。
+     * 收掉容器后取货服务必然判不了就绪，若不退回开箱相位会一直等一个已被收掉的容器而超时停机；
+     * 退回后由 {@code VillagerSupplyRunner} 的玩家界面守卫「只等不做」，玩家关掉背包自然重开箱子。</p>
+     */
+    public void onPlayerInventoryOpened() {
+        ContainerAccess.closeContainer();
+        supplyService.reset();
+        unloadService.reset();
+        if (currentState == VillagerTradeState.SUPPLY_TAKE) {
+            enterState(VillagerTradeState.SUPPLY_OPEN);
+        } else if (currentState == VillagerTradeState.UNLOAD_TAKE) {
+            enterState(VillagerTradeState.UNLOAD_OPEN);
+        }
     }
 
     // ── 供拆分出的协作器读取的宿主状态（只读，不暴露写口） ──────────────────

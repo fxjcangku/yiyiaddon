@@ -296,7 +296,8 @@ public final class StardewRegionSelector {
             FIRST_CORNER, FIRST_CORNER, ShapeMode.Lines, LINE_THICKNESS);
         int sizeX = Math.abs(firstCorner.getX() - cursor.getX()) + 1;
         int sizeZ = Math.abs(firstCorner.getZ() - cursor.getZ()) + 1;
-        renderer.text(sizeX + " × " + sizeZ + " · " + displayCrop(),
+        // §l = 加粗（用户 2026-09-19：「所有的点位模块都要字体加粗」，MinecraftText 的测量与绘制都认）
+        renderer.text("§l" + sizeX + " × " + sizeZ + " · " + displayCrop(),
             (Math.min(firstCorner.getX(), cursor.getX()) + Math.max(firstCorner.getX(), cursor.getX())) / 2.0 + 0.5,
             Math.min(firstCorner.getY(), cursor.getY()) + 1.6,
             (Math.min(firstCorner.getZ(), cursor.getZ()) + Math.max(firstCorner.getZ(), cursor.getZ())) / 2.0 + 0.5,

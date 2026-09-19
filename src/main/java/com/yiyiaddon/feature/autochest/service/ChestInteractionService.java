@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.autochest.config.AutoChestSettings;
 import com.yiyiaddon.model.autochest.WithdrawMode;
 import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.platform.container.ContainerAccess;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.identity.ItemIdentityMatcher;
 import com.yiyiaddon.platform.network.BlockPacketSender;
 import com.yiyiaddon.service.container.ContainerService;
@@ -125,6 +126,8 @@ public final class ChestInteractionService {
 
         openCooldown = 5;
         // 直接发包开箱（带 sequence 预测），窗口失焦时也能打开
+        // 打点「我方刚开箱」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+        SilentContainer.markOwnContainerOpen();
         return BlockPacketSender.interactBlock(InteractionHand.MAIN_HAND, pos, Direction.UP);
     }
 

@@ -10,6 +10,7 @@ import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.feature.mining.navigation.BlockPlacer;
 import com.yiyiaddon.feature.mining.service.MiningContainer;
 import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
+import com.yiyiaddon.feature.mining.service.ToolDurability;
 import com.yiyiaddon.feature.mining.service.WardenWarningGuard;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
 import net.minecraft.client.Minecraft;
@@ -280,6 +281,8 @@ public final class MiningStateMachine {
     private MinerState combatReturnState = MinerState.MINING;
 
     // 修补模式数据（旧 :70-82）
+    /** 修复态超时｜10 分钟（20 tick/秒 × 600 秒）没修满就停机并播报，见 {@link #tickRepair} */
+    private static final int REPAIR_TIMEOUT_TICKS = 12000;
     private ItemStack savedTool = ItemStack.EMPTY;
     private ItemStack savedWeapon = ItemStack.EMPTY;
     private int savedToolSlot = -1;
@@ -2555,8 +2558,13 @@ public final class MiningStateMachine {
         module.getBaritone().stop();
         faceBlock(mineralChest.pos());
 
-        if (mc.screen != null && !(mc.screen instanceof AbstractContainerScreen<?>)
-            && !(mc.screen instanceof PauseScreen)) {
+        // 玩家自己开着容器界面（背包 / 创造背包）时只等不做（用户 2026-09-19 统一口径：
+        // 静默容器只在没有玩家界面时跑）。往下走会在玩家看背包时静默开箱，把 containerMenu
+        // 悄悄换成箱子菜单，玩家背包里的点击就按箱子的 containerId 发出去（错位、丢物品）。
+        // 我方开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
+        if (mc.screen instanceof AbstractContainerScreen<?>) return;
+        if (mc.screen != null && !(mc.screen instanceof PauseScreen)) {
+            // 游戏菜单 / 控制台等非容器界面：没必要占着容器，周期性收掉，但不打断流程
             if (stateTick % 20 == 0) module.getContainer().closeContainer();
             return;
         }
@@ -2690,6 +2698,7 @@ public final class MiningStateMachine {
             // 但玩家自己按 ESC 打开的「游戏菜单」既不必关、也不该卡住流程（用户 2026-09-19：
             // 「我本来是这个界面的，然后卸货触发就把我这个界面关掉了」）——发包开箱、点槽位、发指令
             // 全都与客户端界面无关，关掉它只会把人从菜单里踢回游戏（镜头被抢）
+            // 玩家自己开着容器界面（背包 / 创造背包）时只等不做（同卸货阶段，见上）
             if (mc.screen instanceof AbstractContainerScreen<?>) return;
             if (mc.screen != null && !(mc.screen instanceof PauseScreen) && stateTick % 20 == 0) {
                 module.getContainer().closeContainer();
@@ -2854,6 +2863,8 @@ public final class MiningStateMachine {
                 int toolSlot = findDamagedToolSlot(true);
                 if (toolSlot == -1) {
                     // 没有需要修的工具了（可能已被其它机制修好；无经验修补的修不了、已被跳过），直接返回矿区
+                    // 这一路过去是静默的，用户 2026-09-19：「修好了没提示」，所以退出修复态统一播报一次
+                    module.info("§a✓ 修复结束 §8▸ 已无低于阈值的可修工具，返回矿区继续挖矿");
                     transitionTo(MinerState.GO_WILD);
                     return;
                 }
@@ -2896,12 +2907,21 @@ public final class MiningStateMachine {
         // 阶段 6：持续监控耐久
         ItemStack currentTool = mc.player.getOffhandItem();
         if (currentTool.isEmpty() || isFullyRepaired(currentTool)) {
+            // 修复成功收工：旧实现静默转回挖矿，用户 2026-09-19 实机反馈「修好了没提示」，这里补播报
+            if (!currentTool.isEmpty()) {
+                module.info("§a✓ 修复完成 §8▸ " + toolName(currentTool) + " 耐久已回满，返回矿区继续挖矿");
+            }
             transitionTo(MinerState.GO_WILD);
             return;
         }
 
-        // 超时保护：10分钟没修满
-        if (stateTick > 12000) {
+        // 超时保护：10 分钟没修满 → 停机。旧实现这一路完全静默（用户 2026-09-19：「静默的，一句提示都没有」），
+        // 这里在越线那一拍播报一次。注意：越线后本分支每刻都会进（停机失败也会继续进），所以用 stateTick
+        // 精确等于「越线首拍」来保证只播一次，不能写成 stateTick > XXX 里直接播。
+        if (stateTick > REPAIR_TIMEOUT_TICKS) {
+            if (stateTick == REPAIR_TIMEOUT_TICKS + 1) {
+                module.info("§c✗ 修复超时 §8▸ " + (REPAIR_TIMEOUT_TICKS / 1200) + " 分钟未修满，已自动停机");
+            }
             stopRepairCombat();
             if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
         }
@@ -2986,15 +3006,28 @@ public final class MiningStateMachine {
     //  辅助方法
     // ═══════════════════════════════════════════════════════════════════
 
-    /** 旧 {@code needsRepair}，{@code :1520-1530} 逐字 */
+    /**
+     * 旧 {@code needsRepair}，{@code :1520-1530} 逐字，另加两道防死循环夹紧（本项目）。
+     *
+     * <p><b>用户 2026-09-19 实机反馈</b>：「耐久阈值上限是 2031，实际可以输入 3000，
+     * 输入 3000 就会无限循环去挂机点修复」。上游已把输入框上限改成「跟随手持工具的满耐久」
+     * （{@code ToolDurability#heldToolDurability}），这里再兜两道，保证任何配置值
+     * （含老存档里残留的 3000、或服务器自定义的高耐久工具）都不会卡成「挂机点 ↔ 矿区」来回跑：</p>
+     * <ol>
+     *   <li>阈值先与<b>该工具自己的满耐久</b>取小 —— 阈值高于满耐久时，工具永远处于「需修复」；</li>
+     *   <li>已经算「满耐久」（{@link #isFullyRepaired}，剩 5 点以内）的工具一律不判需修复 ——
+     *       否则修完回矿区又立刻被判需修复，一步都挖不了就再回挂机点。</li>
+     * </ol>
+     */
     private boolean needsRepair(ItemStack tool) {
         if (tool.isEmpty()) return false;
         Integer maxDamage = tool.get(DataComponents.MAX_DAMAGE);
         Integer damage = tool.get(DataComponents.DAMAGE);
         if (maxDamage == null || damage == null) return false;
+        if (isFullyRepaired(tool)) return false;
         int remaining = maxDamage - damage;
-        // 阈值不能超过工具最大耐久：否则满耐久（remaining == maxDamage）仍被判为
-        // 「需修复」，修完回矿区又立刻触发修复，形成修复↔挖矿死循环。
+        // 阈值不能超过工具最大耐久：否则满耐久（remaining == maxDamage）仍被判为「需修复」，
+        // 修完回矿区又立刻触发修复，形成修复↔挖矿死循环。
         int effectiveThreshold = Math.min(module.getDurabilityThreshold(), maxDamage);
         return remaining < effectiveThreshold;
     }
@@ -3031,13 +3064,14 @@ public final class MiningStateMachine {
         return !stack.isEmpty() && BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().endsWith("_pickaxe");
     }
 
-    /** 旧 {@code isRepairableTool}，{@code :1560-1567} 逐字 */
+    /**
+     * 旧 {@code isRepairableTool}，{@code :1560-1567} 逐字。
+     *
+     * <p>判据实现搬去了 {@link ToolDurability}（第 169 条：控制台「耐久阈值」的动态上限要用同一套判据），
+     * 这里保留同名转发，改动面最小。</p>
+     */
     private boolean isRepairableTool(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        if (stack.get(DataComponents.MAX_DAMAGE) == null) return false;
-        String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
-        return id.endsWith("_pickaxe") || id.endsWith("_shovel") || id.endsWith("_axe")
-            || id.endsWith("_hoe") || id.endsWith("_sword");
+        return ToolDurability.isRepairableTool(stack);
     }
 
     /**

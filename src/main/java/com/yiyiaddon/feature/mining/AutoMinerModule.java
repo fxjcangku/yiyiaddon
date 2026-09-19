@@ -31,6 +31,7 @@ import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
 import com.yiyiaddon.feature.mining.ui.AutoMinerPage;
 import com.yiyiaddon.feature.mining.vein.MiningVeinMiner;
 import com.yiyiaddon.integration.baritone.BaritoneChatTranslations;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.eat.OffhandRationLock;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.platform.world.WorldIdentity;
@@ -38,9 +39,6 @@ import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.LevelLoadingScreen;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -813,31 +811,32 @@ public final class AutoMinerModule extends Module {
     private void onOpenScreen(ClientEvent event) {
         if (mc.player == null || !isEnabled()) return;
         String screenClassName = event.payload();
+
         // 玩家自己开着界面时别让「加载地形中」把它顶掉（用户 2026-09-19：「没用，只要传送成功，
         // 就会把我这个页面关闭」）：本服传送走「重生式传送」→ 客户端收到 ClientboundRespawnPacket
         // → 原版**无条件**把我方界面替换成 LevelLoadingScreen
         // （ClientPacketListener#handleRespawn → startWaitingForNewLevel → setScreenAndShow）。
         // 跳过显示它不影响任何流程：加载进度与「客户端已加载」上报都由 levelLoadTracker 在
         // ClientPacketListener#tick 里推进（notifyPlayerLoaded），与这个界面无关。
-        if (mc.screen != null && LevelLoadingScreen.class.getName().equals(screenClassName)) {
+        if (SilentContainer.isLevelLoadingHijack(screenClassName)) {
             event.cancel();
             return;
         }
-        // 旧判定 `!(screen instanceof InventoryScreen)`
-        if (InventoryScreen.class.getName().equals(screenClassName)) return;
-        if (isContainerScreen(screenClassName)) event.cancel();
-    }
 
-    /**
-     * 该界面类名是否为原版容器界面 —— 旧 {@code event.screen instanceof AbstractContainerScreen<?>}
-     * 的类名等价物（事件载荷只带类名，不带界面对象；与 {@code StardewFarmModule} 同一做法）。
-     */
-    private static boolean isContainerScreen(String screenClassName) {
-        if (screenClassName == null || screenClassName.isBlank()) return false;
-        try {
-            return AbstractContainerScreen.class.isAssignableFrom(Class.forName(screenClassName));
-        } catch (Throwable ignored) {
-            return false;
+        // 玩家按 E 开背包（生存 / 创造都算）：背包永远放行，但要把我方静默容器收掉，
+        // 否则玩家在背包里的点击会按箱子的 containerId 发出去（错位、丢物品）。
+        // 走 MiningContainer 的收箱口（除关菜单外还要清开箱重试 / 精确补组等相位）。
+        // 收掉后状态机在卸货 / 补给阶段的玩家界面守卫处「只等不做」，玩家关背包自然续上。
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
+            getContainer().closeContainer();
+            return;
+        }
+        // 只有「本模块自己在做容器事务」时才静默（用户 2026-09-19）：挂机时玩家手动去开自己的箱子，
+        // 界面必须照常显示，不能被当成「模块自己在开箱」拦掉（卸货 / 补给期间的静默开箱照旧生效）
+        if (getContainer().isOperatingContainer() && SilentContainer.isContainerScreen(screenClassName)) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
+            event.cancel();
         }
     }
 

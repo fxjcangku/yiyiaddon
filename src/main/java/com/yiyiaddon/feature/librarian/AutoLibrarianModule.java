@@ -26,12 +26,11 @@ import com.yiyiaddon.feature.librarian.service.EnchantmentMatcher;
 import com.yiyiaddon.feature.librarian.service.LibrarianOrchestrator;
 import com.yiyiaddon.feature.librarian.service.MovementStatus;
 import com.yiyiaddon.feature.librarian.ui.AutoLibrarianPage;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.navigation.FarmNav;
 import com.yiyiaddon.ui.page.ModulePage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -333,24 +332,30 @@ public final class AutoLibrarianModule extends Module {
      * 静默容器：运行中取消交易界面 / 箱子屏幕的显示（不抢鼠标），
      * 交易数据仍由 {@code player.containerMenu} 同步，选中与领取照常发包。
      *
-     * <p>背包与创造模式背包必须放行：玩家手动按 E 打开背包不能被模块拦掉；
-     * 创造背包被拦掉还会因 {@code RecipeBookComponent.book} 未初始化而 NPE 闪退。</p>
+     * <p>界面判据（背包放行 / 容器界面 / 传送加载界面劫持）统一走 {@link SilentContainer}；
+     * 玩家按 E 开背包时额外让编排器收掉静默界面并退回安全相位，否则背包里的点击会按村民界面的
+     * {@code containerId} 发出去（第 169 条：同类逻辑只留一份）。</p>
      */
     private void onOpenScreen(ClientEvent event) {
         if (mc.player == null || !isEnabled()) return;
         String screenClassName = event.payload();
-        if (InventoryScreen.class.getName().equals(screenClassName)) return;
-        if (CreativeModeInventoryScreen.class.getName().equals(screenClassName)) return;
-        if (isContainerScreen(screenClassName)) event.cancel();
-    }
 
-    /** 该界面类名是否为原版容器界面（旧 {@code instanceof AbstractContainerScreen<?>} 的类名等价物） */
-    private static boolean isContainerScreen(String screenClassName) {
-        if (screenClassName == null || screenClassName.isBlank()) return false;
-        try {
-            return AbstractContainerScreen.class.isAssignableFrom(Class.forName(screenClassName));
-        } catch (Throwable ignored) {
-            return false;
+        // 玩家自己开着界面时，原版传送会把「加载地形中」无条件盖上来（用户 2026-09-19）：拦掉
+        if (SilentContainer.isLevelLoadingHijack(screenClassName)) {
+            event.cancel();
+            return;
+        }
+        if (SilentContainer.isPlayerInventory(screenClassName)) {
+            if (orchestrator != null) orchestrator.onPlayerInventoryOpened();
+            return;
+        }
+        // 只有「本模块自己在用交易界面」时才静默（用户 2026-09-19）：挂机时玩家手动去开自己的箱子，
+        // 界面必须照常显示，不能被当成「模块自己在开界面」拦掉
+        if (orchestrator != null && orchestrator.isUsingTradeScreen()
+            && SilentContainer.isContainerScreen(screenClassName)) {
+            // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
+            SilentContainer.rejectPlayerContainer();
+            event.cancel();
         }
     }
 

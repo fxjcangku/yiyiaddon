@@ -10,6 +10,9 @@ import com.yiyiaddon.feature.librarian.model.StationValidationStatus;
 import com.yiyiaddon.feature.librarian.model.TradeOfferSnapshot;
 import com.yiyiaddon.feature.librarian.model.VillagerStation;
 import com.yiyiaddon.feature.librarian.model.VillagerTarget;
+import com.yiyiaddon.platform.container.ContainerAccess;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
 import java.util.List;
 import java.util.Objects;
@@ -119,6 +122,11 @@ public final class LibrarianOrchestrator {
 
     /** 推进一 tick */
     public void tick() {
+        // 玩家自己开着容器界面（背包 / 创造背包 / 自己的箱子）时只等不做（用户 2026-09-19 统一口径：
+        // 静默容器只在没有玩家界面时跑）：直接冻住状态机 —— 状态计时也一并冻住，
+        // 玩家看背包期间不会等到超时被 fail，关掉界面自然续上。
+        // 我方静默打开的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
+        if (Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) return;
         stateMachine.tick();
     }
 
@@ -128,6 +136,40 @@ public final class LibrarianOrchestrator {
         tradeService.close();
         context.clearVillagerCycle();
         stateMachine.reset("模块停止");
+    }
+
+    /**
+     * 本模块当前是否正在使用交易界面（打开 / 等待同步 / 读取报价 / 购买流程）。
+     *
+     * <p>给界面静默做状态门控用（用户 2026-09-19）：只有 true 时才取消容器界面显示 ——
+     * 玩家挂机时手动去开自己的箱子照常显示界面，不会被模块当成「自己在开界面」静默掉。</p>
+     */
+    public boolean isUsingTradeScreen() {
+        return switch (stateMachine.getCurrentState()) {
+            case OPEN_TRADE, WAIT_TRADE_SCREEN, READ_TRADES, CHECK_ENCHANTMENT,
+                 TRADE_PROCESS, SELECT_TRADE, WAIT_TRADE_SYNC, TAKE_TRADE_OUTPUT, VERIFY_PURCHASE -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * 玩家自己按 E 打开了背包：收掉静默交易界面，并按当前相位退到安全状态。
+     *
+     * <p>静默模式下交易界面被取消，走不到 {@code AbstractContainerScreen#onClose}，服务端会一直认为
+     * 界面开着；此时玩家在背包里的点击会按村民界面的 {@code containerId} 发出去（错位、丢物品），
+     * 所以必须收掉。收掉后交易数据必然读不到，若不管相位，各交易状态会等到超时 {@code fail}
+     * 而把整个模块停掉 —— 这里按允许的转换表退到「重置拆台」或「放弃本村民」，玩家关掉背包后流程继续。</p>
+     */
+    public void onPlayerInventoryOpened() {
+        ContainerAccess.closeContainer();
+        switch (stateMachine.getCurrentState()) {
+            case OPEN_TRADE, WAIT_TRADE_SCREEN, READ_TRADES, CHECK_ENCHANTMENT ->
+                transition(LibrarianState.RESET, "玩家打开了背包，本轮重置");
+            case TRADE_PROCESS, SELECT_TRADE, WAIT_TRADE_SYNC, TAKE_TRADE_OUTPUT, VERIFY_PURCHASE ->
+                transition(LibrarianState.END_VILLAGER_CYCLE, "玩家打开了背包，放弃本村民");
+            default -> {
+            }
+        }
     }
 
     /** 当前状态 */

@@ -129,7 +129,9 @@ public final class PacketBreakRenderer {
         PacketBreakSettings settings = module.settings();
 
         int percent = (int) (Math.min(1, progress) * 100);
-        StringBuilder label = new StringBuilder().append(percent).append('%');
+        // §l = 加粗（用户 2026-09-19：「所有的点位模块都要字体加粗」，秒破的这行标签一并跟上）；
+        // 注意 §7 这类颜色码会把加粗重置掉（与 MinecraftText 的解析规则一致），所以后面那段要再写一次 §l
+        StringBuilder label = new StringBuilder("§l").append(percent).append('%');
         if (settings.labelStyle == LabelStyle.BLOCK) {
             label.append(' ').append(target.block.getName().getString());
         } else if (settings.labelStyle == LabelStyle.TICK) {
@@ -137,7 +139,7 @@ public final class PacketBreakRenderer {
             int remaining = target.startTick == PacketBreakTarget.TICK_NONE
                 ? required
                 : Math.max(0, required - (mc.player.tickCount - target.startTick));
-            label.append(" §7(剩 ").append(remaining).append("t)");
+            label.append(" §7§l(剩 ").append(remaining).append("t)");
         }
 
         BlockPos pos = target.pos;

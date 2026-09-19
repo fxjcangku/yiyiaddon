@@ -23,12 +23,15 @@ import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -49,14 +52,18 @@ import java.util.Set;
  * <p><b>四类图形与配色</b>（护眼口径：低饱和、同一明度区间，逐条取自旧项目已验证的色板手感）：</p>
  * <ul>
  *   <li><b>路径</b>：主色默认低饱和薄荷青（可在设置里改）。当前段沿线从「起点压暗」过渡到「车头提亮」，
- *       一条线自带方向感，不必再画箭头；规划段混向冷灰蓝并压暗一档；计算中的最优路径与最近考虑路径
+ *       并叠一条<b>朝目标流动的亮带</b>（流光，见 {@link #FLOW_WAVELENGTH_SEGMENTS}）——
+ *       方向不用箭头也不用猜；规划段混向冷灰蓝并压暗一档；计算中的最优路径与最近考虑路径
  *       再各降一档不透明度 —— 四档由亮到暗正好对应「正在走 / 接下来走 / 算到最好的 / 刚看过一眼的」。</li>
- *   <li><b>目标</b>：同色系方块框 + 极淡填充（填充压到几乎看不见，只把目标圈出来，不糊住方块）。
+ *   <li><b>目标</b>：方块框 + 极淡填充（填充压到几乎看不见，只把目标圈出来，不糊住方块），
+ *       整框沿 Y <b>上下浮动</b>（Baritone 原版 {@code renderGoalAnimated} 的效果）；
+ *       颜色按矿石种类取（见 {@link #ORE_COLORS}），非矿石目标用基准色。
  *       普通目标两格高、{@code GoalGetToBlock} / {@code GoalTwoBlocks} 贴方块只框一格（与 Baritone 同口径）；
  *       {@code GoalYLevel} 画玩家周围一整张水平面；{@code GoalXZ} 画通高方框 + 两片交叉的渐隐光柱，
  *       替代原版那条贴图信标；反向目标（{@code GoalInverted}）换成暖珊瑚色，语义上就和「要去」分开。</li>
  *   <li><b>挖掘方块框</b>：待破坏 / 待放置 / 待进入三色（暖珊瑚 / 冷蓝 / 青绿），且用方块<b>真实碰撞形状</b>
- *       的包围盒（花草、半砖不会被画成整格）。</li>
+ *       的包围盒（花草、半砖不会被画成整格）；矿石那一格统一用它的矿石色
+ *       （同一个矿石在「目标」与「要破坏」两处同色，不会糊成两色）。</li>
  *   <li><b>选区</b>：主体与两个角点各一圈描边，角点沿用 Baritone「pos1 暖 / pos2 冷」的语义。</li>
  * </ul>
  *
@@ -116,6 +123,25 @@ public final class BaritoneOverlay {
     private static final int CURRENT_TAIL_TINT = 0x14343A;
     private static final float CURRENT_TAIL_MIX = 0.40f;
     private static final float CURRENT_HEAD_MIX = 0.25f;
+
+    /**
+     * 流光（当前段的动态）：沿路径朝目标流动的亮带。
+     *
+     * <p>用户 2026-09-19：「不是让你设计高级一点的动画吗 寻路的颜色跟动态」——底色渐变只是「好看」，
+     * 真正让人觉得线是活的是<b>动</b>：一条亮带顺着路径往前跑，方向不用箭头也不用猜。</p>
+     *
+     * <p>参数关系：速度 = {@link #FLOW_WAVELENGTH_SEGMENTS} / {@link #FLOW_PERIOD_MS} ≈ 11 格/秒；
+     * 波峰处颜色按 {@link #FLOW_PEAK_MIX} 混向 {@link #FLOW_HIGHLIGHT}、线宽按
+     * {@link #FLOW_WIDTH_BOOST} 加粗，于是亮带是一段「带厚度的光」；波谷取正弦的平方压暗，
+     * 亮带更窄、暗区更长，对比强又不吵。低于 {@link #FLOW_MIN_GLOW} 的段直接跳过混色。</p>
+     */
+    private static final float FLOW_WAVELENGTH_SEGMENTS = 10f;
+    private static final long FLOW_PERIOD_MS = 900L;
+    private static final float FLOW_PEAK_MIX = 0.72f;
+    private static final float FLOW_WIDTH_BOOST = 0.35f;
+    private static final float FLOW_MIN_GLOW = 0.02f;
+    /** 亮带高光色：比车头提亮更亮一档的近白薄荷。 */
+    private static final int FLOW_HIGHLIGHT = 0xEAFBF7;
     /** 规划段配色：混向冷灰蓝再压暗一档 —— 与当前段在色相与亮度上都分得开。 */
     private static final int PLANNED_TINT = 0x8FA6B8;
     private static final float PLANNED_MIX = 0.45f;
@@ -149,6 +175,39 @@ public final class BaritoneOverlay {
     private static final int POS1_COLOR = 0xE8C07A;
     /** 选区第二个角点：冷。 */
     private static final int POS2_COLOR = 0x7AC0E8;
+
+    /**
+     * 目标框上下浮动的幅度（格）与周期（毫秒）。
+     *
+     * <p>用户 2026-09-19：「baritone 会有那种 esp 上下浮动的效果你弄得没有」——Baritone 原版的
+     * {@code renderGoalAnimated} 就是让目标框动起来。这里用一条正弦把整个框沿 Y 抬落
+     * ±{@link #GOAL_FLOAT_AMPLITUDE}，比原版那种「上下两个面来回扫」更安静，远看也不会糊。</p>
+     */
+    private static final double GOAL_FLOAT_AMPLITUDE = 0.15d;
+    private static final long GOAL_FLOAT_PERIOD_MS = 1800L;
+
+    /**
+     * 矿石 → 专属色（键是方块注册名里的关键字，深层 / 下界变体自然命中同一个键）。
+     *
+     * <p>用户 2026-09-19：「esp 什么矿石对应什么颜色的 esp 颜色帮我设置」。口径：低饱和、护眼，
+     * 但保留各矿石在玩家心里的固有印象色（钻青、金黄金、红石红、青金蓝…），
+     * 而且彼此分得开 —— 挖一片混合矿区时一眼能看出哪些是哪种矿。</p>
+     *
+     * <p>只对<b>真矿石</b>生效：注册名必须以 {@code _ore} 结尾或等于 {@code ancient_debris}，
+     * 所以 {@code coal_block} 这类同名非矿石不会被误染色（见 {@link #oreColor}）。</p>
+     */
+    private static final Map<String, Integer> ORE_COLORS = Map.ofEntries(
+            Map.entry("coal", 0x8A8F99),      // 煤：石墨灰
+            Map.entry("copper", 0xD08C6A),    // 铜：铜橙
+            Map.entry("iron", 0xD9C7B4),      // 铁：铁米白
+            Map.entry("gold", 0xE8C46A),      // 金：金黄（含下界金矿）
+            Map.entry("redstone", 0xD96B6B),  // 红石：红
+            Map.entry("lapis", 0x6B8CD9),     // 青金石：青金蓝
+            Map.entry("diamond", 0x4FD8E0),   // 钻石：亮青（比基准薄荷青更偏蓝，两者不会看混）
+            Map.entry("emerald", 0x6BD98A),   // 绿宝石：翠绿
+            Map.entry("quartz", 0xE6E0D4),    // 下界石英：石英白
+            Map.entry("debris", 0x9A7B6B)     // 远古残骸：焦褐
+    );
 
     /**
      * 本帧剩余的目标 / 方块框配额。
@@ -218,10 +277,19 @@ public final class BaritoneOverlay {
     }
 
     /**
-     * 当前段：逐段颜色插值（起点端压暗 → 车头端提亮）。
+     * 当前段：底色的逐段插值（起点端压暗 → 车头端提亮）+ 沿路径向目标流动的<b>流光</b>。
      *
-     * <p>逐段单色而不是段内渐变（{@link EspRenderer} 的双色线一条会拆成 10 个图元）：
-     * 几十段缓慢插值在观感上已经是渐变，图元数却只要一份，长路径不会拖累帧率。</p>
+     * <p><b>流光怎么做的</b>：在段索引上叠一条正弦波，波峰就是亮带；相位随<b>时间</b>前移，
+     * 于是整条线上的亮带一起朝目标方向流动（速度 = 波长 / 周期 ≈ 11 格/秒）。
+     * 波峰处颜色混向高光色、线宽同时加粗一档 —— 亮带看起来像一段带厚度的光，而不是一条变色的线。
+     * 波谷处取正弦的平方压暗，亮带更窄、暗区更长，对比更强也更安静。</p>
+     *
+     * <p><b>为什么按「绝对段索引」而不是「窗口内相对索引」计算相位</b>：段索引对应世界里的固定节点，
+     * 所以亮带是在世界空间里朝目标走的，速度不受玩家移动影响；用相对索引的话，窗口随玩家前移，
+     * 亮带会被玩家自己「拖着走」（走得快时甚至看着在倒退），像跑马灯而不是流水。</p>
+     *
+     * <p><b>为什么逐段单色而不是段内渐变</b>：{@link EspRenderer} 的双色线一条会拆成 10 个图元，
+     * 200 段就是 2000 个；逐段上色在观感上已经是连续渐变，图元数仍是 1 份/段。</p>
      */
     private static void drawCurrentPath(EspRenderer renderer, List<BetterBlockPos> positions, int begin,
                                         int base) {
@@ -230,15 +298,34 @@ public final class BaritoneOverlay {
         int end = Math.min(positions.size() - 1, start + MAX_NODES);
         int tail = GlassPanel.mix(base, CURRENT_TAIL_TINT, CURRENT_TAIL_MIX);
         int head = GlassPanel.mix(base, 0xFFFFFF, CURRENT_HEAD_MIX);
-        int span = Math.max(end - start, 1);
+        float span = Math.max(end - start, 1);
+        float phase = (System.nanoTime() / 1_000_000L % FLOW_PERIOD_MS) / (float) FLOW_PERIOD_MS;
+
         for (int i = start; i < end; i++) {
-            int color = 0xFF000000 | GlassPanel.mix(tail, head, (i - start) / (float) span);
-            segment(renderer, positions, i, color);
+            int color = GlassPanel.mix(tail, head, (i - start) / span);
+            float glow = flowGlow(i, phase);
+            int argb = 0xFF000000 | (glow <= FLOW_MIN_GLOW
+                    ? color : GlassPanel.mix(color, FLOW_HIGHLIGHT, glow * FLOW_PEAK_MIX));
+            segment(renderer, positions, i, argb, LINE_THICKNESS * (1f + glow * FLOW_WIDTH_BOOST));
         }
     }
 
     /**
+     * 第 {@code index} 段当前的流光强度（0 = 波谷，1 = 波峰）。
+     *
+     * <p>纯函数，只依赖段索引与传入的时间相位：不读实例状态，也没有跨帧缓存，
+     * 所以路径重算、窗口平移都不会让它跳变（第 169 条：同一实现只留一份）。</p>
+     */
+    private static float flowGlow(int index, float phase) {
+        double wave = index / (double) FLOW_WAVELENGTH_SEGMENTS - phase;
+        float raw = (float) (0.5d + 0.5d * Math.sin(wave * Math.PI * 2d));
+        return raw * raw;
+    }
+
+    /**
      * 规划段 / 计算中路径：整段单色（基准色混向冷灰蓝并压暗），不透明度由调用方分档。
+     *
+     * <p>这几条<b>不加流光</b>：流光在本层是「这段正在走」的信号，到处都在动就失去意义了。</p>
      */
     private static void drawPlannedPath(EspRenderer renderer, List<BetterBlockPos> positions, int base,
                                         int alpha) {
@@ -248,16 +335,17 @@ public final class BaritoneOverlay {
                 0x1A2126, PLANNED_DARKEN_MIX);
         int argb = (alpha << 24) | color;
         for (int i = 0; i < end; i++) {
-            segment(renderer, positions, i, argb);
+            segment(renderer, positions, i, argb, LINE_THICKNESS);
         }
     }
 
     /** 第 {@code i} 个节点到第 {@code i + 1} 个节点之间的一段；线抬升一点，避免与方块面共面闪烁。 */
-    private static void segment(EspRenderer renderer, List<BetterBlockPos> positions, int i, int argb) {
+    private static void segment(EspRenderer renderer, List<BetterBlockPos> positions, int i, int argb,
+                                float thickness) {
         BetterBlockPos from = positions.get(i);
         BetterBlockPos to = positions.get(i + 1);
         renderer.line(from.x + CENTER, from.y + CENTER + LINE_LIFT, from.z + CENTER,
-                to.x + CENTER, to.y + CENTER + LINE_LIFT, to.z + CENTER, argb, LINE_THICKNESS);
+                to.x + CENTER, to.y + CENTER + LINE_LIFT, to.z + CENTER, argb, thickness);
     }
 
     // ── 目标 ────────────────────────────────────────────────────────────────
@@ -295,13 +383,61 @@ public final class BaritoneOverlay {
         }
     }
 
-    /** 贴到某个方块的目标：普通目标框两格高，贴方块 / 两格高的目标只框一格（Baritone 同口径）。 */
+    /**
+     * 贴到某个方块的目标：普通目标框两格高，贴方块 / 两格高的目标只框一格（Baritone 同口径）；
+     * 整框沿 Y 上下浮动（见 {@link #goalFloatOffset}），颜色按矿石种类取（见 {@link #goalColor}）。
+     */
     private static void drawGoalPos(EspRenderer renderer, BlockPos pos, boolean blockSized, int base) {
         goalBudget--;
         double top = blockSized ? pos.getY() + 1 : pos.getY() + 2;
-        AABB box = new AABB(pos.getX() + GOAL_INSET, pos.getY(), pos.getZ() + GOAL_INSET,
-                pos.getX() + 1 - GOAL_INSET, top, pos.getZ() + 1 - GOAL_INSET);
-        drawBox(renderer, box, base);
+        double floatY = goalFloatOffset();
+        AABB box = new AABB(pos.getX() + GOAL_INSET, pos.getY() + floatY, pos.getZ() + GOAL_INSET,
+                pos.getX() + 1 - GOAL_INSET, top + floatY, pos.getZ() + 1 - GOAL_INSET);
+        drawBox(renderer, box, goalColor(pos, base));
+    }
+
+    /** 目标框本帧的上下浮动偏移（一条正弦，周期 {@link #GOAL_FLOAT_PERIOD_MS}）。 */
+    private static double goalFloatOffset() {
+        double phase = (System.nanoTime() / 1_000_000L % GOAL_FLOAT_PERIOD_MS)
+                / (double) GOAL_FLOAT_PERIOD_MS;
+        return Math.sin(phase * Math.PI * 2d) * GOAL_FLOAT_AMPLITUDE;
+    }
+
+    /**
+     * 目标框的颜色：目标位置是矿石就用它的专属色，否则用基准色。
+     *
+     * <p>还要看<b>目标上方一格</b>：{@code #mine} 的目标由 {@code MineProcess#coalesce} 生成，
+     * 常出现 {@code GoalTwoBlocks} 落在矿石下面那一格（玩家站的位置），只看目标本身就漏了颜色。</p>
+     */
+    private static int goalColor(BlockPos pos, int base) {
+        return colorFor(pos, colorFor(pos.above(), base));
+    }
+
+    /**
+     * 该方块是矿石则返回它的专属色，否则返回 {@code fallback}。
+     *
+     * <p>判据取方块注册名：必须以 {@code _ore} 结尾或等于 {@code ancient_debris} ——
+     * 只有真矿石才吃 {@link #ORE_COLORS}，{@code coal_block} 这类同名非矿石不会被误染色；
+     * 深层（{@code deepslate_diamond_ore}）与下界（{@code nether_gold_ore} / {@code nether_quartz_ore}）
+     * 变体因为都含同一关键字，自动命中同一个颜色。</p>
+     */
+    private static int colorFor(BlockPos pos, int fallback) {
+        int ore = oreColor(pos);
+        return ore >= 0 ? ore : fallback;
+    }
+
+    /** 该方块是不是矿石；是则返回专属色，否则 -1。 */
+    private static int oreColor(BlockPos pos) {
+        Level world = Minecraft.getInstance().level;
+        if (world == null) return -1;
+        Identifier id = BuiltInRegistries.BLOCK.getKey(world.getBlockState(pos).getBlock());
+        if (id == null) return -1;
+        String name = id.getPath();
+        if (!name.endsWith("_ore") && !name.equals("ancient_debris")) return -1;
+        for (Map.Entry<String, Integer> entry : ORE_COLORS.entrySet()) {
+            if (name.contains(entry.getKey())) return entry.getValue();
+        }
+        return -1;
     }
 
     /** {@code GoalYLevel}：以玩家为中心铺一整张水平面，一眼看出「要挖到哪一层」。 */
@@ -368,11 +504,18 @@ public final class BaritoneOverlay {
         }
     }
 
-    /** 单个方块框：只描边（成片框不填充，免得糊成一堵墙）。 */
+    /**
+     * 单个方块框：只描边（成片框不填充，免得糊成一堵墙）；矿石按种类上色，其余用调用方给的语义色。
+     *
+     * <p>挖矿时「目标」与「要破坏的方块」常常就是同一格矿石，两处各画一个颜色会糊在一起，
+     * 所以矿石这一格统一走矿石色，三色语义留给真正需要区分的非矿石方块（石头 / 泥土要挖、
+     * 要垫的方块要放、要走进的空格）。</p>
+     */
     private static void drawBlockBox(EspRenderer renderer, BlockPos pos, int color) {
         if (pos == null) return;
         boxBudget--;
-        renderer.box(shapeBox(pos), 0, 0xFF000000 | color, ShapeMode.Lines, BOX_THICKNESS);
+        renderer.box(shapeBox(pos), 0, 0xFF000000 | colorFor(pos, color),
+                ShapeMode.Lines, BOX_THICKNESS);
     }
 
     /**

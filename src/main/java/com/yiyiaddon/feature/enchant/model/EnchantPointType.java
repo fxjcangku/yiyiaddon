@@ -22,15 +22,15 @@ import java.util.List;
  */
 public enum EnchantPointType {
 
-    BOOK_STORAGE("空白书箱", "书", "posBook", "§a§l[书本箱]", 0xC850E6A0, "§a"),
-    LAPIS_STORAGE("青金石箱", "青晶石", "posLapis", "§9§l[青金石箱]", 0xC84682FF, "§9"),
+    BOOK_STORAGE("空白书箱", "书", "posBook", "书本箱", 0xC850E6A0, "§a"),
+    LAPIS_STORAGE("青金石箱", "青晶石", "posLapis", "青金石箱", 0xC84682FF, "§9"),
     EQUIPMENT_STORAGE("工具/护甲箱", "工具护甲箱", "posEquipment", null, 0, "§b"),
-    ENCHANTING_TABLE("附魔台", "附魔台", "posEnchant", "§d§l[附魔台]", 0xC8C864FF, "§d"),
-    GRINDSTONE("砂轮", "砂轮", "posGrindstone", "§7§l[砂轮]", 0xC8A0A0A0, "§7"),
+    ENCHANTING_TABLE("附魔台", "附魔台", "posEnchant", "附魔台", 0xC8C864FF, "§d"),
+    GRINDSTONE("砂轮", "砂轮", "posGrindstone", "砂轮", 0xC8A0A0A0, "§7"),
     ANVIL("铁砧", "铁砧", "posAnvil", null, 0, "§6"),
     ANVIL_BOX("铁砧箱", "铁砧箱", "posAnvilBox", null, 0, "§e"),
-    AFK("挂机点", "挂机位", "posHangout", "§c§l[挂机位]", 0xC8FF5050, "§c"),
-    OUTPUT_STORAGE("成品箱", "成品箱", "posOutput", "§6§l[成品箱]", 0xC8FFC832, "§6");
+    AFK("挂机点", "挂机位", "posHangout", "挂机位", 0xC8FF5050, "§c"),
+    OUTPUT_STORAGE("成品箱", "成品箱", "posOutput", "成品箱", 0xC8FFC832, "§6");
 
     /** GEAR 模式必填点位（旧项目 {@code requiredPoints} 的 GEAR 分支，{@code :761-764}） */
     private static final List<EnchantPointType> GEAR_POINTS = List.of(

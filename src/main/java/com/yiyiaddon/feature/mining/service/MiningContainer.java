@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.mining.service;
 import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.platform.container.ContainerAccess;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.eat.SilentEat;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
 import com.yiyiaddon.platform.network.BlockPacketSender;
@@ -471,6 +472,8 @@ public final class MiningContainer {
 
         // 直接发包开箱（带 sequence 预测处理），不依赖 mc.gameMode.useItemOn：
         // 鼠标切出窗口/窗口失焦时 useItemOn 的交互会被吞，导致箱子打不开。
+        // 打点「我方刚开箱」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+        SilentContainer.markOwnContainerOpen();
         BlockPacketSender.interactBlock(InteractionHand.MAIN_HAND, pos, Direction.UP);
     }
 
@@ -518,6 +521,20 @@ public final class MiningContainer {
      */
     private void quickMove(AbstractContainerMenu menu, int slotIndex) {
         ContainerAccess.quickMove(menu, slotIndex);
+    }
+
+    /**
+     * 本模块是否正在执行自己的容器事务（发包开箱后到收箱前）。
+     *
+     * <p>给界面静默做状态门控用：只有 true 时 {@code AutoMinerModule} 才取消容器界面显示 ——
+     * 玩家挂机时手动去开自己的箱子（此时 {@link #openingPos} 为空）照常显示界面，
+     * 不会被模块当成「自己在开箱」静默掉（用户 2026-09-19）。</p>
+     *
+     * <p>不能用 {@link #isContainerOpen()} 当判据：玩家自己开的箱子同样会让
+     * {@code containerMenu.containerId != 0}，那样又会把玩家的箱子拦掉。</p>
+     */
+    public boolean isOperatingContainer() {
+        return openingPos != null;
     }
 
     /**

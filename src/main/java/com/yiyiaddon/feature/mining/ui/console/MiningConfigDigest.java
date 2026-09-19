@@ -133,7 +133,7 @@ public final class MiningConfigDigest {
         out.add(field("挂机修复点 ESP 颜色", color(s.renderAfkPoint.color.rgb())));
         out.add(field("容器标签字号倍率", s.espContainerTextScale + " §7倍"));
         out.add(field("容器标签文字颜色", s.espContainerTextColor == 0
-            ? "§8跟随各点位颜色" : color(s.espContainerTextColor)));
+            ? "§8跟随界面主题色" : color(s.espContainerTextColor)));
         out.add(field("挖掘进度显示", onOff(s.breakProgressEsp)));
         out.add(field("挖掘进度颜色（挖掘中）", color(s.breakProgressBusyColor)));
         out.add(field("挖掘进度颜色（已完成）", color(s.breakProgressReadyColor)));

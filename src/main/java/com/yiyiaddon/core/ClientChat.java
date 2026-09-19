@@ -48,6 +48,20 @@ public final class ClientChat {
     }
 
     /**
+     * 动作栏提示（{@code Gui#setOverlayMessage}）：不刷聊天框、不进聊天历史，两秒后自动消失。
+     *
+     * <p>用于「这次操作被模块挡下了」这类即时反馈 —— 玩家只会看到右键没反应，
+     * 不提示会以为是卡住了（用户 2026-09-19）。</p>
+     */
+    public static void overlay(String text) {
+        if (text == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            if (mc.gui != null) mc.gui.setOverlayMessage(Component.literal(text), false);
+        });
+    }
+
+    /**
      * 输出已构造好的组件（自带颜色码与前缀，不再补任何内容）。
      *
      * <p>给需要按真实字体测量对齐的排版器使用：对齐依赖字体测量与自定义字形，

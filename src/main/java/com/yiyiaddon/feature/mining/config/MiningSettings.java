@@ -105,7 +105,24 @@ public final class MiningSettings {
     /** 食物阈值｜背包食物少于此数量时触发补给（默认 32，取值域 1~64） */
     public int hungerThreshold = 32;
 
-    /** 耐久阈值｜工具剩余耐久低于此值时前往挂机点修补（下界合金镐耐久 2031，上限已放宽）（默认 100，取值域 1~3000） */
+    /** 耐久阈值兜底上限｜背包里一件工具都没有时，输入框用这个「原版最高工具耐久」（下界合金镐 2031） */
+    public static final int DURABILITY_THRESHOLD_FALLBACK_MAX = 2031;
+
+    /** 耐久阈值绝对上限｜只防配置里的离谱值；真正的上限由「你持有的工具满耐久」动态决定（见 {@code ToolDurability}） */
+    public static final int DURABILITY_THRESHOLD_HARD_MAX = 65535;
+
+    /**
+     * 耐久阈值｜工具剩余耐久低于此值时前往挂机点修补（默认 100）。
+     *
+     * <p><b>上限不写死</b>（用户 2026-09-19：「你要自动算手里拿的镐子自动计算耐久度」）：控制台输入框的
+     * 上限取「玩家身上可修复工具的满耐久最大值」（木镐 59 / 钻石镐 1561 / 下界合金镐 2031 / 服务器自定义
+     * 按实际值），没带工具时才退回 {@link #DURABILITY_THRESHOLD_FALLBACK_MAX}。</p>
+     *
+     * <p><b>为什么不能有写死的宽上限</b>：旧值域是 1~3000，一旦设得比工具满耐久还高，
+     * 「剩余耐久低于阈值」就恒为真 —— 工具只要不是满耐久就被判需修复，修完回矿区又立刻被判需修复，
+     * 实机表现即用户 2026-09-19 反馈的「无限循环去挂机点修复」。运行期还有第二道夹紧
+     * （{@code MiningStateMachine#needsRepair}：按该工具自己的满耐久取小 + 已满耐久不判需修复）。</p>
+     */
     public int durabilityThreshold = 100;
 
     /** 潜影盒打包机｜卸货时把矿物箱(潜影盒)填满，检测到满后等红石推盒换新盒，自动重开箱继续放，直到背包目标矿放完才RTP。给搭配潜影盒打包机的挂机用户使用。 */
@@ -546,7 +563,8 @@ public final class MiningSettings {
 
         unloadThreshold = clamp(intOf(json, "unloadThreshold", unloadThreshold), 1, 36);
         hungerThreshold = clamp(intOf(json, "hungerThreshold", hungerThreshold), 1, 64);
-        durabilityThreshold = clamp(intOf(json, "durabilityThreshold", durabilityThreshold), 1, 3000);
+        durabilityThreshold = clamp(intOf(json, "durabilityThreshold", durabilityThreshold),
+            1, DURABILITY_THRESHOLD_HARD_MAX);
         shulkerPacker = boolOf(json, "shulkerPacker", shulkerPacker);
         autoDisconnect = boolOf(json, "autoDisconnect", autoDisconnect);
         autoDisconnectHealth = clamp(intOf(json, "autoDisconnectHealth", autoDisconnectHealth), 1, 20);

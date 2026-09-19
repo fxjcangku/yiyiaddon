@@ -1,10 +1,12 @@
 package com.yiyiaddon.feature.autofarm.task;
 
 import com.yiyiaddon.platform.container.ContainerAccess;
+import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.navigation.FarmNav;
 import com.yiyiaddon.platform.network.BlockPacketSender;
 import com.yiyiaddon.service.container.ContainerService;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.Container;
@@ -37,6 +39,12 @@ public abstract class ContainerTask implements FarmTask {
     public final TaskResult tick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return TaskResult.CONTAINER_MISSING;
+
+        // 玩家自己开着容器界面（背包 / 创造背包）时只等不做（用户 2026-09-19 统一口径：
+        // 静默容器只在没有玩家界面时跑）。此时若继续静默开箱，会把 player.containerMenu
+        // 悄悄换成箱子菜单，玩家背包里的点击就按箱子的 containerId 发出去（错位、丢物品）。
+        // 我方静默开箱的界面一律被 SCREEN_OPEN 拦掉，所以这里能看到的容器界面就是玩家自己的。
+        if (mc.screen instanceof AbstractContainerScreen<?>) return TaskResult.IN_PROGRESS;
 
         // 目标箱必须是容器
         if (!(mc.level.getBlockEntity(boxPos) instanceof Container)) {
@@ -98,6 +106,8 @@ public abstract class ContainerTask implements FarmTask {
         if (openRetry < OPEN_RETRY_INTERVAL) return;
         openRetry = 0;
         broker.reset();
+        // 打点「我方刚开箱」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+        SilentContainer.markOwnContainerOpen();
         BlockPacketSender.interactBlock(InteractionHand.MAIN_HAND, boxPos, Direction.UP);
     }
 }

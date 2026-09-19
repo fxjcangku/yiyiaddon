@@ -137,7 +137,8 @@ public final class MiningBreakProgressRenderer {
 
         int percent = Math.round(Math.max(0f, Math.min(1f, progress)) * 100f);
         int textColor = ready ? (0xFF000000 | rgb) : BUSY_TEXT;
-        renderer.text(percent + "%", centerX, pos.getY() + LABEL_Y_OFFSET, centerZ,
+        // §l = 加粗（用户 2026-09-19：「所有的点位模块都要字体加粗」，MinecraftText 的测量与绘制都认）
+        renderer.text("§l" + percent + "%", centerX, pos.getY() + LABEL_Y_OFFSET, centerZ,
             (float) settings.espScale * LABEL_SCALE, textColor, fade, true);
     }
 

@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.librarian.model.VillagerTarget;
 import com.yiyiaddon.feature.librarian.service.ActionResult;
 import com.yiyiaddon.feature.librarian.service.TradeService;
 import com.yiyiaddon.platform.container.MerchantTradeAccess;
+import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -69,6 +70,8 @@ public final class MerchantTradeOps implements TradeService {
             return ActionResult.failed("当前村民实体不存在（entity ID 和 UUID 均未找到）。");
         }
         lookAt(mc, villager.getEyePosition());
+        // 打点「我方刚开菜单」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+        SilentContainer.markOwnContainerOpen();
         mc.gameMode.interact(mc.player, villager, new EntityHitResult(villager), InteractionHand.MAIN_HAND);
         ownedByPlugin = true;
         return ActionResult.waiting();

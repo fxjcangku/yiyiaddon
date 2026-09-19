@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.autologin.service;
 
 import com.yiyiaddon.feature.autologin.config.AutoLoginSettings;
 import com.yiyiaddon.feature.autologin.model.ServerEntryMode;
+import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.InteractionHand;
@@ -160,6 +161,8 @@ public final class SubserverRouteService {
             int slot = findMenuItemSlot();
             if (slot < 0 || mc.gameMode == null || mc.player == null) return;
             mc.player.getInventory().setSelectedSlot(slot);
+            // 打点「我方刚开菜单」：界面创建时据此区分是我方开的（静默）还是玩家手动开的（静默 + 提示）
+            SilentContainer.markOwnContainerOpen();
             mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
             menuStep = 0;
             actionTicks = settings.menuActionDelay;
