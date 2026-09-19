@@ -20,7 +20,8 @@ public final class VersionHeaderPreview {
                 MinecraftText.draw(canvas, "yiyiaddon 客户端控制中心", 14, 55, 11, tc.secondaryText, 1);
                 int[] calls = new int[3];
                 var header = new VersionHeader(() -> calls[0]++, () -> calls[1]++, () -> calls[2]++);
-                header.draw(canvas, 263, 16, 1, -1, -1, 1, "v1.0-beta1 · 测试版", "已是最新版本");
+                header.draw(canvas, 263, 16, 1, -1, -1, 1,
+                        "v1.0-beta1 · 26.1.2 · 测试版", "已是最新版本");
                 // 三个按钮各自的中心点应路由到对应回调；右键不得触发，页头文字不得触发。
                 header.onClick(365, 48, 263, 16, 0);
                 header.onClick(425, 48, 263, 16, 0);

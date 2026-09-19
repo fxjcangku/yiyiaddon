@@ -52,7 +52,7 @@ import java.util.function.Consumer;
  * 首页仪表盘：五块内容自上而下，每一块都是「此刻能拿来判断 / 拿来动手」的东西。
  *
  * <ol>
- *   <li><b>账户</b>：头像 + 名字 + 会话 ID / IP + 正版徽标，下面是排名 / 人数 / 后端 / 地区 / 网络 / 同步时间；</li>
+ *   <li><b>账户</b>：头像旁直接显示「用户名：正版 / 离线」，下面是排名 / 人数 / 后端 / 地区 / IP / 同步时间；</li>
  *   <li><b>本次会话</b>：服务器 / 维度 / 坐标 / 帧率 / 延迟 / 在线时长 / 服务器资源 / 启用模块数；</li>
  *   <li><b>常用模块</b>（用户自己收藏的模块，一键开关）与 <b>需要处理</b>（启用中但自检不通过的模块）；</li>
  *   <li><b>运行中</b>（只列启用中的模块与此刻在做什么）与 <b>星露谷 · 本维度</b>；</li>
@@ -78,12 +78,15 @@ public final class HomePage extends BasePage {
     private static final float CARD_RADIUS = 10f;
     private static final float CARD_PAD = 14f;
 
-    /** 键值单元的标签 / 数值基线相对单元顶部的偏移，以及单元行高。 */
-    private static final float LABEL_BASELINE = 15f;
-    private static final float VALUE_BASELINE = 35f;
-    private static final float CELL_ROW_H = 44f;
+    /** 数据格的标签 / 数值基线相对单元顶部的偏移，以及单元行高。 */
+    private static final float LABEL_BASELINE = 14f;
+    private static final float VALUE_BASELINE = 32f;
+    private static final float CELL_ROW_H = 42f;
+    private static final float CELL_GAP = 6f;
     /** 键值网格顶边相对卡片顶部的间距（账户卡与「本次会话」卡共用）。 */
-    private static final float GRID_TOP_GAP = 12f;
+    private static final float GRID_TOP_GAP = 8f;
+    /** 「本次会话」标题占据的高度；数据格从标题下方开始。 */
+    private static final float SESSION_HEADER_H = 28f;
     /**
      * 键值网格列数与卡片高度。
      *
@@ -92,13 +95,13 @@ public final class HomePage extends BasePage {
      * 挂在卡外。原先写死的 96 比这本账少 18，账户卡那组更少 26（见 {@link #dataCardH()}）。</p>
      */
     private static final int DATA_COLUMNS = 4;
-    private static final float DATA_H = GRID_TOP_GAP + 2f * CELL_ROW_H + CARD_PAD;
+    private static final float DATA_H = SESSION_HEADER_H + 2f * CELL_ROW_H + CELL_GAP + CARD_PAD;
     /** 账户卡的列数（三列两行，比四列宽松，六项都读得清）。 */
     private static final int ACCOUNT_COLUMNS = 3;
 
-    /** 账户条：头像 + 玩家名 + 会话 ID / IP + 正版/离线徽标。 */
-    private static final float ACCOUNT_H = 46f;
-    private static final float ACCOUNT_AVATAR = 32f;
+    /** 账户条：头像旁紧跟「玩家名：正版 / 离线」，不再展示过长 UUID。 */
+    private static final float ACCOUNT_H = 50f;
+    private static final float ACCOUNT_AVATAR = 36f;
 
     /** 卡片标题高度与卡片底部留白（列表行数之外的那点余量）。 */
     private static final float CARD_HEADER_H = 30f;
@@ -217,7 +220,7 @@ public final class HomePage extends BasePage {
      * 现在按绘制用的同一组算式反推，绘制与命中同源。</p>
      */
     private float dataCardH() {
-        return ACCOUNT_H + GRID_TOP_GAP + 2f * CELL_ROW_H + CARD_PAD;
+        return ACCOUNT_H + GRID_TOP_GAP + 2f * CELL_ROW_H + CELL_GAP + CARD_PAD;
     }
 
     /** 「常用模块」卡高度：标题 + 收藏行（至少一行，用于空态提示） */
@@ -361,7 +364,7 @@ public final class HomePage extends BasePage {
     }
 
     /**
-     * 账户卡：账户条 + 六项诊断（三列两行）。
+     * 账户卡：紧凑账户条 + 六项等宽数据格（三列两行）。
      *
      * <p>格子顺序：用户排名 / 使用人数 / 后端状态，网络地区 / IP / 最后同步。
      * 里面的「网络状态」被 IP 顶掉了 —— 出口 IP 探得出来就说明网络通，同一件事不再占两格；
@@ -404,54 +407,48 @@ public final class HomePage extends BasePage {
 
         float rowW = w - CARD_PAD * 2f;
         float gridY = y + ACCOUNT_H + GRID_TOP_GAP;
-        drawCellRow(canvas, x + CARD_PAD, gridY, rowW, ACCOUNT_COLUMNS, 0,
-                labels, values, colors, labelC);
-        drawCellRow(canvas, x + CARD_PAD, gridY + CELL_ROW_H, rowW, ACCOUNT_COLUMNS, ACCOUNT_COLUMNS,
-                labels, values, colors, labelC);
+        drawMetricRow(canvas, x + CARD_PAD, gridY, rowW, ACCOUNT_COLUMNS, 0,
+                labels, values, colors, labelC, alpha, tc);
+        drawMetricRow(canvas, x + CARD_PAD, gridY + CELL_ROW_H + CELL_GAP,
+                rowW, ACCOUNT_COLUMNS, ACCOUNT_COLUMNS,
+                labels, values, colors, labelC, alpha, tc);
     }
 
     /**
-     * 账户条：头像 + 玩家名 + 「ID …」 + 正版/离线徽标。
+     * 账户条：头像旁直接显示「玩家名：正版 / 离线」。
      *
      * <p>身份一律取<b>会话账户</b>（{@link ClientIdentity}）而不是玩家实体 —— 正版链路下服务器会重写
      * 实体 UUID，用实体 UUID 会跟后端统计口径对不上（同 {@code ClientIdentity} 的既有约定）。
      * 头像走 {@link PlayerFaceCache}：只画皮肤贴图的脸与帽子层，是 2D 头像，不需要 3D 模型与联网。</p>
      *
-     * <p><b>IP 不在这行长在 ID 后面</b>（用户 2026-09-18：「IP 跑到框外了 我要 IP 显示颜色」）：
-     * 会话 ID 有 36 个字符，再挂一个 IP 会一路顶到卡片右边看着像出框；IP 是六项诊断之一，
-     * 回到底下的键值格子里、按数据上色（主题高亮色），既归位又看得清。
-     * 顺带记一条硬约束：{@code FontRenderer} 是 Skia 自绘、<b>不解析 {@code §} 颜色码</b>，
-     * 颜色只能靠分段绘制传色，不能写进字符串。</p>
+     * <p>UUID 不属于首页需要持续判断的信息，而且 36 个字符会把身份状态推到卡片远端；首页因此不再显示 UUID。
+     * 身份文字紧跟用户名并分段着色：正版为绿色，离线为橙色。{@code FontRenderer} 是 Skia 自绘、
+     * 不解析 {@code §} 颜色码，所以颜色必须靠分段绘制传入，不能写进字符串。</p>
      */
     private void drawAccountStrip(Canvas canvas, float x, float y, float w, float alpha,
                                   ClickGuiThemeColors tc, boolean premium) {
         int nameC = GlassPanel.withAlpha(tc.primaryText, alpha);
-        int idC = GlassPanel.withAlpha(tc.secondaryText, alpha);
-        int badgeC = GlassPanel.withAlpha(premium ? COLOR_GOOD : COLOR_BAD, alpha);
+        int accountC = GlassPanel.withAlpha(premium ? COLOR_GOOD : COLOR_WARN, alpha);
 
         float avatarX = x + CARD_PAD;
         float avatarY = y + (ACCOUNT_H - ACCOUNT_AVATAR) / 2f;
         PlayerFaceCache.draw(canvas, localSkin(), avatarX, avatarY, ACCOUNT_AVATAR);
 
-        // 右侧徽标先量宽：名字与 ID 两行都要在它左边收住
-        String badge = premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline");
-        float badgeW = FontRenderer.measureTextWidth(badge, 11f);
-        float badgeX = x + w - CARD_PAD - badgeW;
+        // 身份状态紧跟用户名，不再为了右对齐横跨整张卡片。
+        String account = premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline");
+        float accountW = FontRenderer.measureTextWidth(account, 12f);
         float textX = avatarX + ACCOUNT_AVATAR + 10f;
-        float textMax = Math.max(60f, badgeX - 10f - textX);
+        float nameMax = Math.max(60f, x + w - CARD_PAD - accountW - 8f - textX);
 
         String name = ClientIdentity.name();
+        String nameLabel = CardLayout.ellipsize(
+                (name == null || name.isBlank() ? UNKNOWN : name) + "：", nameMax, 13f);
+        float baseline = CardLayout.baseline(y + ACCOUNT_H / 2f, 13f);
         FontRenderer.drawTextBold(canvas,
-                CardLayout.ellipsize(name == null || name.isBlank() ? UNKNOWN : name, textMax, 13f),
-                textX, CardLayout.baseline(y + 8f, 13f), 13f, nameC);
-
-        String uuid = ClientIdentity.uuidString();
-        FontRenderer.drawText(canvas,
-                CardLayout.ellipsize("ID " + (uuid == null ? UNKNOWN : uuid), textMax, 10f),
-                textX, CardLayout.baseline(y + 24f, 10f), 10f, idC);
-
-        FontRenderer.drawText(canvas, badge, badgeX,
-                CardLayout.baseline(y + (ACCOUNT_H - 11f) / 2f, 11f), 11f, badgeC);
+                nameLabel, textX, baseline, 13f, nameC);
+        FontRenderer.drawTextBold(canvas, account,
+                textX + FontRenderer.measureTextWidth(nameLabel, 13f) + 4f,
+                baseline, 12f, accountC);
     }
 
     /**
@@ -478,6 +475,10 @@ public final class HomePage extends BasePage {
     private void drawStatusCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc) {
         drawCardBg(canvas, x, y, w, DATA_H, alpha, tc);
 
+        FontRenderer.drawTextBold(canvas, UiText.t("本次会话", "Current Session"), x + CARD_PAD,
+                CardLayout.baseline(y + 16f, 13f), 13f,
+                GlassPanel.withAlpha(tc.primaryText, alpha));
+
         int labelC = GlassPanel.withAlpha(tc.secondaryText, alpha);
         int valueC = GlassPanel.withAlpha(tc.primaryText, alpha);
         int goodC = GlassPanel.withAlpha(COLOR_GOOD, alpha);
@@ -499,9 +500,12 @@ public final class HomePage extends BasePage {
         int[] colors = {valueC, valueC, valueC, valueC, valueC, valueC, ready ? goodC : badC, valueC};
 
         float rowW = w - CARD_PAD * 2f;
-        drawCellRow(canvas, x + CARD_PAD, y + GRID_TOP_GAP, rowW, DATA_COLUMNS, 0, labels, values, colors, labelC);
-        drawCellRow(canvas, x + CARD_PAD, y + GRID_TOP_GAP + CELL_ROW_H, rowW, DATA_COLUMNS, DATA_COLUMNS,
-                labels, values, colors, labelC);
+        float gridY = y + SESSION_HEADER_H;
+        drawMetricRow(canvas, x + CARD_PAD, gridY, rowW, DATA_COLUMNS, 0,
+                labels, values, colors, labelC, alpha, tc);
+        drawMetricRow(canvas, x + CARD_PAD, gridY + CELL_ROW_H + CELL_GAP,
+                rowW, DATA_COLUMNS, DATA_COLUMNS,
+                labels, values, colors, labelC, alpha, tc);
     }
 
     /**
@@ -677,16 +681,22 @@ public final class HomePage extends BasePage {
         }
     }
 
-    /** 一行键值单元：等宽分列，上标签下数值，超宽自动截断。 */
-    private void drawCellRow(Canvas canvas, float x, float y, float w, int columns, int from,
-                             String[] labels, String[] values, int[] valueColors, int labelC) {
-        float colW = w / columns;
+    /**
+     * 一行等宽数据格：每项拥有自己的弱底与边框，上标签下数值，超宽自动截断。
+     * 独立底板让列边界一眼可见，避免旧布局中标签和值像散落在大卡片上的错位感。
+     */
+    private void drawMetricRow(Canvas canvas, float x, float y, float w, int columns, int from,
+                               String[] labels, String[] values, int[] valueColors, int labelC,
+                               float alpha, ClickGuiThemeColors tc) {
+        float colW = (w - CELL_GAP * (columns - 1)) / columns;
         for (int i = 0; i < columns; i++) {
             int index = from + i;
-            float cx = x + i * colW;
-            FontRenderer.drawText(canvas, labels[index], cx, y + LABEL_BASELINE, 10f, labelC);
-            FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(values[index], colW - 14f, 12f),
-                    cx, y + VALUE_BASELINE, 12f, valueColors[index]);
+            float cx = x + i * (colW + CELL_GAP);
+            GlassPanel.frost(canvas, cx, y, colW, CELL_ROW_H, 8f, tc.field, 0.42f, alpha);
+            GlassPanel.rim(canvas, cx, y, colW, CELL_ROW_H, 8f, tc.rim, alpha, 0.05f);
+            FontRenderer.drawText(canvas, labels[index], cx + 9f, y + LABEL_BASELINE, 10f, labelC);
+            FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(values[index], colW - 18f, 12f),
+                    cx + 9f, y + VALUE_BASELINE, 12f, valueColors[index]);
         }
     }
 
