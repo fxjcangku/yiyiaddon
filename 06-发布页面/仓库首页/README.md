@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>种植、采掘、后勤，都有安排。</strong><br>
-  Minecraft 26.1.2 · 独立 Fabric 客户端模组
+  Minecraft 26.x · 独立 Fabric 客户端模组
 </p>
 
 <p align="center">
@@ -182,16 +182,16 @@
 
 | 环境 | 当前版本要求 |
 | :--- | :--- |
-| 游戏 | Minecraft Java 版 **26.1.2** |
+| 游戏 | Minecraft Java 版 **26.x**（当前支持 **26.1.2** 与 **26.2**；**26.3 及以后暂不支持**） |
 | 加载器 | Fabric Loader **0.19.5 或更新兼容版本** |
-| 基础依赖 | 对应 26.1.2 的 Fabric API；当前测试版本为 **0.155.2+26.1.2** |
+| 基础依赖 | 与游戏版本对应的 Fabric API：26.1.2 用 **0.155.2+26.1.2**，26.2 用 **0.161.0+26.2** |
 | Java | **25** |
 | 系统 | 当前包包含 Windows x64 / ARM64 原生组件；其他系统暂未提供适配包 |
 
 **安装步骤：**
 
-1. 在启动器中创建 Minecraft 26.1.2 的 Fabric 实例，选择 Java 25。
-2. 下载 `yiyiaddon-1.0-beta1.zip` 并解压，将其中的 `yiyiaddon-1.0-beta1.jar` 和对应 Fabric API 放入该实例的 `mods` 文件夹，不要直接放入 ZIP。
+1. 在启动器中创建对应游戏版本（**26.1.2** 或 **26.2**）的 Fabric 实例，选择 Java 25。
+2. 下载与你游戏版本对应的包（文件名末尾带 MC 版本，如 `yiyiaddon-1.0-beta1-26.1.2.zip` / `yiyiaddon-1.0-beta1-26.2.zip`），解压后将其中的 JAR 和对应版本的 Fabric API 放入该实例的 `mods` 文件夹，不要直接放入 ZIP。
 3. 启动游戏。升级已有实例前，先备份存档与配置。
 
 Baritone 随包提供，无需另装。建议先在独立实例中测试。
