@@ -9,6 +9,7 @@
     "ConnectionPacketMixin",
     "GpuDeviceAccessor",
     "GlCommandEncoderMixin",
+    "GlCommandEncoderValidateMixin",
     "GuiRendererMixin",
     "KeyboardHandlerAccessor",
     "LocalPlayerEatAnimationMixin",
@@ -19,6 +20,7 @@
     "MultiPlayerGameModeFastBreakMixin",
     "MultiPlayerGameModePacketBreakMixin",
     "PreeditCaptureMixin",
+    "RenderSystemMixin",
     "ResourcePackPushMixin"
   ],
   "injectors": {
