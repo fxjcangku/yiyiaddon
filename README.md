@@ -236,6 +236,6 @@ Java 版本与操作系统：
 
 ### 作品与致谢
 
-本仓库用于作品展示、版本说明与发布包分发。许可与第三方组件信息见 [LICENSE](https://github.com/fxjcangku/yiyiaddon/blob/master/LICENSE) 和 [CREDITS](https://github.com/fxjcangku/yiyiaddon/blob/master/CREDITS)，各组件遵循其原有许可。请尊重作者及第三方贡献者的成果。
+本仓库用于作品展示、版本说明与发布包分发。发布包内各第三方组件（含随包附带的许可文件）遵循其原有许可，请尊重作者及第三方贡献者的成果。
 
 <sub>Minecraft 是 Mojang Synergies AB 的商标。本项目是非官方客户端模组，与 Mojang 或 Microsoft 无关联。</sub>
