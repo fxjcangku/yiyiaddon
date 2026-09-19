@@ -2,8 +2,7 @@ package com.yiyiaddon.feature.stardew.profile;
 
 import com.yiyiaddon.feature.stardew.selector.StardewPreview;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.Identifier;
+import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -62,11 +61,16 @@ public sealed interface StardewToolDefinition
         };
     }
 
-    /** 用 item_model 组件精确匹配一个真实 ItemStack（不依赖 .id 手工入库） */
+    /**
+     * 用模型键匹配一个真实 ItemStack（不依赖 .id 手工入库）。
+     *
+     * <p>统一委托 {@link StardewInventoryService#matchesModel(ItemStack, String)}：那是全项目唯一的
+     * 模型匹配判据（{@code item_model} 组件 + 资源包派发表反查）。工具、种子、产物若各写一套，
+     * 旧布局服务器上就会出现"种子认得出、工具认不出"这类半通状态。</p>
+     */
     default boolean matchesByModel(ItemStack stack) {
         if (stack == null || stack.isEmpty() || itemModel() == null) return false;
-        Identifier model = stack.get(DataComponents.ITEM_MODEL);
-        return model != null && model.toString().equals(itemModel());
+        return StardewInventoryService.matchesModel(stack, itemModel());
     }
 
     /**

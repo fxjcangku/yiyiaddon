@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.stardew.selector;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.yiyiaddon.platform.resource.ItemModelDispatchIndex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -13,6 +14,7 @@ import net.minecraft.server.packs.resources.IoSupplier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +75,10 @@ public final class StardewPreview {
         Identifier id = Identifier.tryParse(itemModelId == null ? "" : itemModelId);
         if (id == null) return ItemStack.EMPTY;
         if (!isRenderable(itemModelId)) {
+            // 旧布局（ItemsAdder 等）：没有 items/ 定义，物品图标由"原版基础物品 + custom_model_data"
+            // 在基础物品自己的 items/*.json 里派发出来 —— 与服务端完全同一条渲染链
+            ItemStack dispatched = dispatchPreview(itemModelId);
+            if (!dispatched.isEmpty()) return dispatched;
             LOGGER.warn("[StardewPreview] 缺失物品模型：{}", diagnose(itemModelId));
             return ItemStack.EMPTY;
         }
@@ -123,6 +129,39 @@ public final class StardewPreview {
             + " 模型引用=" + (modelRef == null ? "（解析失败）" : modelRef)
             + " texture=" + (texture == null ? "（未在模型里声明）" : texture)
             + " 结论=可渲染";
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  派发表兜底预览
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /**
+     * 用资源包自带的派发表构造预览栈（旧布局专用）。
+     *
+     * <p>ItemsAdder / Nexo 生成的包不给 {@code items/<id>.json}，而是让原版基础物品按
+     * {@code custom_model_data} 阈值派发到自定义模型（真机取证：{@code minecraft:paper} + 阈值 10579
+     * → {@code customcrops:item/crops/corn/corn_seeds}）。这里按同一组「基础物品 + 阈值」构造栈，
+     * 渲染结果与服务端发给玩家手里的物品一致；取不到派发规格时返回空栈，由调用方显示可读缺失提示。</p>
+     */
+    private static ItemStack dispatchPreview(String modelKey) {
+        ItemModelDispatchIndex.PreviewSpec spec = ItemModelDispatchIndex.get().previewOf(modelKey);
+        if (spec == null) return ItemStack.EMPTY;
+        Identifier itemId = Identifier.tryParse(spec.itemId() == null ? "" : spec.itemId());
+        if (itemId == null) return ItemStack.EMPTY;
+        Item base = BuiltInRegistries.ITEM.getValue(itemId);
+        if (base == null || base == Items.AIR) return ItemStack.EMPTY;
+        try {
+            ItemStack stack = new ItemStack(base);
+            if (spec.threshold() != null) {
+                // 与服务端同口径：custom_model_data 第 0 位即派发用到的阈值
+                stack.set(DataComponents.CUSTOM_MODEL_DATA,
+                    new CustomModelData(List.of(spec.threshold().floatValue()), List.of(), List.of(), List.of()));
+            }
+            return stack;
+        } catch (Exception e) {
+            LOGGER.warn("[StardewPreview] 派发表预览构造失败：{}（{}）", modelKey, e.getMessage());
+            return ItemStack.EMPTY;
+        }
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

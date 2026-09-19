@@ -34,6 +34,15 @@ public final class StardewResourceIndex {
     /** 星露谷唯一合法命名空间（CustomCrops 盆栽系统） */
     private static final String STARDEW_NAMESPACE = "customcrops";
 
+    /**
+     * 物品形态后缀：{@code sprinkler_1_item} 是 {@code sprinkler_1} 这件物品在背包里的形态。
+     *
+     * <p>真机取证（jmy.seasonmc.xyz，2026-09-20）：{@code sprinkler_1} 是带 {@code elements} 的
+     * 3D 方块模型（世界形态），{@code sprinkler_1_item} 才是 {@code item/generated} 的 2D 背包图。
+     * 先前把前者当物品键，选择器里画的是方块模型，与背包里的真实物品对不上。</p>
+     */
+    private static final String ITEM_FORM_SUFFIX = "_item";
+
     private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/stardew");
 
     private final IdentityService identityService;
@@ -232,6 +241,9 @@ public final class StardewResourceIndex {
             StardewSelectorCategory cat = StardewSelectorCategory.classify(
                 namespaceOf(model.modelId()), model.modelName());
             if (cat == null || cat == StardewSelectorCategory.CROP) continue;
+            // 派发表来源的"零件模型"（真机取证：某服把 sprinkler_1_item 与 sprinkler_1 一起派发）
+            // 不构成本编号家族里的第二个对象，否则会聚合出 sprinkler_-1 这种伪条目
+            if (model.dispatch() && !hasLegalSerial(cat, model.modelName())) continue;
             Acc acc = accFor(accs, cat, model.modelName());
             acc.scannedName = firstNonBlank(acc.scannedName, model.displayName());
             feedModel(acc, cat, model);
@@ -283,11 +295,21 @@ public final class StardewResourceIndex {
      * item 模型只做兜底：已经有 block 模型时不覆盖。</p>
      */
     private static void feedModel(Acc acc, StardewSelectorCategory cat, StardewResourceScanner.ScannedModel model) {
-        // items/ 物品定义：唯一可渲染进 GUI 的模型键
+        // items/ 物品定义：唯一可渲染进 GUI 的模型键，且不含世界语义，登记完即返回
         if (model.itemDef()) {
             if (acc.itemModel == null) acc.itemModel = model.modelId();
             return;
         }
+
+        // 派发表给出的自定义模型：旧布局（ItemsAdder 等）里没有 items/ 定义，模型键由"基础物品 + 阈值"
+        // 反查出预览栈（见 StardewPreview），因此同样可作物品键。登记后**不返回**：这类模型路径本身就是
+        // 世界识别模型（盆 dry/wet、洒水器、温室玻璃的 blockstates 直接指向它），下面按末段名分流补齐。
+        if (model.dispatch() && (isItemForm(model.modelName()) || acc.itemModel == null)) {
+            acc.itemModel = model.modelId();
+        }
+
+        // 背包形态（`X_item`）是 2D 物品图，不是世界模型：不参与世界识别
+        if (model.dispatch() && isItemForm(model.modelName())) return;
 
         String last = lastSegment(model.modelName());
         if (model.block()) {
@@ -379,7 +401,7 @@ public final class StardewResourceIndex {
      */
     public static String canonicalOf(StardewSelectorCategory cat, String name) {
         String last = lastSegment(name);
-        int idx = numericSuffix(last);
+        int idx = numericSuffix(serialBase(last));
         return switch (cat) {
             // 种植盆：无序号与序号 1 是同一个盆型（1 就是普通盆）。资源包常两套命名都留着
             // （moexd：blockstates 指向 item/basics/dry_pot，同时存在未被引用的 block/misc/dry_pot_1），
@@ -390,6 +412,57 @@ public final class StardewResourceIndex {
             case SPRINKLER -> "sprinkler_" + idx;
             default -> last; // 肥料 / 药剂：末段名本身即逻辑名（含家族前缀）
         };
+    }
+
+    /**
+     * 一条扫描结果是否构成一个星露谷逻辑对象；构成则返回它的类别，否则返回 {@code null}。
+     *
+     * <p><b>为什么必须公开且唯一：</b>资源生命周期服务（{@link com.yiyiaddon.service.resourcepack.ResourceExtractionService}）
+     * 判定"是否已就绪"用的就是"逻辑对象数"，而索引层决定"选择器里有哪些条目"。两边若各写一份判据，
+     * 就会出现"服务说已就绪、面板里却是空的"（第 169 条：同源逻辑禁止留两份）。</p>
+     *
+     * <p>口径：必须是可建逻辑对象的物品条目（{@code items/} 物品定义，或资源包派发表给出的自定义模型）、
+     * 属于 {@code customcrops} 命名空间、能被分类器归类；派发表来源还必须是编号家族里的合法序号
+     * （见 {@link #hasLegalSerial(StardewSelectorCategory, String)}）。</p>
+     */
+    public static StardewSelectorCategory logicalCategoryOf(StardewResourceScanner.ScannedModel model) {
+        if (model == null || !model.logicalItem()) return null;
+        if (!STARDEW_NAMESPACE.equals(namespaceOf(model.modelId()))) return null;
+        StardewSelectorCategory category =
+            StardewSelectorCategory.classify(STARDEW_NAMESPACE, model.modelName());
+        if (category == null) return null;
+        if (model.dispatch() && !hasLegalSerial(category, model.modelName())) return null;
+        return category;
+    }
+
+    /**
+     * 该逻辑名是否带合法序号（只对"按序号编号的家族"有意义）。
+     *
+     * <p>盆 / 水壶 / 洒水器按序号编号：无序号或非数字序号的名字（如 {@code water_effect}、
+     * {@code stage_1}）不是这一家族的第二个对象，聚合它们只会得到 {@code sprinkler_-1}
+     * 这种伪条目。物品形态后缀 {@code _item} 先剥掉再取序号，因此
+     * {@code sprinkler_1_item} 与 {@code sprinkler_1} 归同一个对象
+     * （前者是背包形态、后者是世界形态，见 {@link #ITEM_FORM_SUFFIX}）。盆是例外：无序号与序号 1
+     * 本就被归一到同一个普通盆（见 {@link #canonicalOf}）。</p>
+     */
+    private static boolean hasLegalSerial(StardewSelectorCategory category, String modelName) {
+        if (category == StardewSelectorCategory.POT || category == StardewSelectorCategory.SHELTER) return true;
+        if (category == StardewSelectorCategory.WATERING_CAN || category == StardewSelectorCategory.SPRINKLER) {
+            return numericSuffix(serialBase(lastSegment(modelName))) >= 0;
+        }
+        return true;
+    }
+
+    /** 末段名去掉物品形态后缀：{@code sprinkler_1_item} → {@code sprinkler_1} */
+    private static String serialBase(String last) {
+        return last.endsWith(ITEM_FORM_SUFFIX)
+            ? last.substring(0, last.length() - ITEM_FORM_SUFFIX.length())
+            : last;
+    }
+
+    /** 末段名是否是物品形态（以 {@code _item} 结尾） */
+    private static boolean isItemForm(String name) {
+        return lastSegment(name).endsWith(ITEM_FORM_SUFFIX);
     }
 
     /**
@@ -506,7 +579,8 @@ public final class StardewResourceIndex {
             addProduce(scannedByName, identityKeyByModelName, stem + "_variation",
                 variantModels, variantNames, variantKeys, true);
 
-            // 作物名优先级：种子名去后缀 → 资源包里的成熟产物名 → 从服务器下发物品名学到的 → 技术 stem。
+            // 作物名优先级：种子名去后缀 → 资源包里的成熟产物名 → 从服务器下发物品名学到的 →
+            // 文档化标准作物名 → 技术 stem。
             // 成熟产物名绝不能顶掉种子给出的作物名（redpacket：作物=摇钱树、种子=摇钱树种子、
             // 产物=红包，三者必须始终分离），只在种子拿不出名字时兜底。
             String chinese = cropName(seedName, produceName, stem);
@@ -547,7 +621,40 @@ public final class StardewResourceIndex {
         String fromProduce = meaningfulName(produceName, stem);
         if (fromProduce != null) return fromProduce;
         String learned = StardewCropNameStore.nameOf(stem);
-        return learned == null || learned.isBlank() ? stem : learned;
+        if (learned != null && !learned.isBlank()) return learned;
+        String documented = documentedCropName(stem);
+        return documented != null ? documented : stem;
+    }
+
+    /**
+     * 文档化标准作物名（CustomCrops 本体自带作物集，插件记载级 DOCUMENTED）。
+     *
+     * <p><b>优先级最低</b>：资源包语言文件、种子名、产物名、以及从服务器下发物品名学到的名字全部先于它，
+     * 因此任何服务器的改名都会盖掉这里——它只填补「该服资源包没有 lang 目录、又还没观察到实物」的空档
+     * （真机场景：jmy.seasonmc.xyz 的包 {@code lang/} 有 0 个文件，刚进服时作物只有技术键，
+     * 选择器里显示 {@code corn} / {@code corn种子}）。</p>
+     *
+     * <p>{@code redpacket}（红包作物）在各服叫法差异最大（摇钱树 / 红包 / 招财树…），但玩家侧最常
+     * 见到的作物名就是「摇钱树」，且它同属 CustomCrops 本体作物，因此一并收进来；
+     * 真名一旦被观察到就会立刻覆盖这里。其余服务器自建作物（本服不存在的 id）不写死，
+     * 继续靠学名——绝不给不认识的作物编名字。</p>
+     */
+    private static String documentedCropName(String stem) {
+        return switch (stem.toLowerCase(Locale.ROOT)) {
+            case "cabbage" -> "卷心菜";
+            case "chinese_cabbage" -> "大白菜";
+            case "corn" -> "玉米";
+            case "eggplant" -> "茄子";
+            case "garlic" -> "大蒜";
+            case "grape" -> "葡萄";
+            case "hop" -> "啤酒花";
+            case "pepper" -> "辣椒";
+            case "pineapple" -> "菠萝";
+            case "pitaya" -> "火龙果";
+            case "redpacket" -> "摇钱树";
+            case "tomato" -> "番茄";
+            default -> null;
+        };
     }
 
     /**

@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
 import com.yiyiaddon.platform.container.ContainerAccess;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
 import com.yiyiaddon.platform.resource.BlockStateModelResolver;
+import com.yiyiaddon.platform.resource.ItemModelDispatchIndex;
 import com.yiyiaddon.repository.JsonFileStore;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import net.minecraft.client.Minecraft;
@@ -488,13 +489,23 @@ public final class StardewCropNameStore {
      * 再退 {@code item_model}。两条都走同一个身份派生规则，因此
      * {@code item/crops/chinese_cabbage/stage_1} 这种模型路径也能得到
      * {@code chinese_cabbage_stage_1}。非 {@code customcrops} 命名空间一律不认。</p>
+     *
+     * <p><b>第三条来源（ItemsAdder 旧布局）：</b>这类物品既没有自定义逻辑 ID、也没有
+     * {@code item_model} 组件，身份只存在于资源包的 {@code custom_model_data} 派发表里
+     * （真机取证：{@code minecraft:paper} + 阈值 10579 → {@code customcrops:item/crops/corn/corn_seeds}）。
+     * 少了这一条，这类服务器上的作物中文名一个都学不到——服务器明明下发了「玉米种子」，
+     * 面板里却只有技术键。派发模型键按末段压平后再交给同一套身份派生规则，绝不改派生规则本身。</p>
      */
     private static String identityOf(ItemStack stack) {
         String itemModel = StardewInventoryService.itemModelOf(stack);
         CompoundTag data = customDataOf(stack);
         String logical = ItemIdentifier.extractCustomLogicId(itemModel, data);
         String fromLogical = cropIdentity(logical);
-        return fromLogical != null ? fromLogical : cropIdentity(itemModel);
+        if (fromLogical != null) return fromLogical;
+        String fromModel = cropIdentity(itemModel);
+        if (fromModel != null) return fromModel;
+        String dispatched = ItemModelDispatchIndex.flatIdentityOf(StardewInventoryService.resolvedModelOf(stack));
+        return cropIdentity(dispatched);
     }
 
     /** 单个原始身份串 → {@code customcrops} 命名空间下的作物身份路径；不适用返回 null */
