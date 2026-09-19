@@ -589,9 +589,10 @@ public class ClickGuiScreen extends SkiaScreen {
                 AddonConfig.blurTintColor(), AddonConfig.blurStrength);
     }
 
-    /** 侧栏页头的版本行：取 fabric.mod.json 中声明的版本号。 */
+    /** 侧栏页头的版本行：模组版本号 + 运行中的游戏版本（两条版本线模组版本号相同，靠它区分）。 */
     private static String versionLine() {
-        return "v" + ClientIdentity.version();
+        String game = ClientIdentity.gameVersion();
+        return "v" + ClientIdentity.version() + (game.isEmpty() ? "" : " · " + game);
     }
 
     /** 页面内容左边界：绘制、命中与页头标题共用同一处内缩。 */
