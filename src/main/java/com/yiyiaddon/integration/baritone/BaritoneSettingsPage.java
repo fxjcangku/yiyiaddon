@@ -136,12 +136,28 @@ public final class BaritoneSettingsPage extends BasePage {
         Catalog misc = new Catalog("其它可改项", "属性名单、重复偏移、原理图旋转与镜像", ICON_MISC);
         Catalog others = new Catalog("其它（只能看，不能改）", "函数型设置等没有修改方式的项，只展示当前值", ICON_READONLY);
         Settings settings = BaritoneAPI.getSettings();
+
+        // 渲染接管说明放在最前：接管期间它是这一页唯一还生效的渲染相关信息，
+        // 而下面那些渲染项已经被本模组接管、改不出任何效果（见 BaritoneRenderTakeover）
+        if (BaritoneRenderTakeover.active()) {
+            Catalog takeover = new Catalog("渲染接管",
+                "Baritone 的世界渲染已由本模组接管，这一组说明该去哪改", ICON_READONLY);
+            takeover.add("渲染项已移到 ESP 全局设置",
+                "路径 / 目标 / 挖掘方块框 / 选区的样式改在「ESP 全局设置 ▸ 外观 ▸ Baritone 渲染接管」；"
+                    + "本页已收起失效的 " + BaritoneRenderTakeover.suppressedCount()
+                    + " 项，关掉那个总开关即原样还回来",
+                new SettingText(() -> "§a✓ 已接管", LIST_BOX_WIDTH));
+            takeover.finish();
+        }
+
         // 只遍历 Baritone 自己维护的清单：新增设置自动出现，且与 #set 命令看到的是同一份
         for (Settings.Setting<?> setting : settings.allSettings) {
             // 与 Baritone 的 #set 命令同口径：javaOnly 的设置不对用户开放，不在这里显示
             if (setting.isJavaOnly()) continue;
 
             String key = setting.getName();
+            // 被本项目接管的渲染项：值已经不生效了，留在界面上只会让人以为改了有用
+            if (BaritoneRenderTakeover.isSuppressed(key)) continue;
             BaritoneSettingTranslations.Translation translation = BaritoneSettingTranslations.find(key);
             String label = translation == null ? key : translation.name();
             String description = translation == null ? key : translation.description();

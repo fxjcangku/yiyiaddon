@@ -107,16 +107,19 @@ public final class WorldIdentity {
     }
 
     /**
-     * 维度中文名：主世界 / 下界 / 末地，其余回退为原始标识。
+     * 维度中文名：主世界 / 下界 / 末地，其余一律显示「自定义维度」。
      *
-     * <p>用包含判断而非相等判断，兼容历史上可能落盘的 {@code ResourceKey[...]} 包装格式。</p>
+     * <p>判定规则只此一份，实现委托 {@link WorldContextFormatter#dimensionDisplayName(String)}
+     * （原版三维度<b>精确匹配</b> → 语言文件 {@code dimension.*} 的中文名 → 兜底「自定义维度」）。</p>
+     *
+     * <p><b>为什么改掉旧的包含判断</b>：旧实现用 {@code contains("overworld")} 之类的模糊匹配，
+     * 自定义维度只要键里带这串字（如 {@code mypack:overworld_nether}）就会被误认成原版维度，
+     * 认不出时又直接把技术键 {@code mypack:xxx} 甩到界面上。用户 2026-09-19 定稿：
+     * 「如果识别不出来维度，有一些服务器是自定义的，你就显示「自定义维度」就好了」。</p>
      */
     public static String dimensionDisplayName(String dimension) {
         if (dimension == null || dimension.isBlank()) return "未知";
-        if (dimension.contains("overworld")) return "主世界";
-        if (dimension.contains("the_nether")) return "下界";
-        if (dimension.contains("the_end")) return "末地";
-        return dimension;
+        return WorldContextFormatter.dimensionDisplayName(dimension);
     }
 
     /** 当前 Minecraft 数据版本；获取失败返回 0 */

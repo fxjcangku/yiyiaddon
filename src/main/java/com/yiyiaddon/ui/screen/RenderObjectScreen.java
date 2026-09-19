@@ -1,7 +1,5 @@
-package com.yiyiaddon.feature.stardew.ui;
+package com.yiyiaddon.ui.screen;
 
-import com.yiyiaddon.feature.stardew.StardewFarmModule;
-import com.yiyiaddon.feature.stardew.config.StardewSettings;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.GlassPanel;
@@ -10,8 +8,8 @@ import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
 import com.yiyiaddon.ui.render.world.ShapeMode;
-import com.yiyiaddon.ui.screen.PanelScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.SettingColorPicker;
 import com.yiyiaddon.ui.widget.SettingSegmented;
@@ -24,95 +22,102 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * 单个渲染对象的配置页：显示 / 颜色 / 彩虹 / 渲染模式（点位字牌只有显示开关）。
+ * 单个渲染对象的配置页：显示 / 颜色 / 彩虹 / 渲染模式（颜色跟随方框的字牌类只有显示开关）。
  *
- * <p><b>逐字搬运自旧项目</b> {@code stardew/selector/StardewRenderObjectScreen.java}：
+ * <p><b>逐字搬运自星露谷</b> {@code feature/stardew/ui/StardewRenderObjectScreen}：
  * 窗口标题 {@code "渲染设置 · " + 对象名}，四行标签 {@code §7显示 §8▶}、{@code §7颜色 §8▶}、
  * {@code §7彩虹 §8▶}（tooltip「颜色随时间自动循环（与配色页里的「彩虹」是同一个开关）」）、
  * {@code §7渲染模式 §8▶}（仅 {@code object.hasMode()} 时出现），底部说明
  * {@code §8本页只影响「<对象名>」，与其它渲染对象互不影响}。
- * 颜色 / 彩虹两行仅 {@code object.colorEditable()} 时出现（点位字牌的颜色跟随对应方框）。</p>
+ * 颜色 / 彩虹两行仅 {@code object.colorEditable()} 时出现（颜色跟随方框的对象不摆假色块）。</p>
  *
- * <p><b>为什么直接读写对象自己的字段：</b>本页不新建任何状态，显示 / 颜色 / 彩虹 / 渲染模式
- * 全部落在 {@link StardewSettings.RenderObject} 上，改完立即 {@link StardewFarmModule#persistSettings()}
- * 落盘，与主页、渲染逻辑完全同源。</p>
+ * <p><b>为什么抽到 {@code ui/screen}（第 169 条）</b>：六个模块的点位渲染对象是同一套载体
+ * {@link EspRenderObject}，设置窗口自然只该有一份实现。模块只需要把自己的对象、出厂对象与
+ * 落盘回调传进来；本页不新建任何状态，显示 / 颜色 / 彩虹 / 渲染模式全部落在对象自身上，
+ * 改完立即调 {@code persist} 落盘。</p>
  *
- * <p><b>标签为什么自绘：</b>旧标签是旧框架的 {@code theme.label("§7显示 §8▶")}，含 {@code §} 颜色码；
- * 本项目 {@code CompactRow} 的标签不解析 {@code §}（直接走字体绘制），直接用会把 {@code §7} 原样画出来，
- * 因此这里用一个只做「左标签 + 右控件」的小行元素，标签经 {@link MinecraftText} 绘制，文案逐字保留。</p>
+ * <p><b>标签为什么自绘</b>：标签含 {@code §} 颜色码，{@code CompactRow} 不解析 {@code §}
+ * （直接走字体绘制），直接用会把 {@code §7} 原样画出来，因此这里用一个只做
+ * 「左标签 + 右控件」的小行元素，标签经 {@link MinecraftText} 绘制。</p>
  */
-public final class StardewRenderObjectScreen extends PanelScreen {
+public final class RenderObjectScreen extends PanelScreen {
 
-    /** 「打开颜色选择器」：旧项目颜色行上编辑按钮的 tooltip 原文 */
+    /** 窗口标题前缀（各模块控制台传自己的那一句，星露谷为 {@code 渲染设置 · }） */
+    public static final String DEFAULT_TITLE_PREFIX = "渲染设置 · ";
+
+    /** 「打开颜色选择器」：颜色行上编辑按钮的 tooltip 原文 */
     private static final String HINT_OPEN_PICKER = "打开颜色选择器";
     /** 彩虹开关 tooltip 原文（与配色页里的「彩虹」是同一个开关） */
     private static final String HINT_RAINBOW = "颜色随时间自动循环（与配色页里的「彩虹」是同一个开关）";
 
-    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
-    private static final StardewSettings DEFAULTS = new StardewSettings();
-
-    private final StardewFarmModule module;
-    private final StardewSettings.RenderObject object;
+    private final EspRenderObject object;
+    private final EspRenderObject factory;
+    private final Runnable persist;
 
     /**
-     * @param parent 上级屏幕（控制台「点位」页）——控制台需要调的入口就是本构造签名
-     * @param module 归属模块：改动后立即写回设置
-     * @param object 本页唯一编辑的渲染对象
+     * @param parent  上级屏幕（打开本页的那个控制台）
+     * @param object  本页唯一编辑的渲染对象
+     * @param factory 该对象的出厂设置（行尾 ↺ 的取值来源）；取不到可传 {@code null}（↺ 变为不动作）
+     * @param persist 改动落盘回调（各模块自己的 {@code persistSettings} / 同步链路）
      */
-    public StardewRenderObjectScreen(Screen parent, StardewFarmModule module, StardewSettings.RenderObject object) {
-        super("渲染设置 · " + object.name(), parent);
-        this.module = module;
+    public RenderObjectScreen(Screen parent, EspRenderObject object, EspRenderObject factory, Runnable persist) {
+        this(parent, DEFAULT_TITLE_PREFIX, object, factory, persist);
+    }
+
+    /** @param titlePrefix 窗口标题前缀，最终标题 = 前缀 + 对象名 */
+    public RenderObjectScreen(Screen parent, String titlePrefix, EspRenderObject object,
+                              EspRenderObject factory, Runnable persist) {
+        super((titlePrefix == null ? DEFAULT_TITLE_PREFIX : titlePrefix) + object.name(), parent);
         this.object = object;
+        this.factory = factory == null ? object : factory;
+        this.persist = persist == null ? () -> { } : persist;
         build();
     }
 
     private void build() {
-        // 出厂对象：行尾 ↺ 的取值来源（与设置类字段初始化里的默认值同源，不在本页抄字面量）
-        StardewSettings.RenderObject factory = factoryOf(object);
-
         // 显示：同一个对象字段，勾选立即生效
         content().add(new Row("§7显示 §8▶", null,
             new SettingToggle(() -> object.show, value -> {
                 object.show = value;
-                module.persistSettings();
+                persist.run();
             }),
             ConsoleWidgets.resetCtl(() -> {
                 object.show = factory.show;
-                module.persistSettings();
+                persist.run();
             }, "显示")));
 
         // 颜色：色块点击打开调色板；彩虹是同一个 EspColor 上的开关。
-        // 点位字牌没有这一项：它的颜色跟随对应点位方框，摆一个点了没反应的色块只会误导。
+        // 颜色跟随方框的对象没有这一项：摆一个点了没反应的色块只会误导。
         if (object.colorEditable()) {
             content().add(new Row("§7颜色 §8▶", () -> HINT_OPEN_PICKER,
-                new SettingColorPicker(object.name() + "颜色", object.color, module::persistSettings),
+                new SettingColorPicker(object.name() + "颜色", object.color, persist),
                 ConsoleWidgets.resetCtl(() -> {
                     copyColor(object.color, factory.color);
-                    module.persistSettings();
+                    persist.run();
                 }, "颜色")));
             content().add(new Row("§7彩虹 §8▶", () -> HINT_RAINBOW,
                 new SettingToggle(() -> object.color.rainbow(), value -> {
                     object.color.rainbow(value);
-                    module.persistSettings();
+                    persist.run();
                 }),
                 ConsoleWidgets.resetCtl(() -> {
                     object.color.rainbow(factory.color.rainbow());
-                    module.persistSettings();
+                    persist.run();
                 }, "彩虹")));
         }
 
-        // 渲染模式：线框 / 面 / 两者（点位字牌没有这一项）
+        // 渲染模式：线框 / 面 / 两者（没有渲染模式的对象不出现这一行）
         if (object.hasMode()) {
             content().add(new Row("§7渲染模式 §8▶", null,
                 new SettingSegmented(List.of(ShapeMode.labels()),
                     () -> object.mode.index(),
                     index -> {
                         object.mode = ShapeMode.of(index);
-                        module.persistSettings();
+                        persist.run();
                     }),
                 ConsoleWidgets.resetCtl(() -> {
                     object.mode = factory.mode;
-                    module.persistSettings();
+                    persist.run();
                 }, "渲染模式")));
         }
 
@@ -120,19 +125,7 @@ public final class StardewRenderObjectScreen extends PanelScreen {
         content().add(new TextLine("§8本页只影响「" + object.name() + "」，与其它渲染对象互不影响"));
     }
 
-    /**
-     * 该渲染对象的出厂设置实例：按对象名在出厂设置里取同一项。
-     *
-     * <p>渲染对象是设置类里的固定字段（名字唯一且不变），取不到时返回自身（等价于不动作）。</p>
-     */
-    private static StardewSettings.RenderObject factoryOf(StardewSettings.RenderObject object) {
-        for (StardewSettings.RenderObject candidate : DEFAULTS.renderObjects()) {
-            if (candidate.name().equals(object.name())) return candidate;
-        }
-        return object;
-    }
-
-    /** 把出厂颜色就地写回当前颜色对象（{@code RenderObject.color} 是 final，不能换引用） */
+    /** 把出厂颜色就地写回当前颜色对象（{@link EspColor} 是可变对象，不能换引用） */
     private static void copyColor(EspColor target, EspColor source) {
         target.rgb(source.rgb()).alpha(source.alpha()).rainbow(source.rainbow())
             .rainbowSpeed(source.rainbowSpeed()).rainbowOffset(source.rainbowOffset());
@@ -140,7 +133,7 @@ public final class StardewRenderObjectScreen extends PanelScreen {
 
     /**
      * 「左标签 + 右控件」行：标签含 {@code §} 颜色码，经 {@link MinecraftText} 绘制；
-     * 有 tooltip 时在指针悬停时于标签与控件之间淡入（旧项目框架控件 tooltip 的等价展示位）。
+     * 有 tooltip 时在指针悬停时于标签与控件之间淡入。
      */
     private static final class Row implements CompactElement {
 
@@ -246,7 +239,7 @@ public final class StardewRenderObjectScreen extends PanelScreen {
 
         /**
          * 悬停提示文字：指针落在带说明的控件上时优先用控件自己的（行尾 ↺ 的「恢复默认：…」），
-         * 否则用整行那句（旧行为的等价物）。
+         * 否则用整行那句。
          */
         private String hoveredHintText(float mouseX, float mouseY, float x, float y, float width) {
             float cursor = controlsStartX(x, width);

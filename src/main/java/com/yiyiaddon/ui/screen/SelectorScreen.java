@@ -11,6 +11,7 @@ import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
@@ -202,6 +203,18 @@ public final class SelectorScreen extends PanelScreen {
     /** 单选模式下的一句用法说明（该模式没有「已选名单」，因此直接写在搜索框下方） */
     private static final String PICK_HINT = "  §8点任意一行即可选中";
 
+    /**
+     * 「加入准入」判定：{@code null} = 放行，非空 = 拒绝并把这句话弹成顶部提示。
+     *
+     * <p>给「只能选一个」这类名单用（食物白名单）：点第二条候选时拦下并说明原因，而不是默默
+     * 覆盖或默默追加。见 {@link #addGuard(AddGuard)}。</p>
+     */
+    public interface AddGuard {
+
+        /** @return {@code null} 表示允许加入；否则返回要弹给玩家的原因（可含 {@code §} 颜色码） */
+        String rejectReason(String key);
+    }
+
     private final String windowTitle;
     private final List<Entry> entries;
     private final Supplier<List<String>> selectedKeys;
@@ -209,6 +222,8 @@ public final class SelectorScreen extends PanelScreen {
     private final Consumer<String> onRemove;
     /** 单选模式的选中回调；{@code null} = 常规多选（左加右减） */
     private final Consumer<String> onPick;
+    /** 加入准入判定；{@code null} = 一律放行（见 {@link #addGuard}） */
+    private AddGuard addGuard;
 
     private final SplitPanels split = new SplitPanels(SPLIT_MIN_HEIGHT, SPLIT_ROW_GAP);
     /**
@@ -275,6 +290,21 @@ public final class SelectorScreen extends PanelScreen {
                                       Consumer<String> onPick) {
         return new SelectorScreen(windowTitle, parent, entries, () -> List.of(),
             key -> { }, key -> { }, onPick);
+    }
+
+    /**
+     * 设置「加入准入」判定：{@code null} 放行，非空则拒绝并把它弹成顶部提示。
+     *
+     * <p><b>为什么要有这一层</b>（用户 2026-09-19：「为什么能选两个食物？只能选一个目标选择器，
+     * 如果选两个弹个动态小框提示玩家」）：名单本身的约束（比如「只能选一个」）只有调用方知道，
+     * 但「点下去之后界面怎么反应」是窗口的事 —— 拒绝时既不能悄悄追加、也不该弹聊天回执，
+     * 而要在窗口里当场提示。因此把判定交给调用方、把反馈留在窗口。</p>
+     *
+     * <p>行内 ＋、点整行加入、以及组头「全选」都走这条判定；被拒的条目一律不产生聊天回执。</p>
+     */
+    public SelectorScreen addGuard(AddGuard guard) {
+        this.addGuard = guard;
+        return this;
     }
 
     private void build() {
@@ -561,13 +591,21 @@ public final class SelectorScreen extends PanelScreen {
          */
         private void toggleAll() {
             boolean clear = selectedColumn || allSelected();
+            String reject = null;
             for (Entry entry : items) {
                 if (clear) {
                     onRemove.accept(entry.key());
-                } else {
-                    onAdd.accept(entry.key());
+                    continue;
                 }
+                // 整组加入同样要过准入判定：被拒的跳过并留一句提示（如「食物白名单只能选一个」）
+                String reason = addGuard == null ? null : addGuard.rejectReason(entry.key());
+                if (reason != null) {
+                    reject = reason;
+                    continue;
+                }
+                onAdd.accept(entry.key());
             }
+            if (reject != null) TooltipLayer.notify(reject);
             rebuild();
         }
 
@@ -667,11 +705,17 @@ public final class SelectorScreen extends PanelScreen {
                 .onActivate(() -> toggle(entry, selected));
     }
 
-    /** 加入 / 移除一条，并发出聊天回执。 */
+    /** 加入 / 移除一条，并发出聊天回执；被准入判定拒绝时不改动名单，只弹顶部提示。 */
     private void toggle(Entry entry, boolean selected) {
         if (selected) {
             onRemove.accept(entry.key());
         } else {
+            String reject = addGuard == null ? null : addGuard.rejectReason(entry.key());
+            if (reject != null) {
+                TooltipLayer.notify(reject);
+                rebuild();
+                return;
+            }
             onAdd.accept(entry.key());
         }
         notifyAction(!selected, entry);

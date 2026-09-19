@@ -1,0 +1,26 @@
+// 独立回归入口，不进入产品 JAR，不增加测试依赖。
+allprojects {
+    afterEvaluate {
+        tasks.register('compileUpdateChecks', JavaCompile) {
+            dependsOn tasks.named('classes')
+            source = fileTree('gradle/update-tests') { include '*.java' }
+            classpath = sourceSets.main.runtimeClasspath
+            destinationDirectory = layout.buildDirectory.dir('update-tests')
+            options.encoding = 'UTF-8'
+            javaCompiler = javaToolchains.compilerFor {
+                languageVersion = JavaLanguageVersion.of(project.jdk_version as int)
+            }
+        }
+        ['checkUpdateFlow': 'UpdateSelfTest', 'renderUpdateHeader': 'VersionHeaderPreview'].each { taskName, entry ->
+            tasks.register(taskName, JavaExec) {
+                dependsOn tasks.named('compileUpdateChecks')
+                classpath = files(layout.buildDirectory.dir('update-tests')) + sourceSets.main.runtimeClasspath
+                mainClass = entry
+                javaLauncher = javaToolchains.launcherFor {
+                    languageVersion = JavaLanguageVersion.of(project.jdk_version as int)
+                }
+                jvmArgs '-Dstdout.encoding=UTF-8', '--enable-native-access=ALL-UNNAMED'
+            }
+        }
+    }
+}

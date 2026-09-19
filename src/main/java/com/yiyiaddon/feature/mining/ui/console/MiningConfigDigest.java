@@ -128,9 +128,9 @@ public final class MiningConfigDigest {
 
         out.add(group("ESP 显示"));
         out.add(field("ESP 字号倍率", s.espScale + " §7倍"));
-        out.add(field("矿物箱 ESP 颜色", color(s.mineralColor)));
-        out.add(field("食物箱 ESP 颜色", color(s.foodColor)));
-        out.add(field("挂机修复点 ESP 颜色", color(s.afkColor)));
+        out.add(field("矿物箱 ESP 颜色", color(s.renderMineralBox.color.rgb())));
+        out.add(field("食物箱 ESP 颜色", color(s.renderFoodBox.color.rgb())));
+        out.add(field("挂机修复点 ESP 颜色", color(s.renderAfkPoint.color.rgb())));
         out.add(field("容器标签字号倍率", s.espContainerTextScale + " §7倍"));
         out.add(field("容器标签文字颜色", s.espContainerTextColor == 0
             ? "§8跟随各点位颜色" : color(s.espContainerTextColor)));

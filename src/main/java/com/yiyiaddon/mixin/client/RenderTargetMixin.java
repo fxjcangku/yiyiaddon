@@ -1,6 +1,7 @@
 package com.yiyiaddon.mixin.client;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.SkiaScreen;
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
@@ -33,6 +34,10 @@ public abstract class RenderTargetMixin {
         }
         if (client.screen instanceof SkiaScreen skiaScreen) {
             skiaScreen.renderSkiaFrame();
+        } else {
+            // 本帧换成了原版界面（或界面已关闭）而我们之前画过隐藏格子：备份必须收尾，
+            // 否则那两行放大的原版图标会裸露到下一帧（与 SkiaScreen#renderSkiaFrame 的跳过分支同源）。
+            ItemIconCache.getInstance().flushBackdrop();
         }
     }
 }

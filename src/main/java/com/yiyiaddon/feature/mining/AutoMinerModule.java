@@ -35,7 +35,6 @@ import com.yiyiaddon.platform.eat.OffhandRationLock;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.page.ModulePage;
-import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.Minecraft;
@@ -203,11 +202,6 @@ public final class AutoMinerModule extends Module {
     /** 连锁挖矿：清掉整条连通矿脉（用户 2026-09-17 新增需求，复用秒破的单槽发包通道） */
     private final MiningVeinMiner veinMiner = new MiningVeinMiner(this);
 
-    /** 颜色设置的取色载体：调色板直接改这三个对象，随后同步回设置项 */
-    private final EspColor mineralColor = new EspColor();
-    private final EspColor foodColor = new EspColor();
-    private final EspColor afkColor = new EspColor();
-
     /** 最近一次装载点位时所处的世界上下文（{@code server@dimension}） */
     private String storeContext;
 
@@ -234,7 +228,6 @@ public final class AutoMinerModule extends Module {
         // 修补联动战斗真实现（批次 4）：进入修补时开杀戮光环、离开时只关我们自己开的那一个
         fsm.setRepairCombat(new KillAuraRepairHook());
         // 玩家自己敲的服务器指令（用户 2026-09-18 需求）走 subscribedEvents() 声明式订阅，见那里的注释
-        syncColorsFromSettings();
     }
 
     /**
@@ -293,7 +286,6 @@ public final class AutoMinerModule extends Module {
     @Override
     public void loadSettings(JsonObject json) {
         settings.load(json);
-        syncColorsFromSettings();
         // 记下这一份是从哪个作用域读来的：换服判据用它比对（见 refreshSettingsIfScopeChanged）。
         // 装配期（主菜单）读到的是全局模板，此时作用域为 null。
         loadedSettingsScope = settingsScope();
@@ -525,12 +517,11 @@ public final class AutoMinerModule extends Module {
     }
 
     /**
-     * 把一份快照灌进当前设置（读取记录用）：设置整份替换 + 颜色载体同步 + 立即落盘，
+     * 把一份快照灌进当前设置（读取记录用）：设置整份替换 + 立即落盘，
      * 模块正在运行时男中音那一批参数按新值重下发（此时点位已由 {@link #restoreRecord} 拦在关模块之后）。
      */
     private void applyRecord(JsonObject snapshot) {
         settings.load(snapshot);
-        syncColorsFromSettings();
         persistSettings();
         if (isEnabled()) applyBaritoneSettings();
     }
@@ -1314,18 +1305,6 @@ public final class AutoMinerModule extends Module {
         return pointStore;
     }
 
-    public EspColor mineralColor() {
-        return mineralColor;
-    }
-
-    public EspColor foodColor() {
-        return foodColor;
-    }
-
-    public EspColor afkColor() {
-        return afkColor;
-    }
-
     // ── 识别层与判据（旧项目 :1188-1359，语义逐条一致） ──
 
     /**
@@ -1592,40 +1571,6 @@ public final class AutoMinerModule extends Module {
         if (id == null) return Blocks.AIR;
         Block block = BuiltInRegistries.BLOCK.getValue(id);
         return block == null ? Blocks.AIR : block;
-    }
-
-    /** 设置项的 ARGB 值 → 调色板载体（载入设置、构造时调用） */
-    private void syncColorsFromSettings() {
-        applyToEsp(mineralColor, settings.mineralColor);
-        applyToEsp(foodColor, settings.foodColor);
-        applyToEsp(afkColor, settings.afkColor);
-    }
-
-    /**
-     * 调色板载体 → 设置项的 ARGB 值；有变化立即落盘。
-     *
-     * <p>由配置页每帧调用：调色板窗口直接改载体，关闭后页面下一帧把 RGB 与透明度写回设置项，
-     * 彩虹相位不参与（设置项只承载 ARGB 整数）。</p>
-     */
-    public void syncColorsToSettings() {
-        int mineral = pack(mineralColor);
-        int food = pack(foodColor);
-        int afk = pack(afkColor);
-        if (mineral == settings.mineralColor && food == settings.foodColor && afk == settings.afkColor) return;
-        settings.mineralColor = mineral;
-        settings.foodColor = food;
-        settings.afkColor = afk;
-        persistSettings();
-    }
-
-    private static void applyToEsp(EspColor color, int argb) {
-        color.rgb(argb & 0xFFFFFF);
-        color.alpha((argb >>> 24) & 0xFF);
-    }
-
-    /** 调色板载体打包为设置项使用的 ARGB */
-    private static int pack(EspColor color) {
-        return ((color.alpha() & 0xFF) << 24) | (color.rgb() & 0xFFFFFF);
     }
 
     // ── 内部 ──

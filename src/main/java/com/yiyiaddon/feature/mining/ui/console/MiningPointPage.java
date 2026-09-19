@@ -16,8 +16,11 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.console.PointCardGrid;
+import com.yiyiaddon.ui.console.PointRenderSection;
 import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
 import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
+import com.yiyiaddon.ui.screen.RenderObjectScreen;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingColorPicker;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
@@ -35,7 +38,7 @@ import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
  *
  * <p><b>样式与星露谷点位页同款</b>（用户 2026-09-16 指令「自动挖矿箱子esp 点位 给我跟星露谷点位设置
  * 带我那个一样」）：小节标题行 → 2 列卡片网格 → 「清空全部点位」按钮 + 二次确认 →
- * 「显示与颜色」小节（三行颜色 + 一行字牌大小 + 容器标签的字号倍率 / 文字颜色两行
+ * 「显示与颜色」小节（三类点位渲染对象各一行 + 一行字牌大小 + 容器标签的字号倍率 / 文字颜色两行
  * + 挖掘进度 ESP 的开关 / 两个颜色三行）→ 底部指令提示。卡片本体是公共件
  * {@link com.yiyiaddon.ui.console.PointCardGrid.PointCard}（由星露谷点位页抽出），卡片外观、
  * 等高口径与命中算法两处完全一致。</p>
@@ -48,21 +51,18 @@ import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
  * <p><b>清空与指令同源：</b>二次确认的确认动作直接调 {@link WkCommand#clearAllBindings()}
  * ——{@code .wk 清空} 与这里共用同一处清空实现与同一份回执（不写第二套）。</p>
  *
- * <p><b>颜色与字牌大小接的是模块既有机制：</b>调色板关窗回调 {@code module::syncColorsToSettings}
- * （把载体 ARGB 写回 {@code settings.*Color} 并落盘，与自动箱子渲染页同一构造），
- * 字牌大小走 {@code module.persistSettings()}；容器标签的两项（字号倍率 / 文字颜色）同样只读写
- * {@link MiningSettings} 并由 {@code persistSettings()} 落盘，不新增第二套持久化。</p>
+ * <p><b>三类点位行与星露谷完全同源（用户 2026-09-19）：</b>行构件是共用件
+ * {@link PointRenderSection}（对象名 + 显示开关 + 「设置」+ 行尾 ↺），设置窗口是共用件
+ * {@link RenderObjectScreen}（显示 / 颜色 / 彩虹 / 渲染模式）。颜色载体即各渲染对象自己的
+ * {@code EspColor}，改完直接调 {@code module.persistSettings()} 落盘，不再有「载体 → ARGB 设置项」
+ * 的第二份同步链路。字牌大小仍走 {@code settings.espScale}（倍率语义与共用件那套字号不同，
+ * 故保留本页自己的数字框）；容器标签的两项（字号倍率 / 文字颜色）只读写 {@link MiningSettings}
+ * 并由 {@code persistSettings()} 落盘。</p>
  */
 public final class MiningPointPage {
 
-    // ── 「显示与颜色」行文案（名称与默认值取自 MiningSettings 里这四项的中文注释） ──
+    // ── 「显示与颜色」剩下几行的文案（三类点位行由共用件 PointRenderSection 自带对象名与说明） ──
 
-    private static final String NAME_MINERAL_COLOR = "矿物箱 ESP 颜色";
-    private static final String DESC_MINERAL_COLOR = "默认 (255,215,0)";
-    private static final String NAME_FOOD_COLOR = "食物箱 ESP 颜色";
-    private static final String DESC_FOOD_COLOR = "默认 (100,255,100)";
-    private static final String NAME_AFK_COLOR = "挂机修复点 ESP 颜色";
-    private static final String DESC_AFK_COLOR = "默认 (255,100,255)";
     private static final String NAME_ESP_SCALE = "ESP 字号倍率";
     private static final String DESC_ESP_SCALE = "默认 2.0";
     private static final String NAME_CONTAINER_TEXT_SCALE = "容器标签字号倍率";
@@ -108,11 +108,14 @@ public final class MiningPointPage {
         stack.add(new ButtonStrip(owner, List.of(new Ctl(new Button("§c清空全部点位", this::openClearConfirm),
             "删除当前服务器已绑定的全部点位（不可恢复，会二次确认）")), ButtonStrip.BUTTON_HEIGHT));
 
-        stack.add(new Note(owner, "§7§l显示与颜色", null,
-            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        stack.add(colorRow(NAME_MINERAL_COLOR, DESC_MINERAL_COLOR, module.mineralColor(), DEFAULTS.mineralColor));
-        stack.add(colorRow(NAME_FOOD_COLOR, DESC_FOOD_COLOR, module.foodColor(), DEFAULTS.foodColor));
-        stack.add(colorRow(NAME_AFK_COLOR, DESC_AFK_COLOR, module.afkColor(), DEFAULTS.afkColor));
+        stack.add(PointRenderSection.title(owner));
+        // 每类点位渲染对象一行（显示开关 + 「设置」窗口 + 行尾 ↺）+ 一行字牌大小：
+        // 行构件是共用件 PointRenderSection（用户 2026-09-19：所有点位模块统一成星露谷这一套）
+        PointRenderSection renderSection = new PointRenderSection(owner,
+            module::persistSettings, owner::reload, this::openRenderScreen, DEFAULTS.renderObjects());
+        for (CompactElement row : renderSection.rows(module.settings().renderObjects())) {
+            stack.add(row);
+        }
         stack.add(labelSizeRow());
         stack.add(containerTextScaleRow());
         stack.add(containerTextColorRow());
@@ -191,35 +194,26 @@ public final class MiningPointPage {
 
     // ── 显示与颜色 ──
 
+    /** 打开「渲染设置 · 对象名」窗口（共用件 RenderObjectScreen，六个点位模块同一份实现） */
+    private void openRenderScreen(EspRenderObject object) {
+        if (owner.client() == null) return;
+        owner.client().setScreen(new RenderObjectScreen(owner.client().screen, object,
+            defaultsOf(object), module::persistSettings));
+    }
+
     /**
-     * 颜色行：调色板关窗时先把载体颜色同步回设置项再落盘。
+     * 该渲染对象的出厂设置实例：按对象名在出厂设置里取同一项。
      *
-     * <p>只传 {@code persistSettings} 是不行的：颜色还没同步进 {@code settings.*Color}，
-     * 存下去的是旧值（与自动箱子渲染页同一构造）。</p>
-     *
-     * <p>行尾带可见提示（第 213 条）：色块本身只是纯色底，看不出能点。</p>
-     *
-     * <p>行内 ↺ 把出厂色就地写回行内控件持有的那个颜色对象（字段是 final，不能换引用），
-     * 再走与调色板同一条同步链路（{@code syncColorsToSettings} 内部落盘）。</p>
+     * <p>渲染对象是设置类里的固定字段（名字唯一且不变），取不到时返回自身（等价于 ↺ 不动作）。</p>
      */
-    private ConsoleRow colorRow(String name, String description, EspColor color, int defaultArgb) {
-        return new ConsoleRow(owner, () -> name, description, COMMENT_COLOR,
-            List.of(new Ctl(new SettingColorPicker(name, color, module::syncColorsToSettings)),
-                ConsoleWidgets.resetCtl(() -> {
-                    copyColor(color, defaultArgb);
-                    module.syncColorsToSettings();
-                    owner.reload();
-                }, name)));
+    private static EspRenderObject defaultsOf(EspRenderObject object) {
+        for (EspRenderObject candidate : DEFAULTS.renderObjects()) {
+            if (candidate.name().equals(object.name())) return candidate;
+        }
+        return object;
     }
 
-    /** 把出厂色就地写给行内控件持有的那个颜色对象（字段是 final，不能换引用） */
-    private static void copyColor(EspColor target, int argb) {
-        EspColor source = new EspColor(argb & 0xFFFFFF, (argb >>> 24) & 0xFF);
-        target.rgb(source.rgb()).alpha(source.alpha()).rainbow(source.rainbow())
-            .rainbowSpeed(source.rainbowSpeed()).rainbowOffset(source.rainbowOffset());
-    }
-
-    /** 字牌大小：ESP 头顶文字的字号倍率，与三行颜色分开一行（改动落盘） */
+    /** 字牌大小：ESP 头顶文字的字号倍率，与三类点位行分开一行（改动落盘） */
     private CompactElement labelSizeRow() {
         MiningSettings settings = module.settings();
         SettingNumberBox box = new SettingNumberBox(ESP_SCALE_MIN, ESP_SCALE_MAX, ESP_SCALE_STEP, "%.1f",
@@ -259,18 +253,18 @@ public final class MiningPointPage {
      * 容器标签文字颜色：调色板改的是本行自带的临时载体，关窗时按「与打开时不同」判改动再写设置。
      *
      * <p><b>为什么要判改动</b>：设置项 {@code 0} 表示「跟随各点位颜色」（默认，观感与旧项目一致）。
-     * 调色板关窗一定会回调，若照三行点位颜色那样无条件写盘，「点开看一眼再关掉」就会把跟随态钉成固定色
+     * 调色板关窗一定会回调，若照点位行那样无条件写盘，「点开看一眼再关掉」就会把跟随态钉成固定色
      * —— 那不是用户的操作意图。</p>
      *
-     * <p>跟随态下色块显示矿物箱当前的颜色，作为「此刻文字主色」的可视锚点（两个容器颜色不同，
-     * 单一色块只能取其中一个代表）。</p>
+     * <p>跟随态下色块显示矿物箱当前的颜色（{@code settings.renderMineralBox}），作为「此刻文字主色」
+     * 的可视锚点（两个容器颜色不同，单一色块只能取其中一个代表）。</p>
      */
     private ConsoleRow containerTextColorRow() {
         MiningSettings settings = module.settings();
         int current = settings.espContainerTextColor;
         EspColor carried = current != 0
             ? new EspColor(current & 0xFFFFFF, (current >>> 24) & 0xFF)
-            : new EspColor(module.mineralColor().rgb(), module.mineralColor().alpha());
+            : new EspColor(settings.renderMineralBox.color.rgb(), settings.renderMineralBox.color.alpha());
         SettingColorPicker picker = new SettingColorPicker(NAME_CONTAINER_TEXT_COLOR, carried, () -> {
             int picked = ((carried.alpha() & 0xFF) << 24) | (carried.rgb() & 0xFFFFFF);
             if (picked == current) return;

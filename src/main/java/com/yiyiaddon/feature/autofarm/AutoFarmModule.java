@@ -30,7 +30,6 @@ import com.yiyiaddon.feature.autofarm.task.HarvestTask;
 import com.yiyiaddon.feature.autofarm.task.PlantTask;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.service.container.ContainerService;
-import com.yiyiaddon.ui.render.world.EspColor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -674,14 +673,5 @@ public final class AutoFarmModule extends Module {
     /** 维度简名（旧 dimensionName :798-800 的等价物，走本项目共用格式化器） */
     public static String dimensionName(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dim) {
         return WorldContextFormatter.dimensionSummary(dim == null ? null : dim.identifier().toString());
-    }
-
-    /** 模块页颜色访问（EspColor 由调色板直接改，随后统一写盘） */
-    public EspColor boundsColor() {
-        return settings.boundsColor;
-    }
-
-    public EspColor targetColor() {
-        return settings.targetColor;
     }
 }

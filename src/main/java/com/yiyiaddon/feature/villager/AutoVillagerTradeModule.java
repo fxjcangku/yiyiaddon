@@ -174,7 +174,8 @@ public final class AutoVillagerTradeModule extends Module {
         this.fsm = new VillagerTradeFSM();
         this.fsm.setLogger(this::info);
 
-        this.containerESP = new ContainerESP();
+        // 容器 ESP 现读渲染设置（显示 / 颜色 / 渲染模式 / 字牌字号都由「点位」页写入本设置对象）
+        this.containerESP = new ContainerESP(settings);
     }
 
     /** 英文名（模块中心的检索 / 列表用；旧项目模块只有中文名，这里取类名同形写法） */

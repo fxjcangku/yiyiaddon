@@ -69,7 +69,7 @@ tasks.register('obfuscateClasses', JavaExec) {
 // 只替换 class；资源、Fabric 元数据、嵌套 Baritone / Skija JAR 原样复制。
 def releaseJar = tasks.register('obfuscatedJar', Jar) {
     dependsOn tasks.named('obfuscateClasses')
-    archiveClassifier = 'obfuscated'
+    archiveClassifier = ''
     destinationDirectory = layout.buildDirectory.dir('release')
     preserveFileTimestamps = false
     reproducibleFileOrder = true
@@ -198,14 +198,34 @@ tasks.register('verifyObfuscatedJar') {
             "混淆工具：自研 ASM 9.9.1 字符串加密与基本块重排 + ProGuard 7.9.1\n" +
             "验证：构建、资源与入口检查、字节码加载、行为对照、加密常量审计、Gson 往返通过；实机状态见开发报告。\n" +
             '用途：仅供内部还原崩溃堆栈，禁止随发布包公开。\n'
-        saveBackup('产物信息.txt', record.getBytes('UTF-8'))
+        // 旧产物可能仅改了文件名而内容摘要未变：保留历史记录，另写命名说明。
+        def legacyRecord = new File(backup, '产物信息.txt')
+        def oldName = artifact.name.replaceFirst(/\.jar$/, '-obfuscated.jar')
+        if (legacyRecord.exists() && legacyRecord.getText('UTF-8') == record.replace(
+                "产物：${artifact.name}\n", "产物：${oldName}\n")) {
+            saveBackup('产物命名更新.txt', record.getBytes('UTF-8'))
+        } else {
+            saveBackup('产物信息.txt', record.getBytes('UTF-8'))
+        }
         logger.lifecycle("混淆静态检查通过：${renamed} 个类已改名；SHA-256：${hash}")
         logger.lifecycle("映射已备份：${backup}；完整游戏功能仍需实机验收，启动验证见报告；映射禁止公开。")
     }
 }
 
+// 对外 ZIP 只包含通过检查的发布 JAR，两层文件名均不暴露构建处理方式。
+tasks.register('releaseZip', Zip) {
+    dependsOn tasks.named('verifyObfuscatedJar')
+    archiveBaseName = base.archivesName
+    archiveVersion = project.version.toString()
+    archiveClassifier = ''
+    destinationDirectory = layout.buildDirectory.dir('release')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(releaseJar.flatMap { it.archiveFile })
+}
+
 tasks.register('buildRelease') {
     group = 'build'
     description = '构建并检查混淆发布包，映射自动保存到 05-混淆文件备份。'
-    dependsOn tasks.named('build'), tasks.named('verifyObfuscatedJar')
+    dependsOn tasks.named('build'), tasks.named('releaseZip')
 }

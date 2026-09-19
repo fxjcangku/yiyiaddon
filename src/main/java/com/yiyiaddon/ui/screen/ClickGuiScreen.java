@@ -5,6 +5,8 @@ import com.yiyiaddon.module.CategoryRegistry;
 import com.yiyiaddon.module.ModuleCategory;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.platform.ClientIdentity;
+import com.yiyiaddon.service.update.UpdateService;
+import com.yiyiaddon.ui.component.VersionHeader;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.anim.Spring;
@@ -129,6 +131,8 @@ public class ClickGuiScreen extends SkiaScreen {
     private final PageRouter router;
     private final PanelFrame frame = new PanelFrame();
     private final ScrollViewport scroll = new ScrollViewport();
+    private final VersionHeader versionHeader = new VersionHeader(UpdateService::openRepository,
+            () -> UpdateService.checkManually(this), UpdateService::openFeedback);
 
     private int hoveredTab = -1;
     private boolean closeHovered = false;
@@ -534,6 +538,11 @@ public class ClickGuiScreen extends SkiaScreen {
                     drawPageHeader(canvas, currentPage, contentX, contentY, contentW, alpha * pageFade, tc);
                 }
 
+                if (showVersionHeader()) {
+                    versionHeader.draw(canvas, versionHeaderX(contentX, contentW), contentY,
+                            alpha * pageFade, layoutMouseX, layoutMouseY, dt,
+                            UpdateService.versionLabel(), UpdateService.status());
+                }
                 backButton.draw(canvas, backButtonX(contentX, contentW), backButtonY(contentY), alpha, tc, backButtonVisible());
 
                 // 内容区：只绘制当前页面，绘制坐标就是布局坐标
@@ -601,11 +610,26 @@ public class ClickGuiScreen extends SkiaScreen {
         if (page == null || alpha <= 0.01f) return;
         float titleX = pageX(contentX);
         FontRenderer.drawTextBold(canvas, page.getTitle(), titleX, contentY + HEADER_TITLE_Y, 19f, withAlpha(tc.primaryText, alpha));
-        FontRenderer.drawText(canvas, CardLayout.ellipsize(page.getSubtitle(), contentW - 100f, 11f),
+        float subtitleWidth = page instanceof HomePage ? contentW - 310f : contentW - 100f;
+        FontRenderer.drawText(canvas, CardLayout.ellipsize(page.getSubtitle(), subtitleWidth, 11f),
                 titleX, contentY + HEADER_SUBTITLE_Y, 11f, withAlpha(tc.secondaryText, alpha));
     }
 
     // —— 返回按钮几何 ——
+
+    /** 更新通知只在界面稳定且未输入或拖动时显示，避免打断当前操作。 */
+    public boolean canShowUpdatePrompt() {
+        return !closingRequested && !searchFocused && !ModuleKeybindManager.isCapturing() && !draggingInContent
+                && !draggingScrollbar && frame.animationAlpha() >= 1f;
+    }
+
+    private boolean showVersionHeader() {
+        return !themePreviewMode && activePage() instanceof HomePage;
+    }
+
+    private static float versionHeaderX(float contentX, float contentW) {
+        return contentX + contentW - PAGE_RESERVED_W - VersionHeader.WIDTH;
+    }
 
     /** 返回按钮是否可用：主题预览与下钻页面都需要它。 */
     private boolean backButtonVisible() {
@@ -896,6 +920,9 @@ public class ClickGuiScreen extends SkiaScreen {
         float contentX = l[14], contentY = l[15], contentW = l[16], contentH = l[17];
         float searchX = l[18], searchY = l[19], searchW = l[20], searchH = l[21];
         BasePage page = activePage();
+
+        if (showVersionHeader() && versionHeader.onClick(mx, my,
+                versionHeaderX(contentX, contentW), contentY, button)) return true;
 
         if (button == 0 && mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + searchH) {
             SettingTextBox.clearFocus();

@@ -104,5 +104,16 @@ processResources {
     }
 }
 
+// 普通构建供个人使用，以后缀区分，避免误把未混淆包当成公开发布包。
+tasks.named('jar', Jar) {
+    archiveClassifier = 'personal'
+}
+
+tasks.register('buildPersonal') {
+    group = 'build'
+    description = '构建带 personal 后缀的个人版。'
+    dependsOn tasks.named('build')
+}
+
 // 发布混淆独立于开发构建；只处理本项目字节码，不改嵌套第三方依赖。
 apply from: 'gradle/obfuscation.gradle'

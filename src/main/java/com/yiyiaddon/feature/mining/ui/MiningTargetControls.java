@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.mining.ui;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.config.MiningSettings;
 import com.yiyiaddon.feature.mining.model.LootMode;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -213,9 +214,44 @@ public final class MiningTargetControls {
             () -> MiningRegistry.filter(MiningRegistry.itemEntries(), key -> !MiningRegistry.isAirItem(key)), false);
     }
 
+    /**
+     * 食物白名单选择器：<b>只能选一个</b>。
+     *
+     * <p><b>口径</b>（用户 2026-09-19：「为什么能选两个食物？只能选一个目标选择器 如果选两个弹个
+     * 动态小框提示玩家」）：口粮同时只会用上一种 —— 副手常驻的那格就是它、吃完补同一种，名单里多出来的
+     * 第二项只会让「吃哪一种」多一层按分数挑。因此第二条被拦下并在窗口里弹一句顶部提示，原选中项不动；
+     * 要换，先在右栏点掉原来那条（或组头「清空」）。</p>
+     *
+     * <p>打开时把历史配置收敛成一条（早先允许选多个）：保留第一项、其余移除并提示一句，
+     * 免得行上「已选 2 / 44 项」与单选口径打架。</p>
+     */
     public void openFoodSelector(String title) {
-        openListSelector(title, module.settings().foodWhitelist,
-            MiningRegistry::foodEntries, false);
+        List<String> target = module.settings().foodWhitelist;
+        boolean trimmed = trimFoodList(target);
+        if (trimmed) module.persistSettings();
+        openScreen(new SelectorScreen(title, currentScreen(), MiningRegistry.foodEntries(),
+            () -> new ArrayList<>(target),
+            key -> changeList(target, key, true, false),
+            key -> changeList(target, key, false, false))
+            .addGuard(key -> foodGuardReason(target, key)));
+        if (trimmed) {
+            TooltipLayer.notify("§e食物白名单只能选一个 §8▸ 已保留「§f"
+                    + MiningRegistry.itemDisplayName(target.get(0)) + "§8」");
+        }
+    }
+
+    /** 食物白名单的加入准入：已选着别的食物时拒绝，理由里带上当前那一条。 */
+    private static String foodGuardReason(List<String> target, String key) {
+        if (target.isEmpty() || target.contains(key)) return null;
+        return "§e食物白名单只能选一个 §8▸ 先移除「§f"
+                + MiningRegistry.itemDisplayName(target.get(0)) + "§8」";
+    }
+
+    /** 旧配置可能选了多个：只留第一条；发生过裁剪返回 true。 */
+    private static boolean trimFoodList(List<String> target) {
+        if (target.size() <= 1) return false;
+        while (target.size() > 1) target.remove(target.size() - 1);
+        return true;
     }
 
     public void openPlaceSelector(String title) {
@@ -235,7 +271,10 @@ public final class MiningTargetControls {
      * 矿石产物选择器：窗口标题 = 设置名逐字，候选按当前采集模式过滤。
      *
      * <p>用<b>常规模式</b>（左栏「+」加入 / 右栏「-」移除），与星露谷、自动箱子同一套可加减的形态。
-     * 单值设置因此表现为「左栏点加号即替换、右栏点减号即回到未选择」，候选里不需要「空气」占位。</p>
+     * 单值设置因此表现为「已选一条」，候选里不需要「空气」占位。</p>
+     *
+     * <p><b>只能选一个</b>（用户 2026-09-19：「所有选择器 如果只能是单选的 都要加上弹窗」）：
+     * 选着钻石时再点第二条会被拦下，并在窗口顶部弹一句提示，原选中项不动；要换先点掉右栏那条。</p>
      */
     public void openOreSelector(String title, boolean nether) {
         // 候选 = 当前模式的矿石产物，并剔除空气（模块判定层为对齐旧 filter 会放行空气）
@@ -244,16 +283,38 @@ public final class MiningTargetControls {
         openScreen(new SelectorScreen(title, currentScreen(), entries,
             () -> selectedOreTarget(nether),
             key -> setOreTarget(nether, key),
-            key -> setOreTarget(nether, "")));
+            key -> setOreTarget(nether, ""))
+            .addGuard(key -> oreGuardReason(title, nether, key)));
     }
 
-    /** 普通方块选择器：常规模式（左加右减），候选为全部方块（不含空气） */
+    /** 矿石产物的加入准入（单值）：已选着别的产物时拒绝，理由里带上当前那一条。 */
+    private String oreGuardReason(String title, boolean nether, String key) {
+        String current = oreTarget(nether);
+        if (current == null || current.isBlank() || current.equals(key)) return null;
+        return "§e" + title + "只能选一个 §8▸ 先移除「§f"
+                + MiningRegistry.itemDisplayName(current) + "§8」";
+    }
+
+    /**
+     * 普通方块选择器：常规模式（左加右减），候选为全部方块（不含空气）。
+     *
+     * <p>同样是<b>只能选一个</b>的单值设置，加入准入与矿石一致（见 {@link #openOreSelector}）。</p>
+     */
     public void openBlockSelector(String title) {
         openScreen(new SelectorScreen(title, currentScreen(),
             MiningRegistry.filter(MiningRegistry.blockEntries(), key -> !MiningRegistry.isAirBlock(key)),
             this::selectedBlockTarget,
             this::setBlockTarget,
-            key -> setBlockTarget("")));
+            key -> setBlockTarget(""))
+            .addGuard(key -> blockGuardReason(title, key)));
+    }
+
+    /** 普通方块的加入准入（单值）：已选着别的方块时拒绝，理由里带上当前那一条。 */
+    private String blockGuardReason(String title, String key) {
+        String current = module.settings().blockTarget;
+        if (current == null || current.isBlank() || current.equals(key)) return null;
+        return "§e" + title + "只能选一个 §8▸ 先移除「§f"
+                + MiningRegistry.blockDisplayName(current) + "§8」";
     }
 
     /** 已选矿石产物（单值 → 至多一项；未选择返回空列表） */

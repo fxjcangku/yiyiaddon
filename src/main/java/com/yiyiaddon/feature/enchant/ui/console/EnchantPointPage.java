@@ -1,6 +1,7 @@
 package com.yiyiaddon.feature.enchant.ui.console;
 
 import com.yiyiaddon.feature.enchant.EnchantModule;
+import com.yiyiaddon.feature.enchant.config.EnchantSettings;
 import com.yiyiaddon.feature.enchant.model.EnchantPoint;
 import com.yiyiaddon.feature.enchant.model.EnchantPointType;
 import com.yiyiaddon.feature.enchant.ui.EnchantConsoleScreen;
@@ -8,6 +9,9 @@ import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
+import com.yiyiaddon.ui.console.PointRenderSection;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
+import com.yiyiaddon.ui.screen.RenderObjectScreen;
 import com.yiyiaddon.ui.widget.Button;
 import net.minecraft.world.item.Items;
 
@@ -26,12 +30,20 @@ import java.util.List;
  * 与 {@code §c删除}。绑定 / 删除都走唯一实现
  * {@link com.yiyiaddon.feature.enchant.service.EnchantBindingService}，与 {@code .fumo} 指令同一处校验；
  * 绑定成功 / 删除成功按旧卡片做法直接回游戏，失败留在页面（错误已播报，玩家可当场重新对准）。</p>
+ *
+ * <p><b>点位行之后的「显示与颜色」小节</b>（用户 2026-09-19：「所有标点选择点位位置的模块 参照星露谷
+ * 农场的点位设置」）：六个点位字牌各一行（显示开关 + 「设置」窗口 + 行尾 ↺）外加「字牌大小」一行，
+ * 行构件与设置窗口走共用件 {@link PointRenderSection} / {@link RenderObjectScreen}；
+ * 对象清单固定为 {@link EnchantSettings#renderObjects()}（与渲染器绘制顺序一致），不随目标模式变化。</p>
  */
 public final class EnchantPointPage {
 
     private static final String BTN_SET_BOUND = "§a设置";
     private static final String BTN_SET_UNBOUND = "§8设置";
     private static final String BTN_DELETE = "§c删除";
+
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final EnchantSettings DEFAULTS = new EnchantSettings();
 
     private final EnchantConsoleScreen owner;
     private final EnchantModule module;
@@ -46,6 +58,39 @@ public final class EnchantPointPage {
         for (EnchantPointType type : EnchantPointType.requiredFor(module.settings().targetMode)) {
             stack.add(pointRow(type));
         }
+
+        // 显示与颜色：六个点位字牌各一行（显示开关 + 「设置」窗口 + 行尾 ↺）+ 字牌大小一行。
+        // 行构件与设置窗口都是共用件（用户 2026-09-19：所有点位模块统一成星露谷这套）
+        stack.add(PointRenderSection.title(owner));
+        PointRenderSection renderSection = new PointRenderSection(owner,
+            module::persistSettings, owner::reload, this::openRenderScreen, DEFAULTS.renderObjects());
+        for (CompactElement row : renderSection.rows(module.settings().renderObjects())) {
+            stack.add(row);
+        }
+        stack.add(renderSection.labelSizeRow(EnchantSettings.NAME_LABEL_SIZE, EnchantSettings.DESC_LABEL_SIZE,
+            EnchantSettings.LABEL_SIZE_MIN, EnchantSettings.LABEL_SIZE_MAX,
+            () -> module.settings().labelSize,
+            value -> module.settings().labelSize = value,
+            DEFAULTS.labelSize));
+    }
+
+    /** 打开「渲染设置 · 对象名」窗口（共用件 RenderObjectScreen，六个点位模块同一份实现） */
+    private void openRenderScreen(EspRenderObject object) {
+        if (owner.client() == null) return;
+        owner.client().setScreen(new RenderObjectScreen(owner.client().screen, object,
+            defaultsOf(object), module::persistSettings));
+    }
+
+    /**
+     * 该渲染对象的出厂设置实例：按对象名在出厂设置里取同一项。
+     *
+     * <p>渲染对象是设置类里的固定字段（名字唯一且不变），取不到时返回自身（等价于不动作）。</p>
+     */
+    private static EspRenderObject defaultsOf(EspRenderObject object) {
+        for (EspRenderObject candidate : DEFAULTS.renderObjects()) {
+            if (candidate.name().equals(object.name())) return candidate;
+        }
+        return object;
     }
 
     /**

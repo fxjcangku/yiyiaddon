@@ -491,6 +491,20 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
         return "§7X§f" + x + " §7Y§f" + y + " §7Z§f" + z;
     }
 
+    /**
+     * 容器类型 ID → 显示名。
+     *
+     * <p><b>为什么收敛成一处</b>：点位行与 ESP 字牌都要显示「这是什么容器」，写两份就会出现
+     * 「清单里认识、字牌上却写着未知」的分裂。认不出的类型统一回退成
+     * {@code 未知容器（类型 ID：x）}，与点位行原来的写法逐字一致。</p>
+     *
+     * @param containerTypeId 容器类型 ID（{@link ChestTarget#containerType()} 原样传入，可能是 {@code null}）
+     */
+    public static String formatContainerName(String containerTypeId) {
+        ContainerType type = ContainerTypeRegistry.byId(containerTypeId);
+        return type == null ? "未知容器（类型 ID：" + containerTypeId + "）" : type.displayName();
+    }
+
     // ── 颜色设置：调色板载体与设置项的双向同步 ──
 
     public EspColor unprocessedColor() {

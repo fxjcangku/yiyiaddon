@@ -57,7 +57,21 @@ public final class ModuleScreen extends SkiaScreen {
     private static final float BACK_Y = 16f;
     /** 标题相对面板左上角的位置。 */
     private static final float TITLE_X = BACK_X + BackButton.SIZE + 12f;
+    /** 有副标题时的标题基线：标题与副标题上下成组，占的是同一个标题区。 */
     private static final float TITLE_Y = 27f;
+    private static final float TITLE_SIZE = 19f;
+    /**
+     * 标题基线比例（文字视觉中心 = 基线 − 字号 × 本比例）：与 {@code TextLine}、面板窗口同一口径。
+     */
+    private static final float TITLE_BASELINE_RATIO = 0.36f;
+    /**
+     * 页面没有副标题时的标题基线：与返回按钮垂直居中。
+     *
+     * <p>口径同 {@code PanelScreen#TITLE_Y_ALIGNED}（用户 2026-09-19：「所有标题都要这样对齐返回键
+     * 除了底下有介绍的不用」）—— 没有说明文字的模块页，标题只占返回键那一行，就该与它同轴。</p>
+     */
+    private static final float TITLE_Y_ALIGNED =
+            BACK_Y + BackButton.SIZE / 2f + TITLE_SIZE * TITLE_BASELINE_RATIO;
     private static final float SUBTITLE_Y = 44f;
     /** 页面内容左内缩与右侧为滚动条预留的宽度。 */
     private static final float PAGE_INSET_X = 10f;
@@ -205,13 +219,16 @@ public final class ModuleScreen extends SkiaScreen {
         }
     }
 
-    /** 标题区：返回按钮、模块名与副标题。 */
+    /** 标题区：返回按钮、模块名与副标题（没有副标题时标题与返回按钮同轴，见 {@link #TITLE_Y_ALIGNED}）。 */
     private void drawHeader(Canvas canvas, float cardX, float cardY, float contentW, float alpha,
                             ClickGuiThemeColors tc, boolean backVisible) {
+        String subtitle = page.getSubtitle();
+        boolean hasSubtitle = subtitle != null && !subtitle.isEmpty();
         backButton.draw(canvas, cardX + BACK_X, cardY + BACK_Y, alpha, tc, backVisible);
-        FontRenderer.drawTextBold(canvas, page.getTitle(), cardX + TITLE_X, cardY + TITLE_Y, 19f,
+        FontRenderer.drawTextBold(canvas, page.getTitle(), cardX + TITLE_X,
+                cardY + (hasSubtitle ? TITLE_Y : TITLE_Y_ALIGNED), TITLE_SIZE,
                 GlassPanel.withAlpha(tc.primaryText, alpha));
-        FontRenderer.drawText(canvas, CardLayout.ellipsize(page.getSubtitle(), contentW - 120f, 11f),
+        FontRenderer.drawText(canvas, CardLayout.ellipsize(subtitle, contentW - 120f, 11f),
                 cardX + TITLE_X, cardY + SUBTITLE_Y, 11f, GlassPanel.withAlpha(tc.secondaryText, alpha));
     }
 

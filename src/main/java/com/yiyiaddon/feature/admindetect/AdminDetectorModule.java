@@ -264,6 +264,9 @@ public final class AdminDetectorModule extends Module {
             }
         }
 
+        // ── 第二条通道：Tab 列表里标着「旁观」、但世界里拿不到实体的人 ──
+        scanTabSpectators(whitelist, currentThreats);
+
         // 离开提示：之前记录但本次已不在范围内的危险玩家
         Iterator<Map.Entry<UUID, String>> it = nearbyThreats.entrySet().iterator();
         while (it.hasNext()) {
@@ -318,16 +321,69 @@ public final class AdminDetectorModule extends Module {
     // ── 判定（旧 {@code :175-230}，方法体逐字） ──
 
     /**
+     * 补扫 Tab 列表里标着「旁观」、但世界里没有实体的玩家。
+     *
+     * <p><b>为什么必须有这条通道</b>（用户 2026-09-19：「旁观者啊 为什么没检测？」）：
+     * 「旁观者对其他玩家不可见」是原版机制，服务器通常连实体都不下发 —— 主循环只遍历
+     * {@code mc.level.players()}，这类人一辈子进不来，检测项开着也白开。他们连坐标都拿不到，
+     * <b>无法判距离</b>，因此按「可能在身边」处理：命中、播报（标注位置未知）、照常断线保命 ——
+     * 开着旁观盯你的人本来就不会让你看见，这里宁可错杀。</p>
+     *
+     * <p>世界里找得到实体的旁观者由主循环按距离判（判定见 {@link #isSpectator(Player)}），
+     * 这里跳过，免得同一个人被两条通道各播报一次。</p>
+     */
+    private void scanTabSpectators(List<String> whitelist, Set<UUID> currentThreats) {
+        if (!settings.detectSpectator || mc.getConnection() == null
+                || mc.level == null || mc.player == null) {
+            return;
+        }
+        for (PlayerInfo info : mc.getConnection().getOnlinePlayers()) {
+            if (info == null || info.getProfile() == null) continue;
+            if (info.getGameMode() != GameType.SPECTATOR) continue;
+            UUID id = info.getProfile().id();
+            if (id == null || id.equals(mc.player.getUUID())) continue;
+            String name = info.getProfile().name();
+            if (name == null || name.isBlank()) continue;
+            if (AdminDetectorSettings.containsName(whitelist, name)) continue;
+            if (currentThreats.contains(id)) continue;
+            // 世界里找得到实体：交给主循环按距离判（不在范围内就不该命中）
+            if (mc.level.getPlayerByUUID(id) != null) continue;
+            currentThreats.add(id);
+            if (nearbyThreats.containsKey(id)) continue;
+            nearbyThreats.put(id, name);
+            ClientChat.send(MESSAGE_MODULE, DETECTED_PREFIX + highlightText(name) + " §f· "
+                    + highlightFunction("旁观者") + " §8（位置未知）");
+        }
+    }
+
+    /**
      * 判定玩家命中的危险特征，未命中返回 null。
      * 黑名单优先级最高，其次按旁观 / 创造 / 隐身 / 隐藏顺序。
      */
     private String getThreatReason(Player player, String name, List<String> blacklist) {
         if (AdminDetectorSettings.containsName(blacklist, name)) return "黑名单";
-        if (settings.detectSpectator && player.isSpectator()) return "旁观者";
+        if (settings.detectSpectator && isSpectator(player)) return "旁观者";
         if (settings.detectCreative && isCreative(player)) return "创造模式";
         if (settings.detectInvisible && player.isInvisible()) return "隐身";
         if (settings.detectHidden && isHiddenFromTab(player)) return "隐藏";
         return null;
+    }
+
+    /**
+     * 判断玩家是否为旁观者。
+     *
+     * <p><b>为什么不能只看 {@code player.isSpectator()}</b>（用户 2026-09-19：「旁观者啊 为什么
+     * 没检测？我不是添加了吗 检查一下是不是又 bug」）：那个标志只有<b>自己</b>（{@code LocalPlayer}）
+     * 有真值 —— 别人的游戏模式不随实体下发到客户端，远程玩家实体上恒为 {@code false}。
+     * 唯一可靠来源是 Tab 列表里的 {@code PlayerInfo#getGameMode()}（与创造检测同一个字段，
+     * 服务端必定下发），因此这里先问实体、再退回 Tab。</p>
+     *
+     * <p>仍拿不到的情况见 {@link #scanTabSpectators}：旁观者对其他玩家不可见，
+     * 服务器往往连实体都不下发，那时连这个循环都进不来。</p>
+     */
+    private boolean isSpectator(Player player) {
+        if (player.isSpectator()) return true;
+        return getGameMode(player) == GameType.SPECTATOR;
     }
 
     /** 判断玩家是否为创造模式，优先 Tab 列表游戏模式，缺失时退回实体能力位。 */

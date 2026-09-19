@@ -2,7 +2,7 @@ package com.yiyiaddon.feature.stardew.config;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 
 import java.util.ArrayList;
@@ -88,47 +88,47 @@ public final class StardewSettings {
     // ━━━ 渲染：点位渲染（每类独立） ━━━
 
     /** 种植区域：每块已划分的地一个框；淡白线框，提亮到约 35% 才看得清 */
-    public final RenderObject renderRegions = new RenderObject("种植区域",
+    public final EspRenderObject renderRegions = new EspRenderObject("种植区域",
         "渲染已划分的种植区域范围（每块地一个框，字牌写区域号与作物）", 0xFFFFFF, 90, ShapeMode.Lines);
     /** 洒水器本体方块：深蓝，与浅青的覆盖范围分层 */
-    public final RenderObject renderSprinklerBody = new RenderObject("洒水器本体",
+    public final EspRenderObject renderSprinklerBody = new EspRenderObject("洒水器本体",
         "高亮已绑定的洒水器本体方块（与覆盖范围互不影响）", 0x1B3FBF, 160, ShapeMode.Both);
     /** 洒水器覆盖范围：浅青蓝，压在本体上面也能看清 */
-    public final RenderObject renderSprinklerCoverage = new RenderObject("洒水器覆盖范围",
+    public final EspRenderObject renderSprinklerCoverage = new EspRenderObject("洒水器覆盖范围",
         "高亮洒水器覆盖范围（半径按洒水器等级 1~4 推导，仅用于观察，不参与决策）", 0x66D9FF, 70, ShapeMode.Lines);
     /** 洒水器点位标记：亮青，压在深蓝本体上做点位标记 */
-    public final RenderObject renderSprinklerPoint = new RenderObject("洒水器点位",
+    public final EspRenderObject renderSprinklerPoint = new EspRenderObject("洒水器点位",
         "在每个已绑定洒水器中心显示点位标记（用于确认点位已绑定）", 0x00E5FF, 200, ShapeMode.Lines);
     /** 种子箱：绿（种子） */
-    public final RenderObject renderSeedBox = new RenderObject("种子箱",
+    public final EspRenderObject renderSeedBox = new EspRenderObject("种子箱",
         "高亮种子箱方块", 0x35C759, 160, ShapeMode.Lines);
     /** 成品箱：金（收成） */
-    public final RenderObject renderOutputBox = new RenderObject("成品箱",
+    public final EspRenderObject renderOutputBox = new EspRenderObject("成品箱",
         "高亮成品箱方块", 0xFFB300, 160, ShapeMode.Lines);
     /** 补水点：蓝（水） */
-    public final RenderObject renderWaterSource = new RenderObject("补水点",
+    public final EspRenderObject renderWaterSource = new EspRenderObject("补水点",
         "高亮补水点方块", 0x1E6FFF, 180, ShapeMode.Lines);
     /** 岩浆箱：橙红（岩浆），下界盆取岩浆、存空桶 */
-    public final RenderObject renderLavaBox = new RenderObject("岩浆箱",
+    public final EspRenderObject renderLavaBox = new EspRenderObject("岩浆箱",
         "高亮岩浆箱方块（下界种植盆取岩浆、存回空桶）", 0xFF6A00, 180, ShapeMode.Lines);
     /** 龙息箱：紫（龙息），末地盆取龙息、存玻璃瓶 */
-    public final RenderObject renderBreathBox = new RenderObject("龙息箱",
+    public final EspRenderObject renderBreathBox = new EspRenderObject("龙息箱",
         "高亮龙息箱方块（末地种植盆取龙息、存回玻璃瓶）", 0xB44FFF, 180, ShapeMode.Lines);
-    /** 点位字牌：只有显示开关（颜色跟随对应点位方框），没有渲染模式、没有单独颜色 */
-    public final RenderObject renderLabels = new RenderObject("点位字牌",
-        "各绑定点位头顶的文字标签（颜色跟随对应点位的方框颜色，只有显示开关，没有单独颜色与渲染模式）",
+    /** 点位字牌：只有显示开关（加粗、颜色跟随界面主题），没有渲染模式、没有单独颜色 */
+    public final EspRenderObject renderLabels = new EspRenderObject("点位字牌",
+        "各绑定点位头顶的文字标签（加粗 + 底板，颜色跟随界面主题，只有显示开关，没有单独颜色与渲染模式）",
         0xFFFFFF, 255, null, false);
 
     /**
      * 点位字牌字号（GUI 缩放坐标），默认 12。
      *
      * <p>字牌大小与显示开关 / 颜色分开：字号是「一类排版参数」，不随单个点位类别变化，
-     * 因此单独一个字段，不塞进 {@link RenderObject}。</p>
+     * 因此单独一个字段，不塞进 {@link EspRenderObject}。</p>
      */
     public int labelSize = 12;
 
     /** 全部渲染对象，顺序即界面顺序 */
-    private final List<RenderObject> renderObjects = List.of(
+    private final List<EspRenderObject> renderObjects = List.of(
         renderRegions,
         renderSprinklerBody, renderSprinklerCoverage, renderSprinklerPoint,
         renderSeedBox, renderOutputBox, renderWaterSource, renderLavaBox, renderBreathBox, renderLabels);
@@ -247,79 +247,16 @@ public final class StardewSettings {
     public static final String DESC_LABEL_SIZE = "各绑定点位头顶文字的字号（取值域 6~32，默认 12）；"
         + "字越大越远也看得清，越容易挡住视线";
 
-    // ━━━ 渲染对象 ━━━
+    // ━━━ 全部渲染对象（顺序即界面顺序） ━━━
 
-    /** 一类渲染对象：显示开关 + 颜色 + 渲染模式（{@code null} = 该类没有渲染模式） */
-    public static final class RenderObject {
-
-        /** 对象显示名（界面行标题与「渲染设置」窗口标题都用它） */
-        private final String name;
-        /** 对象说明（行 tooltip 与设置项描述逐字取自旧项目） */
-        private final String description;
-        /** 显示开关 */
-        public boolean show = true;
-        /** 颜色（含透明度与彩虹开关） */
-        public final EspColor color;
-        /** 出厂默认色，用于调色板升级时只替换「没被玩家动过」的对象 */
-        private final int defaultRgb;
-        private final int defaultAlpha;
-        /** 渲染模式；{@code null} 表示该类只有显示与颜色 */
-        public ShapeMode mode;
-        /**
-         * 颜色是否可单独设置。
-         *
-         * <p>点位字牌为 {@code false}：它的颜色跟随对应点位方框的颜色。原来字牌文本里写死了
-         * {@code §b/§6/§d} 颜色码，把颜色设置整个盖掉，界面上那个色块点了根本没反应——既然
-         * 只有一个「跟随方框」的正确口径，就别再摆一个假的颜色设置。</p>
-         */
-        private final boolean colorEditable;
-
-        private RenderObject(String name, String description, int rgb, int alpha, ShapeMode mode) {
-            this(name, description, rgb, alpha, mode, true);
-        }
-
-        private RenderObject(String name, String description, int rgb, int alpha, ShapeMode mode,
-                             boolean colorEditable) {
-            this.name = name;
-            this.description = description;
-            this.color = new EspColor(rgb, alpha);
-            this.defaultRgb = rgb;
-            this.defaultAlpha = alpha;
-            this.mode = mode;
-            this.colorEditable = colorEditable;
-        }
-
-        /** 出厂默认色（迁移用） */
-        public int defaultRgb() {
-            return defaultRgb;
-        }
-
-        /** 出厂默认透明度（迁移用） */
-        public int defaultAlpha() {
-            return defaultAlpha;
-        }
-
-        public String name() {
-            return name;
-        }
-
-        public String description() {
-            return description;
-        }
-
-        /** 是否有渲染模式（点位字牌为 false） */
-        public boolean hasMode() {
-            return mode != null;
-        }
-
-        /** 颜色是否可单独设置（点位字牌为 false：颜色跟随对应点位的方框） */
-        public boolean colorEditable() {
-            return colorEditable;
-        }
-    }
-
-    /** 全部渲染对象（顺序即界面顺序） */
-    public List<RenderObject> renderObjects() {
+    /**
+     * 全部渲染对象。
+     *
+     * <p>载体是共用件 {@link EspRenderObject}（用户 2026-09-19：「所有标点选择点位位置的模块 参照
+     * 星露谷农场的点位设置」）：显示 / 颜色 / 渲染模式三件与编解码只此一份，星露谷、
+     * 自动挖矿、自动农场、村民交易、自动箱子、自动附魔六个点位页共用同一套界面行与设置窗口。</p>
+     */
+    public List<EspRenderObject> renderObjects() {
         return renderObjects;
     }
 
@@ -347,11 +284,8 @@ public final class StardewSettings {
         json.addProperty("logisticsSimple", logisticsSimple);
         json.addProperty("labelSize", labelSize);
         json.addProperty("paletteRevision", PALETTE_REVISION);
-        for (RenderObject object : renderObjects) {
-            String prefix = "render." + object.name() + ".";
-            json.addProperty(prefix + "show", object.show);
-            if (object.mode != null) json.addProperty(prefix + "mode", object.mode.name());
-            object.color.save(json, prefix + "color");
+        for (EspRenderObject object : renderObjects) {
+            object.save(json, "render." + object.name() + ".");
         }
     }
 
@@ -378,11 +312,8 @@ public final class StardewSettings {
         regionToolName = stringOf(json, "regionToolName");
         logisticsSimple = boolOf(json, "logisticsSimple", logisticsSimple);
         labelSize = clamp(intOf(json, "labelSize", labelSize), LABEL_SIZE_MIN, LABEL_SIZE_MAX);
-        for (RenderObject object : renderObjects) {
-            String prefix = renderPrefix(json, object);
-            object.show = boolOf(json, prefix + "show", object.show);
-            if (object.mode != null) object.mode = shapeModeOf(json, prefix + "mode", object.mode);
-            object.color.load(json, prefix + "color");
+        for (EspRenderObject object : renderObjects) {
+            object.load(json, renderPrefix(json, object));
         }
         if (intOf(json, "paletteRevision", 1) < PALETTE_REVISION) migratePalette();
     }
@@ -393,7 +324,7 @@ public final class StardewSettings {
      * <p>判据取 {@code show} 与 {@code colorRgb} 两个键——它们是每个对象必然写出的项，
      * 只要有一个在，就说明这份存档用的是这个对象名。</p>
      */
-    private static String renderPrefix(JsonObject json, RenderObject object) {
+    private static String renderPrefix(JsonObject json, EspRenderObject object) {
         String prefix = "render." + object.name() + ".";
         if (json.has(prefix + "show") || json.has(prefix + "colorRgb")) return prefix;
         String legacyName = LEGACY_RENDER_NAME.get(object.name());
@@ -407,7 +338,7 @@ public final class StardewSettings {
      * 旧默认色是上一版出厂值（补水点原为洋红、洒水器本体原为亮蓝等），与新默认色互相不冲突。</p>
      */
     private void migratePalette() {
-        for (RenderObject object : renderObjects) {
+        for (EspRenderObject object : renderObjects) {
             int[] legacy = LEGACY_PALETTE.get(object.name());
             if (legacy == null) continue;
             if (object.color.rgb() != legacy[0] || object.color.alpha() != legacy[1]) continue;
@@ -443,16 +374,6 @@ public final class StardewSettings {
         try {
             JsonElement element = json.get(key);
             return element != null && element.isJsonPrimitive() ? element.getAsBoolean() : fallback;
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    private static ShapeMode shapeModeOf(JsonObject json, String key, ShapeMode fallback) {
-        JsonElement element = json.get(key);
-        if (element == null || !element.isJsonPrimitive()) return fallback;
-        try {
-            return ShapeMode.valueOf(element.getAsString());
         } catch (Exception ignored) {
             return fallback;
         }

@@ -6,6 +6,7 @@ import com.yiyiaddon.core.event.ClientEventBus;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
 import com.yiyiaddon.feature.tactical.core.TacticalCoordinator;
+import com.yiyiaddon.integration.baritone.BaritoneOverlay;
 import com.yiyiaddon.module.AddonModules;
 import com.yiyiaddon.service.HeartbeatService;
 import com.yiyiaddon.service.HomeStats;
@@ -67,5 +68,12 @@ public final class YiyiAddonClient implements ClientModInitializer {
 
         // 瞄准方块高亮：全局常驻渲染层（不随任何模块开关，开关在「ESP 全局设置 ▸ 外观」里，默认开）
         WorldOverlay.register(BlockOutlineRenderer.LAYER_ID, BlockOutlineRenderer::render);
+
+        // Baritone 渲染接管：路径 / 目标 / 挖掘框 / 选区四类改由本项目自绘，同样常驻，
+        // 所有用 Baritone 寻路的模块（挖矿 / 附魔 / 农场 / 村民 / 箱子…）共用一层。
+        // 接管同步放在 tick 上而不是这里：Baritone 的静态 Settings 由它自己的模组初始化建立，
+        // 本入口执行时可能还没就绪（拿到 null），只在入口调一次会永久失手（见 BaritoneOverlay#syncTakeover）
+        WorldOverlay.register(BaritoneOverlay.LAYER_ID, BaritoneOverlay::render);
+        ClientTickEvents.END_CLIENT_TICK.register(client -> BaritoneOverlay.syncTakeover());
     }
 }

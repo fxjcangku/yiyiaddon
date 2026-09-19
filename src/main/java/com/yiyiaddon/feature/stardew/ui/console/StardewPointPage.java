@@ -6,22 +6,20 @@ import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
 import com.yiyiaddon.feature.stardew.ui.StardewRegionListScreen;
-import com.yiyiaddon.feature.stardew.ui.StardewRenderObjectScreen;
 import com.yiyiaddon.feature.stardew.ui.StardewSprinklerListScreen;
-import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
-import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.console.PointCardGrid.PointCard;
+import com.yiyiaddon.ui.console.PointRenderSection;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
 import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
+import com.yiyiaddon.ui.screen.RenderObjectScreen;
 import com.yiyiaddon.ui.widget.Button;
-import com.yiyiaddon.ui.widget.SettingNumberBox;
-import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -61,56 +59,27 @@ public final class StardewPointPage {
         stack.add(new ButtonStrip(owner, List.of(new Ctl(new Button("§c清空全部点位", this::openClearConfirm),
             "删除当前服务器已绑定的全部点位（不可恢复，会二次确认）")), ButtonStrip.BUTTON_HEIGHT));
 
-        stack.add(new Note(owner, "§7§l显示与颜色", null,
-            StardewConsoleScreen.SECTION_HEIGHT, StardewConsoleScreen.SECTION_SIZE));
-        for (StardewSettings.RenderObject object : module.settings().renderObjects()) {
-            stack.add(renderRow(object));
+        stack.add(PointRenderSection.title(owner));
+        // 每类渲染对象一行（显示开关 + 「设置」窗口 + 行尾 ↺）+ 字牌大小一行：
+        // 行构件是共用件 PointRenderSection（用户 2026-09-19：所有点位模块统一成星露谷这套）
+        PointRenderSection renderSection = new PointRenderSection(owner,
+            module::persistSettings, owner::reload, this::openRenderScreen, DEFAULTS.renderObjects());
+        for (CompactElement row : renderSection.rows(module.settings().renderObjects())) {
+            stack.add(row);
         }
-        stack.add(labelSizeRow());
+        stack.add(renderSection.labelSizeRow(StardewSettings.NAME_LABEL_SIZE, StardewSettings.DESC_LABEL_SIZE,
+            StardewSettings.LABEL_SIZE_MIN, StardewSettings.LABEL_SIZE_MAX,
+            () -> module.settings().labelSize,
+            value -> module.settings().labelSize = value,
+            DEFAULTS.labelSize));
         stack.add(new Note(owner, "§8也可以用指令：§f.stardew 绑定 … §8/ §f.stardew 移除 …"));
     }
 
-    /** 字牌大小：点位头顶文字的字号，与「点位字牌」的显示 / 颜色分开一行 */
-    private CompactElement labelSizeRow() {
-        StardewSettings s = module.settings();
-        SettingNumberBox box = new SettingNumberBox(
-            StardewSettings.LABEL_SIZE_MIN, StardewSettings.LABEL_SIZE_MAX, 1, "%.0f",
-            () -> (double) s.labelSize,
-            value -> {
-                s.labelSize = (int) Math.round(value);
-                module.persistSettings();
-            });
-        return new ConsoleRow(owner, () -> StardewSettings.NAME_LABEL_SIZE, StardewSettings.DESC_LABEL_SIZE,
-            null, List.of(new Ctl(box),
-                ConsoleWidgets.resetCtl(() -> {
-                    s.labelSize = DEFAULTS.labelSize;
-                    module.persistSettings();
-                    owner.reload();
-                }, StardewSettings.NAME_LABEL_SIZE)));
-    }
-
-    /** 一行渲染对象：对象名 + 显示开关 + 「设置」（旧项目 StardewRenderSetting 的行结构） */
-    private CompactElement renderRow(StardewSettings.RenderObject object) {
-        SettingToggle toggle = new SettingToggle(() -> object.show, value -> {
-            object.show = value;
-            module.persistSettings();
-        });
-        Button settings = new Button("设置", () -> {
-            if (owner.client() != null) {
-                owner.client().setScreen(new StardewRenderObjectScreen(owner.client().screen, module, object));
-            }
-        });
-        return new ConsoleRow(owner, () -> object.name(), object.description(), null, List.of(
-            new Ctl(toggle, "显示 / 隐藏「" + object.name() + "」"),
-            new Ctl(settings, object.colorEditable()
-                ? "打开「" + object.name() + "」的显示 / 颜色 / 渲染模式"
-                : "打开「" + object.name() + "」的显示开关（颜色跟随对应点位的方框）"),
-            // 本行只管显示开关，所以 ↺ 只把显示恢复出厂值（颜色 / 渲染模式在「设置」窗口里各自有 ↺）
-            ConsoleWidgets.resetCtl(() -> {
-                object.show = defaultsOf(object).show;
-                module.persistSettings();
-                owner.reload();
-            }, object.name())));
+    /** 打开「渲染设置 · 对象名」窗口（共用件 RenderObjectScreen，六个点位模块同一份实现） */
+    private void openRenderScreen(EspRenderObject object) {
+        if (owner.client() == null) return;
+        owner.client().setScreen(new RenderObjectScreen(owner.client().screen, object,
+            defaultsOf(object), module::persistSettings));
     }
 
     /**
@@ -118,8 +87,8 @@ public final class StardewPointPage {
      *
      * <p>渲染对象是设置类里的固定字段（名字唯一且不变），取不到时返回自身（等价于不动作）。</p>
      */
-    private static StardewSettings.RenderObject defaultsOf(StardewSettings.RenderObject object) {
-        for (StardewSettings.RenderObject candidate : DEFAULTS.renderObjects()) {
+    private static EspRenderObject defaultsOf(EspRenderObject object) {
+        for (EspRenderObject candidate : DEFAULTS.renderObjects()) {
             if (candidate.name().equals(object.name())) return candidate;
         }
         return object;

@@ -6,7 +6,9 @@ import com.yiyiaddon.feature.mining.model.MiningPoint;
 import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
 import com.yiyiaddon.ui.render.world.EspRenderer;
+import com.yiyiaddon.ui.render.world.PointLabelText;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -27,18 +29,23 @@ import java.util.Set;
  * 由 {@link EspRenderer} 封装，本类只描述「画什么」。线宽 / 不透明度 / 显示距离 /
  * 每帧图元上限全部走「ESP 全局设置」页，本类不另建第二套渲染配置。</p>
  *
- * <p><b>字牌字号与容器标签主色的归属</b>：字号一律乘模块设置 {@link MiningSettings#espScale}
+ * <p><b>字牌字号、内容与颜色的归属</b>：字号一律乘模块设置 {@link MiningSettings#espScale}
  * （旧项目隐藏项，现已在控制台「点位」页可调）；容器（矿物箱 / 食物箱）的头顶文字再额外乘
  * {@link MiningSettings#espContainerTextScale}，并在 {@link MiningSettings#espContainerTextColor}
- * 非 0 时改用该色作主色（用户 2026-09-17 追加的两项）。挂机修复点不是容器，两项都不参与。</p>
+ * 非 0 时以它为主色（用户 2026-09-17 追加的两项）；不设时字牌颜色跟随界面主题（用户 2026-09-19
+ * 「跟随我的主题颜色同步切换」）。<b>挂机修复点不是容器</b>：不乘容器倍率、不参与容器主色；
+ * 三个点位都写 {@code [世界]名字[距离]}（用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域
+ * 之外都要标上」，排版同一天由用户给出）。</p>
  *
- * <p><b>文案与门限逐字来自旧项目</b>：</p>
+ * <p><b>呈现口径（含历史沿革）</b>：</p>
  * <ul>
- *   <li>标签文本 {@code AutoMinerModule.onRender2D}（旧 {@code :1099-1111}）给的是
+ *   <li>旧项目标签文本 {@code AutoMinerModule.onRender2D}（旧 {@code :1099-1111}）给的是
  *       {@code §6[矿物箱] §7(维度)} 这类主体，{@code AutoMinerModule_ESP.renderLabel}
- *       （旧 {@code :31-65}）在其后**再追加**「当前维度名 + 距离」，因此最终显示为
- *       {@code §6[矿物箱] §7(主世界) §7(主世界) §8[45m]}。维度名重复是旧项目原样输出，
- *       <b>用户 2026-09-16 拍板：保留重复，一比一，不许"顺手修好"</b>。</li>
+ *       （旧 {@code :31-65}）在其后**再追加**「当前维度名 + 距离」，最终显示
+ *       {@code §6[矿物箱] §7(主世界) §7(主世界) §8[45m]}（维度名写两遍）。</li>
+ *   <li>用户 2026-09-16 曾拍板「保留重复，一比一」；<b>2026-09-19 用户给出统一排版
+ *       {@code [世界]名称[距离]} 后，本模块并入该排版，重复的维度名随之去掉</b>（后令覆盖前令）。
+ *       点位名（{@code [矿物箱]} / {@code [食物箱]} / {@code [挂机修复点]}）原样保留，方括号是名字的一部分。</li>
  *   <li>点位方块描边框：旧项目点位只有浮空文字、无框线；本项目按自己的 ESP 语言加了描边框
  *       （<b>用户 2026-09-16 拍板：留着</b>），属 UI 呈现差异，文案与配色不变。
  *       2026-09-18 起框支持大箱子：双箱按原版连接方向并成 2×1×1 的整框（判据照星露谷农场的
@@ -117,17 +124,24 @@ public final class MiningPointRenderer {
         if (!EspGlobalSettings.get().layerEnabled(EspGlobalSettings.Layer.MINING)) return;
         if (mc.player == null || mc.level == null) return;
 
-        draw(renderer, MiningPointType.MINERAL, "§6[矿物箱]", module.mineralColor());
-        draw(renderer, MiningPointType.FOOD, "§2[食物箱]", module.foodColor());
-        draw(renderer, MiningPointType.AFK, "§d[挂机修复点]", module.afkColor());
+        MiningSettings settings = module.settings();
+        draw(renderer, MiningPointType.MINERAL, "[矿物箱]", settings.renderMineralBox);
+        draw(renderer, MiningPointType.FOOD, "[食物箱]", settings.renderFoodBox);
+        draw(renderer, MiningPointType.AFK, "[挂机修复点]", settings.renderAfkPoint);
 
         renderLava(renderer);
     }
 
     // ── 三点点位 ──
 
-    /** 画单条点位：方块线框 + 浮空标签（仅当前维度、128 格内） */
-    private void draw(EspRenderer renderer, MiningPointType type, String labelHead, EspColor color) {
+    /**
+     * 画单条点位：方块线框 + 浮空标签（仅本维度已绑定、128 格内）。
+     *
+     * <p>显示开关、颜色与渲染模式全部读该点位自己的渲染对象 {@code object}（用户 2026-09-19 起与
+     * 星露谷点位同款）：关掉一类不影响其余两类，渲染模式（线框 / 面 / 两者）也各自独立。</p>
+     */
+    private void draw(EspRenderer renderer, MiningPointType type, String labelHead, EspRenderObject object) {
+        if (!object.show) return;
         MiningPoint point = module.pointStore().get(type);
         if (point == null || !point.inCurrentDimension()) return;
 
@@ -140,25 +154,20 @@ public final class MiningPointRenderer {
         double distance = mc.player.position().distanceTo(labelPos);
         if (distance > RENDER_DISTANCE) return;
 
-        renderer.box(box, color, color, ShapeMode.Lines, LINE_THICKNESS);
+        renderer.box(box, object.color, object.color, object.mode, LINE_THICKNESS);
 
         // 容器（矿物箱 / 食物箱）的头顶文字走模块内两项追加设置：额外字号倍率 + 可选统一主色；
-        // 挂机修复点不是容器，保持原口径（只乘 ESP 字号倍率、基准色取自己的颜色）。
+        // 挂机修复点不是容器，不乘容器倍率、不受容器主色影响。
         MiningSettings settings = module.settings();
         boolean container = type != MiningPointType.AFK;
         float size = (float) (settings.espScale * (container ? settings.espContainerTextScale : 1.0));
-        int textColor = color.argb();
-        String head = labelHead;
-        if (container && settings.espContainerTextColor != 0) {
-            textColor = settings.espContainerTextColor;
-            // 必须摘掉标签头部的类型色码：MinecraftText 按 §x 逐段取色，色码会压过传入的基准色，
-            // 不摘的话「容器标签文字颜色」就只能改到标签里的几个空格（表现为改了没反应）
-            head = stripHeadColorCode(labelHead);
-        }
 
-        // 文字由 EspRenderer 在投影点水平居中绘制，因此锚点给合并框中心即可（大箱子也不会偏半格）
-        renderer.text(labelText(head, point, distance), labelPos.x, labelPos.y, labelPos.z,
-            size, textColor, 1f, true);
+        // 三个点位统一排版「[世界]名字[距离]」（用户 2026-09-19 定稿，取代旧项目那份「维度名写两遍」的
+        // 原文输出），样式走共用件（加粗 + 底板 + 居中）。颜色：容器默认跟随 UI 主题，
+        // 「容器标签文字颜色」非 0 时以它为先；挂机修复点始终跟随主题。
+        PointLabelText.rawLabel(renderer, PointLabelText.text(labelHead, point.dimension(), labelPos.x, labelPos.y, labelPos.z),
+            labelPos.x, labelPos.y, labelPos.z, size,
+            container ? settings.espContainerTextColor : 0);
     }
 
     /**
@@ -198,38 +207,6 @@ public final class MiningPointRenderer {
         return new AABB(
             Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()),
             Math.max(a.getX(), b.getX()) + 1.0, Math.max(a.getY(), b.getY()) + 1.0, Math.max(a.getZ(), b.getZ()) + 1.0);
-    }
-
-    /** 去掉标签头部的颜色码（{@code §6[矿物箱]} → {@code [矿物箱]}）；只用于覆盖色生效时（见 {@link #draw}） */
-    private static String stripHeadColorCode(String text) {
-        return text.length() >= 2 && text.charAt(0) == '§' ? text.substring(2) : text;
-    }
-
-    /**
-     * 旧项目标签全文：主体 + 当前维度名 + 距离后缀（旧 {@code renderLabel :47-60} 逐字拼接）。
-     *
-     * <p>主体里的维度取**点位自身维度**（{@code WKData.dimensionName()}），追加段里的维度取
-     * **当前世界维度**（{@code mc.level.dimension()}）——两者只在当前维度的点位上渲染，故实际一致。</p>
-     */
-    private String labelText(String labelHead, MiningPoint point, double distance) {
-        return labelHead + " §7(" + dimensionName(point.dimension()) + ")"
-            + " " + "§7(" + dimensionName(currentDimensionKey()) + ")"
-            + " " + String.format("§8[%.0fm]", distance);
-    }
-
-    /** 当前世界维度键（旧 {@code mc.level.dimension().toString()} 的等价物，用本项目统一口径） */
-    private String currentDimensionKey() {
-        return mc.level == null ? "" : mc.level.dimension().identifier().toString();
-    }
-
-    /** 维度中文名（旧 {@code renderLabel :47-54} 的四种取值逐字） */
-    private static String dimensionName(String dimension) {
-        if (dimension == null) return "未知";
-        if (dimension.contains("overworld")) return "主世界";
-        if (dimension.contains("nether")) return "下界";
-        if (dimension.contains("end")) return "末地";
-        int colon = dimension.lastIndexOf(':');
-        return colon < 0 ? dimension : dimension.substring(colon + 1);
     }
 
     // ── 岩浆透视 ──

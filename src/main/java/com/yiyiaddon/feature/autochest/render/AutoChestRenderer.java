@@ -5,6 +5,7 @@ import com.yiyiaddon.feature.autochest.config.AutoChestSettings;
 import com.yiyiaddon.model.autochest.ChestTarget;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.EspRenderer;
+import com.yiyiaddon.ui.render.world.PointLabelText;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
@@ -19,7 +20,8 @@ import java.util.List;
  * 距离过远（&gt;64 格）不渲染。</p>
  *
  * <p>颜色取自设置项 {@code 未处理颜色 / 已处理颜色 / 处理中颜色}（ARGB 整数），
- * 框样式取自设置项 {@code ESP框样式}（仅线条 / 仅面 / 线+面）；
+ * 框样式取自设置项 {@code ESP框样式}（仅线条 / 仅面 / 线+面），
+ * 头顶字牌字号取自设置项 {@code 字牌大小}（用户 2026-09-19：「文字大小自定义」）；
  * 仅在 {@code ESP高亮} 开启时渲染。</p>
  */
 public final class AutoChestRenderer {
@@ -29,6 +31,9 @@ public final class AutoChestRenderer {
 
     /** 线框线宽；旧项目由旧框架渲染器固定，本项目在此显式给出 */
     private static final float LINE_THICKNESS = 1.5f;
+
+    /** 字牌高度偏移：方块顶面以上 0.4 格（与星露谷 / 村民容器字牌同一档：{@code Y + 1.4}） */
+    private static final double LABEL_Y_OFFSET = 1.4;
 
     private final Minecraft mc = Minecraft.getInstance();
     private final AutoChestModule module;
@@ -75,6 +80,15 @@ public final class AutoChestRenderer {
 
             renderer.blockBox(target.pos().getX(), target.pos().getY(), target.pos().getZ(),
                     color, color, shapeMode, LINE_THICKNESS);
+
+            // 头顶字牌：写「[世界]名字[距离]」（共用件 PointLabelText：加粗 + UI 主题色 + 底板 + 居中，
+            // 用户 2026-09-19）；字号走设置项「字牌大小」（实际字号再由渲染器乘全局「文字大小倍率」），
+            // 三态区分仍由框色表达
+            double centerX = target.pos().getX() + 0.5;
+            double labelY = target.pos().getY() + LABEL_Y_OFFSET;
+            double centerZ = target.pos().getZ() + 0.5;
+            PointLabelText.containerLabel(renderer, AutoChestModule.formatContainerName(target.containerType()),
+                target.dimension(), centerX, labelY, centerZ, settings.labelSize);
         }
     }
 

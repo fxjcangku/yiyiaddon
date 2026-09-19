@@ -2,7 +2,6 @@ package com.yiyiaddon.feature.autofarm.ui.console;
 
 import com.yiyiaddon.feature.autofarm.AutoFarmModule;
 import com.yiyiaddon.feature.autofarm.config.AutoFarmSettings;
-import com.yiyiaddon.feature.autofarm.model.CropProfile;
 import com.yiyiaddon.feature.autofarm.model.HarvestMode;
 import com.yiyiaddon.feature.autofarm.model.PlantMode;
 import com.yiyiaddon.feature.autofarm.ui.FarmSelectors;
@@ -11,7 +10,6 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
 import com.yiyiaddon.ui.component.CompactStack;
-import com.yiyiaddon.ui.widget.SettingColorPicker;
 import com.yiyiaddon.ui.widget.SettingCycle;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
@@ -19,17 +17,20 @@ import com.yiyiaddon.ui.widget.SettingToggle;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
 import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_CYCLE;
 
 /**
- * 控制台「设置」页：16 个可视静态项按旧项目四个分组展开
+ * 控制台「设置」页：11 个可视静态项按旧项目三个分组展开
  * （分组名与默认收起状态逐字照旧项目，见 51 号第二节）。
  *
  * <p><b>设置项逐字</b>：名称 / 描述 / 默认值 / 取值域全部来自旧 {@code AutoFarmMatrix}
  * 构造器（{@code :136-273}）；旧滑条形态不保留，数字一律 {@link SettingNumberBox}
- * （差异 D-13-01）。颜色项走 {@link SettingColorPicker}（调色板直接改 EspColor，
- * 改动即写盘）。</p>
+ * （差异 D-13-01）。</p>
+ *
+ * <p><b>「渲染显示」分组已撤销</b>（用户 2026-09-19：「所有标点选择点位位置的模块参照星露谷农场的
+ * 点位设置」）：农田边界 / 边界框颜色 / 目标显示 / 目标颜色 / 点位字牌五项已迁到控制台「点位」页的
+ * 「显示与颜色」小节（连同新增的四个箱子方框与「字牌大小」）。同一份设置只能有一处承载
+ * （项目第 209 条），留两份会出现「改了一处、另一处还是旧值」。其余设置项一个没动。</p>
  */
 public final class FarmSettingsPage {
 
@@ -44,12 +45,11 @@ public final class FarmSettingsPage {
         this.module = module;
     }
 
-    /** 页面装配：辅助工具（收起）→ 作物选择（展开）→ 运行参数（收起）→ 渲染显示（收起） */
+    /** 页面装配：辅助工具（收起）→ 作物选择（展开）→ 运行参数（收起） */
     public void build(CompactStack stack) {
         buildHelper(stack);
         buildCrops(stack);
         buildLogistics(stack);
-        buildRender(stack);
     }
 
     // ── 辅助工具 ──
@@ -142,27 +142,6 @@ public final class FarmSettingsPage {
         stack.add(section);
     }
 
-    // ── 渲染显示 ──
-
-    private void buildRender(CompactStack stack) {
-        AutoFarmSettings settings = module.settings();
-        FoldSection section = new FoldSection("渲染显示", "settings:render", host.collapsedSections());
-
-        section.content().add(toggleRow("农田边界", "只渲染农场范围的外框一圈（不填面），大农场也不卡",
-            () -> settings.renderBounds, value -> settings.renderBounds = value,
-            () -> DEFAULTS.renderBounds));
-        section.content().add(colorRow("边界框颜色", settings.boundsColor, DEFAULTS.boundsColor));
-        section.content().add(toggleRow("目标显示", "高亮当前正在作业的目标方块",
-            () -> settings.renderTarget, value -> settings.renderTarget = value,
-            () -> DEFAULTS.renderTarget));
-        section.content().add(colorRow("目标颜色", settings.targetColor, DEFAULTS.targetColor));
-        section.content().add(toggleRow("点位字牌", "各绑定箱头顶显示防呆标签",
-            () -> settings.renderLabels, value -> settings.renderLabels = value,
-            () -> DEFAULTS.renderLabels));
-
-        stack.add(section);
-    }
-
     // ── 行构件组装 ──
 
     /** 开关行：改动即写盘（第 173 条） */
@@ -198,29 +177,6 @@ public final class FarmSettingsPage {
                     module.persistSettings();
                     host.reload();
                 }, label)));
-    }
-
-    /**
-     * 颜色行：调色板直接改传入的 EspColor，关闭窗口即生效（第 151 条），改动即写盘；行尾带可见提示（第 213 条）。
-     *
-     * <p>颜色字段是 {@code final} 对象，行尾 ↺ 只能把出厂色的五个分量就地写回同一个对象。</p>
-     */
-    private ConsoleRow colorRow(String label, com.yiyiaddon.ui.render.world.EspColor color,
-                                com.yiyiaddon.ui.render.world.EspColor defaultColor) {
-        return new ConsoleRow(host, () -> label, null, COMMENT_COLOR,
-            List.of(new Ctl(new SettingColorPicker(label, color, module::persistSettings)),
-                ConsoleWidgets.resetCtl(() -> {
-                    copyColor(color, defaultColor);
-                    module.persistSettings();
-                    host.reload();
-                }, label)));
-    }
-
-    /** 把出厂颜色就地写给行内控件持有的那个颜色对象（字段是 final，不能换引用） */
-    private static void copyColor(com.yiyiaddon.ui.render.world.EspColor target,
-                                  com.yiyiaddon.ui.render.world.EspColor source) {
-        target.rgb(source.rgb()).alpha(source.alpha()).rainbow(source.rainbow())
-            .rainbowSpeed(source.rainbowSpeed()).rainbowOffset(source.rainbowOffset());
     }
 
     /** 枚举循环控件：候选 = 枚举中文名（旧 EnumSetting 界面渲染的同一批字面量） */

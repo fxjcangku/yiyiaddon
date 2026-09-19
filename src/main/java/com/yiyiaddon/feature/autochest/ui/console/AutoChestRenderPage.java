@@ -8,6 +8,7 @@ import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
+import com.yiyiaddon.ui.console.PointRenderSection;
 import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.widget.SettingColorPicker;
 import com.yiyiaddon.ui.widget.SettingSegmented;
@@ -20,11 +21,15 @@ import java.util.function.Supplier;
 import static com.yiyiaddon.ui.console.ConsoleWidgets.COMMENT_COLOR;
 
 /**
- * 自动箱子控制台「渲染」页：{@code 渲染} 分组的五项。
+ * 自动箱子控制台「渲染」页：{@code 渲染} 分组的六项。
  *
  * <p>逐字搬自旧项目配置页的 {@code 渲染} 分组：{@code ESP高亮}、{@code ESP框样式}
  * （仅 ESP 开启时可见）、{@code 未处理颜色} / {@code 已处理颜色} / {@code 处理中颜色}
  * （同样仅 ESP 开启时可见）——设置名、描述、默认值与取值域一字未改。</p>
+ *
+ * <p><b>字牌大小（用户 2026-09-19）</b>：用户要求点位类模块的渲染设置向星露谷点位页对齐
+ * （点位颜色自定义 / 文字大小自定义 / ESP 样式），本页在三色之后追加「字牌大小」一行 ——
+ * 行构件用共用件 {@link PointRenderSection#labelSizeRow}，与星露谷 / 自动挖矿点位页同一份实现。</p>
  *
  * <p><b>颜色落盘时机照旧</b>：调色板直接改的是颜色载体，关闭时回调
  * {@link AutoChestModule#syncColorsToSettings()}（有变化才写盘）——与配置页同一构造，
@@ -85,6 +90,18 @@ public final class AutoChestRenderPage {
                 colorOf(DEFAULTS.processedColor)));
             stack.add(colorRow("处理中颜色", DESC_PROCESSING_COLOR, module.processingColor(),
                 colorOf(DEFAULTS.processingColor)));
+
+            // 字牌大小：与星露谷 / 自动挖矿点位页同一行构件（数字框 + 行尾 ↺ 全部走共用件），
+            // 因此本页不另写一份行组装。本模块没有「一类对象一行」的渲染对象清单，openScreen 传 null、
+            // 出厂对象清单传空（这两项只有对象行才用得到）。
+            PointRenderSection renderSection = new PointRenderSection(owner,
+                module::persistSettings, owner::reload, null, List.of());
+            stack.add(renderSection.labelSizeRow(AutoChestSettings.NAME_LABEL_SIZE,
+                AutoChestSettings.DESC_LABEL_SIZE, AutoChestSettings.LABEL_SIZE_MIN,
+                AutoChestSettings.LABEL_SIZE_MAX,
+                () -> settings.labelSize,
+                value -> settings.labelSize = value,
+                DEFAULTS.labelSize));
         }
     }
 

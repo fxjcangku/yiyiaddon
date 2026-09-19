@@ -5,6 +5,9 @@ import com.google.gson.JsonObject;
 import com.yiyiaddon.feature.villager.model.VillagerProfessionChoice;
 import com.yiyiaddon.feature.villager.model.VillagerTradeMode;
 import com.yiyiaddon.ui.keybind.AddonKeybind;
+import com.yiyiaddon.ui.render.world.ColorPresets;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
+import com.yiyiaddon.ui.render.world.ShapeMode;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -37,6 +40,10 @@ import java.util.Set;
  * }
  * </pre>
  *
+ * <p><b>点位渲染（用户 2026-09-19）</b>：绿宝石箱 / 成品交易箱各自持有一套「显示 / 颜色 / 渲染模式」
+ * （载体 {@link EspRenderObject}，落盘键 {@code render.<对象名>.show / mode / colorRgb…}），
+ * 外加持一个全局的字牌大小 {@link #labelSize}（域 6~32，默认 12）。</p>
+ *
  * <p><b>购买量(组) 13 项不落设置（D6 拍板）</b>：旧项目该行是 {@code visible(() -> false)} 恒隐藏
  * （旧 {@code :243-254}，描述「已改为默认榨干模式，购买量不再生效」），界面不承载、
  * 状态机按默认 1 组（{@link #SUPPLY_GROUPS}）传入，行为与旧项目一致。</p>
@@ -59,6 +66,24 @@ public final class VillagerTradeSettings {
     private static final String PRICE_KEY_SUFFIX = "价格上限";
     /** 图书管理员附魔书选择器的落盘键（旧设置名逐字） */
     private static final String LIBRARIAN_ENCHANT_KEY = "图书管理员附魔书";
+
+    // ── 点位渲染默认值（颜色只从 ColorPresets 取，不散落 RGB 字面量） ──
+
+    /** 绿宝石箱默认配色在 {@link ColorPresets} 里的下标（「绿」，沿用旧 ContainerESP 的 {@code Color.GREEN} 角色位） */
+    private static final int EMERALD_PRESET = 1;
+    /** 成品交易箱默认配色在 {@link ColorPresets} 里的下标（「青」，沿用旧 ContainerESP 的 {@code Color.CYAN} 角色位） */
+    private static final int UNLOAD_PRESET = 3;
+    /** 点位渲染对象默认不透明度：与旧 ContainerESP 一致（实心描边，255 = 完全不透明） */
+    private static final int RENDER_ALPHA = 255;
+
+    /** 字牌大小取值域（界面输入框与设置读取共用同一份） */
+    public static final int LABEL_SIZE_MIN = 6;
+    public static final int LABEL_SIZE_MAX = 32;
+
+    /** 字牌大小行文案（逐字，禁止改写） */
+    public static final String NAME_LABEL_SIZE = "字牌大小";
+    public static final String DESC_LABEL_SIZE = "点位头顶文字的字号（取值域 6~32，默认 12）；"
+        + "字越大越远也看得清，越容易挡住视线";
 
     // ── 默认组（旧 sgGeneral：基础 6 项 + 快速停止键） ──
 
@@ -98,6 +123,43 @@ public final class VillagerTradeSettings {
 
     /** 已勾选加入多任务队列的职业名集合（旧 13 个勾选框） */
     private final Set<String> pipelineProfessions = new LinkedHashSet<>();
+
+    // ── 渲染：点位渲染（每类独立，界面行与设置窗口走共用件） ──
+
+    /**
+     * 绿宝石箱：交易货币来源箱，默认绿（{@link ColorPresets} 下标 {@link #EMERALD_PRESET}），实心线框。
+     *
+     * <p>载体是共用件 {@link EspRenderObject}（用户 2026-09-19：「所有标点选择点位位置的模块 参照
+     * 星露谷农场的点位设置」）：显示 / 颜色（可自定义）/ 渲染模式三件与落盘键
+     * {@code render.绿宝石箱.*} 全走共用口径，与星露谷 / 自动挖矿等点位页完全一致。</p>
+     */
+    public final EspRenderObject renderEmeraldBox = new EspRenderObject("绿宝石箱",
+        "高亮已绑定的绿宝石箱（交易货币来源箱）",
+        ColorPresets.rgb(EMERALD_PRESET), RENDER_ALPHA, ShapeMode.Lines);
+
+    /**
+     * 成品交易箱：交易产物卸货箱，默认青（{@link ColorPresets} 下标 {@link #UNLOAD_PRESET}），实心线框。
+     */
+    public final EspRenderObject renderUnloadBox = new EspRenderObject("成品交易箱",
+        "高亮已绑定的成品交易箱（交易产物卸货箱）",
+        ColorPresets.rgb(UNLOAD_PRESET), RENDER_ALPHA, ShapeMode.Lines);
+
+    /**
+     * 点位字牌字号（GUI 缩放坐标），默认 12，读取时收拢到
+     * {@link #LABEL_SIZE_MIN}~{@link #LABEL_SIZE_MAX}。
+     *
+     * <p>字号是「一类排版参数」，不随单个点位类别变化，因此单独一个字段，不塞进
+     * {@link EspRenderObject}；字牌颜色跟随对应箱子的方框颜色。</p>
+     */
+    public int labelSize = 12;
+
+    /** 全部渲染对象，顺序即界面顺序（绿宝石箱 → 成品交易箱） */
+    private final List<EspRenderObject> renderObjects = List.of(renderEmeraldBox, renderUnloadBox);
+
+    /** 全部点位渲染对象（界面行、设置窗口出厂件与落盘共用同一份） */
+    public List<EspRenderObject> renderObjects() {
+        return renderObjects;
+    }
 
     // ── 分组访问器（K 控制台与模块入口共用同一套读写，避免两处各判一次） ──
 
@@ -163,6 +225,11 @@ public final class VillagerTradeSettings {
         loadItemTargets(json);
         loadPriceLimits(json);
         loadPipelineProfessions(json);
+
+        labelSize = clamp(intOf(json, "labelSize", labelSize), LABEL_SIZE_MIN, LABEL_SIZE_MAX);
+        for (EspRenderObject object : renderObjects) {
+            object.load(json, "render." + object.name() + ".");
+        }
     }
 
     /** 把字段写入模块设置对象（与 {@link #load} 同一批键）。 */
@@ -193,6 +260,11 @@ public final class VillagerTradeSettings {
             pipeline.addProperty(name, true);
         }
         json.add("多任务职业", pipeline);
+
+        json.addProperty("labelSize", labelSize);
+        for (EspRenderObject object : renderObjects) {
+            object.save(json, "render." + object.name() + ".");
+        }
     }
 
     /** 读「目标物品」组：13 个 `<职业>交易` 数组 + `图书管理员附魔书` 数组。 */

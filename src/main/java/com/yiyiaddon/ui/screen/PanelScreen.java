@@ -70,8 +70,25 @@ public abstract class PanelScreen extends SkiaScreen {
     private static final float BACK_X = 18f;
     private static final float BACK_Y = 16f;
     private static final float TITLE_X = BACK_X + BackButton.SIZE + 12f;
+    /** 有副标题时的标题基线：标题与副标题上下成组，占的是同一个标题区。 */
     private static final float TITLE_Y = 27f;
     private static final float TITLE_SIZE = 19f;
+    /**
+     * 标题基线比例：文字视觉中心 = 基线 − 字号 × 本比例。
+     *
+     * <p>与 {@code TextLine}、选择器分组标题同一口径（{@code 0.36}），三处都在同一块玻璃上，
+     * 比例不一致会出现「同样是标题，一行偏上一行偏下」。</p>
+     */
+    private static final float TITLE_BASELINE_RATIO = 0.36f;
+    /**
+     * 无副标题时的标题基线：与返回按钮垂直居中。
+     *
+     * <p><b>用户 2026-09-19 口径</b>：「主世界矿石标题没跟返回键对齐 偏上了现在 所有标题都要这样
+     * 对齐返回键 除了底下有介绍的不用」—— 没有副标题的窗口（双栏选择器这类）标题只占返回键那一行，
+     * 就该与返回键同轴；有副标题的窗口标题与其下的说明成组，保持原位不动。</p>
+     */
+    private static final float TITLE_Y_ALIGNED =
+            BACK_Y + BackButton.SIZE / 2f + TITLE_SIZE * TITLE_BASELINE_RATIO;
     /** 副标题（模块说明）纵坐标与字号：与模块页 {@code ModuleScreen#SUBTITLE_Y} 同一档，两个窗口的标题区看起来是一套。 */
     private static final float SUBTITLE_Y = 44f;
     private static final float SUBTITLE_SIZE = 11f;
@@ -252,6 +269,11 @@ public abstract class PanelScreen extends SkiaScreen {
         frame.setDesignSize(Math.min(CONSOLE_CARD_W, availableW), Math.min(CONSOLE_CARD_H, availableH));
     }
 
+    /** 为紧凑通知窗指定尺寸，缩放、裁剪和命中仍统一走公共面板几何。 */
+    protected final void setPanelDesignSize(float width, float height) {
+        frame.setDesignSize(width, height);
+    }
+
     private float contentHeight() {
         return frame.cardHeight() - CONTENT_TOP - CONTENT_PAD;
     }
@@ -278,6 +300,20 @@ public abstract class PanelScreen extends SkiaScreen {
         } finally {
             glBackend.end();
         }
+    }
+
+    /**
+     * 标题基线：无副标题的窗口与返回按钮垂直居中，有副标题的保持原位（口径见 {@link #TITLE_Y_ALIGNED}）。
+     */
+    private float titleBaselineY() {
+        return hasSubtitle() ? TITLE_Y : TITLE_Y_ALIGNED;
+    }
+
+    /** 本窗口是否真的会画出副标题：{@link #setSubtitle} 给出的说明取到非空文本才算（取不到等同没有）。 */
+    private boolean hasSubtitle() {
+        if (subtitle == null) return false;
+        String text = subtitle.get();
+        return text != null && !text.isEmpty();
     }
 
     /**
@@ -360,8 +396,8 @@ public abstract class PanelScreen extends SkiaScreen {
                 GlassPanel.ambientGlow(canvas, cardX, cardY, cardW, cardH, tc, alpha, 0.46f);
                 GlassPanel.rim(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.rim, alpha, 0.26f);
                 backButton.draw(canvas, cardX + BACK_X, cardY + BACK_Y, alpha, tc, backVisible);
-                FontRenderer.drawTextBold(canvas, windowTitle, cardX + TITLE_X, cardY + TITLE_Y, TITLE_SIZE,
-                        GlassPanel.withAlpha(tc.primaryText, alpha));
+                FontRenderer.drawTextBold(canvas, windowTitle, cardX + TITLE_X, cardY + titleBaselineY(),
+                        TITLE_SIZE, GlassPanel.withAlpha(tc.primaryText, alpha));
                 drawSubtitle(canvas, cardX, cardY, contentW, alpha, tc);
 
                 // 滚动偏移并入元素起点，不做画布平移——与既有 BasePage 体系一致

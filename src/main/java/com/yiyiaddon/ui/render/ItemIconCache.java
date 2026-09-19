@@ -797,6 +797,34 @@ public final class ItemIconCache {
         }
     }
 
+    /**
+     * 立刻把滞留的格子备份画回主帧缓冲，不依赖面板绘制。
+     *
+     * <p><b>为什么需要它</b>（用户 2026-09-19：「点开选择器之后 会闪出来原版贴图的放大版 然后闪了
+     * 一下 偶尔发生」）：格子是<b>抽帧阶段</b>落地的，而写回发生在<b>帧末</b>、由画格子的那个界面在
+     * 面板绘制里执行（{@code SkiaScreen#renderSkiaFrame} → {@code SkiaGlBackend#begin}）。一旦这一帧
+     * 中途换了界面（控制台点「点击选择」→ 选择器），帧末轮到的已经是新界面——它这一帧没抽过帧、
+     * 直接跳过绘制，旧界面也不再收尾，于是备份无人写回，屏幕正中那两行放大到 32 像素的物品图标
+     * 就裸露到下一帧（下一帧抽帧时备份被丢弃、重新画格子，看上去就是「闪了一下」）。</p>
+     *
+     * <p>由 {@code SkiaScreen#renderSkiaFrame} 的跳过分支与 {@code RenderTargetMixin} 调用：
+     * 两者覆盖「换成了另一个 Skija 界面」与「换成了原版界面 / 关掉了界面」两种切屏。</p>
+     */
+    public void flushBackdrop() {
+        if (backdropImage == null) return;
+        SkiaGlBackend backend = SkiaGlBackend.shared();
+        Canvas canvas = backend.begin(SkiaGlBackend.mainFramebufferId());
+        if (canvas == null) {
+            releaseBackdrop();
+            return;
+        }
+        try {
+            paintBackdrop(canvas);
+        } finally {
+            backend.end();
+        }
+    }
+
     /** 释放尚未写回的备份。 */
     private void releaseBackdrop() {
         if (backdropImage != null) {

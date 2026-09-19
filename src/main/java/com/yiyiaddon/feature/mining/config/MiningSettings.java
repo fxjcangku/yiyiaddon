@@ -4,9 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.yiyiaddon.feature.mining.model.LootMode;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
+import com.yiyiaddon.ui.render.world.ShapeMode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 自动挖矿全部设置项的数据载体（旧项目 55 项中的 54 项 + 4 个隐藏项）。
@@ -38,8 +41,10 @@ import java.util.List;
  * {@code 矿石渲染颜色} / {@code 脉冲效果}）随种子模式（OrePredictor）一起留待后续批次，
  * 故本类不含这 5 项。</p>
  *
- * <p>颜色以 ARGB 打包整数保存，便于 JSON 持久化；解码用 {@link #r(int)} / {@link #g(int)} /
- * {@link #b(int)} / {@link #a(int)}。</p>
+ * <p>三类点位（矿物箱 / 食物箱 / 挂机修复点）的「显示 / 颜色 / 渲染模式」由共用件
+ * {@link EspRenderObject} 承载（用户 2026-09-19：「把所有标点选择点位位置的模块参照星露谷农场的点位设置」），
+ * 落盘键为 {@code render.<对象名>.<项>}，与星露谷点位同一套口径；挖掘进度两项颜色仍是 RGB 整数，
+ * 解码用 {@link #r(int)} / {@link #g(int)} / {@link #b(int)} / {@link #a(int)}。</p>
  */
 public final class MiningSettings {
 
@@ -335,14 +340,43 @@ public final class MiningSettings {
     /** _esp_scale_internal｜ESP 字号倍率（默认 2.0） */
     public double espScale = 2.0;
 
-    /** _mineral_color_internal｜矿物箱 ESP 颜色，默认 (255,215,0) */
-    public int mineralColor = 0xFFFFD700;
+    /**
+     * 三类点位的渲染对象（显示 / 颜色 / 渲染模式），名称即落盘键的一部分，顺序即界面顺序。
+     *
+     * <p><b>为什么改成共用件 {@link EspRenderObject}</b>（用户 2026-09-19：「把所有标点选择点位位置的
+     * 模块 参照星露谷农场的点位设置 全部更新」）：原先三类颜色各是一个 ARGB 整数，既没有显示开关也
+     * 没有渲染模式，点位页只能摆三行色块。升级成与星露谷同款的渲染对象后，每类都能单独开关、
+     * 单独调色（含彩虹）、单独选渲染模式（线框 / 面 / 两者），界面行与设置窗口也由共用件统一装配。</p>
+     *
+     * <p>对象名逐字对应旧设置项的语义（矿物箱 / 食物箱 / 挂机修复点），因此老存档的旧颜色键
+     * 能在 {@link #load} 里按名称对应迁移，玩家调过的颜色不会丢。</p>
+     */
+    public final EspRenderObject renderMineralBox = new EspRenderObject("矿物箱",
+        "高亮已绑定的矿物箱（潜影盒 / 箱子）", 0xFFD700, 255, ShapeMode.Lines);
 
-    /** _food_color_internal｜食物箱 ESP 颜色，默认 (100,255,100) */
-    public int foodColor = 0xFF64FF64;
+    /** 食物箱：绿色（与矿物箱的金、挂机修复点的粉一眼区分） */
+    public final EspRenderObject renderFoodBox = new EspRenderObject("食物箱",
+        "高亮已绑定的食物箱", 0x64FF64, 255, ShapeMode.Lines);
 
-    /** _afk_color_internal｜挂机修复点 ESP 颜色，默认 (255,100,255) */
-    public int afkColor = 0xFFFF64FF;
+    /** 挂机修复点：粉紫色 */
+    public final EspRenderObject renderAfkPoint = new EspRenderObject("挂机修复点",
+        "高亮已绑定的挂机修复点", 0xFF64FF, 255, ShapeMode.Lines);
+
+    /** 全部点位渲染对象（顺序即界面顺序：矿物箱 → 食物箱 → 挂机修复点） */
+    public List<EspRenderObject> renderObjects() {
+        return List.of(renderMineralBox, renderFoodBox, renderAfkPoint);
+    }
+
+    /**
+     * 旧版三类点位颜色键 → 渲染对象名。
+     *
+     * <p>只在「新键不存在」时用来读一次老存档（见 {@link #migrateLegacyColors(JsonObject)}）；
+     * {@code save} 只写新键，故迁移只发生一次。</p>
+     */
+    private static final Map<String, String> LEGACY_COLOR_KEYS = Map.of(
+        "矿物箱", "mineralColor",
+        "食物箱", "foodColor",
+        "挂机修复点", "afkColor");
 
     // ━━━ 容器标签文字（用户 2026-09-17 追加：矿物箱 / 食物箱的头顶文字要能单独调字号与颜色） ━━━
 
@@ -479,9 +513,10 @@ public final class MiningSettings {
         json.addProperty("legitMineYLevel", legitMineYLevel);
 
         json.addProperty("espScale", espScale);
-        json.addProperty("mineralColor", mineralColor);
-        json.addProperty("foodColor", foodColor);
-        json.addProperty("afkColor", afkColor);
+        // 点位渲染对象按对象名做键前缀（与星露谷同一口径）；旧颜色键不再写出，写新键后迁移自然失效
+        for (EspRenderObject object : renderObjects()) {
+            object.save(json, renderPrefix(object));
+        }
         json.addProperty("espContainerTextScale", espContainerTextScale);
         json.addProperty("espContainerTextColor", espContainerTextColor);
         json.addProperty("breakProgressEsp", breakProgressEsp);
@@ -564,9 +599,11 @@ public final class MiningSettings {
         legitMineYLevel = clamp(intOf(json, "legitMineYLevel", legitMineYLevel), -64, 320);
 
         espScale = doubleOf(json, "espScale", espScale);
-        mineralColor = intOf(json, "mineralColor", mineralColor);
-        foodColor = intOf(json, "foodColor", foodColor);
-        afkColor = intOf(json, "afkColor", afkColor);
+        // 点位渲染对象按对象名做键前缀读回；再按旧颜色键迁移一次老存档（新键已存在时不覆盖）
+        for (EspRenderObject object : renderObjects()) {
+            object.load(json, renderPrefix(object));
+        }
+        migrateLegacyColors(json);
         // 容器标签字号倍率按界面取值域 clamp（0.5~4.0）；颜色不做取值域裁剪，非法/缺项保留默认（0 = 跟随）
         espContainerTextScale = clamp(doubleOf(json, "espContainerTextScale", espContainerTextScale), 0.5, 4.0);
         espContainerTextColor = intOf(json, "espContainerTextColor", espContainerTextColor);
@@ -577,6 +614,38 @@ public final class MiningSettings {
     }
 
     // ━━━ 内部 ━━━
+
+    /** 渲染对象的落盘键前缀（形如 {@code render.矿物箱.}，与星露谷点位同一口径） */
+    private static String renderPrefix(EspRenderObject object) {
+        return "render." + object.name() + ".";
+    }
+
+    /**
+     * 老存档迁移：把旧颜色键（{@code mineralColor} / {@code foodColor} / {@code afkColor}，打包 ARGB）
+     * 拆成 RGB 与透明度，写进对应的渲染对象。
+     *
+     * <p><b>为什么必须迁移</b>：三类颜色原先各存一个 ARGB 整数，现在归属到渲染对象自己的
+     * {@link com.yiyiaddon.ui.render.world.EspColor}；{@code save} 只写新键，老存档里没有新键，
+     * 不迁移就等于玩家调过的颜色在升级后全回默认。</p>
+     *
+     * <p><b>判据为什么取 {@code colorRgb}</b>：它是每个渲染对象必然写出的颜色键，一旦存在就说明
+     * 这份存档已按新格式写过，旧键即便残留也不该再覆盖玩家后来改的颜色（迁移只发生一次）。</p>
+     */
+    private void migrateLegacyColors(JsonObject json) {
+        for (EspRenderObject object : renderObjects()) {
+            String legacyKey = LEGACY_COLOR_KEYS.get(object.name());
+            if (legacyKey == null || !json.has(legacyKey) || !json.get(legacyKey).isJsonPrimitive()) continue;
+            if (json.has(renderPrefix(object) + "colorRgb")) continue;
+            int legacy;
+            try {
+                legacy = json.get(legacyKey).getAsInt();
+            } catch (Exception ignored) {
+                continue;
+            }
+            // 旧格式为 ARGB：高 8 位是透明度，低 24 位是 RGB（负整数也照位取，不能按符号判断）
+            object.color.rgb(legacy & 0xFFFFFF).alpha((legacy >>> 24) & 0xFF);
+        }
+    }
 
     private static JsonArray stringArray(List<String> values) {
         JsonArray array = new JsonArray();

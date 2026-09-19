@@ -75,6 +75,20 @@ public final class SkiaGlBackend {
      */
     private static DirectContext sharedContext;
 
+    /**
+     * 「无面板收尾」用的共享后端实例。
+     *
+     * <p>隐藏格子的画面备份正常情况下由画格子的界面在帧末的面板绘制里写回；切屏那一帧没有任何
+     * 面板绘制，需要一条独立的绘制路径（见 {@code ItemIconCache#flushBackdrop}）。这里给一个长驻实例：
+     * 每次 new 都会重建一份 {@code Surface}（且不会释放），共用一个才不会反复吃 GPU 资源。</p>
+     */
+    private static SkiaGlBackend sharedBackend;
+
+    public static SkiaGlBackend shared() {
+        if (sharedBackend == null) sharedBackend = new SkiaGlBackend();
+        return sharedBackend;
+    }
+
     /** 取值即创建（要求当前线程已有可用的 GL 上下文，故只在渲染线程调用）。 */
     public static DirectContext sharedContext() {
         if (sharedContext == null) sharedContext = DirectContext.makeGL();

@@ -14,7 +14,9 @@ import com.yiyiaddon.feature.stardew.task.StardewCoordinator;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.render.world.EspColor;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
 import com.yiyiaddon.ui.render.world.EspRenderer;
+import com.yiyiaddon.ui.render.world.PointLabelText;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -94,7 +96,7 @@ public final class StardewRenderState {
     private final RenderOption renderBreathBox;
     /** 洒水器点位标记 */
     private final RenderOption renderSprinklerPoint;
-    /** 点位字牌（2D 文字）：只有显示开关，颜色跟随对应点位的方框 */
+    /** 点位字牌（2D 文字）：只有显示开关，样式（加粗 / 主题色 / 底板）统一走 PointLabelText */
     private final RenderOption renderLabels;
 
     public StardewRenderState(StardewSettings settings, StardewPointManager pointManager,
@@ -120,7 +122,7 @@ public final class StardewRenderState {
         renderLavaBox = renderOption(settings.renderLavaBox);
         renderBreathBox = renderOption(settings.renderBreathBox);
 
-        // 点位字牌：只有显示开关（颜色跟随对应点位的方框，没有单独颜色与渲染模式）
+        // 点位字牌：只有显示开关（加粗 + UI 主题色 + 底板，见 PointLabelText）
         renderLabels = renderOption(settings.renderLabels);
     }
 
@@ -132,9 +134,9 @@ public final class StardewRenderState {
      * {@code 显示 / 颜色 / 模式}，互不影响；字牌只有显示开关（颜色跟随方框）。</p>
      */
     private static final class RenderOption {
-        private final StardewSettings.RenderObject object;
+        private final EspRenderObject object;
 
-        private RenderOption(StardewSettings.RenderObject object) {
+        private RenderOption(EspRenderObject object) {
             this.object = object;
         }
 
@@ -157,7 +159,7 @@ public final class StardewRenderState {
      * <p><b>独立性铁律：</b>每类对象各自持有一套 {@code 显示 / 颜色 / 渲染模式}，绝不共用任何
      * 总开关。洒水器本体与洒水器覆盖范围尤其如此：关掉本体，覆盖范围照常显示，反之亦然。</p>
      */
-    private static RenderOption renderOption(StardewSettings.RenderObject object) {
+    private static RenderOption renderOption(EspRenderObject object) {
         return new RenderOption(object);
     }
 
@@ -269,13 +271,12 @@ public final class StardewRenderState {
                 settings.labelSize, MISMATCH_LINE, 1.0f, true);
         }
         if (!renderLabels.on()) return;
-        // 字牌颜色一律跟随对应点位方框的颜色：文本里若再写 §b/§6/§d，就会把颜色设置整个盖掉，
-        // 界面上那个色块点了没反应（实机反馈就是这个）。改方框颜色，字牌同步变色。
-        renderLabel(renderer, StardewPointType.SEED_BOX, "种子箱", renderSeedBox.color(), nearbyOnly);
-        renderLabel(renderer, StardewPointType.OUTPUT_BOX, "成品箱", renderOutputBox.color(), nearbyOnly);
-        renderLabel(renderer, StardewPointType.WATER_SOURCE, "补水点", renderWaterSource.color(), nearbyOnly);
-        renderLabel(renderer, StardewPointType.LAVA_BOX, "岩浆箱", renderLavaBox.color(), nearbyOnly);
-        renderLabel(renderer, StardewPointType.BREATH_BOX, "龙息箱", renderBreathBox.color(), nearbyOnly);
+        // 字牌颜色不再取方框色：字牌样式统一跟随 UI 主题（见 PointLabelText，用户 2026-09-19）
+        renderLabel(renderer, StardewPointType.SEED_BOX, "种子箱", nearbyOnly);
+        renderLabel(renderer, StardewPointType.OUTPUT_BOX, "成品箱", nearbyOnly);
+        renderLabel(renderer, StardewPointType.WATER_SOURCE, "补水点", nearbyOnly);
+        renderLabel(renderer, StardewPointType.LAVA_BOX, "岩浆箱", nearbyOnly);
+        renderLabel(renderer, StardewPointType.BREATH_BOX, "龙息箱", nearbyOnly);
         // 每块地头顶挂自己的作物名（颜色同「种植区域」那一项）
         for (StardewRegionManager.Region region : currentDimensionRegions()) {
             if (!nearPlayer(nearbyOnly, region)) continue;
@@ -323,7 +324,13 @@ public final class StardewRenderState {
         return result;
     }
 
-    /** 区域字牌：挂在区域矩形中心上方，文字是「区域 N · 作物 · 维度」 */
+    /**
+     * 区域字牌：挂在区域矩形中心上方，文字是「区域 N · 作物 · 维度」。
+     *
+     * <p><b>不加距离</b>（用户 2026-09-19 定稿：「星露谷农场的那个区域选点不要加距离，保持之前的就好了」）：
+     * 它是「这块地是什么」的标识，不是可传送 / 可跑过去的点位，距离没有意义；
+     * 点位字牌（种子箱 / 成品箱 / 补水点 / 岩浆箱 / 龙息箱）才写「[世界]名字[距离]」。</p>
+     */
     private void renderRegionLabel(EspRenderer renderer, StardewRegionManager.Region region) {
         EspColor color = renderRegions.color();
         double centerX = (region.minX() + region.maxX()) / 2.0 + 0.5;
@@ -354,9 +361,11 @@ public final class StardewRenderState {
      *
      * <p>大箱子（相邻两格同一套方块）画的是两格并集的外框，字牌若还挂在「点位绑定的那一格」正上方，
      * 就会偏向一侧——实机表现就是「字牌没居中」。这里按同一个并集算中心，字牌正对框中心。</p>
+     *
+     * <p>内容与样式按用户 2026-09-19 的口径：一律写「[世界]名字[距离]」，由 {@link PointLabelText}
+     * 统一加粗、取 UI 主题色、带底板（唯一不写维度与距离的是自动农场那两个选点角，不在本类）。</p>
      */
-    private void renderLabel(EspRenderer renderer, StardewPointType type, String text, EspColor color,
-                             boolean nearbyOnly) {
+    private void renderLabel(EspRenderer renderer, StardewPointType type, String text, boolean nearbyOnly) {
         StardewPointManager.StardewPoint p = pointManager.get(type);
         if (p == null || !p.inCurrentDimension()) return;
         if (!nearPlayer(nearbyOnly, p.pos().getX() + 0.5, p.pos().getY() + 0.5, p.pos().getZ() + 0.5)) return;
@@ -368,9 +377,12 @@ public final class StardewRenderState {
             centerX = (box.minX + box.maxX) * 0.5;
             centerZ = (box.minZ + box.maxZ) * 0.5;
         }
-        // 字号取设置里的「字牌大小」；透明度跟着方框颜色自己的 alpha 走
-        renderer.text(text, centerX, p.pos().getY() + 1.4, centerZ, settings.labelSize, color,
-            color.alpha() / 255f, true);
+        // 字牌样式统一走 PointLabelText（加粗 + UI 主题色 + 底板 + 居中），内容一律「[世界]名字[距离]」
+        // —— 用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域之外都要标上」，
+        // 星露谷这边没有例外项（种植区域字牌另算，它本来就不写距离）
+        double labelY = p.pos().getY() + 1.4;
+        PointLabelText.containerLabel(renderer, text, p.dimension(), centerX, labelY, centerZ,
+            settings.labelSize);
     }
 
     /** 本维度的已绑定洒水器点位（预览层只取玩家附近那些） */

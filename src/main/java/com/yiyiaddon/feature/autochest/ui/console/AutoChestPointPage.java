@@ -4,8 +4,6 @@ import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.autochest.config.AutoChestSettings;
 import com.yiyiaddon.feature.autochest.ui.AutoChestConsoleScreen;
 import com.yiyiaddon.model.autochest.ChestTarget;
-import com.yiyiaddon.model.autochest.ContainerType;
-import com.yiyiaddon.model.autochest.ContainerTypeRegistry;
 import com.yiyiaddon.model.autochest.ScanMode;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.component.CompactStack;
@@ -13,6 +11,7 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.ButtonStrip;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
+import com.yiyiaddon.ui.console.PointRenderSection;
 import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
 
@@ -32,12 +31,19 @@ import java.util.List;
  *
  * <p><b>形态差异（登记）</b>：旧卡片是「标题 / 明细 / 状态徽章」三列，控制台行没有徽章列，
  * 处理状态并入行尾注释（{@code … §8▸ §f维度名  §c已处理}）；分隔线由页签本身替代。</p>
+ *
+ * <p><b>新增一行（用户 2026-09-19）</b>：「字牌大小」行 —— 与星露谷点位页同一行构件
+ * （共用件 {@code PointRenderSection.labelSizeRow}），加在点位清单之后、清空类动作之前。
+ * 它只存在于标点模式分支内，上面「非标点模式只显示一行提示」的分支逻辑一字未动。</p>
  */
 public final class AutoChestPointPage {
 
     /** 非标点模式下的导航提示（控制台新增文案：不含任何设置项与播报） */
     private static final String NOT_MARKER_HINT =
         "§8当前运行模式不是「标点模式」，点位与处理记录管理只在标点模式下出现";
+
+    /** 出厂设置：只作「行内恢复默认」的取值来源，与设置类字段初始化里的默认值同源 */
+    private static final AutoChestSettings DEFAULTS = new AutoChestSettings();
 
     private final AutoChestConsoleScreen owner;
     private final AutoChestModule module;
@@ -68,6 +74,15 @@ public final class AutoChestPointPage {
             for (ChestTarget point : points) stack.add(pointRow(point));
         }
 
+        // 字牌大小（用户 2026-09-19）：与星露谷点位页同一行构件，放在点位清单之后、清空类动作之前。
+        // 只加在标点模式分支内，非标点模式的「一行提示即返回」分支一个字没动。
+        stack.add(new PointRenderSection(owner, module::persistSettings, owner::reload, null, List.of())
+            .labelSizeRow(AutoChestSettings.NAME_LABEL_SIZE, AutoChestSettings.DESC_LABEL_SIZE,
+                AutoChestSettings.LABEL_SIZE_MIN, AutoChestSettings.LABEL_SIZE_MAX,
+                () -> settings.labelSize,
+                value -> settings.labelSize = value,
+                DEFAULTS.labelSize));
+
         stack.add(actionRow("清空全部点位",
             () -> confirm("清空点位", "确定要清空全部标点吗？此操作不可恢复。", module::clearAllPoints)));
         stack.add(actionRow("清除当前维度处理记录",
@@ -88,10 +103,8 @@ public final class AutoChestPointPage {
      * <p>处理状态在页面构建时判定一次（与旧项目 {@code buildPointCard} 一致），避免逐帧触碰记录存储。</p>
      */
     private ConsoleRow pointRow(ChestTarget point) {
-        ContainerType type = ContainerTypeRegistry.byId(point.containerType());
-        String typeName = type == null
-            ? "未知容器（类型 ID：" + point.containerType() + "）"
-            : type.displayName();
+        // 容器显示名与 ESP 字牌共用一处实现（认不出的类型两边回退文案也一致）
+        String typeName = AutoChestModule.formatContainerName(point.containerType());
         String dim = WorldIdentity.dimensionDisplayName(point.dimension());
         long expireMs = module.settings().recordExpireMinutes * 60_000L;
         String status = module.recordStore().isProcessed(

@@ -4,9 +4,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.yiyiaddon.feature.enchant.gear.AnvilStrategy;
+import com.yiyiaddon.feature.enchant.model.EnchantPointType;
 import com.yiyiaddon.feature.enchant.model.EnchantRunMode;
 import com.yiyiaddon.feature.enchant.model.EnchantSuccessSound;
 import com.yiyiaddon.feature.enchant.model.EnchantTargetMode;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -169,6 +171,69 @@ public final class EnchantSettings {
     /** 成功提示音类型｜选择达成目标时播放的音效（默认 挑战完成） */
     public EnchantSuccessSound successSoundType = EnchantSuccessSound.CHALLENGE_COMPLETE;
 
+    // ━━━ 渲染：点位字牌（每个点位一类，各自独立显示与颜色） ━━━
+
+    /**
+     * 点位头顶字牌的显示 / 颜色载体，六个可渲染点位各一个。
+     *
+     * <p><b>为什么按点位拆开（用户 2026-09-19：「所有标点选择点位位置的模块 参照星露谷农场的
+     * 点位设置」）</b>：以前六个点位的字牌颜色写死在 {@link EnchantPointType#espColor()} 里、
+     * 字号写死在渲染器里，玩家既不能单独关掉某一类的标签，也不能单独调色。现在每类持有独立的
+     * {@link EspRenderObject}（显示 / 颜色 / 彩虹），与星露谷点位页同一套载体与设置窗口。</p>
+     *
+     * <p><b>默认值取自 {@link EnchantPointType#espColor()}</b>（旧 {@code onRender2D} 的出厂色，
+     * 打包为 ARGB：{@code rgb = 值 & 0xFFFFFF}、{@code alpha = 值 >>> 24}），因此不改配色时观感与旧版一致。
+     * 渲染模式传 {@code null}：点位字牌是纯文字，没有线框 / 面 / 两者的概念。</p>
+     */
+    public final EspRenderObject renderBookStorage = labelObject(EnchantPointType.BOOK_STORAGE);
+    /** 青金石箱点位字牌 */
+    public final EspRenderObject renderLapisStorage = labelObject(EnchantPointType.LAPIS_STORAGE);
+    /** 成品箱点位字牌 */
+    public final EspRenderObject renderOutputStorage = labelObject(EnchantPointType.OUTPUT_STORAGE);
+    /** 附魔台点位字牌 */
+    public final EspRenderObject renderEnchantingTable = labelObject(EnchantPointType.ENCHANTING_TABLE);
+    /** 砂轮点位字牌 */
+    public final EspRenderObject renderGrindstone = labelObject(EnchantPointType.GRINDSTONE);
+    /** 挂机点（挂机位）点位字牌 */
+    public final EspRenderObject renderAfk = labelObject(EnchantPointType.AFK);
+
+    /**
+     * 点位字牌字号，默认 2（与旧渲染器里的固定字号同值）。
+     *
+     * <p>字号是「一类排版参数」，六个点位共用同一个值，因此单独一个字段，不塞进 {@link EspRenderObject}。</p>
+     */
+    public int labelSize = 2;
+
+    /** 字牌字号取值域与界面文案（界面行与服务层共用同一份，禁止各自再写一遍） */
+    public static final int LABEL_SIZE_MIN = 1;
+    public static final int LABEL_SIZE_MAX = 12;
+    public static final String NAME_LABEL_SIZE = "字牌大小";
+    public static final String DESC_LABEL_SIZE = "点位头顶文字的字号（取值域 1~12，默认 2）；字越大越远也看得清，越容易挡住视线";
+
+    /** 全部渲染对象，顺序即界面顺序，与渲染器的绘制顺序一致 */
+    private final List<EspRenderObject> renderObjects = List.of(
+        renderBookStorage, renderLapisStorage, renderOutputStorage,
+        renderEnchantingTable, renderGrindstone, renderAfk);
+
+    /** 全部渲染对象（控制台行与渲染器取同一份，顺序即界面顺序） */
+    public List<EspRenderObject> renderObjects() {
+        return renderObjects;
+    }
+
+    /**
+     * 按点位类型造一个字牌渲染对象：名称逐字取 {@link EnchantPointType#title()}，出厂色取
+     * {@link EnchantPointType#espColor()}。
+     *
+     * <p>名称同时是落盘键前缀（{@code render.<名称>.}），因此必须与点位类型的中文名保持同一来源，
+     * 不能另抄一遍字面量。</p>
+     */
+    private static EspRenderObject labelObject(EnchantPointType type) {
+        int packed = type.espColor();
+        return new EspRenderObject(type.title(),
+            type.title() + "头顶标签的颜色与显示开关（颜色只影响字牌本身）",
+            packed & 0xFFFFFF, packed >>> 24, null, true);
+    }
+
     // ━━━ 原版装备附魔（旧项目 {@code :451-462}，4 项中的 2 项） ━━━
 
     /**
@@ -279,6 +344,12 @@ public final class EnchantSettings {
         json.addProperty("successSoundEnabled", successSoundEnabled);
         json.addProperty("successSoundType", successSoundType.name());
 
+        // 字牌字号与六个点位字牌的显示 / 颜色；每类对象独立落盘（键前缀 = render.<对象名>.）
+        json.addProperty("labelSize", labelSize);
+        for (EspRenderObject object : renderObjects) {
+            object.save(json, "render." + object.name() + ".");
+        }
+
         json.addProperty("anvilStrategy", anvilStrategy.name());
         json.add("gearEnchantConfig", stringArray(gearEnchantConfig));
         json.add("customEnchantTargets", stringArray(customEnchantTargets));
@@ -312,6 +383,12 @@ public final class EnchantSettings {
         restoreHangoutView = boolOf(json, "restoreHangoutView", restoreHangoutView);
         successSoundEnabled = boolOf(json, "successSoundEnabled", successSoundEnabled);
         successSoundType = enumOf(json, "successSoundType", EnchantSuccessSound.class, successSoundType);
+
+        // 字牌字号 clamp 到取值域；六个点位字牌各自按对象名前缀读回，缺项保留出厂值
+        labelSize = clamp(intOf(json, "labelSize", labelSize), LABEL_SIZE_MIN, LABEL_SIZE_MAX);
+        for (EspRenderObject object : renderObjects) {
+            object.load(json, "render." + object.name() + ".");
+        }
 
         anvilStrategy = enumOf(json, "anvilStrategy", AnvilStrategy.class, anvilStrategy);
         loadList(json, "gearEnchantConfig", gearEnchantConfig);

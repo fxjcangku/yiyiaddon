@@ -113,6 +113,7 @@ public final class EventDispatcher {
     // ── 主线程派发 ──
 
     private static void onClientTick(Minecraft client) {
+        com.yiyiaddon.service.update.UpdateService.tick(client);
         dispatchQueuedPackets();
         TickRateMonitor.sample();
         ClientEventBus.publish(ClientEvent.of(ClientEventType.TICK, client == null ? "" : client.getClass().getName()));

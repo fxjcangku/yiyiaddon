@@ -6,9 +6,11 @@ import com.yiyiaddon.feature.autofarm.model.CropProfile;
 import com.yiyiaddon.feature.autofarm.model.HarvestMode;
 import com.yiyiaddon.feature.autofarm.model.PlantMode;
 import com.yiyiaddon.feature.autofarm.resource.FarmResourceManager;
-import com.yiyiaddon.ui.render.world.EspColor;
+import com.yiyiaddon.ui.render.world.EspRenderObject;
+import com.yiyiaddon.ui.render.world.ShapeMode;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -56,22 +58,46 @@ public final class AutoFarmSettings {
     public int reachDistance = 4;
 
     // ─── 渲染显示（旧分组「渲染显示」） ───
-    /** 只渲染农场范围的外框一圈（不填面） */
-    public boolean renderBounds = true;
-    /** 边界框颜色（旧默认 255,255,255,50） */
-    public final EspColor boundsColor = new EspColor();
-    /** 高亮当前正在作业的目标方块 */
-    public boolean renderTarget = true;
-    /** 目标颜色（旧默认 0,255,100,75） */
-    public final EspColor targetColor = new EspColor();
-    /** 各绑定箱头顶显示防呆标签 */
-    public boolean renderLabels = true;
+    // 2026-09-19：本组渲染项整体换成共用件 EspRenderObject（显示 / 颜色 / 渲染模式各自独立），
+    // 与星露谷农场点位设置同一套载体与落盘键（用户要求「所有标点选择点位位置的模块参照星露谷」）。
+    // 对象名是落盘键的一部分，一经发布不得再改：改名等于换键，老存档的开关与颜色会读不回来。
 
-    /** 构造期把颜色默认值置为旧项目原值（EspColor 是可变对象，不能在字段处写死） */
-    public AutoFarmSettings() {
-        boundsColor.rgb(0xFFFFFF).alpha(50);
-        targetColor.rgb(0x00FF64).alpha(75);
-    }
+    /** 农田边界：只画外框一圈，默认白色 50（与旧 renderBounds + boundsColor 观感一致） */
+    public final EspRenderObject renderBounds = new EspRenderObject("农田边界",
+        "只渲染农场范围的外框一圈（不填面），大农场也不卡", 0xFFFFFF, 50, ShapeMode.Lines);
+    /** 当前目标：默认绿色 75、线 + 面（与旧 renderTarget + targetColor 观感一致） */
+    public final EspRenderObject renderTarget = new EspRenderObject("当前目标",
+        "高亮当前正在作业的目标方块", 0x00FF64, 75, ShapeMode.Both);
+    /** 单作物箱：默认金 */
+    public final EspRenderObject renderSingleBox = new EspRenderObject("单作物箱",
+        "高亮单作物箱方块", 0xFFC800, 160, ShapeMode.Lines);
+    /** 多作物箱：默认粉紫 */
+    public final EspRenderObject renderMultiBox = new EspRenderObject("多作物箱",
+        "高亮多作物箱方块", 0xFF66FF, 160, ShapeMode.Lines);
+    /** 种子补货箱：默认青 */
+    public final EspRenderObject renderSeedBox = new EspRenderObject("种子补货箱",
+        "高亮种子补货箱方块", 0x55FFFF, 160, ShapeMode.Lines);
+    /** 杂物箱：默认红 */
+    public final EspRenderObject renderPoisonBox = new EspRenderObject("杂物箱",
+        "高亮杂物箱方块", 0xFF5555, 160, ShapeMode.Lines);
+    /** 点位字牌：只有显示开关（加粗、颜色跟随界面主题），没有单独颜色与渲染模式 */
+    public final EspRenderObject renderLabels = new EspRenderObject("点位字牌",
+        "各绑定点位头顶的文字标签（加粗 + 底板，颜色跟随界面主题，只有显示开关，没有单独颜色与渲染模式）",
+        0xFFFFFF, 255, null, false);
+
+    /**
+     * 各绑定点位头顶文字的字号（GUI 缩放坐标），默认 10。
+     *
+     * <p>字号是「一类排版参数」，不随单个点位类别变化，因此单独一个字段，不塞进
+     * {@link EspRenderObject}（与星露谷同一口径）。</p>
+     */
+    public int labelSize = 10;
+
+    /** 全部渲染对象，顺序即界面顺序 */
+    private final List<EspRenderObject> renderObjects = List.of(
+        renderBounds, renderTarget,
+        renderSingleBox, renderMultiBox, renderSeedBox, renderPoisonBox,
+        renderLabels);
 
     /** 某作物的卸货数量（组），未配置走旧默认 8 */
     public int unloadGroups(CropProfile crop) {
@@ -105,11 +131,11 @@ public final class AutoFarmSettings {
         bpt = clamp(intOf(json, "bpt", bpt), 1, 30);
         reachDistance = clamp(intOf(json, "reachDistance", reachDistance), 3, 8);
 
-        renderBounds = boolOf(json, "renderBounds", renderBounds);
-        loadColor(json, "boundsColor", boundsColor, 0xFFFFFF, 50);
-        renderTarget = boolOf(json, "renderTarget", renderTarget);
-        loadColor(json, "targetColor", targetColor, 0x00FF64, 75);
-        renderLabels = boolOf(json, "renderLabels", renderLabels);
+        labelSize = clamp(intOf(json, "labelSize", labelSize), LABEL_SIZE_MIN, LABEL_SIZE_MAX);
+        for (EspRenderObject object : renderObjects) {
+            object.load(json, "render." + object.name() + ".");
+        }
+        migrateLegacyRender(json);
     }
 
     /** 把字段写入模块设置对象（与 {@link #load} 同一批键） */
@@ -131,12 +157,73 @@ public final class AutoFarmSettings {
         json.addProperty("bpt", bpt);
         json.addProperty("reachDistance", reachDistance);
 
-        json.addProperty("renderBounds", renderBounds);
-        saveColor(json, "boundsColor", boundsColor);
-        json.addProperty("renderTarget", renderTarget);
-        saveColor(json, "targetColor", targetColor);
-        json.addProperty("renderLabels", renderLabels);
+        json.addProperty("labelSize", labelSize);
+        for (EspRenderObject object : renderObjects) {
+            object.save(json, "render." + object.name() + ".");
+        }
     }
+
+    // ── 渲染对象与老存档迁移 ──
+
+    /**
+     * 全部渲染对象（顺序即界面顺序）。
+     *
+     * <p>载体是共用件 {@link EspRenderObject}（用户 2026-09-19：「所有标点选择点位位置的模块参照
+     * 星露谷农场的点位设置」）：显示 / 颜色 / 渲染模式三件与编解码只此一份，自动农场的点位页
+     * 与星露谷等模块共用同一套界面行与设置窗口。</p>
+     */
+    public List<EspRenderObject> renderObjects() {
+        return renderObjects;
+    }
+
+    /**
+     * 老存档一次性迁移：旧键还在、而对应的新键一个都没写出时，把旧值接进新的渲染对象。
+     *
+     * <p><b>为什么按「新键不存在」判断：</b>{@code save} 现在只写新键
+     * （{@code render.<对象名>.show / colorRgb …}），因此新键存在就说明这份存档已经升级过、
+     * 不能再被旧键覆盖；旧键只在这条一次性通道里读取，读到的开关与颜色原样接上，
+     * 玩家不必重新设置一遍。</p>
+     */
+    private void migrateLegacyRender(JsonObject json) {
+        // 农田边界：旧 renderBounds + boundsColor* → 新「农田边界」
+        migrateShow(json, "renderBounds", renderBounds);
+        migrateColor(json, "boundsColor", renderBounds, 0xFFFFFF, 50);
+        // 当前目标：旧 renderTarget + targetColor* → 新「当前目标」
+        migrateShow(json, "renderTarget", renderTarget);
+        migrateColor(json, "targetColor", renderTarget, 0x00FF64, 75);
+        // 点位字牌：旧 renderLabels → 新「点位字牌」（只有显示开关）
+        migrateShow(json, "renderLabels", renderLabels);
+    }
+
+    /** 旧布尔开关 → 新对象的 show；已写出新键或旧键缺失时不动 */
+    private static void migrateShow(JsonObject json, String legacyKey, EspRenderObject object) {
+        if (!json.has(legacyKey)) return;
+        String prefix = "render." + object.name() + ".";
+        if (json.has(prefix + "show")) return;
+        object.show = boolOf(json, legacyKey, object.show);
+    }
+
+    /** 旧颜色五键 → 新对象的颜色；已写出新颜色或旧键缺失时不动 */
+    private static void migrateColor(JsonObject json, String legacyKey, EspRenderObject object,
+                                     int fallbackRgb, int fallbackAlpha) {
+        if (!json.has(legacyKey + "Rgb") && !json.has(legacyKey + "Alpha")) return;
+        String prefix = "render." + object.name() + ".";
+        if (json.has(prefix + "colorRgb")) return;
+        object.color.rgb(intOf(json, legacyKey + "Rgb", fallbackRgb))
+            .alpha(clamp(intOf(json, legacyKey + "Alpha", fallbackAlpha), 0, 255))
+            .rainbow(boolOf(json, legacyKey + "Rainbow", false))
+            .rainbowSpeed(doubleOf(json, legacyKey + "RainbowSpeed", 0.4))
+            .rainbowOffset(doubleOf(json, legacyKey + "RainbowOffset", 0.0));
+    }
+
+    // ── 渲染取值域与界面文案（点位页与服务层共用同一份，禁止各自再写一遍） ──
+
+    public static final int LABEL_SIZE_MIN = 6;
+    public static final int LABEL_SIZE_MAX = 32;
+
+    public static final String NAME_LABEL_SIZE = "字牌大小";
+    public static final String DESC_LABEL_SIZE = "各绑定点位头顶文字的字号（取值域 6~32，默认 10）；"
+        + "字越大越远也看得清，越容易挡住视线";
 
     // ── 原语 ──
 
@@ -202,23 +289,6 @@ public final class AutoFarmSettings {
             object.addProperty(entry.getKey(), entry.getValue());
         }
         json.add(key, object);
-    }
-
-    /** 颜色三键：rgb / alpha / rainbow（与本项目其它 ESP 模块同一套键） */
-    private static void loadColor(JsonObject json, String key, EspColor color, int fallbackRgb, int fallbackAlpha) {
-        color.rgb(intOf(json, key + "Rgb", fallbackRgb));
-        color.alpha(clamp(intOf(json, key + "Alpha", fallbackAlpha), 0, 255));
-        color.rainbow(boolOf(json, key + "Rainbow", false));
-        color.rainbowSpeed(doubleOf(json, key + "RainbowSpeed", 0.4));
-        color.rainbowOffset(doubleOf(json, key + "RainbowOffset", 0.0));
-    }
-
-    private static void saveColor(JsonObject json, String key, EspColor color) {
-        json.addProperty(key + "Rgb", color.rgb());
-        json.addProperty(key + "Alpha", color.alpha());
-        json.addProperty(key + "Rainbow", color.rainbow());
-        json.addProperty(key + "RainbowSpeed", color.rainbowSpeed());
-        json.addProperty(key + "RainbowOffset", color.rainbowOffset());
     }
 
     private static double doubleOf(JsonObject json, String key, double fallback) {

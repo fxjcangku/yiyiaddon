@@ -134,6 +134,24 @@ public final class EspGlobalSettings {
     private int blockOutlineColor = 0xFFFFFF;
 
     /**
+     * Baritone 渲染接管｜Baritone 的寻路路径、寻路目标、挖掘方块框与 {@code /sel} 选区，
+     * 全部改由本项目自绘（默认开，用户 2026-09-19：「我要接管 baritone 的所有 esp 渲染」）。
+     *
+     * <p>开启时把 Baritone 自己的渲染开关强制关掉并记住原值（见
+     * {@code integration/baritone/BaritoneRenderTakeover}），关闭时原样还原——
+     * 两套渲染不会叠在一起，也不会写盘污染 {@code run/baritone/settings.txt}。</p>
+     */
+    private boolean baritoneOverlay = true;
+    /**
+     * Baritone 渲染的基准色｜RGB（默认 0x63C9B8 低饱和薄荷青，护眼，用户 2026-09-19 要求）。
+     *
+     * <p>只是<b>基准色</b>：路径线由它派生当前段两端（起点压暗 → 车头提亮）与规划段（冷灰蓝压暗），
+     * 目标框 / 选区主体也用它；挖掘方块框与选区角点是固定的语义色（破坏 / 放置 / 进入各一色），
+     * 所以改一个色就能整体换风格，而语义仍然分得清。透明度由渲染层固定，不开放设置。</p>
+     */
+    private int baritoneColor = 0x63C9B8;
+
+    /**
      * 各模块 ESP 的总闸（用户 2026-09-18：「我的 esp 全局设置是不是可以调的…可以调这些插件模块的配置」）。
      *
      * <p>全局层只管「画不画」，<b>不改各模块自己的颜色与「画什么」</b>——那些仍归各自的控制台页面。
@@ -325,6 +343,21 @@ public final class EspGlobalSettings {
         return blockOutlineColor;
     }
 
+    /**
+     * Baritone 渲染接管：是否由本项目自绘（{@code integration/baritone/BaritoneOverlay}）。
+     *
+     * <p>关掉后本层不画，同时把 Baritone 自己的渲染开关全部还原成接管前的值——
+     * 相当于「回到 Baritone 原版那套渲染」，而不是「什么都没有」。</p>
+     */
+    public boolean baritoneOverlay() {
+        return baritoneOverlay;
+    }
+
+    /** Baritone 渲染的基准色（RGB）；透明度由渲染层固定，不开放设置。 */
+    public int baritoneColor() {
+        return baritoneColor;
+    }
+
     // ── 写入（界面调用后立即落盘） ──
 
     public void setEnabled(boolean value) {
@@ -400,6 +433,21 @@ public final class EspGlobalSettings {
     /** 瞄准方块描边色只存 RGB：透明度由渲染层固定，避免调出看不见的描边 */
     public void setBlockOutlineColor(int value) {
         blockOutlineColor = value & 0xFFFFFF;
+        save();
+    }
+
+    /**
+     * Baritone 渲染接管开关（只落盘；接管状态由界面在改完后调
+     * {@code BaritoneOverlay#syncTakeover()} 同步，本类不反向依赖集成层）。
+     */
+    public void setBaritoneOverlay(boolean value) {
+        baritoneOverlay = value;
+        save();
+    }
+
+    /** Baritone 渲染基准色只存 RGB：透明度由渲染层固定 */
+    public void setBaritoneColor(int value) {
+        baritoneColor = value & 0xFFFFFF;
         save();
     }
 
@@ -479,6 +527,8 @@ public final class EspGlobalSettings {
             hideSelfThirdPerson = boolOf(json, "hideSelfThirdPerson", hideSelfThirdPerson);
             blockOutline = boolOf(json, "blockOutline", blockOutline);
             blockOutlineColor = (int) numberOf(json, "blockOutlineColor", blockOutlineColor) & 0xFFFFFF;
+            baritoneOverlay = boolOf(json, "baritoneOverlay", baritoneOverlay);
+            baritoneColor = (int) numberOf(json, "baritoneColor", baritoneColor) & 0xFFFFFF;
             for (Layer layer : Layer.values()) {
                 layerEnabled[layer.ordinal()] = boolOf(json, layerKey(layer), layerEnabled[layer.ordinal()]);
             }
@@ -505,6 +555,8 @@ public final class EspGlobalSettings {
         json.addProperty("hideSelfThirdPerson", hideSelfThirdPerson);
         json.addProperty("blockOutline", blockOutline);
         json.addProperty("blockOutlineColor", blockOutlineColor);
+        json.addProperty("baritoneOverlay", baritoneOverlay);
+        json.addProperty("baritoneColor", baritoneColor);
         for (Layer layer : Layer.values()) {
             json.addProperty(layerKey(layer), layerEnabled[layer.ordinal()]);
         }

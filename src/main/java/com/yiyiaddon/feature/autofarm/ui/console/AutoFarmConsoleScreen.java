@@ -82,12 +82,15 @@ public final class AutoFarmConsoleScreen extends PanelScreen implements ConsoleH
     /**
      * 已收起的折叠块键集合（本窗口生命周期内有效）。
      *
-     * <p>分组默认状态照旧项目（51 号第二节）：{@code 辅助工具 / 运行参数 / 渲染显示} 默认收起、
+     * <p>分组默认状态照旧项目（51 号第二节）：{@code 辅助工具 / 运行参数} 默认收起、
      * {@code 作物选择} 默认展开。折叠状态存窗口侧：整页重建会丢弃全部控件实例，
      * 不存这里每次重建都会回到默认值。</p>
+     *
+     * <p>原 {@code settings:render}（渲染显示）键已随该分组一并撤掉（用户 2026-09-19：渲染设置
+     * 统一收进「点位」页的「显示与颜色」，设置页不再有这一组）。</p>
      */
     private final Set<String> collapsedSections =
-        new HashSet<>(Set.of("settings:helper", "settings:logistics", "settings:render"));
+        new HashSet<>(Set.of("settings:helper", "settings:logistics"));
 
     /**
      * @param parent 上级屏幕（模块页）——ESC / 返回键回到它

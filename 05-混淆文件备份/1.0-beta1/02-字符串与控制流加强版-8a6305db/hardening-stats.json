@@ -1,0 +1,14 @@
+{
+  "classesContractExcluded": 23,
+  "classesProcessed": 1130,
+  "classesTotal": 1153,
+  "concatArgumentsEncrypted": 1920,
+  "encryptedDispatches": 27150,
+  "flowContractExcludedMethods": 2173,
+  "flowMethods": 4392,
+  "privateStringFieldsEncrypted": 598,
+  "publicOrPackageStringConstantsKept": 604,
+  "stringLoadSitesEncrypted": 14801,
+  "uniqueStringConstantsEncrypted": 13673,
+  "formatVersion": 1
+}

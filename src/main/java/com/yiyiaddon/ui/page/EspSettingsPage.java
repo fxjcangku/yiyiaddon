@@ -1,5 +1,6 @@
 package com.yiyiaddon.ui.page;
 
+import com.yiyiaddon.integration.baritone.BaritoneOverlay;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.render.world.EspColor;
@@ -91,7 +92,13 @@ public final class EspSettingsPage extends BasePage {
             "  §a▸ §f渲染模式覆盖 §8- §7默认跟随各模块；覆盖后统一成线框 / 面 / 两者",
             "  §a▸ §f透视覆盖 §8- §7默认跟随各模块；全部透视＝穿墙也画，全部遮挡＝被挡住不画",
             "  §a▸ §f瞄准方块高亮 §8- §7准星指的方块画一圈整格描边，只描边不填充",
-            "  §d▸ §f自动挖矿运行期间这个白框自动不画 §7（准星乱扫会一直闪），关掉模块即恢复"
+            "  §d▸ §f自动挖矿运行期间这个白框自动不画 §7（准星乱扫会一直闪），关掉模块即恢复",
+            "  §a▸ §fBaritone 渲染接管 §8- §7寻路路径 / 寻路目标 / 挖掘方块框 / /sel 选区四类改由本模组自绘",
+            "  §7     （走同一套 ESP 管线：颜色、线宽、最远距离、淡出、图元预算全部跟随本页）；",
+            "  §7     开启时 Baritone 自己那几项渲染自动关闭，关掉本项即原样还回去（不会两套并存）",
+            "  §a▸ §fBaritone 渲染颜色 §8- §7基准色（默认薄荷青，护眼）；路径当前段从起点偏暗渐变到车头提亮，",
+            "  §7     规划段偏冷灰蓝并压暗，计算中的路径再暗一档；目标框与选区主体同色，",
+            "  §7     挖掘框固定用「破坏暖 / 放置冷 / 进入青绿」三色，一眼分得清；线略微抬离方块面不闪"
         ),
         new HelpPanelScreen.HelpSection("可见度：画多少",
             "  §a▸ §f不透明度倍率 §8- §7全部 ESP 颜色统一变淡（10%~100%，默认 100%）",
@@ -154,6 +161,7 @@ public final class EspSettingsPage extends BasePage {
             new SettingCycle(List.of(OcclusionOverride.labels()), () -> settings.occlusionOverride().ordinal(),
                 index -> settings.setOcclusionOverride(OcclusionOverride.values()[index])));
         addBlockOutlineRows(look);
+        addBaritoneRows(look);
 
         // ── 可见度：整体透明度与距离 ──
         SettingModule visibility = group("可见度", "整体不透明度与显示距离", ICON_VISIBILITY);
@@ -239,6 +247,37 @@ public final class EspSettingsPage extends BasePage {
                 int picked = carried.rgb() & 0xFFFFFF;
                 if (picked == current) return;
                 settings.setBlockOutlineColor(picked);
+            }));
+    }
+
+    /**
+     * Baritone 渲染接管：总开关 + 基准色（用户 2026-09-19：「接管 baritone 的所有 esp 渲染」）。
+     *
+     * <p>一项开关压掉 Baritone 自己的全部渲染开关（路径 / 目标 / 挖掘框 / 选区），四类图形改由
+     * {@code BaritoneOverlay} 自绘；关掉即把原值原样还回去——两套渲染之间切换，不会并存。
+     * 改完必须调一次 {@code syncTakeover()}，否则设置与实际渲染会不一致。</p>
+     *
+     * <p>颜色只给一个基准色：路径线由它派生明暗、目标框与选区主体直接用它，挖掘方块框与选区角点
+     * 是固定的语义色。全部颜色都开放会让人调出「看不出哪个是挖、哪个是放」的组合，
+     * 这里刻意只留一个能换风格的旋钮。</p>
+     */
+    private void addBaritoneRows(SettingModule look) {
+        look.addSub("Baritone 渲染接管", "寻路路径 / 寻路目标 / 挖掘方块框 / 选区改由本项目自绘"
+                + "（颜色、线宽、距离、淡出、图元预算全部跟随本页）；"
+                + "开启时把 Baritone 自带的那几项渲染全部关掉，关掉本项即原样还回去",
+            new SettingToggle(settings::baritoneOverlay, value -> {
+                settings.setBaritoneOverlay(value);
+                BaritoneOverlay.syncTakeover();
+            }));
+
+        int current = settings.baritoneColor() & 0xFFFFFF;
+        EspColor carried = new EspColor(current, 255);
+        look.addSub("Baritone 渲染颜色", "基准色（默认 (99,201,184) 薄荷青，护眼）；"
+                + "路径当前段由它派生「起点偏暗 → 车头提亮」、规划段偏冷灰蓝；目标框与选区主体同色",
+            new SettingColorPicker("Baritone 渲染颜色", carried, () -> {
+                int picked = carried.rgb() & 0xFFFFFF;
+                if (picked == current) return;
+                settings.setBaritoneColor(picked);
             }));
     }
 

@@ -72,6 +72,10 @@ public abstract class SkiaScreen extends Screen {
     public final void renderSkiaFrame() {
         if (!framePending || this.minecraft == null || this.minecraft.screen != this) {
             framePending = false;
+            // 这一帧不画面板，但隐藏格子可能已经落地：本帧抽帧时还轮得到本界面（画了格子），
+            // 帧末却已经换了界面 —— 两边都不收尾，屏幕中央那两行放大的原版图标会裸露一帧
+            // （用户 2026-09-19：「点开选择器之后会闪出来原版贴图的放大版，闪了一下，偶尔发生」）。
+            ItemIconCache.getInstance().flushBackdrop();
             return;
         }
         framePending = false;

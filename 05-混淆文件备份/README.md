@@ -35,7 +35,9 @@ AES-256-GCM 字符串加密、ConstantDynamic 延迟解密、基本块随机重�
 
 `buildRelease` 自动执行行为对照、最终常量审计、类加载和资源检查；
 可单独运行 `testHardening` 或 `auditProtectedConstants` 排查问题。
-普通 `build` 仍为开发构建，发布应取 `build/release/*-obfuscated.jar`。
+普通 `build` 或 `buildPersonal` 生成 `build/libs/yiyiaddon-<版本>-personal.jar`。
+`buildRelease` 生成 `build/release/yiyiaddon-<版本>.jar` 与同名 `.zip`，公开版不带混淆后缀；ZIP 内只有该发布 JAR。
+任务内部名称仍保留 obfuscated，便于维护，不影响对外文件名。历史归档名称保留原状。
 每次真正重新加固使用新随机材料，应按实际 JAR 摘要保存对应备份，不能跨构建混用。
 JAR 内附有 `META-INF/反编译声明.txt`，声明不能代替技术保护。
 

@@ -1,8 +1,10 @@
 package com.yiyiaddon.ui.render;
 
+import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
+import io.github.humbleui.types.RRect;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +49,44 @@ public final class TooltipLayer {
     private static float anchorX;
     private static float anchorY;
 
+    /** 顶部提示的停留时长、淡入与淡出时长（毫秒）。 */
+    private static final long NOTICE_HOLD_MS = 1900L;
+    private static final long NOTICE_FADE_IN_MS = 180L;
+    private static final long NOTICE_FADE_OUT_MS = 300L;
+    /** 顶部提示与视口顶边的距离（设计空间）。 */
+    private static final float NOTICE_TOP = 22f;
+    /** 顶部提示的字号、内边距与圆角：与悬停浮层同一套度量，看起来是同一种框。 */
+    private static final float NOTICE_SIZE = 10f;
+    private static final float NOTICE_PAD_X = 10f;
+    private static final float NOTICE_PAD_Y = 7f;
+    private static final float NOTICE_RADIUS = 7f;
+    /** 进场时自上而下归位的距离与最小缩放、退场时额外上浮的距离：与面板「下沉 + 淡入」同一观感，幅度更轻 */
+    private static final float NOTICE_RISE = 7f;
+    private static final float NOTICE_EXIT_LIFT = 5f;
+    private static final float NOTICE_MIN_SCALE = 0.94f;
+
+    /** 顶部提示的文案与起止时刻（毫秒）；{@code null} = 当前没有提示。 */
+    private static String noticeText;
+    private static long noticeStartMs;
+    private static long noticeEndMs;
+
     private TooltipLayer() {
+    }
+
+    /**
+     * 弹一条屏幕顶部的玻璃提示（约两秒后自动淡出）。
+     *
+     * <p>用途：操作被拦下时给即时反馈（如选择器「只能选一个」）。与悬停浮层不同，它<b>不跟随指针</b>、
+     * 固定在视口顶部居中，并<b>跨帧存活</b> — 因此单独一份状态，{@link #beginFrame()} 只清悬停浮层。</p>
+     *
+     * <p>重复调用只刷新同一条：文案替换、计时重置，不会叠出多条。</p>
+     */
+    public static void notify(String text) {
+        if (text == null || text.isBlank()) return;
+        long now = System.currentTimeMillis();
+        noticeText = text;
+        noticeStartMs = now;
+        noticeEndMs = now + NOTICE_HOLD_MS;
     }
 
     /** 帧首清空本帧登记（由屏幕骨架在开始绘制时调用）。 */
@@ -81,7 +120,10 @@ public final class TooltipLayer {
     public static void draw(Canvas canvas, float viewportWidth, float viewportHeight, float alpha) {
         String value = text;
         text = null;
-        if (canvas == null || value == null || value.isEmpty() || alpha <= 0.01f) return;
+        if (canvas == null) return;
+        // 顶部提示独立于悬停浮层：它跨帧存活，悬停浮层为空时也必须画，因此不能排在下面的提前返回之后。
+        if (alpha > 0.01f) drawNotice(canvas, viewportWidth, alpha);
+        if (value == null || value.isEmpty() || alpha <= 0.01f) return;
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float maxWidth = Math.min(TIP_MAX_WIDTH, Math.max(TIP_PAD * 2f, viewportWidth - TIP_PAD * 2f));
@@ -106,6 +148,68 @@ public final class TooltipLayer {
         for (String line : lines) {
             MinecraftText.draw(canvas, line, drawX + TIP_PAD, cursorY + TIP_SIZE, TIP_SIZE, base, alpha);
             cursorY += TIP_LINE;
+        }
+    }
+
+    /**
+     * 绘制顶部提示（{@link #notify}）。
+     *
+     * <p>到期的提示在这里顺手清掉，不需要外部计时器。</p>
+     *
+     * <p><b>材质与面板同源</b>（用户 2026-09-19：「顶上弹窗的ui优化一下 是不是主题一起联动的 跟个ui一样
+     * 玻璃质感的淡出淡入的」）：投影 / 霜化 / 环境光 / 高光内描边四项与 {@code PanelScreen.drawPanel}
+     * 逐项同参（连模糊开关的 0.62 / 0.94 两档都一致），颜色全部取自 {@link ClickGuiThemeColors} ——
+     * 深浅主题、强调色一换，弹窗跟着换，不会出现一块与界面无关的色块。</p>
+     *
+     * <p><b>动效</b>：进场自上而下归位 + 由 0.94 放大到 1，退场反向（再上浮一点），位移与透明度同步过渡；
+     * 与面板「下沉 + 淡入」是同一种观感，幅度按弹窗体量收轻。</p>
+     */
+    private static void drawNotice(Canvas canvas, float viewportWidth, float alpha) {
+        String value = noticeText;
+        if (value == null) return;
+        long now = System.currentTimeMillis();
+        long remain = noticeEndMs - now;
+        if (remain <= 0L) {
+            noticeText = null;
+            return;
+        }
+        float enter = Math.min(1f, (now - noticeStartMs) / (float) NOTICE_FADE_IN_MS);
+        float leave = Math.min(1f, remain / (float) NOTICE_FADE_OUT_MS);
+        float progress = Math.min(enter, leave);
+        float shownAlpha = alpha * Math.max(0f, progress);
+        if (shownAlpha <= 0.01f) return;
+
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        float boxWidth = MinecraftText.measure(value, NOTICE_SIZE, false) + NOTICE_PAD_X * 2f;
+        float boxHeight = NOTICE_SIZE + NOTICE_PAD_Y * 2f;
+        float boxX = Math.max(NOTICE_PAD_X, (viewportWidth - boxWidth) / 2f);
+        float boxY = NOTICE_TOP - (1f - enter) * NOTICE_RISE + (1f - leave) * NOTICE_EXIT_LIFT;
+        float radius = NOTICE_RADIUS;
+        float scale = NOTICE_MIN_SCALE + (1f - NOTICE_MIN_SCALE) * progress;
+
+        canvas.save();
+        try {
+            float centerX = boxX + boxWidth / 2f;
+            float centerY = boxY + boxHeight / 2f;
+            canvas.translate(centerX, centerY);
+            canvas.scale(scale, scale);
+            canvas.translate(-centerX, -centerY);
+
+            GlassPanel.shadow(canvas, boxX, boxY, boxWidth, boxHeight, radius, tc.shadow, shownAlpha, 1.15f);
+            GlassPanel.frost(canvas, boxX, boxY, boxWidth, boxHeight, radius, tc.window,
+                    AddonConfig.panelBlur ? 0.62f : 0.94f, shownAlpha);
+            canvas.save();
+            try {
+                canvas.clipRRect(RRect.makeXYWH(boxX, boxY, boxWidth, boxHeight, radius), true);
+                GlassPanel.ambientGlow(canvas, boxX, boxY, boxWidth, boxHeight, tc, shownAlpha, 0.46f);
+                GlassPanel.rim(canvas, boxX, boxY, boxWidth, boxHeight, radius, tc.rim, shownAlpha, 0.26f);
+            } finally {
+                canvas.restore();
+            }
+            MinecraftText.draw(canvas, value, boxX + NOTICE_PAD_X, boxY + NOTICE_PAD_Y + NOTICE_SIZE,
+                    NOTICE_SIZE, baseColor(tc), shownAlpha);
+        } finally {
+            canvas.restore();
         }
     }
 
