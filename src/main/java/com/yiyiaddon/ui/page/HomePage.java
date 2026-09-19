@@ -428,19 +428,25 @@ public final class HomePage extends BasePage {
         float avatarY = y + (ACCOUNT_H - ACCOUNT_AVATAR) / 2f;
         PlayerFaceCache.draw(canvas, localSkin(), avatarX, avatarY, ACCOUNT_AVATAR);
 
-        // 标签在前、名字在后；标签先量宽，名字按剩余宽度省略，保证标签不会被挤掉。
-        String account = (premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline")) + "：";
+        // 标签在前、名字紧跟其后；标签先量宽，名字按剩余宽度省略，保证标签不会被挤掉。
+        // 全角冒号的字身是满格、墨迹只占中间半格，按字身推进会平白多出半格空白，名字就被推远
+        // （用户 2026-09-20：「名字跟正版离得太远了」）：按「冒号墨迹右缘 + 4」收口。
+        String account = premium ? UiText.t("正版", "Premium") : UiText.t("离线", "Offline");
+        String colon = "：";
         float accountW = FontRenderer.measureTextWidth(account, 12f);
+        float colonW = FontRenderer.measureTextWidth(colon, 12f);
+        float colonInk = FontRenderer.measureTextWidth(":", 12f);
         float textX = avatarX + ACCOUNT_AVATAR + 10f;
+        float nameX = textX + accountW + (colonW + colonInk) / 2f + 4f;
 
         String name = ClientIdentity.name();
         String nameLabel = CardLayout.ellipsize(
                 name == null || name.isBlank() ? UNKNOWN : name,
-                Math.max(60f, x + w - CARD_PAD - accountW - 8f - textX), 13f);
+                Math.max(60f, x + w - CARD_PAD - nameX), 13f);
         float baseline = CardLayout.baseline(y + ACCOUNT_H / 2f, 13f);
         FontRenderer.drawTextBold(canvas, account, textX, baseline, 12f, accountC);
-        FontRenderer.drawTextBold(canvas, nameLabel,
-                textX + accountW + 4f, baseline, 13f, nameC);
+        FontRenderer.drawTextBold(canvas, colon, textX + accountW, baseline, 12f, accountC);
+        FontRenderer.drawTextBold(canvas, nameLabel, nameX, baseline, 13f, nameC);
     }
 
     /**
