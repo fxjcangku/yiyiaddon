@@ -80,6 +80,13 @@ const HEARTBEAT_TIMEOUT = 90 * 1000;
 const HEARTBEAT_WRITE_INTERVAL = 30 * 1000;
 const heartbeatWriteAt = new Map();
 
+// 首页统计的心跳通道缓存：写库心跳（30 秒一次）顺手把 users 表的两个计数存到这里，
+// 中间那些被节流的心跳直接读缓存回带，客户端首页因此不必再单独轮询 /api/stats
+// （那是个 4 查询的重接口，高频轮询是 D1 行读的主要来源）。
+// 只存 isolate 内存：回收后最坏情况是首页统计暂时不更新，下一次写库心跳立刻补上。
+const HOME_STATS_CACHE_TTL = 10 * 60 * 1000;
+let homeStatsCache = null; // { total, online, at }
+
 // 计算字符串的 SHA-256 十六进制摘要，用于生成不可逆的管理员 token
 async function sha256(message) {
   const msgBuffer = new TextEncoder().encode(message);
@@ -517,6 +524,12 @@ export default {
         // 位置 / 延迟 / 模块列表的刷新粒度因此变成 30 秒，客户端只看 ok()，返回体少几个字段无影响。
         const lastHeartbeatWrite = heartbeatWriteAt.get(uuid) || 0;
         if (now - lastHeartbeatWrite < HEARTBEAT_WRITE_INTERVAL) {
+          // 被节流的心跳一次库都不查，但把上一次写库心跳算好的统计原样回带：
+          // 首页的刷新粒度因此等于写库节流周期（30 秒），而客户端一次额外请求都不用发。
+          const cached = homeStatsCache;
+          if (cached && now - cached.at < HOME_STATS_CACHE_TTL) {
+            return jsonResponse({ success: true, throttled: true, online: cached.online, total_users: cached.total });
+          }
           return jsonResponse({ success: true, throttled: true });
         }
 
@@ -603,11 +616,14 @@ export default {
         // 本次写库成功后再登记节流时间：写失败（例如数据库暂时不可用）时下一次心跳会立刻重试
         heartbeatWriteAt.set(uuid, now);
 
-        const onlineCount = await env.DB.prepare(
-          'SELECT COUNT(*) as c FROM users WHERE last_heartbeat >= ?'
+        // 一次表扫描同时取「累计用户数」与「在线数」：原来那条只取在线数的 COUNT 同样是全表扫描，
+        // 合并成一条后 D1 行读量不变，却多出首页要用的累计人数。
+        const counts = await env.DB.prepare(
+          'SELECT COUNT(*) as total, COALESCE(SUM(CASE WHEN last_heartbeat >= ? THEN 1 ELSE 0 END), 0) as online FROM users'
         ).bind(now - HEARTBEAT_TIMEOUT).first();
 
-        return jsonResponse({ success: true, online: onlineCount.c });
+        homeStatsCache = { total: counts.total, online: counts.online, at: now };
+        return jsonResponse({ success: true, online: counts.online, total_users: counts.total });
       } catch (error) {
         return jsonResponse({ error: error.message }, 500);
       }
@@ -644,6 +660,13 @@ export default {
       } catch (error) {
         return jsonResponse({ error: error.message }, 500);
       }
+    }
+
+    // 轻量存活探测：客户端用它测到后端的往返延迟（心跳的 network_latency 与首页「后端状态」）。
+    // 不查库、不读节流表，单次成本只有一次 Worker 调用——原来这一步打的是 /api/stats，
+    // 每 30 秒白烧 4 条 D1 查询，而 D1 行读正是最紧的那项额度。
+    if (path === '/api/ping' && request.method === 'GET') {
+      return jsonResponse({ success: true, t: Date.now() });
     }
 
     // 公开脱敏统计（客户端游戏内展示用，不含隐私字段）
