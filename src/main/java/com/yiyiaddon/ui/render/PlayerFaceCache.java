@@ -24,13 +24,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.lwjgl.opengl.GL11.GL_RGBA;
-import static org.lwjgl.opengl.GL11.GL_TEXTURE_2D;
-import static org.lwjgl.opengl.GL11.GL_TEXTURE_BINDING_2D;
-import static org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE;
-import static org.lwjgl.opengl.GL11.glBindTexture;
-import static org.lwjgl.opengl.GL11.glGetIntegerv;
-import static org.lwjgl.opengl.GL11.glGetTexImage;
+import static org.lwjgl.opengl.GL45.*;
 
 /**
  * 玩家头像：把 {@link PlayerSkin} 的皮肤贴图读成 Skija 贴图，只画「脸」与「帽子层」两块 8×8，
@@ -197,13 +191,47 @@ public final class PlayerFaceCache {
         return rgba;
     }
 
-    /** 把一张 GL 贴图的 0 级画面回读成「自上而下」的 RGBA 字节；失败返回 null。 */
+    /**
+     * 把一张 GL 贴图的 0 级画面回读成「自上而下」的 RGBA 字节；失败返回 null。
+     *
+     * <p><b>像素打包状态必须整体隔离</b>（与 {@link ItemIconCache#readRegion} 同一口径，
+     * 取证见复盘 149、150）：{@code glGetTexImage} 往这块 ByteBuffer 里写多少、按什么行距写，
+     * 由上下文级的 PBO 绑定与 {@code GL_PACK_*} 决定。别处（Skija 自身的读回、截图类模组、
+     * Iris / Sodium / Voxy）一旦留下非 0 的 {@code PACK_ROW_LENGTH} 或还绑着 PBO，驱动就会按错误的
+     * 行距往缓冲区<b>外</b>写 —— 那台 NVIDIA 591.86 机器上的表现是 nvoglv64.dll 写越界、
+     * 整个客户端原生闪退。因此这里同样「保存 → 清零 → 还原」。</p>
+     */
     private static byte[] readPixels(int textureId, int width, int height) {
         int[] previous = new int[1];
+        int[] savedPackBuffer = new int[1];
+        int[] savedPackRowLength = new int[1];
+        int[] savedPackAlignment = new int[1];
+        int[] savedPackSkipPixels = new int[1];
+        int[] savedPackSkipRows = new int[1];
         glGetIntegerv(GL_TEXTURE_BINDING_2D, previous);
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, savedPackBuffer);
+        glGetIntegerv(GL_PACK_ROW_LENGTH, savedPackRowLength);
+        glGetIntegerv(GL_PACK_ALIGNMENT, savedPackAlignment);
+        glGetIntegerv(GL_PACK_SKIP_PIXELS, savedPackSkipPixels);
+        glGetIntegerv(GL_PACK_SKIP_ROWS, savedPackSkipRows);
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+        glPixelStorei(GL_PACK_SKIP_ROWS, 0);
         try {
+            // 解绑 PBO 是这次回读的前提，调用前再核一次：若此刻仍绑着非 0 的 PBO，驱动会把 buffer
+            // 指针当成该缓冲的字节偏移量，写到与我们毫不相干的地址去。宁可这次不取头像，也不带着
+            // 这个前提进原生调用。
+            int[] packBuffer = new int[1];
+            glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, packBuffer);
+            if (packBuffer[0] != 0) return null;
+
             glBindTexture(GL_TEXTURE_2D, textureId);
-            ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * 4);
+            // 末尾多留一行 + 64 字节：万一驱动在行距/对齐上仍多写一点，落点还在我们自己的分配里，
+            // 而不是踩到未映射页把整个进程带走。实际只取前 width × height × 4 字节，行为不变。
+            ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * 4 + width * 4 + 64);
             glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
             byte[] out = new byte[width * height * 4];
             buffer.get(out);
@@ -213,6 +241,11 @@ public final class PlayerFaceCache {
         } finally {
             // 必须还原绑定：调用方（原版渲染管线）随时可能直接用当前绑定的贴图
             glBindTexture(GL_TEXTURE_2D, previous[0]);
+            glPixelStorei(GL_PACK_ROW_LENGTH, savedPackRowLength[0]);
+            glPixelStorei(GL_PACK_ALIGNMENT, savedPackAlignment[0]);
+            glPixelStorei(GL_PACK_SKIP_PIXELS, savedPackSkipPixels[0]);
+            glPixelStorei(GL_PACK_SKIP_ROWS, savedPackSkipRows[0]);
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, savedPackBuffer[0]);
         }
     }
 }

@@ -81,9 +81,18 @@ public abstract class SkiaScreen extends Screen {
         framePending = false;
         // 先截取图标，再画面板：截取要求隐藏格子仍是主 Framebuffer 的最上层内容。
         ItemIconCache.getInstance().capturePending();
+        // 截完立刻把画面备份写回，不依赖「面板绘制那条路径顺手写回」。
+        //
+        // 写回是一次性动作（画回后备份即销毁），而主帧缓冲上不止界面一条 Skija 路径：ESP 叠加层
+        // （WorldOverlay#renderOverlay）跑在 GuiRenderer.render 的 HEAD —— 那是 GUI 通道还没开始画的
+        // 时刻，它一取画布就会把备份消费掉；随后 GUI 通道照常把隐藏格子画上去，等帧末轮到面板时
+        // 备份早已不在，格子裸露。面板透明处看见那两行放大图标就是它（用户 2026-09-20：关闭面板模糊
+        // 是一条放大的物品图标横带、两端露着格子底色的黑方块，开着模糊则是同一块被玻璃采样后的白糊）。
+        // 放在这里是无条件的一步：本方法的调用点（帧末 Mixin）必然在格子落地之后、面板绘制之前，
+        // 既保证格子被盖住，也保证面板玻璃采样到的是干净画面（flushBackdrop 内部会 flush 落地）。
+        ItemIconCache.getInstance().flushBackdrop();
         drawFrame(this.width, this.height, frameMouseX, frameMouseY, frameDelta);
-        // 这里<b>不能</b>再补一次写回：写回只能由面板绘制路径（SkiaGlBackend#begin → paintBackdrop）
-        // 在面板自己画之前完成。实测把写回挪到 drawFrame 之后，它会把上一帧备份（=面板自己的像素，
+        // 这里<b>不能</b>再补一次写回：实测把写回挪到 drawFrame 之后，它会把上一帧备份（=面板自己的像素，
         // 平均 (20,22,27)）重新糊在面板上面 —— 屏幕正中那块比周围明显更暗的方块，并逐帧加深
         // (25→21→17→…→7，比值 0.83 正是玻璃透光率) 收敛到全黑。
         // 用户 2026-09-22「选择器一打开，屏幕正中一块纯黑」就是这么来的。

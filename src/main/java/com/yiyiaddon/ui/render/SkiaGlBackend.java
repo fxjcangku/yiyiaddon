@@ -99,6 +99,18 @@ public final class SkiaGlBackend {
         return begin(0);
     }
 
+    /**
+     * 取画布。
+     *
+     * <p><b>这里刻意不做「隐藏格子画面备份的写回」</b>（用户 2026-09-20：「选择器一打开就闪出
+     * 一条放大的物品图标 / 横贯面板的光带」，关掉面板模糊时看得最清楚）：写回是一次性动作，
+     * 备份画回后即销毁。而主帧缓冲上不止界面一条 Skija 路径 —— ESP 叠加层
+     * （{@code WorldOverlay#renderOverlay}）跑在 {@code GuiRenderer.render} 的 HEAD，那是
+     * 「GUI 通道还没开始画」的时刻：它一取画布就会把备份消费掉，随后 GUI 通道照常把隐藏格子画上去，
+     * 等帧末轮到面板时备份早已不在 —— 格子裸露，面板透明处直接看见那两行放大图标。
+     * 写回统一由 {@code SkiaScreen#renderSkiaFrame} 在截取图标之后立刻执行
+     * （见 {@code ItemIconCache#flushBackdrop}）。</p>
+     */
     public Canvas begin(int targetFramebufferId) {
         if (drawing) return canvas;
         var window = Minecraft.getInstance().getWindow();
@@ -130,11 +142,6 @@ public final class SkiaGlBackend {
             canvas.save();
             canvas.scale((float) window.getGuiScale(), (float) window.getGuiScale());
             drawing = true;
-            // 主帧缓冲开始绘制：若本帧有隐藏格子的画面备份，先画回去，格子对玩家彻底不可见
-            // （时机正好在面板绘制之前，面板玻璃采样到的也就是干净画面）。
-            if (targetFramebufferId == mainFramebufferId()) {
-                ItemIconCache.getInstance().paintBackdrop(canvas);
-            }
             return canvas;
         } catch (RuntimeException e) {
             state.pop();
