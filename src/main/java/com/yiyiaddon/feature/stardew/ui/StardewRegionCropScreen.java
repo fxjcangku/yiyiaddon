@@ -3,10 +3,13 @@ package com.yiyiaddon.feature.stardew.ui;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
+import com.yiyiaddon.ui.component.ButtonRow;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.screen.PanelScreen;
+import com.yiyiaddon.ui.widget.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -56,7 +59,11 @@ public final class StardewRegionCropScreen extends PanelScreen {
         } else {
             for (String cropKey : keys) {
                 String name = module.cropDisplayName(cropKey);
-                addButton(label(cropKey, name), () -> pick(cropKey, name, onPick));
+                // 作物图标（用户 2026-09-22：「区域选择没有显示农作物图标」）：先取好再喂给按钮 ——
+                // 按钮每帧都要问一次供应商（测量宽度 + 绘制），资源解析不能放在里面
+                ItemStack icon = module.cropIcon(cropKey);
+                content().add(new ButtonRow(
+                    new Button(label(cropKey, name), () -> pick(cropKey, name, onPick)).itemIcon(() -> icon)));
             }
         }
         addGap();

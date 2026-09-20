@@ -31,9 +31,10 @@ import java.util.Set;
  *
  * <p><b>字牌字号、内容与颜色的归属</b>：字号一律乘模块设置 {@link MiningSettings#espScale}
  * （旧项目隐藏项，现已在控制台「点位」页可调）；容器（矿物箱 / 食物箱）的头顶文字再额外乘
- * {@link MiningSettings#espContainerTextScale}，并在 {@link MiningSettings#espContainerTextColor}
- * 非 0 时以它为主色（用户 2026-09-17 追加的两项）；不设时字牌颜色跟随界面主题（用户 2026-09-19
- * 「跟随我的主题颜色同步切换」）。<b>挂机修复点不是容器</b>：不乘容器倍率、不参与容器主色；
+ * {@link MiningSettings#espContainerTextScale}，颜色默认跟随该点位自己的方框色
+ * （用户 2026-09-21：「不同颜色合理分配」——矿物箱金字、食物箱绿字），只有
+ * {@link MiningSettings#espContainerTextColor} 非 0 时才以它为主色（用户 2026-09-17 追加的该项）。
+ * <b>挂机修复点不是容器</b>：不乘容器倍率、不参与容器主色，字牌跟随自己的方框色；
  * 三个点位都写 {@code [世界]名字}（用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域
  * 之外都要标上」+「[主世界]点位名字 距离不要了」，排版同一天由用户给出）。</p>
  *
@@ -170,11 +171,13 @@ public final class MiningPointRenderer {
         float size = (float) (settings.espScale * (container ? settings.espContainerTextScale : 1.0));
 
         // 三个点位统一排版「[世界]名字」（用户 2026-09-19 定稿，取代旧项目那份「维度名写两遍 + 距离」的
-        // 原文输出），样式走共用件（加粗 + 底板 + 居中）。颜色：容器默认跟随 UI 主题，
-        // 「容器标签文字颜色」非 0 时以它为先；挂机修复点始终跟随主题。
+        // 原文输出），样式走共用件（加粗 + 底板 + 居中）。颜色（用户 2026-09-21：「不同颜色合理分配」）：
+        // 跟随各自点位的方框色（矿物箱金字、食物箱绿字、挂机修复点品红字），改方框色即改字色；
+        // 只有容器才受「容器标签文字颜色」约束 —— 该项非 0 时以它为先，0 表示跟随各自的方框色。
+        int override = container && settings.espContainerTextColor != 0
+            ? settings.espContainerTextColor : object.color.currentRgb();
         PointLabelText.rawLabel(renderer, PointLabelText.text(labelHead, point.dimension()),
-            labelPos.x, labelPos.y, labelPos.z, size,
-            container ? settings.espContainerTextColor : 0);
+            labelPos.x, labelPos.y, labelPos.z, size, override);
     }
 
     /**

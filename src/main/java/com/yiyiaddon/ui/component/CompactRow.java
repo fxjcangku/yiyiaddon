@@ -1,12 +1,14 @@
 package com.yiyiaddon.ui.component;
 
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import com.yiyiaddon.ui.widget.SettingWidget;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.function.Supplier;
 
@@ -40,6 +42,9 @@ public final class CompactRow implements CompactElement {
     private static final float HINT_GAP = 12f;
     private static final float HINT_MIN_WIDTH = 28f;
     private static final float HOVER_SMOOTHING = 12f;
+    /** 行内物品图标的边长与「图标 → 标签」间距：与模块行同一档，整页图标才是同一尺寸 */
+    private static final float ICON_BOX = ModuleRow.ICON_BOX;
+    private static final float ICON_GAP = ModuleRow.ICON_GAP;
 
     private final String label;
     private final Supplier<String> hint;
@@ -47,6 +52,8 @@ public final class CompactRow implements CompactElement {
 
     /** 浮层说明来源：多行、不截断，悬停时登记到 {@link TooltipLayer}；与行内 hint 可并存。 */
     private Supplier<String> tooltip;
+    /** 标签左侧的物品图标来源；{@code null} 表示本行不带图标 */
+    private Supplier<ItemStack> icon;
 
     private boolean hovered;
     private float hover;
@@ -72,6 +79,18 @@ public final class CompactRow implements CompactElement {
     /** 登记浮层说明（多行、不截断，悬停时显示；与行内 hint 并存）。 */
     public CompactRow tooltip(Supplier<String> text) {
         this.tooltip = text;
+        return this;
+    }
+
+    /**
+     * 给本行挂上标签左侧的物品图标（链式，与 {@code ConsoleRow#icon} 同一观感）。
+     *
+     * <p>图标走 {@link ItemIconCache} 全屏统一链路，未命中缓存的物品当帧不画、下一帧起显示；
+     * 返回 {@code null} 或空物品时既不画、也不占横向空间。标签为空的行不画图标——
+     * 那种行控件本就左对齐到 {@link #PAD_X}，再插一个图标会压在一起。</p>
+     */
+    public CompactRow icon(Supplier<ItemStack> icon) {
+        this.icon = icon;
         return this;
     }
 
@@ -115,11 +134,17 @@ public final class CompactRow implements CompactElement {
         }
 
         float centerY = y + HEIGHT / 2f;
+        ItemStack iconStack = label.isEmpty() || icon == null ? null : icon.get();
+        boolean drawIcon = iconStack != null && !iconStack.isEmpty();
+        if (drawIcon) {
+            ItemIconCache.getInstance().draw(canvas, iconStack, x + PAD_X, centerY - ICON_BOX / 2f, ICON_BOX);
+        }
+        float labelX = x + PAD_X + (drawIcon ? ICON_BOX + ICON_GAP : 0f);
         if (!label.isEmpty()) {
-            MinecraftText.draw(canvas, label, x + PAD_X, CardLayout.baseline(centerY, LABEL_SIZE), LABEL_SIZE,
+            MinecraftText.draw(canvas, label, labelX, CardLayout.baseline(centerY, LABEL_SIZE), LABEL_SIZE,
                     tc.primaryText, alpha, true);
         }
-        drawHint(canvas, x, y, width, alpha, tc);
+        drawHint(canvas, x, y, width, labelX, alpha, tc);
         if (control != null) {
             control.draw(canvas, controlX(x, width), controlY(y), alpha);
         }
@@ -155,8 +180,9 @@ public final class CompactRow implements CompactElement {
         return y + (HEIGHT - control.getHeight()) / 2f;
     }
 
-    /** 悬停提示：只在指针悬停时淡入，并按实际空隙截断。 */
-    private void drawHint(Canvas canvas, float x, float y, float width, float alpha, ClickGuiThemeColors tc) {
+    /** 悬停提示：只在指针悬停时淡入，并按实际空隙截断（{@code labelX} 是标签真实起点，已让开图标）。 */
+    private void drawHint(Canvas canvas, float x, float y, float width, float labelX, float alpha,
+                          ClickGuiThemeColors tc) {
         if (hint == null || hover < 0.02f) return;
         String text = hint.get();
         if (text == null || text.isBlank()) return;
@@ -172,7 +198,7 @@ public final class CompactRow implements CompactElement {
             startX = control == null ? x + PAD_X : controlX(x, width) + control.getWidth() + HINT_GAP;
             endX = x + width - PAD_X;
         } else {
-            startX = x + PAD_X + MinecraftText.measure(label, LABEL_SIZE, true) + HINT_GAP;
+            startX = labelX + MinecraftText.measure(label, LABEL_SIZE, true) + HINT_GAP;
             endX = control == null ? x + width - PAD_X : controlX(x, width) - HINT_GAP;
         }
         float available = endX - startX;

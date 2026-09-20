@@ -1,6 +1,11 @@
 package com.yiyiaddon.feature.stardew.point;
 
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 /**
  * 星露谷农场点位业务类型。
@@ -46,6 +51,44 @@ public enum StardewPointType {
     /** 绑定时是否必须命中容器方块 */
     public boolean requiresContainer() {
         return requiresContainer;
+    }
+
+    /**
+     * 本点位在图示上代表自己的物品（原版物品 id）。
+     *
+     * <p>控制台点位卡的图标与世界字牌的图标同读这一份：种子箱＝小麦种子、成品箱＝小麦（收成的作物）、
+     * 补水点＝水桶、岩浆箱＝岩浆桶、龙息箱＝龙息、洒水器＝滴水石锥。两处各写一套必然走形
+     * （卡片画水桶、字牌画别的），故只此一份。</p>
+     *
+     * <p><b>洒水器为什么不用药水类</b>（真机取证）：{@code item/splash_potion} 模型的
+     * {@code layer0} 是 {@code minecraft:item/potion_overlay}——一张只给瓶身染色用的白色叠加图，
+     * 单独画出来是一团没有颜色的糊块；世界字牌那条路径只取 {@code layer0}、不做染色。滴水石锥是
+     * 一张正常全彩图，且与「补水点＝水桶」一眼分得开。</p>
+     *
+     * <p>字牌那条路径要的是贴图路径，由 {@code StardewPreview#textureOf} 从本 id 解析
+     * （物品 id → items 定义 → 模型 → layer0），解析不出来字牌退化成纯文字。</p>
+     */
+    public String iconItemId() {
+        return switch (this) {
+            case SEED_BOX -> "minecraft:wheat_seeds";
+            case OUTPUT_BOX -> "minecraft:wheat";
+            case WATER_SOURCE -> "minecraft:water_bucket";
+            case LAVA_BOX -> "minecraft:lava_bucket";
+            case BREATH_BOX -> "minecraft:dragon_breath";
+            case SPRINKLER -> "minecraft:pointed_dripstone";
+        };
+    }
+
+    /**
+     * 本点位的图标物品栈（控制台点位卡、列表行都读它）。
+     *
+     * <p>取不到（id 写错 / 该版本没有这个物品）返回空栈，界面据此不画图标 ——
+     * 不留空洞、也不画黑紫缺失模型。</p>
+     */
+    public ItemStack icon() {
+        Identifier id = Identifier.tryParse(iconItemId());
+        Item item = id == null ? null : BuiltInRegistries.ITEM.getValue(id);
+        return item == null || item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
     }
 
     /**

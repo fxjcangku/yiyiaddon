@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
  *
  * <p>26.1.2 的界面管线是「extract 阶段收集绘制指令」，与 Skija 的即时 GL 绘制模型不兼容。
  * 因此这里把界面拆成两段：{@link #extractRenderState} 只记录本帧的鼠标位置与时间片，
- * 真正的 Skija 绘制延后到帧末由 {@code RenderTargetMixin} 调用 {@link #renderSkiaFrame()}，
+ * 真正的 Skija 绘制延后到帧末由 {@code MinecraftFramePresentMixin} 调用 {@link #renderSkiaFrame()}，
  * 此时主 Framebuffer 已包含世界与 HUD，可以对其做区域模糊后再叠加面板。</p>
  */
 public abstract class SkiaScreen extends Screen {
@@ -142,7 +142,7 @@ public abstract class SkiaScreen extends Screen {
         // 平均 (20,22,27)）重新糊在面板上面 —— 屏幕正中那块比周围明显更暗的方块，并逐帧加深
         // (25→21→17→…→7，比值 0.83 正是玻璃透光率) 收敛到全黑。
         // 用户 2026-09-22「选择器一打开，屏幕正中一块纯黑」就是这么来的。
-        // 换屏/关屏那两种收尾仍由本方法开头的跳过分支与 RenderTargetMixin 兜住。
+        // 换屏/关屏那两种收尾仍由本方法开头的跳过分支与 MinecraftFramePresentMixin 兜住。
     }
 
     /** 本帧的 Skija 绘制。canvas 已按 GUI Scale 缩放，坐标系为 GUI 逻辑坐标。 */

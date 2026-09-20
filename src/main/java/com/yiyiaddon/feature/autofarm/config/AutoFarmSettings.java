@@ -80,9 +80,9 @@ public final class AutoFarmSettings {
     /** 杂物箱：默认红 */
     public final EspRenderObject renderPoisonBox = new EspRenderObject("杂物箱",
         "高亮杂物箱方块", 0xFF5555, 160, ShapeMode.Lines);
-    /** 点位字牌：只有显示开关（加粗、颜色跟随界面主题），没有单独颜色与渲染模式 */
+    /** 点位字牌：只有显示开关（加粗、颜色跟随各类箱子方框色），没有单独颜色与渲染模式 */
     public final EspRenderObject renderLabels = new EspRenderObject("点位字牌",
-        "各绑定点位头顶的文字标签（加粗 + 底板，颜色跟随界面主题，只有显示开关，没有单独颜色与渲染模式）",
+        "各绑定点位头顶的文字标签（加粗 + 底板，颜色跟随各类箱子方框色，只有显示开关，没有单独颜色与渲染模式）",
         0xFFFFFF, 255, null, false);
 
     /**

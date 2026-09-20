@@ -4,12 +4,14 @@ import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.core.CommandMessageFormatter;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceScanner;
+import com.yiyiaddon.feature.stardew.selector.StardewPreview;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.model.resource.ResourcePhase;
 import com.yiyiaddon.model.resource.ResourceScanResult;
 import com.yiyiaddon.model.resource.ResourceSource;
 import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.platform.resource.ItemModelDispatchIndex;
+import com.yiyiaddon.ui.render.TextureImageCache;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
@@ -310,6 +312,11 @@ public final class ResourceExtractionService {
         // 派发表是按"当前生效资源"读出来的：资源一换就必须作废，否则会用上一份包的
         // （基础物品 + 阈值 → 模型）映射去识别新包的物品，表现为张冠李戴
         ItemModelDispatchIndex.invalidate();
+        // 图集反查表同理：sprite 名 → 真实贴图是上一份包的结论，换包后世界字牌会挂错图
+        StardewPreview.invalidate();
+        // 已解码的世界字牌贴图也一起丢：同名贴图在两份包里内容可以完全不同，
+        // 留着就是「换服后图标还是上一台服的」（与 PlayerFaceCache 同一口径）
+        TextureImageCache.clear();
         if (extractionRequested
             && (phase == ResourcePhase.READY || phase == ResourcePhase.NO_CONTENT)) {
             automaticRefreshPending = true;

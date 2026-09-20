@@ -299,8 +299,8 @@ public final class ItemIconCache {
             if (previous != null) previous.close();
         }
         rendered.clear();
-        // 备份的画面不在这里写回：写回需要一个 Skija 画布，统一由 SkiaScreen#renderSkiaFrame
-        // 在本方法之后立刻调 flushBackdrop（那个时机正好在面板绘制之前）。
+        // 备份的画面不在这里写回：写回需要一个 Skija 画布，交给界面绘制路径
+        // （SkiaGlBackend#beginScreenFrame）与 SkiaScreen#renderSkiaFrame 兜底那一步。
     }
 
     /**

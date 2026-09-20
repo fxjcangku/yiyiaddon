@@ -4,9 +4,11 @@ import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.function.Supplier;
 
@@ -56,6 +58,8 @@ public class Button extends SettingWidget {
 
     private static final float ICON_SIZE = 14f;
     private static final float ICON_GAP = 6f;
+    /** 物品图标的最大边长：与模块行那一档（16）对齐，矮按钮再按高度收一档。 */
+    private static final float ITEM_ICON_MAX = 16f;
     private static final float HOVER_SMOOTHING = 14f;
     private static final float HOVER_TINT = 0.10f;
     private static final float SECONDARY_HOVER_TINT = 0.14f;
@@ -67,6 +71,8 @@ public class Button extends SettingWidget {
     private Variant variant = Variant.SECONDARY;
     private Size size = Size.MEDIUM;
     private String icon;
+    /** 物品图标来源（与 {@link #icon} 字形图标可并存，物品图标在前）；{@code null} = 不带物品图标 */
+    private Supplier<ItemStack> itemIcon;
     private Supplier<Boolean> selectedSupplier;
     private Supplier<Boolean> disabledSupplier;
     private float fixedWidth = -1f;
@@ -122,6 +128,20 @@ public class Button extends SettingWidget {
         return this;
     }
 
+    /**
+     * 前缀物品图标（真实的物品贴图，画在文字左侧；与 {@link #icon(String)} 可并存，物品图标在前）。
+     *
+     * <p>用户 2026-09-22：「区域选择没有显示农作物图标」——圈地收口窗的作物按钮从此带作物图。
+     * 与 {@code CompactRow#icon} 同一观感（同一 {@code ItemIconCache} 链路、同一档尺寸）。</p>
+     *
+     * <p><b>供应商每帧会被问几次</b>（测量宽度、绘制各一次），调用方应先把物品栈算好再传进来 ——
+     * 资源解析（{@code StardewPreview}）不能放在这里。</p>
+     */
+    public Button itemIcon(Supplier<ItemStack> itemIcon) {
+        this.itemIcon = itemIcon;
+        return this;
+    }
+
     /** 固定宽度；不设置时按内容自适应。 */
     public Button width(float width) {
         this.fixedWidth = width > 0f ? width : -1f;
@@ -154,8 +174,21 @@ public class Button extends SettingWidget {
 
     private float contentWidth() {
         float width = size.padX * 2f + textWidth();
+        if (!itemIconStack().isEmpty()) width += itemIconBox() + ICON_GAP;
         if (icon != null) width += iconWidth() + ICON_GAP;
         return Math.max(size.height * 2f, width);
+    }
+
+    /** 当前物品图标（供应商没给 / 给了空栈 = 不画，也不占横向空间）。 */
+    private ItemStack itemIconStack() {
+        if (itemIcon == null) return ItemStack.EMPTY;
+        ItemStack stack = itemIcon.get();
+        return stack == null ? ItemStack.EMPTY : stack;
+    }
+
+    /** 物品图标边长：不超过 {@link #ITEM_ICON_MAX}，矮一档的按钮再按高度收一档。 */
+    private float itemIconBox() {
+        return Math.min(ITEM_ICON_MAX, size.height - 6f);
     }
 
     private float textWidth() {
@@ -289,11 +322,20 @@ public class Button extends SettingWidget {
         String text = label.get();
         float textWidth = textWidth();
         float iconWidth = icon == null ? 0f : iconWidth() + ICON_GAP;
-        float total = iconWidth + textWidth;
+        ItemStack item = itemIconStack();
+        boolean hasItem = !item.isEmpty();
+        float itemBox = hasItem ? itemIconBox() : 0f;
+        float itemAdvance = hasItem ? itemBox + ICON_GAP : 0f;
+        float total = itemAdvance + iconWidth + textWidth;
         float cursor = x + Math.max(size.padX * 0.5f, (width - total) * 0.5f);
         float centerY = y + height * 0.5f;
         int color = GlassPanel.withAlpha(foreground, alpha);
 
+        if (hasItem) {
+            // 走全屏统一的物品图标链路（与 CompactRow / 控制台卡片同一套）；未命中缓存的物品当帧不画、下一帧起显示
+            ItemIconCache.getInstance().draw(canvas, item, cursor, centerY - itemBox * 0.5f, itemBox);
+            cursor += itemAdvance;
+        }
         if (icon != null) {
             FontRenderer.drawText(canvas, icon, cursor, CardLayout.baseline(centerY, ICON_SIZE), ICON_SIZE,
                     color, FontRenderer.MATERIAL_SYMBOLS);

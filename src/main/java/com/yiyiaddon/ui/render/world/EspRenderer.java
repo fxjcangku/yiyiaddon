@@ -2,6 +2,7 @@ package com.yiyiaddon.ui.render.world;
 
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.render.TextureImageCache;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.Paint;
@@ -13,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.gizmos.GizmoProperties;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -54,6 +56,15 @@ public final class EspRenderer {
 
     /** 未设「最远显示距离」但要淡出时的默认终点（格）：不限距离总不能淡到无穷远。 */
     private static final float DEFAULT_FADE_END = 64f;
+
+    /**
+     * 字牌图标的尺寸与间距（都按字号的比例给）。
+     *
+     * <p>图标按字号 1.6 倍画：原版物品贴图是 16×16，缩到字号大小时细节全糊，1.6 倍既能看清
+     * 又不会把字牌撑得比区域框还宽；间距取 0.4 倍，视觉上图标与首字是一组。</p>
+     */
+    private static final float ICON_SCALE = 1.6f;
+    private static final float ICON_GAP_SCALE = 0.4f;
 
     /** 叠加阶段的共享画笔。Skija 的 Paint 是原生资源，复用可避免逐帧创建与回收。 */
     private static final Paint STROKE = new Paint().setAntiAlias(true)
@@ -108,8 +119,12 @@ public final class EspRenderer {
     public sealed interface Deferred permits DeferredText, DeferredBox2D, DeferredTracer {
     }
 
-    /** 世界坐标处的字牌：字体与底板都只能由 Skija 画，因此留到叠加阶段。 */
-    public record DeferredText(String text, double x, double y, double z, float size, int color,
+    /**
+     * 世界坐标处的字牌：字体与底板都只能由 Skija 画，因此留到叠加阶段。
+     *
+     * @param icon 字牌左侧的资源包贴图（{@code null} = 不带图标的纯文字）
+     */
+    public record DeferredText(String text, Identifier icon, double x, double y, double z, float size, int color,
                                float alpha, boolean shadow, float fade) implements Deferred {
     }
 
@@ -572,11 +587,33 @@ public final class EspRenderer {
      */
     public boolean text(String text, double x, double y, double z, float size, int color,
                         float alpha, boolean shadow) {
+        return text(text, null, x, y, z, size, color, alpha, shadow);
+    }
+
+    /**
+     * 带左侧图标的字牌：图标取自资源包贴图（{@code iconTexture} 为贴图 id，如
+     * {@code customcrops:textures/item/crops/corn/corn.png}），与文字一起居中于投影点。
+     *
+     * <p><b>为什么图标走贴图而不是物品渲染</b>：本叠加层跑在 GUI 通道开始之前，没有
+     * {@code GuiGraphicsExtractor} 可用，物品图标的「借位渲染 + 截取」链路在这里无从驱动；
+     * 直接读资源包 PNG 成 Skija 图像是这条路径上唯一不需要主帧缓冲回读的做法。</p>
+     *
+     * @param iconTexture 贴图 id；为空串 / 非法 / 当前资源包里不存在时退化成纯文字字牌
+     */
+    public boolean textWithIcon(String text, String iconTexture, double x, double y, double z, float size,
+                                int color, float alpha, boolean shadow) {
+        return text(text, iconTexture == null || iconTexture.isBlank() ? null
+            : Identifier.tryParse(iconTexture), x, y, z, size, color, alpha, shadow);
+    }
+
+    /** 字牌入队（{@code icon} 为 {@code null} 即纯文字） */
+    private boolean text(String text, Identifier icon, double x, double y, double z, float size, int color,
+                         float alpha, boolean shadow) {
         if (text == null || text.isEmpty() || size <= 0f) return false;
         fade = fadeAt(x, y, z);
         if (fade <= 0f || !affordable()) return false;
         if (deferred == null) return false;
-        deferred.add(new DeferredText(text, x, y, z, size, color, alpha, shadow, fade));
+        deferred.add(new DeferredText(text, icon, x, y, z, size, color, alpha, shadow, fade));
         return true;
     }
 
@@ -609,7 +646,12 @@ public final class EspRenderer {
         String text = item.text();
         int color = item.color();
         float width = com.yiyiaddon.ui.render.MinecraftText.measure(text, size, false);
-        float drawX = point.x() - width * 0.5f;
+        // 「图标 + 文字」整体居中于投影点：图标高度取字号的 ICON_SCALE 倍（纯文字时一整块都不参与）
+        Identifier icon = item.icon();
+        float iconSize = icon == null ? 0f : size * ICON_SCALE;
+        float iconGap = icon == null ? 0f : size * ICON_GAP_SCALE;
+        float startX = point.x() - (width + iconSize + iconGap) * 0.5f;
+        float drawX = startX + iconSize + iconGap;
         float baseline = CardLayout.baseline(point.y(), size);
         int themeShadow = ClickGuiThemeColors.current().shadow;
 
@@ -620,8 +662,13 @@ public final class EspRenderer {
             float padY = Math.max(1.5f, size * 0.14f);
             PLATE.setColor(GlassPanel.withAlpha(themeShadow, alpha * 0.65f));
             canvas.drawRRect(RRect.makeLTRB(
-                drawX - padX, point.y() - size * 0.5f - padY,
+                startX - padX, point.y() - size * 0.5f - padY,
                 drawX + width + padX, point.y() + size * 0.5f + padY, size * 0.45f), PLATE);
+        }
+        if (icon != null) {
+            TextureImageCache.draw(canvas, icon, startX, point.y() - iconSize * 0.5f, iconSize, alpha);
+        }
+        if (item.shadow() && globals.textPlate()) {
             com.yiyiaddon.ui.render.MinecraftText.draw(canvas, text, drawX, baseline + 1f, size,
                 themeShadow, alpha);
         }

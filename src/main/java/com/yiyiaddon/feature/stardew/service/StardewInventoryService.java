@@ -251,16 +251,22 @@ public final class StardewInventoryService {
     }
 
     /**
-     * 物品栈当前生效的自定义模型键：{@code item_model} 组件优先，缺失时退回资源包派发表反查。
+     * 物品栈当前生效的自定义模型键：派发表阈值命中优先，其次 {@code item_model} 组件，
+     * 最后退回派发表的直接模型。
      *
-     * <p>ItemsAdder / Nexo 这类布局的物品<b>没有 {@code item_model} 组件</b>，身份写在
-     * {@code custom_model_data} 里（真机取证：{@code minecraft:paper} + 阈值 10579 → 玉米种子）。
-     * 派发表由资源包自带，因此识别不依赖玩家事先 {@code .id} 手工入库。</p>
+     * <p><b>为什么派发优先（2026-09-21 真机修正）：</b>ItemsAdder / Nexo 把自定义物品挂在载体上，
+     * {@code item_model} 组件里写的只是<b>载体</b>（{@code minecraft:paper}），真实身份在
+     * {@code custom_model_data} 里；旧实现「组件非空即返回」，于是整服展示物一律解析成
+     * {@code minecraft:paper}——世界上明明挂着洒水器与作物，识别三条判据全空，绑定变成「写什么品质
+     * 就是什么品质」。只有当派发表<b>真的按阈值命中</b>了自定义模型才算数（见
+     * {@link ItemModelDispatchIndex.Snapshot#dispatchedModelOf}），所以原版物品、以及把真实模型写进
+     * {@code item_model} 组件的布局，行为一字不变。</p>
      */
     public static String resolvedModelOf(ItemStack stack) {
+        String dispatched = ItemModelDispatchIndex.get().dispatchedModelOf(stack);
+        if (dispatched != null) return dispatched;
         String model = itemModelOf(stack);
-        if (model != null) return model;
-        return ItemModelDispatchIndex.get().modelKeyOf(stack);
+        return model != null ? model : ItemModelDispatchIndex.get().modelKeyOf(stack);
     }
 
     /**

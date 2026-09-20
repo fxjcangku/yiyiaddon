@@ -108,11 +108,11 @@ public final class AutoChestSettings {
      * {@code StardewSettings.labelSize} 的默认 12、取值域 6~32，与用户「所有标点选择点位位置的模块
      * 参照星露谷农场的点位设置」的口径一致。</p>
      *
-     * <p><b>消费方现状（如实登记）</b>：{@code AutoChestRenderer} 只画容器框、不画文字（旧项目同样如此，
-     * 见 {@code villager/render/ContainerESP} 里「只画线框，不画文字」的同类登记），因此本项目前只由
-     * 控制台「渲染」页 / 「点位」页的数字框读写与落盘，尚无渲染消费点。若以后给容器加字牌，字号取本项，
-     * 并按本项目既有口径在 {@code EspRenderer.text} 内自动乘全局 {@code EspGlobalSettings.textScale()}
-     * （即实际字号 = labelSize × 全局倍率），本项只作模块自己的基准字号。</p>
+     * <p><b>消费方现状（如实登记）</b>：{@code AutoChestRenderer} 每帧给每个容器画框时同步挂这个字号的
+     * 字牌（写「[世界]名字」），并在 {@code EspRenderer.text} 内自动乘全局
+     * {@code EspGlobalSettings.textScale()}（即实际字号 = labelSize × 全局倍率），本项只是模块自己的
+     * 基准字号。字牌颜色跟该容器这一帧的框色（三态色），不另设颜色项 —— 见
+     * {@code AutoChestRenderer#renderLayer} 顶部的注释。</p>
      */
     public int labelSize = 12;
 

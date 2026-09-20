@@ -19,6 +19,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,6 +69,9 @@ public final class AdminDetectorModule extends Module {
     /** 模块 ID，同时作为状态文件键、快捷键键名后缀，以及世界渲染层的所有者标识 */
     public static final String MODULE_ID = "admindetector";
 
+    /** 客户端日志：只给「隐藏判定命中」留证据行用（见 {@link #logHiddenEvidence}） */
+    private static final Logger LOGGER = LoggerFactory.getLogger(AdminDetectorModule.class);
+
     /** 模块中文显示名：播报前缀、断线界面前缀、控制台标题、使用说明窗口共用一个来源 */
     public static final String MESSAGE_MODULE = "管理员检测";
 
@@ -105,13 +110,19 @@ public final class AdminDetectorModule extends Module {
     private final Map<UUID, String> nearbyThreats = new HashMap<>();
 
     /**
-     * 本次会话里在 Tab 玩家列表出现过的名字。
+     * 本次会话里<b>在 Tab 界面上真显示过</b>的玩家（UUID → 名字）。
      *
      * <p>用来把「插件 NPC」与「vanish 的管理员」分开，见 {@link #isHiddenFromTab(Player)}。
-     * 模块启用时清空（同 {@link #nearbyThreats} 的生命周期），因此在世界里中途开关模块会丢掉
-     * 「之前见过谁」这份记忆，此后 vanish 的人判不出来（残留边界见 {@link #isHiddenFromTab(Player)}）。</p>
+     * <b>只能读 {@code getListedOnlinePlayers()}</b>（真机 2026-09-22 04:33 实证：读错这一份，
+     * 主城 NPC「苍涟绝岛」被写进记忆、随后判成隐藏管理员直接断线）—— 服务端下发玩家列表项时带
+     * {@code listed} 标志，插件给 NPC 的条目是 {@code listed=false}：客户端拿得到它的名字与皮肤
+     * （实体照常渲染），但它在 Tab 里不显示；{@code getOnlinePlayers()} 把这种条目也算「在线」，
+     * 只有 {@link net.minecraft.client.multiplayer.ClientPacketListener#getListedOnlinePlayers()}
+     * 才是「界面上真显示出来的人」。模块启用时清空（同 {@link #nearbyThreats} 的生命周期），
+     * 因此在世界里中途开关模块会丢掉「之前见过谁」这份记忆，此后 vanish 的人判不出来
+     * （残留边界见 {@link #isHiddenFromTab(Player)}）。</p>
      */
-    private final Set<String> seenInTab = new HashSet<>();
+    private final Map<UUID, String> seenInTab = new HashMap<>();
 
     /** 断线防重锁：断线后本刻流程仍在跑，防止同一刻重复断线（旧 {@code :50}） */
     private boolean disconnecting;
@@ -230,8 +241,9 @@ public final class AdminDetectorModule extends Module {
         List<String> whitelist = settings.whitelist;
         List<String> blacklist = settings.blacklist;
 
-        // 先记下本刻 Tab 玩家列表里的人名：隐藏判据要靠「这个人曾经在 Tab 里出现过」把
-        // 插件 NPC（从没进过 Tab）与 vanish 的管理员（先可见、后消失）分开，见 isHiddenFromTab。
+        // 先记下本刻 Tab 显示名单上的人：隐藏判据要靠「这个人曾经显示在 Tab 名单上」把
+        // 插件 NPC（listed=false，从没进过显示名单）与 vanish 的管理员（先可见、后消失）分开，
+        // 见 isHiddenFromTab。
         rememberTabNames();
 
         // 本次 tick 在范围内的危险玩家（旧 currentThreats）
@@ -337,7 +349,7 @@ public final class AdminDetectorModule extends Module {
                 || mc.level == null || mc.player == null) {
             return;
         }
-        for (PlayerInfo info : mc.getConnection().getOnlinePlayers()) {
+        for (PlayerInfo info : mc.getConnection().getListedOnlinePlayers()) {
             if (info == null || info.getProfile() == null) continue;
             if (info.getGameMode() != GameType.SPECTATOR) continue;
             UUID id = info.getProfile().id();
@@ -360,14 +372,14 @@ public final class AdminDetectorModule extends Module {
      * 判定玩家命中的危险特征，未命中返回 null。
      * 黑名单优先级最高，其次按旁观 / 创造 / 隐身 / 隐藏顺序。
      *
-     * <p><b>只有 Tab 名单里的玩家才走「旁观 / 创造 / 隐身」三条</b>（用户 2026-09-21：「管理员检测会把
-     * npc 当成管理员直接把我 t 了 那个出售商人就是创造」）：别人的游戏模式只能从 Tab 的
+     * <p><b>只有 Tab 名单里真显示出来的玩家才走「旁观 / 创造 / 隐身」三条</b>（用户 2026-09-21：
+     * 「管理员检测会把 npc 当成管理员直接把我 t 了 那个出售商人就是创造」）：别人的游戏模式只能从 Tab 的
      * {@code PlayerInfo} 里读，读不到时 {@link #isCreative} 会退回实体自身的能力位 {@code instabuild}
      * —— 而插件 NPC 正是「创造能力的假玩家实体」（实体类型就是 {@code minecraft:player}、又不在 Tab 名单），
      * 于是自用模式去收购商人那里卖矿，一进检测范围就被判成「创造模式」管理员并直接断线。</p>
      *
      * <p>不在 Tab 名单的实体只走「隐藏」通道，而 {@link #isHiddenFromTab} 要求「本次会话里在 Tab 名单
-     * 见过他」，不在 Tab 又从没出现过的插件 NPC 被前置排除放行。</p>
+     * <b>显示过</b>他」，不在 Tab 又从没显示过的插件 NPC 被前置排除放行（并自动进白名单）。</p>
      */
     private String getThreatReason(Player player, String name, List<String> blacklist) {
         if (AdminDetectorSettings.containsName(blacklist, name)) return "黑名单";
@@ -378,26 +390,56 @@ public final class AdminDetectorModule extends Module {
             if (settings.detectInvisible && player.isInvisible()) return "隐身";
         }
         // 插件 NPC 前置排除（用户 2026-09-22：「npc 还是当成管理员了」）：不在 Tab 名单、且本次会话
-        // 从没在 Tab 名单里出现过 —— 真玩家进服时服务端必定下发玩家列表项，vanish 只可能「先可见、
-        // 后消失」，因此这种实体只可能是插件 NPC，四条形态判定一条都不该走。
-        // 上一次的修复只把「旁观/创造/隐身」挡在 Tab 名单里，NPC 改从下面这条「隐藏」通道命中
-        // （它的旧兜底「不带自定义名字」正是多数 NPC 的形态），于是照样断线。
-        if (!inTab && !seenInTab.contains(name)) {
+        // 从没在 Tab 名单里<b>显示</b>过 —— 真玩家进服时服务端必定把他的条目以 listed=true 下发，
+        // vanish 只可能「先显示、后消失」，因此这种实体只可能是插件 NPC，四条形态判定一条都不该走。
+        // 按 UUID 比对（旧实现按名字）：同名不同人是有的（NPC 与被顶号/回档的玩家同名），
+        // 名字撞上就会让 NPC 借了别人的「曾在 Tab」记忆去命中「隐藏」。
+        if (!inTab && !seenInTab.containsKey(player.getUUID())) {
             registerNpc(name);
             return null;
         }
-        if (settings.detectHidden && isHiddenFromTab(player)) return "隐藏";
+        if (settings.detectHidden && isHiddenFromTab(player)) {
+            logHiddenEvidence(player, name);
+            return "隐藏";
+        }
         return null;
+    }
+
+    /**
+     * 「隐藏」判定命中时留一行证据（客户端日志，不打扰聊天栏）。
+     *
+     * <p>这条通道是<b>唯一</b>允许误断真人的地方（形态与 vanish 同形），一旦断错，用户丢掉的是
+     * 整局挂机 —— 所以把当时的全部判据原样写进日志，下次误断能直接归因，不必再靠猜：
+     * 名 / UUID / 现在是否在显示名单 / 记忆里有没有他 / 条目是否仍在下发 / 延迟 / 游戏模式 / 距离。</p>
+     */
+    private void logHiddenEvidence(Player player, String name) {
+        PlayerInfo info = mc.getConnection() == null
+            ? null : mc.getConnection().getPlayerInfo(player.getUUID());
+        LOGGER.info("[管理员检测] 隐藏判定命中：名={} uuid={} 在显示名单={} 记忆里有他={} 条目仍在下发={}"
+                + " 延迟={} 模式={} 隐身={} 距离={}",
+            name, player.getUUID(), isInTab(player), seenInTab.containsKey(player.getUUID()),
+            info != null, info == null ? -1 : info.getLatency(),
+            info == null ? "-" : info.getGameMode(), player.isInvisible(),
+            mc.player == null ? -1 : (int) mc.player.distanceTo(player));
     }
 
     /**
      * 这个实体在 Tab 玩家名单里吗 —— 客户端能拿到的「是不是真玩家」的唯一权威来源。
      *
-     * <p>插件用假玩家实体伪装的 NPC 从建立起就不在 Tab 名单（{@code getPlayerInfo} 恒为 null），
-     * 真玩家（含 vanish 前见过的）则在 Tab 里出现过。</p>
+     * <p><b>必须问「显示出来的那一份」</b>（真机 2026-09-22 04:33 实证：主城 NPC「苍涟绝岛」被判成
+     * 隐藏管理员、当场断线）：服务端下发玩家列表项时带 {@code listed} 标志，插件给 NPC 的条目是
+     * <b>{@code listed=false}</b> —— 客户端因此拿得到它的名字与皮肤（实体照常渲染、{@code getPlayerInfo}
+     * 也有它），但它在 Tab 界面上<b>根本不显示</b>。能区分这两份的只有
+     * {@link net.minecraft.client.multiplayer.ClientPacketListener#getListedOnlinePlayers()}；
+     * {@code getPlayerInfo(uuid) != null} / {@code getOnlinePlayers()} 读的是底层全部条目，把
+     * 「服务端故意不显示在 Tab 的人」也算成「在 Tab 名单里」，于是：① NPC 的名字被写进记忆；
+     * ② 它的条目被移除、实体还在时，命中「曾在 Tab、现在不在」的 vanish 形态 → 误断线。</p>
      */
     private boolean isInTab(Player player) {
-        return mc.getConnection() != null && mc.getConnection().getPlayerInfo(player.getUUID()) != null;
+        if (mc.getConnection() == null) return false;
+        PlayerInfo info = mc.getConnection().getPlayerInfo(player.getUUID());
+        // PlayerInfo 没有覆写 equals：列名集里存的是同一批实例，contains 走引用比较，正是所需
+        return info != null && mc.getConnection().getListedOnlinePlayers().contains(info);
     }
 
     /**
@@ -431,7 +473,7 @@ public final class AdminDetectorModule extends Module {
     }
 
     /**
-     * 判断玩家是否被 vanish 插件隐藏（实体存在但不在 Tab 列表）。
+     * 判断玩家是否被 vanish 插件隐藏（曾经显示在 Tab 名单里，现在不在显示名单里）。
      *
      * <p><b>本项目加强（用户 2026-09-16 裁定「能正常识别玩家过滤 npc 就行」，登记在迁移记录里）</b>：
      * 旧实现只看「不在 Tab 列表」，在带插件 NPC 的服务器上会把 NPC 判成管理员 —— 实测
@@ -439,30 +481,33 @@ public final class AdminDetectorModule extends Module {
      * 客户端无法直接问「你是不是 NPC」，因此只认一条信号：</p>
      *
      * <ul>
-     *     <li><b>本次会话里在 Tab 列表见过他</b>：vanish 的轨迹必然是「先可见、后消失」，
-     *         而插件 NPC 从建立那一刻就不在 Tab 列表，永远进不了这份记忆。</li>
+     *     <li><b>本次会话里在 Tab 显示名单上见过他（按 UUID）</b>：vanish 的轨迹必然是「先显示、后消失」，
+     *         而插件 NPC 从建立那一刻就是 {@code listed=false}，永远进不了这份记忆。</li>
      * </ul>
+     *
+     * <p><b>两个渠道都算消失</b>：vanish 插件有的把条目移除（{@code ClientboundPlayerInfoRemovePacket}），
+     * 有的只是把它改回 {@code listed=false}（条目仍在、Tab 里看不见）—— 对玩家而言两者一样，
+     * 因此这里统一用 {@link #isInTab}（显示名单）判，不再用「{@code getPlayerInfo} 还在不在」。</p>
      *
      * <p><b>为什么删掉了「他没有自定义名字」那条兜底</b>（用户 2026-09-22：「npc 还是当成管理员了」）：
      * 出售商人这类插件 NPC 用的是假玩家实体，名字来自档案名、并不占用自定义名字组件，因此恰好落进
      * 「不在 Tab + 没自定义名字」这个组合，被当成 vanish 的隐藏管理员，走到收购点卖矿就断线。
      * 拿「有没有铭牌」判 NPC 一开始就选错了信号 —— 铭牌是插件给 NPC 加的装饰，不是它的必要条件。</p>
      *
-     * <p><b>残留边界</b>：管理员若<b>在你进服前就已经隐身</b>（本次会话里从没在 Tab 名单出现过），
+     * <p><b>残留边界</b>：管理员若<b>在你进服前就已经隐身</b>（本次会话里从没在 Tab 名单显示过），
      * 或模块在世界里中途开启、丢掉了前半份记忆，则判不出来 —— 这是客户端侧无法消除的固有盲区：
      * 这种形态与插件 NPC 在客户端完全同形，宁可漏检也不能误断。名单页的黑名单可以按名字强制命中。</p>
      */
     private boolean isHiddenFromTab(Player player) {
         if (mc.getConnection() == null) return false;
-        if (mc.getConnection().getPlayerInfo(player.getUUID()) != null) return false;
-        return seenInTab.contains(player.getName().getString());
+        return !isInTab(player) && seenInTab.containsKey(player.getUUID());
     }
 
     /**
      * 把识别出的插件 NPC 自动登记进白名单，并播报一条（用户 2026-09-22：「不能自动识别 npc 自己
      * 添加到白名单吗」）。
      *
-     * <p><b>走到这里的实体是什么</b>：既不在 Tab 名单、本次会话也从没在 Tab 名单出现过 —— 即
+     * <p><b>走到这里的实体是什么</b>：既不在 Tab 显示名单、本次会话也从没在显示名单上出现过 —— 即
      * {@link #getThreatReason} 判定的插件 NPC。登记后它不再进检测/播报/ESP，且下次会话依然豁免
      * （白名单随设置一起落盘）。写进去的就是「名单」页那份白名单，用户看得见、删得掉，
      * 因此这里只播报一次「新登记」，已在名单里的直接返回、不重复打扰。</p>
@@ -471,8 +516,8 @@ public final class AdminDetectorModule extends Module {
      * <ul>
      *     <li>只在实体内进过检测范围时登记 —— 主循环的距离判断在 {@link #getThreatReason} 之前，
      *         远处的 NPC 不会被写进名单；</li>
-     *     <li>Tab 名单为空时不登记 —— 那种情况说明玩家列表根本没拿到（连接异常 / 服务端不下发），
-     *         「不在 Tab」这条判据失效，此时任何一个真人都会被当成 NPC，绝不能拿它往白名单里写。</li>
+     *     <li>显示名单为空时不登记 —— 那种情况说明玩家列表根本没拿到（连接异常 / 服务端不下发），
+     *         「显示名单」这条判据失效，此时任何一个真人都会被当成 NPC，绝不能拿它往白名单里写。</li>
      * </ul>
      */
     private void registerNpc(String name) {
@@ -485,13 +530,15 @@ public final class AdminDetectorModule extends Module {
             + " §7已自动加入白名单 §8（可在「名单」页移除）");
     }
 
-    /** 记下本刻 Tab 玩家列表里的全部人名（只增不减：要的就是「曾经见过」这份记忆）。 */
+    /** 记下本刻 Tab <b>显示名单</b>上的全部玩家（UUID → 名字，只增不减：要的就是「曾经显示过」这份记忆）。 */
     private void rememberTabNames() {
         if (mc.getConnection() == null) return;
-        for (PlayerInfo info : mc.getConnection().getOnlinePlayers()) {
+        for (PlayerInfo info : mc.getConnection().getListedOnlinePlayers()) {
             if (info == null || info.getProfile() == null) continue;
+            UUID id = info.getProfile().id();
             String name = info.getProfile().name();
-            if (name != null && !name.isBlank()) seenInTab.add(name);
+            if (id == null || name == null || name.isBlank()) continue;
+            seenInTab.put(id, name);
         }
     }
 

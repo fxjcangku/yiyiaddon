@@ -2,14 +2,18 @@ package com.yiyiaddon.feature.stardew.render;
 
 import com.yiyiaddon.feature.stardew.StardewContext;
 import com.yiyiaddon.feature.stardew.config.StardewSettings;
+import com.yiyiaddon.feature.stardew.point.SprinklerCoverage;
 import com.yiyiaddon.feature.stardew.point.StardewPointActions;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
+import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.SprinklerDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
+import com.yiyiaddon.feature.stardew.profile.StardewSprinklerRangeStore;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
+import com.yiyiaddon.feature.stardew.selector.StardewPreview;
 import com.yiyiaddon.feature.stardew.task.StardewCoordinator;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.render.world.EspColor;
@@ -26,7 +30,9 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 星露谷渲染状态：一类渲染对象的独立配置（显示 / 颜色 / 渲染模式）+ 全部世界绘制内容。
@@ -80,6 +86,14 @@ public final class StardewRenderState {
      */
     private final java.util.function.Supplier<List<StardewPointActions.NearbySprinkler>> nearbySprinklerPreview;
 
+    /**
+     * 模型键 → 贴图资源路径的运行期缓存（{@code ""} = 解析不出来）。
+     *
+     * <p>字牌每帧都画，而「模型键 → 贴图」要读资源包 JSON（见 {@link StardewPreview#textureOf}），
+     * 逐帧解析会白白吃掉帧预算；这里只解析一次，之后每帧只是一次查表。</p>
+     */
+    private final Map<String, String> iconTextures = new HashMap<>();
+
     /** 种植区域（每块已划分的地一个框） */
     private final RenderOption renderRegions;
     /** 洒水器本体方块 */
@@ -96,7 +110,7 @@ public final class StardewRenderState {
     private final RenderOption renderBreathBox;
     /** 洒水器点位标记 */
     private final RenderOption renderSprinklerPoint;
-    /** 点位字牌（2D 文字）：只有显示开关，样式（加粗 / 主题色 / 底板）统一走 PointLabelText */
+    /** 点位字牌（2D 文字）：只有显示开关，样式（加粗 / 各类方框色 / 底板）统一走 PointLabelText */
     private final RenderOption renderLabels;
 
     public StardewRenderState(StardewSettings settings, StardewPointManager pointManager,
@@ -231,7 +245,7 @@ public final class StardewRenderState {
             }
             if (renderSprinklerCoverage.on()) {
                 EspColor c = renderSprinklerCoverage.color();
-                SprinklerEspRenderer.renderCoverage(renderer, sprinklers, this::sprinklerRadiusAt, c.argb(), c.argb(),
+                SprinklerEspRenderer.renderCoverage(renderer, sprinklers, this::sprinklerCoverageBox, c.argb(), c.argb(),
                     renderSprinklerCoverage.mode());
             }
             if (renderSprinklerPoint.on()) {
@@ -258,9 +272,13 @@ public final class StardewRenderState {
         // 预览字牌：它是「临时看范围」的显式动作，不受点位字牌开关约束
         for (StardewPointActions.NearbySprinkler nearby : preview) {
             if (isBound(nearby.pos())) continue;
-            int side = radiusOfLevel(nearby.definition().sprinklerIndex()) * 2 + 1;
+            // 未绑定的台没有实测可用，用物品说明的真实范围（取不到才退等级估算）——如实标出来源
+            String stated = StardewSprinklerRangeStore.sideText(nearby.definition().key());
+            int[] range = statedOrLevelRange(nearby.definition().key(), nearby.definition().sprinklerIndex());
+            String size = (range[1] - range[0] + 1) + "×" + (range[3] - range[2] + 1);
             BlockPos pos = nearby.pos();
-            renderer.text("§l" + nearby.definition().displayName() + " · " + side + "×" + side,
+            renderer.text("§l" + nearby.definition().displayName() + " · " + size
+                    + "（" + (stated == null ? "估算" : "物品说明") + "）",
                 pos.getX() + 0.5, pos.getY() + 1.6, pos.getZ() + 0.5,
                 settings.labelSize, PREVIEW_LINE, PREVIEW_LINE.alpha() / 255f, true);
         }
@@ -273,12 +291,13 @@ public final class StardewRenderState {
                 settings.labelSize, MISMATCH_LINE, 1.0f, true);
         }
         if (!renderLabels.on()) return;
-        // 字牌颜色不再取方框色：字牌样式统一跟随 UI 主题（见 PointLabelText，用户 2026-09-19）
-        renderLabel(renderer, StardewPointType.SEED_BOX, "种子箱", nearbyOnly);
-        renderLabel(renderer, StardewPointType.OUTPUT_BOX, "成品箱", nearbyOnly);
-        renderLabel(renderer, StardewPointType.WATER_SOURCE, "补水点", nearbyOnly);
-        renderLabel(renderer, StardewPointType.LAVA_BOX, "岩浆箱", nearbyOnly);
-        renderLabel(renderer, StardewPointType.BREATH_BOX, "龙息箱", nearbyOnly);
+        // 字牌颜色跟随各自的方框色（用户 2026-09-21：「不同颜色合理分配」）：
+        // 五个点位各传自己的颜色，与「区域字牌跟种植区域色」的口径一致
+        renderLabel(renderer, StardewPointType.SEED_BOX, "种子箱", renderSeedBox, nearbyOnly);
+        renderLabel(renderer, StardewPointType.OUTPUT_BOX, "成品箱", renderOutputBox, nearbyOnly);
+        renderLabel(renderer, StardewPointType.WATER_SOURCE, "补水点", renderWaterSource, nearbyOnly);
+        renderLabel(renderer, StardewPointType.LAVA_BOX, "岩浆箱", renderLavaBox, nearbyOnly);
+        renderLabel(renderer, StardewPointType.BREATH_BOX, "龙息箱", renderBreathBox, nearbyOnly);
         // 每块地头顶挂自己的作物名（颜色同「种植区域」那一项）
         for (StardewRegionManager.Region region : currentDimensionRegions()) {
             if (!nearPlayer(nearbyOnly, region)) continue;
@@ -341,9 +360,42 @@ public final class StardewRenderState {
         // （实机反馈「颜色太不明显」）；高度抬到框底上方 2.6 格，不再贴着地面（实机反馈「太低了」）。
         // 维度直接读在这块地自己的档上：区域按维度划分，站着看不出这块地属于哪个维度（实机反馈）。
         // 加粗（§l）同本模块其余世界文字（用户 2026-09-19：「所有的点位模块都要字体加粗」）。
-        renderer.text("§l区域 " + region.index() + " · " + region.cropName()
+        // 作物图标（用户 2026-09-22：「esp 点位也可以加一个农作物吗」）：挂在名字左侧，
+        // 「区域 N」与作物名都还在，只是多一张图，作物名字段与图同源（都读 region.cropKey()）。
+        CropDefinition crop = index.cropByKey(region.cropKey());
+        renderWorldLabel(renderer, "§l区域 " + region.index() + " · " + region.cropName()
                 + " · " + WorldIdentity.dimensionDisplayName(region.dimension()),
-            centerX, regionFrameY(region) + 2.6, centerZ, settings.labelSize, color, 1.0f, true);
+            crop == null ? null : textureOf(crop.iconModel()),
+            centerX, regionFrameY(region) + 2.6, centerZ, settings.labelSize, color.currentRgb());
+    }
+
+    /**
+     * 世界字牌（带可选图标）：有图标走「图标 + 文字」那份，没有就纯文字。
+     *
+     * <p>图标取不到不是错误（资源包里没有那张图 / 作物还没识别出来），字牌照画，只是没有图标。</p>
+     */
+    private void renderWorldLabel(EspRenderer renderer, String text, String iconTexture,
+                                  double x, double y, double z, float size, int color) {
+        if (iconTexture == null) {
+            renderer.text(text, x, y, z, size, color, 1.0f, true);
+            return;
+        }
+        renderer.textWithIcon(text, iconTexture, x, y, z, size, color, 1.0f, true);
+    }
+
+    /**
+     * 模型键 → 贴图资源路径（带运行期缓存）；解析不出来返回 {@code null}。
+     *
+     * <p>用空串当「查过了，没有」的哨兵：{@code computeIfAbsent} 的返回值不允许为 {@code null}，
+     * 而解析失败是常态（作物没识别出来、资源包里没这张图），必须缓存住这个结论。</p>
+     */
+    private String textureOf(String modelKey) {
+        if (modelKey == null || modelKey.isBlank()) return null;
+        String cached = iconTextures.computeIfAbsent(modelKey, key -> {
+            String texture = StardewPreview.textureOf(key);
+            return texture == null ? "" : texture;
+        });
+        return cached.isEmpty() ? null : cached;
     }
 
     /**
@@ -366,9 +418,16 @@ public final class StardewRenderState {
      * 就会偏向一侧——实机表现就是「字牌没居中」。这里按同一个并集算中心，字牌正对框中心。</p>
      *
      * <p>内容与样式按用户 2026-09-19 的口径：一律写「[世界]名字」（不带距离），由 {@link PointLabelText}
-     * 统一加粗、取主题强调色、带底板（唯一不写世界前缀的是自动农场那两个选点角，不在本类）。</p>
+     * 统一加粗、带底板（唯一不写世界前缀的是自动农场那两个选点角，不在本类）。</p>
+     *
+     * <p><b>颜色跟随各自的方框色</b>（用户 2026-09-21：「不同颜色合理分配」，并要求补水点为水蓝）：
+     * 字牌取 {@code option} 的当前 RGB（含彩虹），与 {@link #renderRegionLabel} 同一条口径——
+     * 于是「种子箱绿字 / 成品箱金字 / 补水点水蓝字 / 岩浆箱橙字 / 龙息箱紫字」一眼分得开。
+     * 之所以给覆盖色而不跟 UI 主题（旧口径）：三套内置主题的强调色都是蓝，五个字牌全一个颜色，
+     * 实机就是用户看到的「怎么都是蓝色」。</p>
      */
-    private void renderLabel(EspRenderer renderer, StardewPointType type, String text, boolean nearbyOnly) {
+    private void renderLabel(EspRenderer renderer, StardewPointType type, String text, RenderOption option,
+                             boolean nearbyOnly) {
         StardewPointManager.StardewPoint p = pointManager.get(type);
         if (p == null || !p.inCurrentDimension()) return;
         if (!nearPlayer(nearbyOnly, p.pos().getX() + 0.5, p.pos().getY() + 0.5, p.pos().getZ() + 0.5)) return;
@@ -380,12 +439,14 @@ public final class StardewRenderState {
             centerX = (box.minX + box.maxX) * 0.5;
             centerZ = (box.minZ + box.maxZ) * 0.5;
         }
-        // 字牌样式统一走 PointLabelText（加粗 + 主题强调色 + 底板 + 居中），内容一律「[世界]名字」
+        // 字牌样式统一走 PointLabelText（加粗 + 底板 + 居中），颜色取本点位自己的方框色（含彩虹）
         // —— 用户 2026-09-19 定稿：「全都要标上，除了那两个农场的选点区域之外都要标上」+「距离不要了」，
         // 星露谷这边五个点位没有例外项（种植区域字牌另算，它是「区域 N · 作物 · 维度」，不是点位）
+        // 图标（用户 2026-09-22：「esp 点位也可以加一个农作物吗」）：点位类型 → 代表物品 → 贴图，
+        // 映射只在 StardewPointType#iconItemId() 里写一次，控制台卡片与这里同源
         double labelY = p.pos().getY() + 1.4;
         PointLabelText.containerLabel(renderer, text, p.dimension(), centerX, labelY, centerZ,
-            settings.labelSize);
+            settings.labelSize, option.color().currentRgb(), textureOf(type.iconItemId()));
     }
 
     /** 本维度的已绑定洒水器点位（预览层只取玩家附近那些） */
@@ -400,29 +461,93 @@ public final class StardewRenderState {
     }
 
     /**
-     * 洒水器覆盖半径：等级 1~4 → 半径 1 / 1 / 2 / 3。
+     * 洒水器覆盖框：<b>物品说明的真实覆盖优先</b>，没学到时用点位实测（下限），两者都没有才退回等级估算的方形。
      *
-     * <p>口径来自服务器资料《星露谷物语游戏攻略》洒水器表（初级 1 / 二级 1 / 三级 2 / 四级 3），
-     * 与资源包无关（资源包里没有范围字段）。<b>不能写成「半径 = 等级」</b>：那会让 2~4 级各多算一圈
-     * （二级 5×5、三级 7×7、四级 9×9），就是实机看到的「覆盖范围偏大」。等级未知时保守取 1。</p>
+     * <p>物品说明来自服务器（「工作范围 5 * 5」），真机试验确认过它就是真实覆盖
+     * （见 {@link #coverageRange}）；实测数的是湿盆，盆群铺得比能力小就只是下限，
+     * 但它能在没有物品说明的服务器上给出实证范围。</p>
+     */
+    private AABB sprinklerCoverageBox(BlockPos pos) {
+        StardewPointManager.StardewPoint point = StardewPointActions.findSprinkler(pointManager, pos);
+        String identity = point == null ? null : point.identity();
+        int[] range = coverageRange(identity, point == null ? null : point.measuredCoverage());
+        if (range != null) {
+            return SprinklerEspRenderer.coverageBox(pos, range[0], range[1], range[2], range[3]);
+        }
+        return SprinklerEspRenderer.coverageBox(pos, sprinklerRadiusAt(pos));
+    }
+
+    /**
+     * 覆盖范围的<b>定版口径</b>（不含等级兜底），按可信度取第一个有结论的：
      *
-     * <p>只用于渲染观察，绝不参与任何决策（补水 / 维护判定一律走点位与资源包身份）。</p>
+     * <ol>
+     *   <li><b>物品说明</b>（{@link StardewSprinklerRangeStore}）：服务器自己下发的「工作范围 A * B」，
+     *       就是这台洒水器的<b>真实覆盖</b>；</li>
+     *   <li><b>点位实测</b>（{@link SprinklerCoverage}）：世界里数湿盆得来的，是<b>下限</b>——
+     *       它只能在「盆已经铺到」的地方证明浇到了，盆群比能力小就永远测不出真范围；</li>
+     * </ol>
+     *
+     * <p><b>口径怎么定下来的</b>（真机 2026-09-21 04:2x，用户亲手做试验）：先在 13×13 的边角放盆、
+     * 等清晨洒水，<b>远处的盆确实湿了</b> —— 说明「工作范围 13 * 13」是真实覆盖，而实测的
+     * {@code 5×5 · 湿盆 24 格} 只是「盆群只有 5×5 大」造成的下限。前后两次口径翻转的教训见
+     * {@code 160-复盘}：说明里的数字要先当成<b>待验证的声明</b>，再用一次最小试验定语义，
+     * 不要凭「看起来太大」直接否掉。</p>
+     *
+     * @param identity 洒水器逻辑键（{@code customcrops:sprinkler_1}）；{@code null} = 身份未知
+     * @param measured 该点位的实测结论；{@code null} = 没测过 / 换服后已失效
+     * @return {@code {dxMin, dxMax, dzMin, dzMax}}（相对洒水器那一格，含 0）；两个来源都没有返回 {@code null}
+     */
+    public static int[] coverageRange(String identity, SprinklerCoverage measured) {
+        int[] stated = StardewSprinklerRangeStore.rangeOf(identity);
+        if (stated != null) return stated;
+        if (measured != null) {
+            return new int[]{measured.dxMin(), measured.dxMax(), measured.dzMin(), measured.dzMax()};
+        }
+        return null;
+    }
+
+    /** 方形范围（物品说明优先、等级兜底）：洒水器预览没有点位，只能用身份级来源 */
+    private static int[] statedOrLevelRange(String identity, int level) {
+        int[] stated = StardewSprinklerRangeStore.rangeOf(identity);
+        if (stated != null) return stated;
+        int radius = radiusOfLevel(level);
+        return new int[]{-radius, radius, -radius, radius};
+    }
+
+    /**
+     * 洒水器覆盖半径（等级估算）：初级 5×5 / 中级 9×9 / 高级 13×13（半径 2 / 4 / 6）。
+     *
+     * <p><b>口径（2026-09-21 用户实机取证，本服「季明月种植」包的物品说明）：</b>
+     * 初级「工作范围 5 * 5」、中级「9 * 9」、高级「13 * 13」——边长 = 4n+1，即半径 = 2n。
+     * 旧表「1 / 1 / 2 / 3」抄的是《星露谷物语》原版攻略，与本服 customcrops 配置差一圈到三圈，
+     * 实机表现就是覆盖框画小了（初级按 3×3 画、实际 5×5），而且实测总「顶到扫描边界」。</p>
+     *
+     * <p>四级按同一边长等差外推 17×17（半径 8）；本服资源包里没有这一档，等级越界一律夹到端点上，
+     * 绝不因为一个脏数据画出一个荒唐的大框。等级未知时取最小的一档（初级 5×5）。</p>
+     *
+     * <p>只在<b>没有实测结论</b>时使用（见 {@link #sprinklerCoverageBox(BlockPos)}），
+     * 以及分区覆盖率统计的兜底；绝不参与任何决策（补水 / 维护判定一律走点位与资源包身份）。</p>
+     */
+    public static int radiusOfLevel(int level) {
+        return switch (Math.max(1, Math.min(4, level))) {
+            case 1 -> 2;
+            case 2 -> 4;
+            case 3 -> 6;
+            default -> 8;
+        };
+    }
+
+    /**
+     * 某一格已绑定洒水器的覆盖半径（等级估算）：按资源包给出的等级序号查表，认不出身份时取最小的一档。
+     *
+     * <p>只有<b>没有实测结论</b>的洒水器会走到这里（见 {@link #sprinklerCoverageBox(BlockPos)}）。</p>
      */
     private int sprinklerRadiusAt(BlockPos pos) {
         StardewPointManager.StardewPoint point = StardewPointActions.findSprinkler(pointManager, pos);
-        if (point == null || point.identity() == null) return 1;
+        if (point == null || point.identity() == null) return radiusOfLevel(1);
         return index.entryByKey(point.identity()) instanceof SprinklerDefinition def
             ? radiusOfLevel(def.sprinklerIndex())
-            : 1;
-    }
-
-    /** 等级 → 覆盖半径（半径 r 含中心格，即 (2r+1)×(2r+1)）；分区覆盖率统计复用同一份口径 */
-    public static int radiusOfLevel(int level) {
-        return switch (level) {
-            case 3 -> 2;
-            case 4 -> 3;
-            default -> 1;
-        };
+            : radiusOfLevel(1);
     }
 
     /**
@@ -433,12 +558,10 @@ public final class StardewRenderState {
      */
     private void renderNearbyPreview(EspRenderer renderer, StardewPointActions.NearbySprinkler nearby) {
         if (isBound(nearby.pos())) return;
-        int radius = radiusOfLevel(nearby.definition().sprinklerIndex());
+        int[] range = statedOrLevelRange(nearby.definition().key(), nearby.definition().sprinklerIndex());
         BlockPos pos = nearby.pos();
-        AABB box = new AABB(
-            pos.getX() - radius, pos.getY(), pos.getZ() - radius,
-            pos.getX() + radius + 1.0, pos.getY() + 1.0, pos.getZ() + radius + 1.0);
-        renderer.box(box, PREVIEW_SIDE, PREVIEW_LINE, ShapeMode.Lines, LINE_THICKNESS);
+        renderer.box(SprinklerEspRenderer.coverageBox(pos, range[0], range[1], range[2], range[3]),
+            PREVIEW_SIDE, PREVIEW_LINE, ShapeMode.Lines, LINE_THICKNESS);
         renderer.blockBox(pos.getX(), pos.getY(), pos.getZ(),
             PREVIEW_CENTER, PREVIEW_CENTER, ShapeMode.Lines, LINE_THICKNESS);
     }

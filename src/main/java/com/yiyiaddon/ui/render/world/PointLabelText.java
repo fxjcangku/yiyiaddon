@@ -11,10 +11,13 @@ import net.minecraft.world.level.Level;
  *
  * <p>用户 2026-09-19 的几条指令合起来定下这里的三件事：</p>
  * <ol>
- *   <li><b>字体加粗、带背景、跟随主题色</b>：「字体加粗背景参考星露谷农场的…跟随我的主题颜色同步切换」——
+ *   <li><b>字体加粗、带背景</b>：「字体加粗背景参考星露谷农场的…」——
  *       字牌统一走 {@code §l} 加粗（{@link MinecraftText} 会切到粗体字族，测量与绘制都认），
- *       颜色取当前 UI 主题的<b>强调色</b> {@link ClickGuiThemeColors#accent}（换主题当帧即变，不需要重启；
+ *       颜色默认取当前 UI 主题的<b>强调色</b> {@link ClickGuiThemeColors#accent}（换主题当帧即变，不需要重启；
  *       不是主文字色 —— 那是近白，会让六类字牌全变白，见 {@link #label} 的说明），
+ *       调用点给了覆盖色时用覆盖色（用户 2026-09-21 起本类<b>所有</b>调用点都传：有方框的模块传各自的
+ *       方框色、只画字牌的自动附魔传点位自己的颜色，见
+ *       {@link #containerLabel(EspRenderer, String, String, double, double, double, float, int)}），
  *       底板走渲染器的 {@code shadow=true}（与星露谷字牌同一条绘制路径）；</li>
  *   <li><b>内容：一律「[世界]名字」</b>：用户 2026-09-19 定稿「全都要标上」+「[主世界]点位名字 距离不要了」
  *       —— 六个模块里凡是要画字牌的点位（自动挖矿三点、自动附魔六点、星露谷五点、村民交易两点、
@@ -55,9 +58,18 @@ public final class PointLabelText {
     /**
      * 带覆盖色的点位字牌：{@code colorOverride} 非 0 时用它，否则跟随界面主题强调色。
      *
-     * <p><b>谁会传覆盖色</b>：自动附魔那六个点位是「只画字牌、不画方框」的对象，字牌是这个设置项
-     * 唯一能影响的东西 —— 不传就成了一条点了没反应的死设置。因此那边传点位自己的颜色
-     * （{@link EspColor#currentRgb()}，含彩虹）。有方框的模块一律不传，颜色设置管框、字牌跟主题。</p>
+     * <p><b>谁会传覆盖色</b>（用户 2026-09-21 之后是<b>全部</b>点位模块，一条口径「字牌颜色 = 它自己
+     * 那一类的颜色设置」）：</p>
+     * <ul>
+     *   <li>有方框的五个模块（星露谷农场五点、自动农场四箱、自动挖矿三点、村民交易两箱、自动箱子）：
+     *       传各自的方框色。星露谷那处是 2026-09-21「不同颜色合理分配」的直接产物；
+     *       此前一律跟主题强调色，而三套内置主题的强调色都是蓝，实机表现就是「怎么都是蓝色」；</li>
+     *   <li>自动附魔六个点位：「只画字牌、不画方框」的对象，字牌是这个设置项唯一能影响的东西 ——
+     *       不传就成了一条点了没反应的死设置。</li>
+     * </ul>
+     *
+     * <p>{@code colorOverride == 0} 的回落路径（跟主题强调色）仍在，供以后新增的模块选择「不与方框同色」
+     * 时使用；本版没有任何调用点走它。</p>
      */
     public static void containerLabel(EspRenderer renderer, String name, String dimensionKey,
                                       double x, double y, double z, float size, int colorOverride) {
@@ -69,6 +81,36 @@ public final class PointLabelText {
                                       double x, double y, double z, float size) {
         containerLabel(renderer, name, dimension == null ? null : dimension.identifier().toString(),
             x, y, z, size);
+    }
+
+    /** 同 {@link #containerLabel(EspRenderer, String, String, double, double, double, float, int)}，维度给 {@code ResourceKey<Level>} */
+    public static void containerLabel(EspRenderer renderer, String name, ResourceKey<Level> dimension,
+                                      double x, double y, double z, float size, int colorOverride) {
+        containerLabel(renderer, name, dimension == null ? null : dimension.identifier().toString(),
+            x, y, z, size, colorOverride);
+    }
+
+    /**
+     * 带图标的点位字牌：图标画在文字左侧，「图标 + 文字」整体居中于锚点。
+     *
+     * <p>用户 2026-09-22：「esp 点位也可以加一个农作物吗」——点位字牌从此带一张代表自己的贴图
+     * （种子箱画种子、成品箱画作物…，映射见 {@code StardewPointType#iconItemId()}）。</p>
+     *
+     * @param iconTexture 贴图资源路径（如 {@code minecraft:textures/item/wheat.png}）；
+     *                    为空 / 取不到时退化成纯文字字牌，字牌本身不会因此消失
+     */
+    public static void containerLabel(EspRenderer renderer, String name, String dimensionKey,
+                                      double x, double y, double z, float size, int colorOverride,
+                                      String iconTexture) {
+        label(renderer, text(name, dimensionKey), x, y, z, size, colorOverride, iconTexture);
+    }
+
+    /** 同 {@link #containerLabel(EspRenderer, String, String, double, double, double, float, int, String)}，维度给 {@code ResourceKey<Level>} */
+    public static void containerLabel(EspRenderer renderer, String name, ResourceKey<Level> dimension,
+                                      double x, double y, double z, float size, int colorOverride,
+                                      String iconTexture) {
+        containerLabel(renderer, name, dimension == null ? null : dimension.identifier().toString(),
+            x, y, z, size, colorOverride, iconTexture);
     }
 
     /**
@@ -119,10 +161,25 @@ public final class PointLabelText {
      */
     private static void label(EspRenderer renderer, String text, double x, double y, double z, float size,
                               int colorOverride) {
+        label(renderer, text, x, y, z, size, colorOverride, null);
+    }
+
+    /**
+     * 统一绘制（带可选图标）：加粗 + 覆盖色 / 主题强调色 + 满不透明 + 底板，锚点即框中心。
+     *
+     * @param iconTexture 字牌左侧的贴图资源路径；{@code null} 即纯文字字牌
+     */
+    private static void label(EspRenderer renderer, String text, double x, double y, double z, float size,
+                              int colorOverride, String iconTexture) {
         if (renderer == null || text == null || text.isEmpty()) return;
         int color = colorOverride != 0 ? (colorOverride & 0xFFFFFF)
             : (ClickGuiThemeColors.current().accent & 0xFFFFFF);
         // §l = 加粗（MinecraftText 的测量与绘制都认这个码）；先 strip 再拼，保证颜色不被色码盖掉
-        renderer.text("§l" + MinecraftText.strip(text), x, y, z, size, color, 1f, true);
+        String line = "§l" + MinecraftText.strip(text);
+        if (iconTexture == null || iconTexture.isBlank()) {
+            renderer.text(line, x, y, z, size, color, 1f, true);
+            return;
+        }
+        renderer.textWithIcon(line, iconTexture, x, y, z, size, color, 1f, true);
     }
 }

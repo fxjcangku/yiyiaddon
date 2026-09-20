@@ -12,6 +12,7 @@ import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingSegmented;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
@@ -47,6 +48,8 @@ public final class StardewRegionListScreen extends PanelScreen {
             addField("§7区域", "§8暂未划分");
         } else {
             for (StardewRegionManager.Region region : regions) {
+                // 图标先取好再喂给行：行每帧都会向 Supplier 取图标，供应商里不能做资源解析
+                ItemStack icon = module.cropIcon(region.cropKey());
                 content().add(new CompactRow("§f" + label(region), () -> hint(region),
                     new SettingSegmented(List.of("换作物", "删除"), index -> {
                         if (index == 0) {
@@ -55,7 +58,7 @@ public final class StardewRegionListScreen extends PanelScreen {
                             module.removeRegion(region.index());
                             rebuild();
                         }
-                    })));
+                    })).icon(() -> icon));
             }
         }
 
@@ -81,8 +84,10 @@ public final class StardewRegionListScreen extends PanelScreen {
                 if (client == null) return;
                 if (failure != null) {
                     // 没换成（地里还有作物 / 区域档写不进去）：原因摆到屏幕中间，聊天里也有一份，
-                    // 别让人以为「点了没反应」（与启动自检同一套面板与配色）
-                    client.gui.setScreen(ConfirmPanelScreen.notice("星露谷农场 · 没换成",
+                    // 别让人以为「点了没反应」（与启动自检同一套面板与配色）。
+                    // 用原地版：点掉后回本列表继续看/继续换，而不是把整个界面一起关掉回游戏
+                    // （用户 2026-09-22：「二次确认之后就直接关闭 ui 了」这一类的收尾口径）
+                    client.gui.setScreen(ConfirmPanelScreen.noticeInPlace("星露谷农场 · 没换成",
                         "§7这块地还没清出来：", List.of(failure), this));
                     return;
                 }
@@ -108,8 +113,9 @@ public final class StardewRegionListScreen extends PanelScreen {
 
     private void confirmClearAll() {
         if (minecraft == null) return;
-        // 清空后回到上一层（控制台会重建正文），避免本页留着一排已经删掉的区域
-        minecraft.gui.setScreen(new ConfirmPanelScreen("清空全部种植区域",
+        // 原地版确认窗：确认后回控制台（它 init() 会重建正文），而不是把整个界面关掉回游戏
+        // —— 用户 2026-09-22：「二次确认之后就直接关闭 ui 了，不应该到模块设置页面吗」
+        minecraft.gui.setScreen(ConfirmPanelScreen.inPlace("清空全部种植区域",
             List.of("§f将删除当前服务器已划分的全部种植区域",
                 "§7地里的作物不会被挖掉，只是这些地不再被管理",
                 "",

@@ -68,7 +68,7 @@ public final class MiningPointPage {
     private static final String NAME_CONTAINER_TEXT_SCALE = "容器标签字号倍率";
     private static final String DESC_CONTAINER_TEXT_SCALE = "矿物箱/食物箱头顶文字在「ESP 字号倍率」之上再乘的系数（默认 1.0）";
     private static final String NAME_CONTAINER_TEXT_COLOR = "容器标签文字颜色";
-    private static final String DESC_CONTAINER_TEXT_COLOR = "默认跟随界面主题色（强调色）；设了就用这个颜色";
+    private static final String DESC_CONTAINER_TEXT_COLOR = "默认跟随各自方框色（矿物箱金、食物箱绿）；设了就用这个颜色";
 
     // ── 「显示与颜色」里挖掘进度 ESP 三行（用户 2026-09-18 追加，独立开关 + 两个颜色） ──
 
@@ -267,13 +267,13 @@ public final class MiningPointPage {
     /**
      * 容器标签文字颜色：调色板改的是本行自带的临时载体，关窗时按「与打开时不同」判改动再写设置。
      *
-     * <p><b>为什么要判改动</b>：设置项 {@code 0} 表示「跟随界面主题色」（默认；字牌颜色每帧取主题强调色，
-     * 换主题同步切换）。
+     * <p><b>为什么要判改动</b>：设置项 {@code 0} 表示「跟随各自方框色」（默认；字牌颜色每帧取该点位
+     * 方框的当前色，改方框色即改字色，用户 2026-09-21）。
      * 调色板关窗一定会回调，若照点位行那样无条件写盘，「点开看一眼再关掉」就会把跟随态钉成固定色
      * —— 那不是用户的操作意图。</p>
      *
-     * <p>跟随态下色块显示矿物箱当前的颜色（{@code settings.renderMineralBox}），作为「此刻文字主色」
-     * 的可视锚点（两个容器颜色不同，单一色块只能取其中一个代表）。</p>
+     * <p>跟随态下色块显示矿物箱当前的颜色（{@code settings.renderMineralBox}），作为「跟随态」的可视
+     * 锚点 —— 它与画面上矿物箱字牌同色（两个容器颜色不同，单一色块只能取其中一个代表）。</p>
      */
     private ConsoleRow containerTextColorRow() {
         MiningSettings settings = module.settings();

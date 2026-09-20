@@ -41,7 +41,7 @@ import net.minecraft.world.phys.Vec3;
  * 但实现里 {@code renderLabel} 只调 {@code event.renderer.box(...)}，收下的 {@code text} 参数仅用于
  * 判颜色（{@code text.contains("绿宝石")}），从未绘制文字（旧 {@code :51-81} 实测）。本次按用户要求
  * 补上字牌：两个箱子都是容器，写「[世界]名字」，样式统一走 {@link PointLabelText}
- * （加粗 + UI 主题色 + 底板，用户 2026-09-19：「跟随我的主题颜色同步切换」），字号取设置的「字牌大小」。</p>
+ * （加粗 + 该箱自己的方框色 + 底板，用户 2026-09-21 起），字号取设置的「字牌大小」。</p>
  *
  * <p><b>另一处登记差异</b>：旧实现 {@code event.renderer.box(..., ShapeMode.Lines, 0)} 的线宽传 0
  * （旧框架内部固定线宽）；本项目 {@code EspRenderer} 的线宽参与计算，传 0 会因像素宽为 0 而整框不画，
@@ -121,13 +121,15 @@ public final class ContainerESP {
         EspColor color = object.color;
         renderer.box(box, color.argb(), color.argb(), object.mode, LINE_THICKNESS);
 
-        // 字牌：两个箱子都是容器，写「[世界]名字」（共用件 PointLabelText：加粗 + 主题强调色 +
-        // 底板，用户 2026-09-19）；锚点取实际画出来的框中心（大箱子居中在并集框中心），
-        // 字号取设置的「字牌大小」
+        // 字牌：两个箱子都是容器，写「[世界]名字」（共用件 PointLabelText：加粗 + 底板，用户 2026-09-19）；
+        // 锚点取实际画出来的框中心（大箱子居中在并集框中心），字号取设置的「字牌大小」；
+        // 颜色取本箱自己的方框色（用户 2026-09-21：「不同颜色合理分配」——绿宝石箱绿字、成品交易箱青字），
+        // 与星露谷 / 自动农场 / 自动附魔的字牌同一条口径
         double centerX = (box.minX + box.maxX) * 0.5;
         double centerZ = (box.minZ + box.maxZ) * 0.5;
         double labelY = pos.getY() + 1.4;
-        PointLabelText.containerLabel(renderer, label, dimension, centerX, labelY, centerZ, settings.labelSize);
+        PointLabelText.containerLabel(renderer, label, dimension, centerX, labelY, centerZ, settings.labelSize,
+            color.currentRgb());
     }
 
     /**

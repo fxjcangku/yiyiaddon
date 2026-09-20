@@ -17,6 +17,7 @@ import com.yiyiaddon.feature.stardew.config.StardewSettings;
 import com.yiyiaddon.feature.stardew.logistics.StardewLogisticsStore;
 import com.yiyiaddon.feature.stardew.memory.FarmMemoryStore;
 import com.yiyiaddon.feature.stardew.plan.StardewCropPlanStore;
+import com.yiyiaddon.feature.stardew.point.SprinklerCoverage;
 import com.yiyiaddon.feature.stardew.point.StardewPointActions;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
@@ -24,6 +25,7 @@ import com.yiyiaddon.feature.stardew.profile.StardewCropNameStore;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.SprinklerDefinition;
+import com.yiyiaddon.feature.stardew.profile.StardewSprinklerRangeStore;
 import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
 import com.yiyiaddon.feature.stardew.recognition.CropRuntimeStateResolver;
 import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
@@ -32,6 +34,7 @@ import com.yiyiaddon.feature.stardew.render.StardewRenderState;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonBinding;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
+import com.yiyiaddon.feature.stardew.selector.StardewPreview;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectionBinding;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
@@ -46,6 +49,7 @@ import com.yiyiaddon.feature.stardew.ui.StardewResourcePanelPage;
 import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.identity.ItemIdentifier;
+import com.yiyiaddon.platform.player.WalkSpeedBoost;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
@@ -84,6 +88,12 @@ public final class StardewFarmModule extends Module {
     private static final String PREVIEW_LAYER_ID = MODULE_ID + "-preview";
     /** 事件订阅所有者标识 */
     private static final String EVENT_OWNER = "module.stardew";
+
+    /** 「工作范围」自学专用订阅键：与模块开关解耦（模块停机时也要学），单独一个 owner 便于日后单独退订 */
+    private static final String RANGE_OBSERVE_OWNER = "module.stardew.range-observe";
+
+    /** 模块对象只会被创建一次，这里再保一道险：重复构造不会挂上第二个 tick 订阅 */
+    private static boolean rangeObserveSubscribed;
 
     /** 图标字形：拖拉机（Material Symbols agriculture，已确认存在于所引字体） */
     private static final String ICON = "\uEA79";
@@ -196,6 +206,14 @@ public final class StardewFarmModule extends Module {
         startupCheck = new StardewStartupCheck(this);
         seasonBinding = new StardewSeasonBinding(this);
         statusCard = new StardewStatusCard(this);
+
+        // 洒水器「工作范围」自学：常驻订阅，<b>不受模块开关影响</b> —— 摆台 / 绑定通常发生在停机状态，
+        // 挂在 onEnable 的 tick 上就会漏掉那一段（见 StardewSprinklerRangeStore）。
+        if (!rangeObserveSubscribed) {
+            rangeObserveSubscribed = true;
+            ClientEventBus.subscribe(RANGE_OBSERVE_OWNER, ClientEventType.TICK,
+                event -> pointActions.observeSprinklerRanges());
+        }
 
         statusReporter.setChatEnabled(() -> true);
         startupCheck.applyStatusHints();
@@ -429,6 +447,8 @@ public final class StardewFarmModule extends Module {
         pointManager.invalidate();
         // 学到的作物中文名同样按 ServerKey + 指纹隔离：切服只清内存视图，磁盘档案保留
         StardewCropNameStore.reset();
+        // 自学到的洒水器「工作范围」同理（物品说明里读来的，按 ServerKey + 指纹分档）
+        StardewSprinklerRangeStore.reset();
         // 区域数据同样按服务器隔离：切服 / 断线后清空内存视图，磁盘文件保留
         regionManager.invalidate();
         boolean wasSelecting = regionSelector.isActive();
@@ -473,6 +493,10 @@ public final class StardewFarmModule extends Module {
         // 旧 onRender3D / onRender2D 的世界渲染层：启用时注册、关闭时注销
         WorldOverlay.register(MODULE_ID, renderState::render);
         syncRangePreview();
+        // 走路提速（用户 2026-09-21：「自动挖矿的加速…加到星露谷农场 一比一复刻」，指明是走路加速）：
+        // 用的就是挖矿那份瞬态移速修饰符（同一实现、同一 id，见 WalkSpeedBoost），档位也一致。
+        // 必须在启动自检之前挂上：自检可能把模块自己关掉，那种情况下 onDisable 才摘得干净。
+        WalkSpeedBoost.apply();
 
         forceStopPending = false;
         startupStopPending = false;
@@ -569,6 +593,8 @@ public final class StardewFarmModule extends Module {
         syncRangePreview();
         // 选区模式属于运行中的会话状态：停机即丢弃半成品，避免下次开启时残留上一次的角
         regionSelector.cancel(true);
+        // 走路提速用的瞬态移速修饰符：停机摘掉，玩家身上不留本模块的任何加成
+        WalkSpeedBoost.clear();
 
         boolean forcedStop = forceStopPending || startupStopPending;
         coordinator.reset();
@@ -695,6 +721,10 @@ public final class StardewFarmModule extends Module {
 
         if (!isEnabled()) return;
 
+        // 走路提速补挂：服务端每次同步属性包都会冲掉客户端的瞬态修饰符（已经挂着就直接返回）。
+        // 放在所有提前 return 之前，保证「模块开着就一直有这份移速」。
+        WalkSpeedBoost.apply();
+
         // 启动自检的「世界数据未就绪」复核：区块 / 容器方块实体还没到客户端时，这一拍不进入运行循环
         // （coordinator 也还没按通过态装配），等复核结果决定启动还是拦下。
         if (startupCheck.tickWorldPending()) return;
@@ -806,6 +836,95 @@ public final class StardewFarmModule extends Module {
     /** 清空全部洒水器点位 */
     public void clearSprinklerPoints() {
         pointActions.clearSprinklerPoints();
+    }
+
+    /**
+     * {@code .stardew 实测范围}：对当前维度全部已绑定洒水器实测一次覆盖范围并落盘。
+     *
+     * <p>做法与依据见 {@link SprinklerCoverage}：围着洒水器数湿盆，反推真实范围。测不出来的那几台
+     * 保持原结论（渲染与统计退回物品说明 / 等级估算），绝不猜一个数字写成「实测」。</p>
+     */
+    public void measureSprinklerCoverage() {
+        pointManager.load(StardewContext.serverKey());
+        List<StardewPointManager.StardewPoint> bound = pointManager.getInCurrentDimension(StardewPointType.SPRINKLER);
+        if (bound.isEmpty()) {
+            CommandMessageFormatter.of(MODULE_NAME, "洒水器覆盖范围实测")
+                .field("原因", "当前维度还没有已绑定的洒水器")
+                .field("操作", "先对准洒水器执行 .stardew 添加洒水器")
+                .status(CommandMessageFormatter.Level.FAILURE, "未实测")
+                .send();
+            return;
+        }
+        CommandMessageFormatter card = CommandMessageFormatter.of(MODULE_NAME, "洒水器覆盖范围实测");
+        // 归属参照：本维度全部已绑定洒水器。一片田里湿盆连成一片，不按「离哪台最近」过滤的话，
+        // 隔壁那台浇的盆会算到自己头上（真机：三台洒水器的实测范围一模一样且都顶到扫描边界）。
+        List<net.minecraft.core.BlockPos> peers = new java.util.ArrayList<>();
+        for (StardewPointManager.StardewPoint point : bound) peers.add(point.pos());
+        int measured = 0;
+        int missing = 0;
+        for (StardewPointManager.StardewPoint point : bound) {
+            String line = "X" + point.x() + " Y" + point.y() + " Z" + point.z()
+                + " · " + (point.typeName() == null ? "洒水器" : point.typeName());
+            SprinklerCoverage coverage = SprinklerCoverage.capture(point.pos(), peers);
+            if (coverage == null) {
+                missing++;
+                card.raw(line + " ▸ " + StardewPointActions.coverageText(
+                    null, point.identity(), sprinklerLevel(point)));
+                continue;
+            }
+            pointManager.addSprinkler(point.withCoverage(coverage));
+            measured++;
+            // 对照一并报出来（物品说明优先、等级估算兜底）：这一行就是「实测到底对齐没对齐服务器声明」的答案
+            card.raw(line + " ▸ " + StardewPointActions.coverageText(
+                coverage, point.identity(), sprinklerLevel(point)));
+        }
+        boolean saved = pointManager.save(StardewContext.serverKey());
+        card.field("结果", "实测 " + measured + " 台 · 未测出 " + missing + " 台");
+        if (!saved) {
+            card.status(CommandMessageFormatter.Level.FAILURE, "点位文件写入失败，本次实测未保存");
+            card.send();
+            return;
+        }
+        card.field("说明", "实测范围已写入点位文件（实测只是下限，受盆群大小限制；画框按物品说明的真实范围）；随时可再测一次");
+        if (measured == 0) {
+            card.status(CommandMessageFormatter.Level.FAILURE, "一台都没测出").send();
+        } else if (missing > 0) {
+            card.status(CommandMessageFormatter.Level.WARNING, "部分实测").send();
+        } else {
+            card.status(CommandMessageFormatter.Level.SUCCESS, "已写入").send();
+        }
+    }
+
+    /**
+     * {@code .stardew 实测范围 清除}：删掉当前维度全部洒水器的实测结论，
+     * 覆盖范围退回物品说明（学到过就用它）/ 等级估算。
+     *
+     * <p>退路：实测被污染时（测的那一刻田里盆的干湿正好不可信）不用删掉点位重绑，清掉结论即可。</p>
+     */
+    public void clearSprinklerCoverage() {
+        pointManager.load(StardewContext.serverKey());
+        int cleared = 0;
+        for (StardewPointManager.StardewPoint point : pointManager.getInCurrentDimension(StardewPointType.SPRINKLER)) {
+            if (point.sprinklerCoverage() == null) continue;
+            pointManager.addSprinkler(point.withCoverage(null));
+            cleared++;
+        }
+        boolean saved = cleared > 0 && pointManager.save(StardewContext.serverKey());
+        CommandMessageFormatter card = CommandMessageFormatter.of(MODULE_NAME, "洒水器覆盖范围实测 ▶ 清除");
+        if (cleared == 0) {
+            card.field("说明", "当前维度没有已保存的实测结论，点位未做任何改动")
+                .status(CommandMessageFormatter.Level.INFO, "未改动").send();
+            return;
+        }
+        if (!saved) {
+            card.field("数量", cleared + " 台")
+                .status(CommandMessageFormatter.Level.FAILURE, "点位文件写入失败，未改动").send();
+            return;
+        }
+        card.field("数量", cleared + " 台")
+            .field("说明", "已清除实测结论；画框按物品说明的真实范围（学到过就用它），没学过才退等级估算"
+                + "；重新绑定或 .stardew 实测范围 可再次实测")
+            .status(CommandMessageFormatter.Level.SUCCESS, "已清除").send();
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -954,7 +1073,11 @@ public final class StardewFarmModule extends Module {
      * 一块区域的洒水器覆盖情况（只做信息展示，不拦启动、不进红灯）。
      *
      * <p>口径：只算<b>落在该区域内</b>的洒水器（区域外的洒水器不为这块地服务）；
-     * 覆盖率 = 区域内被这些洒水器方形范围盖到的格子占区域总格数的比例（只比 XZ）。</p>
+     * 覆盖率 = 区域内被这些洒水器范围盖到的格子占区域总格数的比例（只比 XZ）。</p>
+     *
+     * <p><b>来源按可信度：物品说明的真实覆盖优先。</b>学到过物品说明的洒水器按它声明的方形整块算；
+     * 没学到的用实测（只算真正被浇到的格，外接矩形里没浇到的不算）；两者都没有才按等级估算的方形算
+     * ——宁可某台按估算，也不拿实测的矩形虚报面积。</p>
      */
     public String regionSprinklerInfo(StardewRegionManager.Region region) {
         if (region == null) return "洒水器 0 台 · 覆盖 0%";
@@ -963,17 +1086,42 @@ public final class StardewFarmModule extends Module {
         for (StardewPointManager.StardewPoint point : pointManager.getAll(StardewPointType.SPRINKLER)) {
             if (!point.inCurrentDimension() || !region.contains(point.pos())) continue;
             machines++;
+            SprinklerCoverage measured = point.measuredCoverage();
+            // 物品说明（真实覆盖）：整块算
+            int[] range = StardewRenderState.coverageRange(point.identity(), null);
+            if (range != null) {
+                for (int dx = range[0]; dx <= range[1]; dx++) {
+                    for (int dz = range[2]; dz <= range[3]; dz++) {
+                        markCovered(covered, region, point.x() + dx, point.z() + dz);
+                    }
+                }
+                continue;
+            }
+            // 实测（下限）：只算真正被浇到的格
+            if (measured != null) {
+                for (int dx = measured.dxMin(); dx <= measured.dxMax(); dx++) {
+                    for (int dz = measured.dzMin(); dz <= measured.dzMax(); dz++) {
+                        if (measured.covered(dx, dz)) markCovered(covered, region, point.x() + dx, point.z() + dz);
+                    }
+                }
+                continue;
+            }
             int radius = StardewRenderState.radiusOfLevel(sprinklerLevel(point));
             for (int x = point.x() - radius; x <= point.x() + radius; x++) {
                 for (int z = point.z() - radius; z <= point.z() + radius; z++) {
-                    if (!region.containsXZ(x, z)) continue;
-                    covered.add(((long) x << 32) ^ (z & 0xFFFFFFFFL));
+                    markCovered(covered, region, x, z);
                 }
             }
         }
         int total = Math.max(1, region.cellCount());
         int percent = (int) Math.round(covered.size() * 100.0 / total);
         return "洒水器 " + machines + " 台 · 覆盖 " + Math.min(100, percent) + "%";
+    }
+
+    /** 记下一格「已被洒水器覆盖」；只记落在该区域 XZ 范围内的格（与覆盖率口径同源） */
+    private static void markCovered(java.util.Set<Long> covered, StardewRegionManager.Region region, int x, int z) {
+        if (!region.containsXZ(x, z)) return;
+        covered.add(((long) x << 32) ^ (z & 0xFFFFFFFFL));
     }
 
     /** 洒水器等级；查不到按 1（与渲染层保守取值一致） */
@@ -1012,11 +1160,45 @@ public final class StardewFarmModule extends Module {
         if (!regionManager.rebind(StardewContext.serverKey(), seq, cropKey, cropName)) {
             return "区域 " + seq + " 没换成（区域档写入失败，稍后再试一次）";
         }
+        // 「目标作物」与区域绑定是两处数据，换品种必须一起改，否则这块地会被跳过
+        // （启动提醒「区域 N（XX）绑的作物不在目标作物里」+ 任务规划直接跳过它）。
+        // 换品种是<b>真实替换</b>（用户 2026-09-21）：
+        //   新品种勾上；旧品种在「全服再没有任何区域绑它」时才取消勾选（换下去就不种了，留着只会一直
+        //   报「背包无XX种子」）；还有别的区域在用就一律保留。
+        String previousKey = region.cropKey();
+        boolean newlySelected = selections().crop().select(cropKey);
+        boolean dropped = previousKey != null && !previousKey.equals(cropKey) && !cropKeyInUse(previousKey)
+            && selections().crop().deselect(previousKey);
         // 运行中换品种要立刻生效：任务判定吃的是协调器手里那份区域快照，不重配就要等下次开模块
         if (isEnabled()) configureCoordinator(StardewContext.serverKey(), StardewContext.dimension());
         CommandMessageFormatter.of(MODULE_NAME, "区域 " + seq + " 已改种 " + cropName)
-            .status(CommandMessageFormatter.Level.SUCCESS, "范围不变，只换了品种").send();
+            .status(CommandMessageFormatter.Level.SUCCESS, replaceNote(newlySelected, dropped, region.cropName()))
+            .send();
         return null;
+    }
+
+    /** 换品种的副标题：把「勾了新品种 / 退了旧品种」如实说清，什么都没变就只报换品种本身 */
+    private static String replaceNote(boolean newlySelected, boolean dropped, String previousName) {
+        if (!newlySelected && !dropped) return "范围不变，只换了品种";
+        String note = newlySelected ? "已同步勾选到目标作物" : "";
+        if (dropped) {
+            note += (note.isEmpty() ? "" : "，") + previousName + "已无区域在用、同步取消勾选";
+        }
+        return note;
+    }
+
+    /**
+     * 当前服务器是否还有区域绑着这个品种（<b>跨维度查</b>）。
+     *
+     * <p>目标作物勾选是按服务器存的、不分维度，所以只要别的维度还有一块地绑着它，就不能退勾选；
+     * 混种区不绑品种，自然也不算。</p>
+     */
+    private boolean cropKeyInUse(String cropKey) {
+        if (cropKey == null || cropKey.isBlank()) return false;
+        for (StardewRegionManager.Region region : regionManager.all()) {
+            if (!region.mixed() && cropKey.equals(region.cropKey())) return true;
+        }
+        return false;
     }
 
     /** 按序号取当前服务器的区域；找不到返回 {@code null} */
@@ -1294,6 +1476,19 @@ public final class StardewFarmModule extends Module {
         return query.cropDisplayName(cropKey);
     }
 
+    /**
+     * 作物的图标物品栈（列表行 / 作物按钮上的那张图）。
+     *
+     * <p>图标模型键由 {@link CropDefinition#iconModel()} 统一给出（成熟产物优先、回退种子），
+     * 解析不出来返回 {@link ItemStack#EMPTY} —— 界面据此不画图标，而不是画一个黑紫缺失模型。</p>
+     *
+     * <p><b>调用方请预先取好再喂给行 / 按钮</b>：本方法要读资源包 JSON，逐帧调用会白吃帧预算。</p>
+     */
+    public ItemStack cropIcon(String cropKey) {
+        CropDefinition crop = index.cropByKey(cropKey);
+        return crop == null ? ItemStack.EMPTY : StardewPreview.of(crop.iconModel());
+    }
+
     /** 该 cropKey 是否属于当前服务器资源索引（指令前置校验用） */
     public boolean isKnownCrop(String cropKey) {
         return query.isKnownCrop(cropKey);
@@ -1518,7 +1713,10 @@ public final class StardewFarmModule extends Module {
                 "  §8> §3.stardew 绑定 种子箱 §8— §7准星对准种子箱",
                 "  §8> §3.stardew 绑定 成品箱 §8— §7准星对准成品箱",
                 "  §8> §3.stardew 绑定 补水点 §8— §7准星对准静止水源",
-                "  §8> §3.stardew 添加洒水器 [类型] §8— §7准星对准洒水器；认得出类型就自动绑定，认不出时写明类型（TAB 补全）",
+                "  §8> §3.stardew 添加洒水器 [类型] §8— §7准星对准洒水器；认得出类型就自动绑定，认不出时写明类型（TAB 补全）；"
+                    + "绑定成功会顺手实测一次覆盖范围",
+                "  §8> §3.stardew 实测范围 [清除] §8— §7围着已绑定的洒水器数湿盆，把实测结论写进点位文件当证据"
+                    + "（实测只是下限，受盆群大小限制；画框按物品说明的真实范围；清除 = 丢掉实测结论）",
                 "  §8> §3.stardew 移除洒水器 §8— §7准星对准要移除的洒水器",
                 "  §8> §3.stardew 移除 <点位> §8— §7删除单个已绑定点位",
                 "  §8> §3.stardew 状态 §8— §7查看当前农场完整状态",

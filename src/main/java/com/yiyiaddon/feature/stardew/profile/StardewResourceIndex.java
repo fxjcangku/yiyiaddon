@@ -40,8 +40,11 @@ public final class StardewResourceIndex {
      * <p>真机取证（jmy.seasonmc.xyz，2026-09-20）：{@code sprinkler_1} 是带 {@code elements} 的
      * 3D 方块模型（世界形态），{@code sprinkler_1_item} 才是 {@code item/generated} 的 2D 背包图。
      * 先前把前者当物品键，选择器里画的是方块模型，与背包里的真实物品对不上。</p>
+     *
+     * <p>公开给展示实体识别（{@code StardewPointActions}）复用：世界里的洒水器展示物挂的可能是两种
+     * 形态中的任一个，两边都按同一条「剥后缀」规则归一才能对上。</p>
      */
-    private static final String ITEM_FORM_SUFFIX = "_item";
+    public static final String ITEM_FORM_SUFFIX = "_item";
 
     private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/stardew");
 
@@ -719,13 +722,21 @@ public final class StardewResourceIndex {
      * {@code lentinus_lentinus_edodes}，而世界识别链给的是 {@code lentinus_edodes}——
      * 阶段清单与作物键对不上，表现为「这种作物没有真实阶段」。两处同源才可能对得上。</p>
      *
+     * <p><b>输入必须用 {@code modelId}，不能用 {@code modelName}（2026-09-21 修正）：</b>
+     * {@code modelName} 是「扁平逻辑名」，派发来源（{@code Kind.DISPATCH}）里它被刻意收敛成末段
+     * （{@code customcrops:item/crops/chinese_cabbage/stage_1} → {@code stage_1}），于是这里拼出
+     * {@code item/stage_1}、拿不到作物名，按规则如实返回 {@code null}，<b>整条阶段被丢掉</b>。
+     * 真机表现：包里的派发表明明有 {@code chinese_cabbage/stage_1..4}，诊断却报「2 种作物有真实阶段」，
+     * 其余 11 种作物在「标记成熟」时全被「找不到该作物的阶段证据」挡下。{@code modelId} 在三种来源里
+     * 都是完整模型键（{@code <ns>:item/…}、{@code <ns>:block/…}、派发的 {@code customcrops:item/…}），
+     * 派生结果与旧写法对前两种来源逐字相同，只补回派发来源丢掉的父目录。</p>
+     *
      * <p>三种资源形态都支持：{@code models/block/crop/tomato/stage_3}、
      * {@code models/item/crops/tomato/stage_3}、{@code items/tomato_stage_3.json}。
      * 不含 {@code _stage_} 的资源一律跳过。</p>
      */
     private static void collectStage(StardewResourceScanner.ScannedModel source, Map<String, List<String>> out) {
-        String prefix = source.kind() == StardewResourceScanner.Kind.BLOCK_MODEL ? "block/" : "item/";
-        String identityPath = BlockStateModelResolver.deriveIdentityPath(prefix + source.modelName());
+        String identityPath = BlockStateModelResolver.deriveIdentityPath(source.modelId());
         if (identityPath == null) return;
         String lower = identityPath.toLowerCase(Locale.ROOT);
         int idx = lower.indexOf("_stage_");
