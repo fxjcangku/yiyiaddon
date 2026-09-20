@@ -86,7 +86,10 @@ public final class ModuleManager {
 
         ClientEventBus.setFailureHandler(ModuleManager::onEventFailure);
         ClientEventBus.subscribe(RUNTIME_OWNER, ClientEventType.TICK, event -> tickAll(Minecraft.getInstance()));
-        ClientEventBus.subscribe(RUNTIME_OWNER, ClientEventType.JOIN_SERVER, event -> enablePending());
+        ClientEventBus.subscribe(RUNTIME_OWNER, ClientEventType.JOIN_SERVER, event -> {
+            enablePending();
+            enforceEnvironmentGate();
+        });
         ClientEventBus.subscribe(RUNTIME_OWNER, ClientEventType.DISCONNECT,
                 event -> EventDispatcher.clearPendingPackets());
 
@@ -238,6 +241,31 @@ public final class ModuleManager {
         }
     }
 
+    /** 进入世界后：把当前环境不允许运行的模块停机 */
+    private static void enforceEnvironmentGate() {
+        if (!GameProbe.isSingleplayer()) return;
+        for (Module module : List.copyOf(BY_ID.values())) {
+            if (!module.isEnabled()) continue;
+            String reason = environmentRefusalOf(module);
+            if (reason == null) continue;
+            // 环境暂停：状态文件保持「启用」不动（这是环境不允许，不是玩家关闭），
+            // 并登记等待——换到允许的环境（多人服务器）时由 enablePending 自动开回来
+            stop(module);
+            PENDING.add(module.id());
+            ClientChat.send(module.displayName(), reason);
+        }
+    }
+
+    /** 模块声明当前环境不允许运行时的原因；声明本身抛异常按「允许」处理 */
+    private static String environmentRefusalOf(Module module) {
+        try {
+            return module.environmentRefusal();
+        } catch (Throwable error) {
+            LOGGER.error("模块 {} 的环境判据异常", module.id(), error);
+            return null;
+        }
+    }
+
     // ── 开关 ──
 
     /** 启用结果 */
@@ -310,6 +338,14 @@ public final class ModuleManager {
             return EnableResult.FAILED;
         }
 
+        // 环境闸门：当前环境不允许运行的模块直接拒绝（如单人世界里的战术模块）。
+        // 走 BLOCKED（等待）而不是 FAILED：环境变回允许时由 enablePending 自动开回来
+        String refusal = environmentRefusalOf(module);
+        if (refusal != null) {
+            if (announce) ClientChat.send(module.displayName(), refusal);
+            return EnableResult.BLOCKED;
+        }
+
         List<String> problems = problemsOf(module);
         if (!problems.isEmpty()) {
             if (announce) {
@@ -359,10 +395,15 @@ public final class ModuleManager {
 
     /** 强制关闭：退订事件、回调 onDisable、写回状态；关闭回调异常不再向外扩散 */
     private static void forceDisable(Module module) {
+        stop(module);
+        persistEnabled(module, false);
+    }
+
+    /** 停机：退订事件、改内存状态、回调 onDisable；不碰状态文件（环境暂停用，见 enforceEnvironmentGate） */
+    private static void stop(Module module) {
         ModuleEventBridge.detach(module);
         module.applyEnabled(false);
         runSafely(module, "关闭", module::onDisable);
-        persistEnabled(module, false);
     }
 
     private static void persistEnabled(Module module, boolean enabled) {

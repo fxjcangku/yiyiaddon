@@ -7,6 +7,7 @@ import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
+import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingTextBox;
@@ -62,6 +63,15 @@ public final class EnchantCustomPage {
                 module.persistSettings();
                 owner.reload();
             }, "自定义附魔目标"))));
+
+        // 填写规则说明（用户 2026-09-20 要求：这一行下面要讲清「服务器里的自定义附魔怎么写」）。
+        // 判据出处：状态机 matchesEnchantmentTask / normalizeEnchantmentText，两种写法在匹配前都会归一。
+        // 配色：§7 标签 / §8 分隔符 / §a 可直接照抄的示例 / §6 提示 / §c 注意（与本项目控制台口径一致）
+        stack.add(new Note(owner, "§7格式 §8▸ §f一行一个目标：§a附魔名 §7空格 §a等级§f，例如 §a打雷 5"));
+        stack.add(new Note(owner, "§7等级 §8▸ §f阿拉伯数字或罗马数字都行，§aV§f、§aⅡ§f、§aⅤ §f都当成 §a5"));
+        stack.add(new Note(owner, "§7空格 §8▸ §f可有可无，两种都能识别，例如 §a打雷 5 §f与 §a打雷5 §8= §a永生 2 §f与 §a永生2"));
+        stack.add(new Note(owner, "§6提示 §8▸ §7不写等级时只按名字匹配（名字含该词条就算命中），容易误收，建议带上等级"));
+        stack.add(new Note(owner, "§c注意 §8▸ §7名字本身带数字（如 §c烈焰3型§7）必须用空格分开，否则结尾数字会被当等级"));
 
         for (String target : targets) {
             stack.add(new ConsoleRow(owner, () -> target, null, null,

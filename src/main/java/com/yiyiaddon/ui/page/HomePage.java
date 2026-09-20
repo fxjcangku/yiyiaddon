@@ -1007,13 +1007,22 @@ public final class HomePage extends BasePage {
         return !IDLE_STATES.contains(state);
     }
 
-    /** 网络地区：国名 + 一级行政区；与国名重名（港澳台）时只显示一次，无数据返回占位。 */
+    /**
+     * 网络地区：国名 + 一级行政区。三种情况只显示国名 —— 行政区未收录
+     * （{@link RegionNames#region(String)} 回 null，英文原名不上中文界面）、行政区与国名本是同一地
+     * （港澳台 / 新加坡，见 {@link #barePlace(String)}）、探测源没给出行政区。国名都取不到才用占位符。
+     */
     private static String regionLabel(String countryCode, String region) {
         String country = RegionNames.country(countryCode);
         String area = RegionNames.region(region);
         if (country == null) return area == null ? UNKNOWN : area;
-        if (area == null || area.equals(country)) return country;
+        if (area == null || barePlace(area).equals(barePlace(country))) return country;
         return country + " · " + area;
+    }
+
+    /** 去掉行政级别后缀后的名字：用来判断「台湾省 / 台湾」这类其实是同一个地方，避免重复显示。 */
+    private static String barePlace(String name) {
+        return name.replaceAll("(特别行政区|自治区|大区|省|市|区)$", "");
     }
 
     /**

@@ -94,6 +94,12 @@ public abstract class SkiaScreen extends Screen {
         // 此时已无备份可取，自动退化为空操作。
         ItemIconCache.getInstance().flushBackdrop();
         drawFrame(this.width, this.height, frameMouseX, frameMouseY, frameDelta);
+        // 这里<b>不能</b>再补一次写回：写回只能由面板绘制路径（SkiaGlBackend#begin → paintBackdrop）
+        // 在面板自己画之前完成。实测把写回挪到 drawFrame 之后，它会把上一帧备份（=面板自己的像素，
+        // 平均 (20,22,27)）重新糊在面板上面 —— 屏幕正中那块比周围明显更暗的方块，并逐帧加深
+        // (25→21→17→…→7，比值 0.83 正是玻璃透光率) 收敛到全黑。
+        // 用户 2026-09-22「选择器一打开，屏幕正中一块纯黑」就是这么来的。
+        // 换屏/关屏那两种收尾仍由本方法开头的跳过分支与 RenderTargetMixin 兜住。
     }
 
     /** 本帧的 Skija 绘制。canvas 已按 GUI Scale 缩放，坐标系为 GUI 逻辑坐标。 */

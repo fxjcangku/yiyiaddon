@@ -21,6 +21,7 @@ import com.yiyiaddon.feature.packetbreak.model.TargetMode;
 import com.yiyiaddon.feature.packetbreak.render.PacketBreakRenderer;
 import com.yiyiaddon.feature.packetbreak.ui.PacketBreakPage;
 import com.yiyiaddon.feature.tactical.core.TacticalCoordinator;
+import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.platform.container.InventoryAccess;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
@@ -89,8 +90,9 @@ import java.util.Set;
  *         （{@code MiningVeinMiner} / {@code WaterEscapeBreaker}）。</li>
  *     <li><b>生命周期</b>：旧 {@code GameJoinedEvent} / {@code GameLeftEvent}
  *         → {@link ClientEventType#JOIN_SERVER} / {@link ClientEventType#DISCONNECT}；
- *         旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}
- *         → {@link ModuleManager#setEnabledSilently(String, boolean)}（静默关，播报由本模块给出）。</li>
+ *         旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}（单人世界闸门）
+ *         → {@link Module#environmentRefusal()} 交给框架，启用与进世界两个时机都拦
+ *         （旧写法只拦「在单人世界里点开启」，拦不住在主菜单就先开启的模块）。</li>
  *     <li><b>播报</b>：旧基类 {@code notify / warning / notifyError} 与
  *         {@code highlightText / highlightNumber / highlightFunction} 的颜色码包装在本类内逐字保留，
  *         正文经 {@link ClientChat#send} 输出。</li>
@@ -329,17 +331,23 @@ public final class PacketInstantBreakModule extends Module implements TacticalCo
     // ── 生命周期 ──
 
     /**
-     * 旧 {@code onActivate}：单人世界自动关闭 → 冲突检测拒启 → 结束原版残留挖掘状态 → 清状态 → 启动报告。
+     * 单人世界闸门：旧 {@code onActivate} 的第一段（原因文案照旧）。
+     *
+     * <p>旧实现只拦「在单人世界里点开启」。本模块虽非默认开启，但玩家在主菜单（或进服前的
+     * 任意时刻）开启后进单人世界同样绕得过去，因此与本包其它环境受限模块统一交给框架的
+     * {@link Module#environmentRefusal()}，两个时机都拦。</p>
+     */
+    @Override
+    public String environmentRefusal() {
+        return GameProbe.isSingleplayer() ? "§c单人世界无需发包秒破" : null;
+    }
+
+    /**
+     * 旧 {@code onActivate}：冲突检测拒启 → 结束原版残留挖掘状态 → 清状态 → 启动报告
+     * （单人世界闸门已交给框架）。
      */
     @Override
     protected void onEnable() {
-        // 单人世界自动关闭（静默关，播报单独给出；旧实现靠 chatFeedback 抑制框架播报）
-        if (mc.hasSingleplayerServer()) {
-            ModuleManager.setEnabledSilently(MODULE_ID, false);
-            warning("§c单人世界无需发包秒破");
-            return;
-        }
-
         // 冲突检测：本项目自动挖矿的快速破坏（秒破）开启时拒启
         List<String> conflicts = collectConflicts();
         if (!conflicts.isEmpty()) {

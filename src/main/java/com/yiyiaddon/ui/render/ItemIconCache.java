@@ -4,6 +4,8 @@ import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.ColorAlphaType;
 import io.github.humbleui.skija.ColorSpace;
 import io.github.humbleui.skija.ColorType;
+import io.github.humbleui.skija.Data;
+import io.github.humbleui.skija.EncodedImageFormat;
 import io.github.humbleui.skija.Image;
 import io.github.humbleui.skija.ImageInfo;
 import io.github.humbleui.skija.SamplingMode;
@@ -30,7 +32,10 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -173,7 +178,9 @@ public final class ItemIconCache {
      */
     public void renderPending(GuiGraphicsExtractor graphics) {
         rendered.clear();
-        if (graphics == null || (pending.isEmpty() && pendingModels.isEmpty())) return;
+        if (graphics == null || (pending.isEmpty() && pendingModels.isEmpty())) {
+            return;
+        }
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null) {
             pending.clear();

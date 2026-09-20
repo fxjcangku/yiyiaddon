@@ -13,6 +13,7 @@ import com.yiyiaddon.feature.tactical.config.ServerDetectorSettings;
 import com.yiyiaddon.feature.tactical.core.ServerFingerprints;
 import com.yiyiaddon.feature.tactical.core.TacticalCoordinator;
 import com.yiyiaddon.feature.tactical.ui.ServerDetectorPage;
+import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.service.resourcepack.ResourcePackCache;
 import com.yiyiaddon.ui.page.ModulePage;
 import net.minecraft.client.Minecraft;
@@ -68,8 +69,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *         推进代次；本项目订阅顺序由启用时机决定（不保证），故把进服后的首次调度推迟一帧，
  *         等本次派发结束后再冻结 token，否则会冻到上一会话的代次并被 {@link #runScheduledDetection}
  *         立刻作废；</li>
- *     <li><b>单人世界自动关闭</b>：旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}
- *         → {@link ModuleManager#setEnabledSilently(String, boolean)}（静默关，播报由本模块给出）；</li>
+ *     <li><b>单人世界不可开启</b>：旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}
+ *         只写在 {@code onActivate} 里，本项目本模块默认开启、装配期（主菜单）就恢复启用，
+ *         那道闸门拦不住 → 改为 {@link Module#environmentRefusal()} 交给框架，启用与进世界两个时机都拦；</li>
  *     <li><b>资源包推送接管</b>：旧 {@code handleResourcePackPushFromVanilla(packet, sendPacket)}
  *         由旧 Mixin 调用 → 本类的
  *         {@link #handleResourcePackPush(UUID, String, String)}（模块拿不到包对象，改由框架层
@@ -216,17 +218,23 @@ public final class ServerDetectorModule extends Module {
 
     // ── 生命周期 ──
 
-    /** 旧 {@code onActivate}：单人世界自动关闭 + 进服后手动触发首轮侦测 */
+    /**
+     * 单人世界闸门：旧 {@code onActivate} 的第一段（原因文案照旧）。
+     *
+     * <p>旧实现只拦「在单人世界里点开启」——旧项目本模块默认关闭，玩家只能在世界里开启，所以拦得住。
+     * 本项目「服务器检测」默认开启（见 {@link #enabledByDefault()}），装配期在主菜单就恢复启用，
+     * 那时没有世界、这道判据必然通过，模块就这样开着进了单人世界。因此改由框架在两个时机统一执行，
+     * 见 {@link Module#environmentRefusal()}。</p>
+     */
+    @Override
+    public String environmentRefusal() {
+        return GameProbe.isSingleplayer() ? "§c单人世界无需检测" : null;
+    }
+
+    /** 旧 {@code onActivate}：进服后手动触发首轮侦测（单人世界闸门已交给框架） */
     @Override
     protected void onEnable() {
         TacticalCoordinator.addListener(coordinatorListener);
-
-        // 单人世界自动关闭（静默关，播报单独给出；旧实现靠 chatFeedback 抑制框架播报）
-        if (mc.hasSingleplayerServer()) {
-            ModuleManager.setEnabledSilently(MODULE_ID, false);
-            warning("§c单人世界无需检测");
-            return;
-        }
 
         // 资源包策略接管：注册进框架闸门，由 Mixin 在原版处理前询问（三种模式见 handleResourcePackPush）
         ResourcePackGate.register(MODULE_ID, this::handleResourcePackPush);

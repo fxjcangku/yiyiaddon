@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -93,6 +94,29 @@ public final class TacticalCoordinator {
 
     /** 最近一次拉回的时间戳 */
     private static volatile long lastRubberBandAt = 0L;
+
+    /**
+     * 传送落地锚点：最近一次「距离超过 10 格」的位置包目标，即刚落地的那个点。
+     *
+     * <p><b>为什么需要它</b>（2026-09-20 实机日志证据）：传送落地后，服务端会在若干秒内反复把玩家
+     * 按回落点——日志里 {@code /rtp} 落地为 {@code (-841.50, 68.00, 313.50)}，随后 6 秒内下发 45 个
+     * 位置包，目标**全部**是同一个落点，玩家每次只漂移 0.3~1.7 格（正常步行速度）。
+     * 这些纠正的目标与落点几乎重合，属于「服务端不让我离开落点」的传送余波，
+     * 不是「我移动过快被校验」的拉回；按拉回统计会直接把会话推成「拉回频繁 / 高风险」，
+     * 从而触发无关的绕过策略收紧。</p>
+     *
+     * <p>值对象（{@link Vec3} 不可变），不持有任何世界 / 实体引用。</p>
+     */
+    private static volatile Vec3 teleportAnchor;
+
+    /** 锚点建立时刻（毫秒） */
+    private static volatile long teleportAnchorAt = 0L;
+
+    /** 锚点抑制窗口：自传送落地起的这段时间内，目标仍在落点附近的纠正算传送余波 */
+    private static final long TELEPORT_SETTLE_MS = 15_000L;
+
+    /** 「仍在落点附近」的半径：按回落点的纠正目标与落点几乎重合，留 2 格容差 */
+    private static final double TELEPORT_ANCHOR_RADIUS = 2.0;
 
     /** 会话代次：进服/断线各加一，用于丢弃跨服迟到的检测结果 */
     private static volatile long sessionId = 0L;
@@ -353,6 +377,9 @@ public final class TacticalCoordinator {
         lastRubberBandAt = 0L;
         degradeLevel = 0;
         lastDegradeAdjustAt = 0L;
+        // 传送落点锚点同属会话内状态：跨服残留会把新会话开局的真拉回误当余波放过
+        teleportAnchor = null;
+        teleportAnchorAt = 0L;
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -368,24 +395,59 @@ public final class TacticalCoordinator {
      *
      * <p>真拉回与服务器传送的区分（距离阈值 10 格）与零位移过滤（1e-4）逐字照旧；
      * 距离由核心在收包瞬间（网络线程）算好，与旧实现同刻。</p>
+     *
+     * <p><b>换世界不算拉回</b>：跨维度传送与死亡重生前后，服务器会补发位置包，核心在收包瞬间
+     * 算距离时客户端玩家实体可能仍在旧世界，得到的是跨坐标系的无意义数值
+     * （跨世界 {@code /home} 落点与旧坐标数值相近时会落进 10 格阈值被误判）。
+     * 核心已按「登录 / 重生包之后的静默窗口」标明来源（{@link ServerPositionEvent#worldChange()}），此处直接放行。</p>
+     *
+     * <p><b>传送余波不算拉回</b>：落地之后服务端可能连着若干秒把玩家按回落点，
+     * 这些纠正的目标与落点几乎重合（见 {@link #teleportAnchor}），同样不登记。</p>
      */
     private static void onServerPosition(ClientEvent event) {
         ServerPositionEvent position = event.position();
         if (position == null) return;
         // 旧实现只处理玩家位置包（ClientboundPlayerPositionPacket），载具包不参与拉回判定
         if (position.vehicle()) return;
-        if (mc.player == null) return;
 
         double distance = position.playerDistance();
+
+        // 距离超过 10 格视为传送，不触发拉回处理；同时记下落点作为后续余波判据的锚点。
+        // 放在换世界放行之前：入口包后的落地同样要建立锚点，否则落地后的余波纠正会被误登记
+        if (distance > 10.0) {
+            markTeleportAnchor(position.position());
+            return;
+        }
+
+        // 换世界静默窗口内的位置包：不是反作弊拉回，不登记也不触发冷却
+        if (position.worldChange()) return;
+        if (mc.player == null) return;
 
         // 纯旋转/零位移同步不是拉回。
         if (distance < 1.0E-4) return;
 
-        // 距离超过 10 格视为传送，不触发拉回处理
-        if (distance > 10.0) return;
+        // 传送余波：目标仍在刚落地的锚点附近，是服务端把我按在落点，不是移动校验
+        if (isTeleportAftermath(position.position())) return;
 
         long packetSession = sessionId;
         recordRubberBand(packetSession);
+    }
+
+    /** 记录传送落点（距离超过 10 格的位置纠正 = 被传送到新位置） */
+    private static void markTeleportAnchor(Vec3 landing) {
+        teleportAnchor = landing;
+        teleportAnchorAt = System.currentTimeMillis();
+    }
+
+    /** 该纠正的目标是否落在刚落地点附近（传送余波）；锚点过期即自行清理 */
+    private static boolean isTeleportAftermath(Vec3 target) {
+        Vec3 anchor = teleportAnchor;
+        if (anchor == null) return false;
+        if (System.currentTimeMillis() - teleportAnchorAt > TELEPORT_SETTLE_MS) {
+            teleportAnchor = null;
+            return false;
+        }
+        return target.distanceTo(anchor) <= TELEPORT_ANCHOR_RADIUS;
     }
 
     /** 登记一次已分类的短距离服务端位置纠正。 */
