@@ -44,6 +44,21 @@ public final class MiningTeleportPage {
 
     /** 装配本页内容。 */
     public void build(CompactStack stack) {
+        build(stack, false);
+    }
+
+    /**
+     * 装配本页内容，可只装自用模式还要用的那几行。
+     *
+     * <p><b>为什么要有这个开关</b>（用户 2026-09-21：「开了自用模式隐藏 目标选择跟传送指令」）：
+     * 自用模式下本页整页隐藏，而它里面「前往挖矿指令 / RTP 两项 / 前往补给指令 / 死亡返回指令 /
+     * 传送等待时长 / RTP 冷却 / 传送失败重试」仍然是自用模式要用的，于是原样挂到「自用模式」页
+     * （见 {@code MiningPersonalPage}）。行代码不复制，只跳过自用模式用不到的两行：
+     * <b>返回卸货指令</b>（自用模式不卸货，挖满直接去卖）与<b>前往修复指令</b>（耐久的修复点不参与）。</p>
+     *
+     * @param personalRowsOnly {@code true} = 只装自用模式要用的行；顺序与整页一致
+     */
+    public void build(CompactStack stack, boolean personalRowsOnly) {
         MiningSettings settings = module.settings();
 
         stack.add(new ConsoleRow(owner, () -> "前往挖矿指令",
@@ -73,11 +88,13 @@ public final class MiningTeleportPage {
                         value -> settings.rtpGuiKeyword = value))));
         }
 
-        stack.add(new ConsoleRow(owner, () -> "返回卸货指令",
-            "传送到卸货箱的指令", null,
-            List.of(new Ctl(textBox(() -> settings.unloadCommand, value -> settings.unloadCommand = value)),
-                resetText("返回卸货指令", () -> DEFAULTS.unloadCommand,
-                    value -> settings.unloadCommand = value))));
+        if (!personalRowsOnly) {
+            stack.add(new ConsoleRow(owner, () -> "返回卸货指令",
+                "传送到卸货箱的指令", null,
+                List.of(new Ctl(textBox(() -> settings.unloadCommand, value -> settings.unloadCommand = value)),
+                    resetText("返回卸货指令", () -> DEFAULTS.unloadCommand,
+                        value -> settings.unloadCommand = value))));
+        }
 
         stack.add(new ConsoleRow(owner, () -> "前往补给指令",
             "传送到食物箱的指令", null,
@@ -85,11 +102,13 @@ public final class MiningTeleportPage {
                 resetText("前往补给指令", () -> DEFAULTS.supplyCommand,
                     value -> settings.supplyCommand = value))));
 
-        stack.add(new ConsoleRow(owner, () -> "前往修复指令",
-            "传送到挂机修补点", null,
-            List.of(new Ctl(textBox(() -> settings.afkCommand, value -> settings.afkCommand = value)),
-                resetText("前往修复指令", () -> DEFAULTS.afkCommand,
-                    value -> settings.afkCommand = value))));
+        if (!personalRowsOnly) {
+            stack.add(new ConsoleRow(owner, () -> "前往修复指令",
+                "传送到挂机修补点", null,
+                List.of(new Ctl(textBox(() -> settings.afkCommand, value -> settings.afkCommand = value)),
+                    resetText("前往修复指令", () -> DEFAULTS.afkCommand,
+                        value -> settings.afkCommand = value))));
+        }
 
         stack.add(new ConsoleRow(owner, () -> "死亡返回指令",
             "复活后返回挂机点", null,

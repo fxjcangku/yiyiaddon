@@ -104,6 +104,22 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
         private String title() {
             return title;
         }
+
+        /**
+         * 本页签在当前模式下是否出现（用户 2026-09-21：「我要每个模式互不干扰」「开了自用模式隐藏
+         * 目标选择跟传送指令」）。
+         *
+         * <p>自用模式把目标三选一、挖矿/补给/死亡那几行传送指令都收进了「自用模式」页，于是那两页
+         * 在自用模式下一并隐藏；关掉自用模式反过来隐藏「自用模式」页。这样每个设置项在任一模式下
+         * 只有一处落点，不会出现同一项两页各填一份、互相对旧值。</p>
+         */
+        private boolean visible(boolean personalMode) {
+            return switch (this) {
+                case PERSONAL -> personalMode;
+                case TARGET, TELEPORT -> !personalMode;
+                default -> true;
+            };
+        }
     }
 
     private final AutoMinerModule module;
@@ -198,6 +214,11 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
 
     /** 重建整页内容（取新状态条快照 + 重排当前页） */
     public void reload() {
+        // 模式切换会连带撤掉当前页签（自用模式开→没有「目标选择」，关→没有「自用模式」）：
+        // 先落到可见的兜底页，否则会停在一个页签条上已经没有入口的页上
+        if (!tab.visible(module.isPersonalMode())) {
+            tab = module.isPersonalMode() ? Tab.PERSONAL : Tab.OVERVIEW;
+        }
         // 重建会丢弃整棵控件树，而文本框的焦点是静态字段：不清就会留在已被丢弃的实例上，
         // 之后按键被它吞掉（值写进设置但界面既无光标也无字符）、IME 预编辑画进黑洞、
         // 第一次 ESC 只被它用来清焦点（表现为「输入框点了没反应、窗口还关不掉」）
@@ -235,8 +256,9 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
     // ── 页面装配 ──
 
     private void buildInto(CompactStack stack) {
-        // 顶栏：状态文字 / 快捷键徽章 / [自用模式开关] / 模块开关，压缩右对齐
-        // （用户 2026-09-17 口径；模块页那条已撤掉。附加件是用户 2026-09-20 要的「启用开关旁边的自用模式开关」）
+        // 顶栏：状态文字 / 快捷键徽章 / 模块开关 / [自用模式开关]，压缩右对齐
+        // （用户 2026-09-17 口径；模块页那条已撤掉。附加件是用户 2026-09-20 要的「启用开关旁边的自用模式开关」，
+        //  2026-09-21 定在启用开关右边）
         stack.add(new ConsoleHeaderBar(module, personalSwitch));
         stack.add(new StatusStrip());
         buildTabs(stack);
@@ -255,8 +277,10 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
     }
 
     private void buildTabs(CompactStack stack) {
+        boolean personal = module.isPersonalMode();
         List<Ctl> tabs = new ArrayList<>();
         for (Tab value : Tab.values()) {
+            if (!value.visible(personal)) continue;
             boolean active = value == tab;
             Button button = new Button(active ? "§b§l" + value.title() : "§7" + value.title(),
                 () -> switchTab(value));
@@ -314,11 +338,10 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
             });
         }
 
-        /** 自用模式「出售物品」格：跟随目标时标明跟随，手选时回显那一件（名字或 ID 都认，不按 ID 硬解析） */
+        /** 自用模式「出售物品」格：目标在当前采集模式下的产物；推导不出来时直接显示纠错那句话 */
         private static String sellItemName(AutoMinerModule module) {
-            String name = module.getSellItemDisplayName();
-            if (name.isEmpty()) return "§8未指定";
-            return module.settings().personalSellFollowsTarget() ? "§7跟随§f" + name : name;
+            String notice = module.sellItemNotice();
+            return notice != null ? notice : module.getSellItemDisplayName();
         }
 
         private static String blank(String text) {

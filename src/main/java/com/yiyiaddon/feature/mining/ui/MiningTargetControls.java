@@ -15,10 +15,10 @@ import java.util.function.Supplier;
 /**
  * 「目标选择 / 物品管理」两组的共享控制层。
  *
- * <p>唯一使用方是控制台「目标选择」页 {@code MiningTargetPage}（{@code 目标选择} 与
- * {@code 物品管理} 两组都在那一页）：设置名、说明文案、状态文字口径、候选剔除空气的表达式、
- * ↻ 的清空语义、采集模式切换后的失效与同步全部收拢在这里，页面只保留「行容器」构造
- * （{@code ConsoleRow}），不持有任何状态。</p>
+ * <p>使用方两个：控制台「目标选择」页 {@code MiningTargetPage}（整页），以及「自用模式」页
+ * {@code MiningPersonalPage}（该模式下「目标选择」页隐藏，那一页整页挂过去）。设置名、说明文案、
+ * 状态文字口径、候选剔除空气的表达式、↻ 的清空语义、采集模式切换后的失效与同步全部收拢在这里，
+ * 页面只保留「行容器」构造（{@code ConsoleRow}），不持有任何状态。</p>
  *
  * <p>（历史：本类抽出前，配置页 {@code AutoMinerPage} 与控制台各写一份同逻辑的行，改一处漏一处；
  * 2026-09-16 配置页精简为只留入口与点位卡片，配置页那份已随之下线。）</p>
@@ -161,19 +161,29 @@ public final class MiningTargetControls {
      * <p>目标候选集合不在切换时缓存：每次打开选择器都按当前模式重算。控制台页额外触发整页重建，
      * 让「共 N 项」与新同步出来的目标立刻反映在行上。</p>
      *
-     * <p>若自用模式手选的「出售物品」在新模式下已经掉不出来（如精准采集挖石头掉石头、卖不到圆石），
-     * {@code syncTargetsOnModeSwitch} 会顺手把它纠成会掉的那一件并回一句文案，这里弹渐入渐出提示框
-     * 让用户看得见（扫过场就懂自己设置被改了，也可以再改回去）。</p>
+     * <p><b>纠错</b>（用户 2026-09-21：「纠错呢 功能呢」「精准采集挖石头就变成石头了」）：切模式是系统
+     * 动作 —— 卖的东西会跟着变（目标石头：非精准掉圆石、精准掉石头本身），这里弹一句渐入渐出提示
+     * 把新值念出来；新模式下要卖的那件拿不到手上时（目标落在水、岩浆这类没有物品形态的方块上），
+     * 弹的是纠错那句。两个判据与行上、状态条、启动自检读同一处（{@code AutoMinerModule}）。</p>
      */
     public void pickLootMode(int index) {
         if (index < 0 || index >= LootMode.values().length) return;
+        String before = module.getSellItemDisplayName();
         module.settings().lootMode = LootMode.values()[index];
         overworldOreTotal = -1;
         netherOreTotal = -1;
-        String notice = module.syncTargetsOnModeSwitch();
+        module.syncTargetsOnModeSwitch();
         module.persistSettings();
         if (afterModeSwitch != null) afterModeSwitch.run();
-        if (notice != null) TooltipLayer.notify(notice);
+        String notice = module.sellItemNotice();
+        if (notice != null) {
+            TooltipLayer.notify(notice);
+            return;
+        }
+        String after = module.getSellItemDisplayName();
+        if (!before.equals(after)) {
+            TooltipLayer.notify("§e采集模式已切换 §8▸ 卖的东西跟着变成「§f" + after + "§8」");
+        }
     }
 
     /** 选中矿石产物；空串 = 未选择（旧 {@code ItemSetting} 的 {@code Items.AIR} 默认值语义） */

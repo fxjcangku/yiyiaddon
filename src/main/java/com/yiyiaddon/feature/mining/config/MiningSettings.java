@@ -185,7 +185,14 @@ public final class MiningSettings {
     // 自用模式 = 「挖够就自己去卖掉」：挖满触发组数（或背包先满）时不卸货，改走
     // 「回主城 → 寻路到收购 NPC → 发包交互一键出售 → 回子服 → 继续 RTP 挖」这条流程。
     // 除「不要求绑定矿物箱 / 挂机修复点」「挖满后不去卸货而去出售」两点外，其余一切照旧
-    // （目标选择、秒破、连锁、丢弃、补给、死亡处理都走同一套既有实现）。
+    // （秒破、连锁、丢弃、补给、死亡处理都走同一套既有实现）。
+    //
+    // 页面口径（用户 2026-09-21）：模式决定页签集合 —— 自用模式打开时只留「自用模式」页
+    // （目标三选一、挖矿/补给/死亡传送、出售链都在这一页），「目标选择」「传送指令」两页隐藏；
+    // 关闭时反过来，「自用模式」页隐藏。两组设置各自只有一处落点，不会互相干扰。
+    //
+    // 出售物品不单独设项：直接跟随目标三选一（选什么就卖什么，选石头没开精准就卖圆石），
+    // 见 AutoMinerModule#expectedSellItem()。
     //
     // 全程静默：所有菜单（快捷菜单 / 传送神兽 / 市场出售）都只读 player.containerMenu 的槽位、
     // 发包点击，界面一个都不弹（见 AutoMinerModule#onOpenScreen 的门控）。
@@ -193,17 +200,7 @@ public final class MiningSettings {
     /** 自用模式｜打开后：不要求绑定矿物箱与挂机修复点，挖够就走去出售，其余设置与流程照旧 */
     public boolean personalMode = false;
 
-    /**
-     * 自用出售物品｜存物品 ID（如 {@code minecraft:diamond}），留空 = <b>跟随目标选择页</b>。
-     *
-     * <p>用户 2026-09-20：「至于出售物品那些自动联动目标选择器 我选什么就显示出售什么」——
-     * 留空时实际拿去卖的就是目标选择页选中的那一个目标（时运列掉落物、精准列原矿物品），
-     * 所以默认状态下不可能填错。只有服务器另收别的方块（如圆石）时才手选一个覆盖它，
-     * 走 {@link #personalSellItem()} 取实际值。</p>
-     */
-    public String personalSellTarget = "";
-
-    /** 触发组数｜背包里自用出售矿石达到多少组就出发去卖（默认 20，取值域 1~36） */
+    /** 触发组数｜背包里自用出售物品达到多少组就出发去卖（默认 20，取值域 1~36） */
     public int personalSellStacks = 20;
 
     /** 出售流程指令｜打开流程菜单的指令（默认 /cd；该菜单里既回主城也跨服传送） */
@@ -254,32 +251,6 @@ public final class MiningSettings {
 
     /** 回程目标服的两个勾选项（服务器只有这两个子服，界面按这两个名字出互斥勾选框） */
     public static final List<String> PERSONAL_RETURN_SERVERS = List.of("生存世界#1", "资源世界#1");
-
-    // ── 自用出售物品的派生取值（纯读，三处显示与两个消费方共用同一口径） ──
-
-    /**
-     * 自用模式「出售物品」的原始取值：手选优先，留空取目标选择页选中的那一个目标（<b>原始目标</b>）。
-     *
-     * <p>跟随顺序与状态条「目标」格一致（<b>三选一</b>，模块自检保证最多只有一个非空）：
-     * 主世界矿石 → 下界矿石 → 普通方块。配置记录只回显这个原始值。</p>
-     *
-     * <p><b>真正拿去过滤背包的是 {@code AutoMinerModule#sellItemFilter()}</b>：它在跟随状态下还会把目标
-     * 按当前采集模式推导成<b>实际产物</b>（非精准采集挖石头掉圆石，精准才是石头本身），
-     * 否则「跟随石头」会一颗都数不到。</p>
-     *
-     * @return 手选值（可能是物品名，匹配层两种都认）或跟随到的目标 ID；两者都空则空串
-     */
-    public String personalSellItem() {
-        if (personalSellTarget != null && !personalSellTarget.isBlank()) return personalSellTarget.trim();
-        if (!overworldOreTarget.isBlank()) return overworldOreTarget;
-        if (!netherOreTarget.isBlank()) return netherOreTarget;
-        return blockTarget == null ? "" : blockTarget.trim();
-    }
-
-    /** 自用出售物品是否处于「跟随目标」状态（没手选） */
-    public boolean personalSellFollowsTarget() {
-        return personalSellTarget == null || personalSellTarget.isBlank();
-    }
 
     // ━━━ 秒破（旧项目 :433-452） ━━━
 
@@ -590,7 +561,6 @@ public final class MiningSettings {
 
         // 自用模式（用户 2026-09-20 追加；全部是新键，老存档缺项一律保留默认值，不需要迁移）
         json.addProperty("personalMode", personalMode);
-        json.addProperty("personalSellTarget", personalSellTarget);
         json.addProperty("personalSellStacks", personalSellStacks);
         json.addProperty("personalSellCommand", personalSellCommand);
         json.addProperty("personalSellCityKeyword", personalSellCityKeyword);
@@ -692,7 +662,6 @@ public final class MiningSettings {
         loadList(json, "placeBlocks", placeBlocks);
 
         personalMode = boolOf(json, "personalMode", personalMode);
-        personalSellTarget = stringOf(json, "personalSellTarget", personalSellTarget);
         personalSellStacks = clamp(intOf(json, "personalSellStacks", personalSellStacks), 1, 36);
         personalSellCommand = stringOf(json, "personalSellCommand", personalSellCommand);
         personalSellCityKeyword = stringOf(json, "personalSellCityKeyword", personalSellCityKeyword);

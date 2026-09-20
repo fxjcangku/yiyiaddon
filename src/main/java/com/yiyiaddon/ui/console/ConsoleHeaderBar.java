@@ -10,7 +10,7 @@ import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 
 /**
- * 控制台顶栏：一横排压缩件 —— <b>[状态圆点 + 状态文字] [快捷键徽章] [模块开关]</b>，整排右对齐。
+ * 控制台顶栏：一横排压缩件 —— <b>[状态圆点 + 状态文字] [快捷键徽章] [模块开关] [附加件]</b>，整排右对齐。
  *
  * <p><b>用户 2026-09-17 口径（两次拍板合并）</b>：
  * 「按钮开关 能不能移动到控制台里面？所有包含控制台的模块」「右上角居中」「未启用这些 还有快捷键设置的
@@ -25,12 +25,12 @@ import io.github.humbleui.skija.Canvas;
  * 快捷键徽章仍是 {@link KeybindBadge}（点一下录制 / 已绑定时点一下清空，第 214 条）；
  * 开关仍是 {@link ConsoleModuleSwitch}（44×24、走 {@code ModuleManager}）。</p>
  *
- * <p><b>右对齐排布</b>：从右边界内缩 {@link #PAD_X} 起往左排 —— 开关 → 快捷键徽章 → 状态文字
- * （圆点在文字左侧），件与件之间留 {@link #GAP}。绘制矩形与命中矩形用同一组 x 算式，不会错位。</p>
+ * <p><b>右对齐排布</b>：从右边界内缩 {@link #PAD_X} 起往左排 —— 附加件 → 开关 → 快捷键徽章 →
+ * 状态文字（圆点在文字左侧），件与件之间留 {@link #GAP}。绘制矩形与命中矩形用同一组 x 算式，不会错位。</p>
  *
- * <p><b>可选附加件</b>（用户 2026-09-20）：构造时可以传一个 {@link Extra}，它画在<b>模块开关左侧</b>
- * （即「紧挨着启用开关」的位置）——自动挖矿控制台用它挂「自用模式」开关。不传时布局与命中
- * 与从前逐像素一致（其它 8 个控制台都是这条路径）。</p>
+ * <p><b>可选附加件</b>（用户 2026-09-20）：构造时可以传一个 {@link Extra}，它画在<b>最右端</b>
+ * （即模块开关的右侧，「启用」开关挨在它左边）——自动挖矿控制台用它挂「自用模式」开关。
+ * 不传时布局与命中与从前逐像素一致（其它 8 个控制台都是这条路径）。</p>
  */
 public final class ConsoleHeaderBar implements CompactElement {
 
@@ -38,10 +38,14 @@ public final class ConsoleHeaderBar implements CompactElement {
     public static final float HEIGHT = 24f;
 
     /**
-     * 可选附加件：画在模块开关左侧，需自报宽度（顶栏按它把右侧整组往左推）。
+     * 可选附加件：画在最右端（模块开关右侧），需自报宽度（顶栏按它把右侧整组往左推）。
      *
      * <p>自报宽度而不是让顶栏猜：附加件内部可能是「文字 + 开关」这种组合件，
      * 只有它自己知道要占多宽。</p>
+     *
+     * <p><b>命中要自己判</b>：{@link #onClick} 收到的坐标就是自己那一格的矩形，
+     * 落在格子外必须返回 {@code false} —— 顶栏按顺序问下来，吞掉不属于自己的点击
+     * 会把右边的件（徽章 / 模块开关）点不动（2026-09-21 实机踩过）。</p>
      */
     public interface Extra extends CompactElement {
         /** 需要的横向宽度（不含与相邻件之间的 {@link #GAP}） */
@@ -70,7 +74,7 @@ public final class ConsoleHeaderBar implements CompactElement {
     }
 
     /**
-     * @param extra 附加件（画在模块开关左侧）；传 {@code null} 等价于单参构造
+     * @param extra 附加件（画在最右端）；传 {@code null} 等价于单参构造
      */
     public ConsoleHeaderBar(Module module, Extra extra) {
         this.module = module;
@@ -96,16 +100,17 @@ public final class ConsoleHeaderBar implements CompactElement {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float centerY = y + HEIGHT / 2f;
 
-        // 从右往左：开关 → [附加件] → 快捷键徽章 → 状态文字（圆点在文字左侧）
-        float switchLeft = switchX(x, width);
-        moduleSwitch.drawAt(canvas, switchLeft, centerY, alpha);
-
-        float cursor = switchLeft - GAP;
+        // 从右往左：附加件 → 开关 → 快捷键徽章 → 状态文字（圆点在文字左侧）
+        float cursor = x + width - PAD_X;
         if (extra != null) {
             float extraWidth = extra.width();
             extra.draw(canvas, cursor - extraWidth, y, extraWidth, alpha, mouseX, mouseY);
             cursor -= extraWidth + GAP;
         }
+        float switchLeft = cursor - moduleSwitch.width();
+        moduleSwitch.drawAt(canvas, switchLeft, centerY, alpha);
+
+        cursor = switchLeft - GAP;
         if (keybind.active()) {
             float badgeX = cursor - keybind.width();
             keybind.draw(canvas, badgeX, centerY - KeybindBadge.HEIGHT / 2f, alpha, mouseX, mouseY);
@@ -126,17 +131,19 @@ public final class ConsoleHeaderBar implements CompactElement {
     @Override
     public boolean onClick(float mx, float my, float x, float y, float width, int button) {
         float centerY = y + HEIGHT / 2f;
-        float switchLeft = switchX(x, width);
         // 命中与绘制共用同一条「从右往左」的 cursor 递推：额外算一套独立算式迟早会差一个 GAP
         // （2026-09-20 自查发现：接附加件时曾写成 switchLeft - GAP - extrasWidth()，附加件为 null
         //  时比绘制侧多减了一个 GAP，徽章热区左移 12px）
-        float cursor = switchLeft - GAP;
+        float cursor = x + width - PAD_X;
         if (extra != null) {
             float extraWidth = extra.width();
             if (extra.onClick(mx, my, cursor - extraWidth, y, extraWidth, button)) return true;
             cursor -= extraWidth + GAP;
         }
+        float switchLeft = cursor - moduleSwitch.width();
         if (moduleSwitch.onClickAt(mx, my, switchLeft, centerY, button)) return true;
+
+        cursor = switchLeft - GAP;
         if (!keybind.active()) return false;
         return keybind.onClick(mx, my, cursor - keybind.width(), centerY - KeybindBadge.HEIGHT / 2f);
     }
@@ -144,10 +151,5 @@ public final class ConsoleHeaderBar implements CompactElement {
     @Override
     public boolean onDrag(float mx, float my, float x, float y, float width) {
         return false;
-    }
-
-    /** 开关左边界；绘制与命中共用。 */
-    private float switchX(float x, float width) {
-        return x + width - PAD_X - moduleSwitch.width();
     }
 }

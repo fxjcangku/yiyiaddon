@@ -3,7 +3,6 @@ package com.yiyiaddon.feature.mining.ui.console;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.config.MiningSettings;
 import com.yiyiaddon.feature.mining.ui.MiningConsoleScreen;
-import com.yiyiaddon.feature.mining.ui.MiningRegistry;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleHeaderBar;
@@ -13,39 +12,42 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.render.MinecraftText;
-import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
-import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingText;
 import com.yiyiaddon.ui.widget.SettingTextBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
 import io.github.humbleui.skija.Canvas;
-import net.minecraft.client.Minecraft;
 
 import java.util.List;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 /**
- * 自动挖矿控制台「自用模式」页（用户 2026-09-20 需求）。
+ * 自动挖矿控制台「自用模式」页（用户 2026-09-20 需求，2026-09-21 重排）。
  *
- * <p><b>本页只装「挖够就自己去卖掉」这一条链的设置</b>：卖什么、攒多少组触发、走哪几个菜单、
- * 找哪个 NPC、每步等多久。除本页外，自用模式与普通模式完全共用同一套设置与流程（目标选择、秒破、
- * 连锁、丢弃、补给、死亡处理、Baritone 调优都在各自页签里，<b>一项都不复制</b>）。</p>
+ * <p><b>自用模式下本页是这个模式的唯一落点</b>（用户 2026-09-21：「我要每个模式互不干扰」
+ * 「开了自用模式隐藏 目标选择跟传送指令」）：控制台按模式换页签集合 —— 打开自用模式只留本页，
+ * 「目标选择」与「传送指令」两页隐藏，而它们里面自用模式还要用的内容<b>原样挂到本页</b>
+ * （直接调那两页的装配方法，一行都不复制）；关掉自用模式反过来隐藏本页
+ * （见 {@code MiningConsoleScreen.Tab#visible}）。</p>
  *
- * <p><b>模式开关在顶栏</b>（{@link ModeSwitch}，挂在模块开关左侧）：用户 2026-09-20 口径
+ * <p><b>本页装什么</b>：① 出售物品（只读回显）+ 触发组数；② 「目标选择」页整页（采集模式、三个单值目标、
+ * 物品管理三个名单）；③ 「传送指令」页里自用模式要用的行（前往挖矿指令、RTP 两项、前往补给指令、
+ * 死亡返回指令、传送等待时长、RTP 冷却、传送失败重试）；④ 出售链本身（流程指令、菜单关键词、
+ * 回程目标服、收购 NPC、卡顿重试）。</p>
+ *
+ * <p><b>出售物品不单独设项</b>（用户 2026-09-21：「选择出售方块为什么可以选择？我说同步选择器」）：
+ * 它就是目标三选一在当前采集模式下的产物（选石头没开精准采集，卖的就是圆石），只读回显，
+ * 「填错」这种状态不存在。</p>
+ *
+ * <p><b>模式开关在顶栏</b>（{@link ModeSwitch}，挂在模块开关右侧）：用户 2026-09-20 口径
  * 「在启用开关旁边的加一个自用模式的开关」；页内不再放第二份开关（同一开关两处出现必然互相对旧值，
  * 与「设置项只出现一次」的项目口径冲突）。</p>
  *
  * <p><b>与其它页同源</b>：文本行是 {@link SettingTextBox}，数值行是带加减的
- * {@link SettingNumberBox}（用户明确要「带加减选择框」），选择器行照「目标选择」页那一套
- * （{@code 点击选择 + 当前值 + ↻}），行构件与行高全部来自 {@link ConsoleWidgets}，
- * 每个可改行都带行内 ↺（第 214 条：空态禁用）。</p>
- *
- * <p><b>出售物品留空 = 跟随目标选择页</b>（用户 2026-09-20：「至于出售物品那些自动联动目标选择器
- * 我选什么就显示出售什么 这样子就不会错了」）：留空时卖的就是目标页选中的那一个目标，天然与正在挖的矿
- * 同源；服务器另收别的方块（如圆石）时点「点击选择」手选一个覆盖它，↻ 清空即回到跟随。</p>
+ * {@link SettingNumberBox}（用户明确要「带加减选择框」），选择器行与采集模式行、传送行全部来自
+ * 各自原页的装配方法，行构件与行高来自 {@link ConsoleWidgets}，每个可改行都带行内 ↺（第 214 条：空态禁用）。</p>
  */
 public final class MiningPersonalPage {
 
@@ -55,9 +57,6 @@ public final class MiningPersonalPage {
 
     /** 出售物品的状态列宽：与行内文本框同档，文字更长时由 {@link SettingText} 自己截断 */
     private static final float SELL_ITEM_STATE_WIDTH = 210f;
-
-    /** 选择器行的「点击选择」按钮（逐字与「目标选择」页一致） */
-    private static final String SELECT_LABEL = "点击选择";
 
     /** NPC 坐标取值域：与方块坐标同一档（-3000 万 ~ 3000 万） */
     private static final double COORD_MIN = -30000000;
@@ -80,11 +79,11 @@ public final class MiningPersonalPage {
 
         stack.add(new Note(owner, "§7§l自用模式 §8（顶栏「自用模式」开关打开后生效）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        stack.add(new Note(owner, "§8打开后：不要求绑定矿物箱与挂机修复点，挖满触发组数（或背包先满）就去卖；", null,
+        stack.add(new Note(owner, "§8挖满触发组数（或背包先满）就回城卖掉再回子服接着挖；只绑食物箱，"
+            + "矿物箱与挂机修复点不需要", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        stack.add(new Note(owner, "§8其余设置与流程照旧（目标选择、秒破、连锁、丢弃、补给都不变）。", null,
-            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        stack.add(new Note(owner, "§8「出售物品」默认跟随目标选择页：你在目标页选什么就卖什么，不会卖错；", null,
+        stack.add(new Note(owner, "§8本页是这个模式的全部设置：目标三选一、挖矿与补给的传送、出售链。"
+            + "该模式用不到的页签已隐藏", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
         stack.add(sellItemRow());
@@ -95,6 +94,16 @@ public final class MiningPersonalPage {
                     value -> settings.personalSellStacks = value)),
                 resetInt("触发组数", () -> DEFAULTS.personalSellStacks,
                     value -> settings.personalSellStacks = value))));
+
+        stack.add(new Note(owner, "§7§l目标 §8（自用模式下「目标选择」页隐藏，这里就是那一页）", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        // 整页挂过来：采集模式、三个单值目标、物品管理三个名单 —— 名单在自用模式下同样要能改
+        new MiningTargetPage(owner, module).build(stack);
+
+        stack.add(new Note(owner, "§7§l传送 §8（自用模式下「传送指令」页隐藏；"
+            + "卸货与挂机修复那两行本模式用不到，已略过）", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        new MiningTeleportPage(owner, module).build(stack, true);
 
         stack.add(new Note(owner, "§7§l出售流程 §8（全程静默：不弹界面、不抢鼠标）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
@@ -197,77 +206,28 @@ public final class MiningPersonalPage {
     // ── 行构件 ──
 
     /**
-     * 出售物品行：<b>留空 = 跟随目标选择页</b>（用户 2026-09-20：「自动联动目标选择器 我选什么就
-     * 显示出售什么 这样子就不会错了」），需要卖服务器另收的方块（如圆石）时点「点击选择」自己挑一个。
+     * 出售物品行：<b>图标 + 名字，只读</b>（用户 2026-09-21：「出售物品下面不用带选择器懂？我目标选择器
+     * 选择了什么 出售物品那一栏就出现选择的方块或者加图标名字就行了 而不是刷新按钮跟目标选择器」）。
      *
-     * <p>形态与「目标选择」页的选择器行一致：名称 + 说明 …… [点击选择] [当前值] [↻]；↻ 清空 = 回到跟随。</p>
+     * <p>值恒等于目标三选一在当前采集模式下的产物（{@code AutoMinerModule#sellItemFilter()}），
+     * 与背包计数、菜单点选、播报、状态条读的是同一个取值，所以行上看到什么就卖什么；
+     * 推导不出来时（没选目标 / 产物没有物品形态）这里直接显示纠错那句话。</p>
      */
     private ConsoleRow sellItemRow() {
         return new ConsoleRow(owner, () -> "出售物品",
-            "留空 = 跟随目标选择页（挖什么就卖什么）；服务器另收别的方块（如圆石）时点「点击选择」自己挑一个",
-            null,
-            List.of(new Ctl(new Button(SELECT_LABEL, this::openSellItemSelector)),
-                new Ctl(new SettingText(this::sellItemStatus, SELL_ITEM_STATE_WIDTH).alignLeft()),
-                ConsoleWidgets.resetCtl(this::clearSellItemTarget, "出售物品")));
+            "不用选：你在下面选什么目标，这里就是它挖出来的产物（选石头、没开精准采集，卖的就是圆石）"
+                + " —— 背包数的是它、菜单点的是它、播报念的也是它",
+            null, List.of(new Ctl(new SettingText(this::sellItemStatus, SELL_ITEM_STATE_WIDTH))))
+            .icon(module::sellItemIcon);
     }
 
-    /** 出售物品的当前值：跟随目标时给出跟随到的<b>产物</b>名，手选时回显那一件 */
+    /** 出售物品的当前值：产物名（不是目标本身时标出「XX掉落」，如「圆石 (石头掉落)」）；推导不出来时显示纠错那句话 */
     private String sellItemStatus() {
-        MiningSettings settings = module.settings();
-        if (!settings.personalSellFollowsTarget()) return settings.personalSellTarget;
+        String notice = module.sellItemNotice();
+        if (notice != null) return notice;
         String name = module.getSellItemDisplayName();
-        return name.isEmpty() ? "跟随目标（目标未选）" : "跟随目标 · " + name;
-    }
-
-    /**
-     * 打开出售物品选择器：候选 = 全部物品（剔除空气），单值准入（要换先移除，与目标页一致）。
-     *
-     * <p><b>为什么用物品列表而不是方块列表</b>：时运模式卖的是掉落物（「钻石」不是方块，方块表里根本没有），
-     * 而方块物品（圆石、钻石矿石、原木）本来就在物品列表里；方块表里那些没有物品形态的（水 / 岩浆 / 火 /
-     * 耕地）选了也进不了背包、卖不掉。</p>
-     */
-    private void openSellItemSelector() {
-        Minecraft client = Minecraft.getInstance();
-        if (client == null) return;
-        List<SelectorScreen.Entry> entries =
-            MiningRegistry.filter(MiningRegistry.itemEntries(), key -> !MiningRegistry.isAirItem(key));
-        client.setScreen(new SelectorScreen("出售物品", client.screen, entries,
-            this::selectedSellItem, this::setSellItemTarget, key -> setSellItemTarget(null))
-            .addGuard(this::sellItemGuardReason));
-    }
-
-    /** 已选手选值（单值 → 至多一项；留空 = 跟随，返回空列表） */
-    private List<String> selectedSellItem() {
-        String current = module.settings().personalSellTarget;
-        return current == null || current.isBlank() ? List.of() : List.of(current);
-    }
-
-    /** 写入手选值；{@code null} / 非物品 = 清空（清空即回到跟随目标） */
-    private void setSellItemTarget(String itemId) {
-        module.settings().personalSellTarget =
-            itemId == null || MiningRegistry.itemOf(itemId) == null ? "" : itemId;
-        module.persistSettings();
-    }
-
-    /**
-     * 加入准入：① 单值 —— 已手选着别的物品时先移除再换；② 纠错 —— 手选的这件在当前目标 + 采集模式下
-     * 根本掉不出来（用户 2026-09-20：「我想卖的方块是圆石，我选了精准采集模式，那不是掉的是石头吗」）
-     * 就直接拒收，理由原样进那个渐入渐出的提示框。
-     */
-    private String sellItemGuardReason(String key) {
-        String current = module.settings().personalSellTarget;
-        if (current != null && !current.isBlank() && !current.equals(key)) {
-            return "§e出售物品只能选一个 §8▸ 先移除「§f"
-                + MiningRegistry.itemDisplayName(current) + "§8」";
-        }
-        return module.sellItemMismatchReason(key);
-    }
-
-    /** ↻ 清空手选值：回到「跟随目标选择页」 */
-    private void clearSellItemTarget() {
-        module.settings().personalSellTarget = "";
-        module.persistSettings();
-        owner.reload();
+        String source = module.sellItemSourceNote();
+        return source == null ? name : name + " §8(" + source + ")";
     }
 
     /**
@@ -342,8 +302,8 @@ public final class MiningPersonalPage {
     /**
      * 顶栏「自用模式」开关（用户 2026-09-20：「在启用开关旁边的加一个自用模式的开关」）。
      *
-     * <p>形态 = 文字 + 开关，画在模块开关左侧（{@link ConsoleHeaderBar.Extra}）。切换后重建本页：
-     * 点位的两行、自检项、状态条上的格子都随模式变（不重建就会留下上一个模式的读数）。</p>
+     * <p>形态 = 文字 + 开关，画在整排<b>最右端</b>（模块开关右侧，用户 2026-09-21 定的方向）。
+     * 切换后重建本页：点位的两行、自检项、状态条上的格子都随模式变（不重建就会留下上一个模式的读数）。</p>
      */
     public static final class ModeSwitch implements ConsoleHeaderBar.Extra {
 
@@ -398,9 +358,18 @@ public final class MiningPersonalPage {
 
         @Override
         public boolean onClick(float mx, float my, float x, float y, float width, int button) {
+            if (button != 0) return false;
             float centerY = y + ConsoleHeaderBar.HEIGHT / 2f;
-            return toggle.onClick(mx, my, x + width - toggle.getWidth(),
-                centerY - toggle.getHeight() / 2f, button);
+            float toggleX = x + width - toggle.getWidth();
+            float toggleY = centerY - toggle.getHeight() / 2f;
+            // 必须先判悬停：SettingToggle.onClick 不做命中判断（调用方负责，见 SettingModule），
+            // 落到开关框外就返回 true 会把右边的模块开关与快捷键徽章一起吞掉（2026-09-21 实机踩过：
+            // 点「启用」实际拨了自用模式，徽章也录不进键）
+            if (mx < toggleX || mx > toggleX + toggle.getWidth()
+                || my < toggleY || my > toggleY + toggle.getHeight()) {
+                return false;
+            }
+            return toggle.onClick(mx, my, toggleX, toggleY, button);
         }
 
         @Override
