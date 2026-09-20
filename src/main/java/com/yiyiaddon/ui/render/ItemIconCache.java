@@ -289,8 +289,8 @@ public final class ItemIconCache {
             if (previous != null) previous.close();
         }
         rendered.clear();
-        // 备份的画面不在这里写回：写回需要一个 Skija 画布，统一交给 SkiaGlBackend#begin
-        // 在开始画主帧缓冲时调用 paintBackdrop（那个时机正好在面板绘制之前）。
+        // 备份的画面不在这里写回：写回需要一个 Skija 画布，统一由 SkiaScreen#renderSkiaFrame
+        // 在本方法之后立刻调 flushBackdrop（那个时机正好在面板绘制之前）。
     }
 
     /**
@@ -704,6 +704,10 @@ public final class ItemIconCache {
      * glReadPixels 里 {@code EXCEPTION_ACCESS_VIOLATION}（写越界）直接闪退整个客户端。
      * 因此这里把打包状态保存 → 清零 → 还原，哪怕外面留着脏状态，我们这一次回读也是紧致行距。</p>
      *
+     * <p>三道防线（同一台机器第二次取证 2026-09-20 23:40，见复盘 150）：进 {@code glReadPixels}
+     * 前复核 PBO 确为 0（否则指针会被当成缓冲偏移量，写到无关地址）、目标缓冲区末尾留一行 + 64 字节
+     * 冗余、主帧缓冲名字取不到（回落 0）时直接放弃本帧回读。任一道不过就返回 null，让调用方走保守路径。</p>
+     *
      * @param box {@code [x, y（自下往上）, 宽, 高]}，Framebuffer 像素坐标
      * @return 像素字节；失败返回 null
      */
@@ -793,9 +797,19 @@ public final class ItemIconCache {
 
             glBindFramebuffer(GL_READ_FRAMEBUFFER, framebufferId);
             {
+                // 解绑 PBO 是本方法的性命所在，调用前再核一次：若此刻仍绑着非 0 的 PBO，驱动会把
+                // pixels 这个指针当成该缓冲的字节偏移量，写到与我们缓冲区毫不相干的地址去（那台机器
+                // 上写地址落在 JVM 已预留未提交的堆区，直接 EXCEPTION_ACCESS_VIOLATION）。宁可本帧
+                // 不回读，也不带着这个前提进 glReadPixels。
+                int[] packBuffer = new int[1];
+                glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, packBuffer);
+                if (packBuffer[0] != 0) return null;
+
                 // 必须用堆外内存而不是 MemoryStack：LWJGL 的栈每个线程只有 64 KB，而备份整块格子
                 // 区域时这里要一次拿到 1 MB 以上，用 stack.malloc 会直接 OutOfMemoryError（曾崩过一次）。
-                ByteBuffer pixels = BufferUtils.createByteBuffer(rowBytes * height);
+                // 末尾多留一行 + 64 字节：万一驱动在行距/对齐上仍多写一点，落点还在我们自己的分配里，
+                // 而不是踩到未映射页把整个进程带走（复盘 149、150）。
+                ByteBuffer pixels = BufferUtils.createByteBuffer(rowBytes * height + rowBytes + 64);
                 glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
                 byte[] flipped = new byte[rowBytes * height];
@@ -886,9 +900,10 @@ public final class ItemIconCache {
     /**
      * 把备份的画面画回格子矩形。
      *
-     * <p>由 {@code SkiaGlBackend#begin} 在开始绘制主帧缓冲时调用：那个时机正好在面板绘制之前，
-     * 写回之后面板玻璃采样到的就是干净画面；写回到 MSAA 主帧缓冲只能靠绘制（{@code glBlitFramebuffer}
-     * 不允许「单采样 → 多采样」），所以这里走 Skija 而不是 GL blit。</p>
+     * <p>由 {@code SkiaScreen#renderSkiaFrame} 在截取图标之后立刻调用（见 {@link #flushBackdrop}）：
+     * 那个时机在格子落地之后、面板绘制之前，写回之后面板玻璃采样到的就是干净画面；
+     * 写回到 MSAA 主帧缓冲只能靠绘制（{@code glBlitFramebuffer} 不允许「单采样 → 多采样」），
+     * 所以这里走 Skija 而不是 GL blit。</p>
      */
     public void paintBackdrop(Canvas canvas) {
         Image image = backdropImage;
@@ -908,17 +923,18 @@ public final class ItemIconCache {
     }
 
     /**
-     * 立刻把滞留的格子备份画回主帧缓冲，不依赖面板绘制。
+     * 立刻把滞留的格子备份画回主帧缓冲，不依赖面板绘制路径。
      *
      * <p><b>为什么需要它</b>（用户 2026-09-19：「点开选择器之后 会闪出来原版贴图的放大版 然后闪了
-     * 一下 偶尔发生」）：格子是<b>抽帧阶段</b>落地的，而写回发生在<b>帧末</b>、由画格子的那个界面在
-     * 面板绘制里执行（{@code SkiaScreen#renderSkiaFrame} → {@code SkiaGlBackend#begin}）。一旦这一帧
-     * 中途换了界面（控制台点「点击选择」→ 选择器），帧末轮到的已经是新界面——它这一帧没抽过帧、
-     * 直接跳过绘制，旧界面也不再收尾，于是备份无人写回，屏幕正中那两行放大到 32 像素的物品图标
-     * 就裸露到下一帧（下一帧抽帧时备份被丢弃、重新画格子，看上去就是「闪了一下」）。</p>
+     * 一下 偶尔发生」）：格子是<b>抽帧阶段</b>落地的，而写回是一次性动作。只要有任何一条路径抢在
+     * 面板之前把备份用掉（典型是 ESP 叠加层 {@code WorldOverlay#renderOverlay}，它跑在
+     * {@code GuiRenderer.render} 的 HEAD，那时 GUI 通道还没开始画），帧末轮到面板时就已无备份可取 ——
+     * 屏幕正中那两行放大到 32 像素的物品图标裸露出来（用户 2026-09-20 截图：一条横贯面板的光带，
+     * 两端露着格子底色的黑方块）。</p>
      *
-     * <p>由 {@code SkiaScreen#renderSkiaFrame} 的跳过分支与 {@code RenderTargetMixin} 调用：
-     * 两者覆盖「换成了另一个 Skija 界面」与「换成了原版界面 / 关掉了界面」两种切屏。</p>
+     * <p>因此写回现在是<b>无条件的一步</b>：{@code SkiaScreen#renderSkiaFrame} 在
+     * {@link #capturePending()} 之后立刻调用本方法（那个时机必定在格子落地之后、面板绘制之前），
+     * 换屏/关屏那两种收尾则由该方法的跳过分支与 {@code RenderTargetMixin} 调用本方法兜住。</p>
      */
     public void flushBackdrop() {
         if (backdropImage == null) return;
