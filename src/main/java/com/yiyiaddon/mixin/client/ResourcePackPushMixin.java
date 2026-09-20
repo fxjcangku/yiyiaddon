@@ -8,7 +8,6 @@ import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
-import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -63,12 +62,8 @@ public abstract class ResourcePackPushMixin {
 
         // 资源包策略接管（服务器检测模块的三种模式）：判定与响应包必须在原版处理之前完成，
         // 因此这里同步询问闸门；处理器只读设置 + 发响应包，不触碰客户端世界与界面。
-        // 响应走「收到这次推送的那条连接」（本监听器的 send）：原版在配置阶段就推资源包，那时
-        // Minecraft#getConnection() 还是 null，按「当前游戏连接」发包一个字节都发不出去 ——
-        // 服务端会一直等资源包处理完成，客户端卡死在「重新配置中…」（2026-09-21 实机踩过）。
         try {
-            if (ResourcePackGate.handle(packet.id(), packet.url(), packet.hash(),
-                (id, action) -> this.send(new ServerboundResourcePackPacket(id, action)))) {
+            if (ResourcePackGate.handle(packet.id(), packet.url(), packet.hash())) {
                 ci.cancel();
             }
         } catch (Exception ignored) {
