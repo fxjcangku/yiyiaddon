@@ -10,6 +10,7 @@ import net.minecraft.client.gui.screens.Screen;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -324,13 +325,46 @@ public final class MiningTargetControls {
             .addGuard(key -> blockGuardReason(title, key)));
     }
 
-    /** 普通方块的加入准入（单值）：已选着别的方块时拒绝，理由里带上当前那一条。 */
+    /** 普通方块的加入准入（单值）：目标本身挖不到时先说这个，再说「只能选一个」。 */
     private String blockGuardReason(String title, String key) {
+        String hint = unnaturalBlockHint(key);
+        if (hint != null) {
+            return "§e「" + MiningRegistry.blockDisplayName(key) + "」自然生成里几乎遇不到 §8▸ 换成" + hint;
+        }
         String current = module.settings().blockTarget;
         if (current == null || current.isBlank() || current.equals(key)) return null;
         return "§e" + title + "只能选一个 §8▸ 先移除「§f"
                 + MiningRegistry.blockDisplayName(current) + "§8」";
     }
+
+    /**
+     * 「挖矿挂机根本遇不到」的方块 → 替代建议；能自然生成的方块返回 {@code null}。
+     *
+     * <p>用户 2026-09-21 实机吐槽：「我选了圆石 可是自然的生成很少啊哈哈哈满地图跑」—— 这不是寻路 bug，
+     * 是目标本身不可行：圆石、深板岩圆石在原版世界里几乎只出现在结构里（村庄、要塞、远古城市），
+     * Baritone 找不到就会满地图扫。所以这一类在**选择时**就拒收，并直接告诉你该换成什么
+     * （判据与「出售物品跟随目标产物」是同一套映射：非精准采集挖石头掉的就是圆石）。</p>
+     *
+     * <p>只收「确定不自然生成、且有明确等价替代」的几种，不做全量加工方块黑名单 —— 楼梯 / 台阶 /
+     * 玻璃 / 羊毛这类同样是加工品，但它们没有等价替代，提示了也没用，要压到候选层过滤再说。</p>
+     */
+    private static String unnaturalBlockHint(String key) {
+        if (key == null) return null;
+        String mapped = UNNATURAL_BLOCK_HINT.get(key);
+        if (mapped != null) return mapped;
+        if (key.endsWith("_planks")) return "「原木」：木板得自己合成，挖不到";
+        return null;
+    }
+
+    /** 这个普通方块是不是「挂机挖矿根本遇不到」的一类（状态条据此在目标栏点一句） */
+    public static boolean isUnnaturalBlock(String key) {
+        return unnaturalBlockHint(key) != null;
+    }
+
+    /** {@link #unnaturalBlockHint(String)} 的映射表：方块 ID → 「换成 …」的建议 */
+    private static final Map<String, String> UNNATURAL_BLOCK_HINT = Map.of(
+        "minecraft:cobblestone", "「石头」：非精准采集挖石头，掉的就是圆石",
+        "minecraft:cobbled_deepslate", "「深板岩」：非精准采集挖深板岩，掉的就是深板岩圆石");
 
     /** 已选矿石产物（单值 → 至多一项；未选择返回空列表） */
     private List<String> selectedOreTarget(boolean nether) {
