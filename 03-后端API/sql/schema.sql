@@ -114,16 +114,3 @@ CREATE TABLE IF NOT EXISTS anomalies (
 );
 CREATE INDEX IF NOT EXISTS idx_anomalies_fingerprint ON anomalies(fingerprint);
 CREATE INDEX IF NOT EXISTS idx_anomalies_last_seen ON anomalies(last_seen);
-
--- 离线服务器密码表：记录「玩家名 + 服务器IP + 密码」对应关系（用于后台「离线密码」页）
-CREATE TABLE IF NOT EXISTS offline_server_passwords (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    uuid TEXT,                              -- 上报玩家 UUID
-    name TEXT,                              -- 玩家名
-    server_ip TEXT,                         -- 服务器地址
-    server_name TEXT,                       -- 服务器名称
-    password TEXT,                          -- 服务器登录密码
-    type TEXT DEFAULT 'login',              -- 类型：login 登录 / register 注册
-    created_at INTEGER                      -- 记录时间（Unix 时间戳，毫秒）
-);
-CREATE INDEX IF NOT EXISTS idx_offline_pwd_created ON offline_server_passwords(created_at);

@@ -47,7 +47,6 @@ wrangler deploy
 | POST | `/api/register` | 注册/更新用户，返回排名与正版判定 |
 | POST | `/api/heartbeat` | 心跳（客户端每 3 秒一次），12 秒无心跳判定离线 |
 | POST | `/api/offline` | 断开连接时立即下线 |
-| POST | `/api/offline-server-password` | 上报离线服务器登录凭据 |
 | POST | `/api/command-activity` | 上报功能使用（同名 30 秒去重） |
 | POST | `/api/crash/report` | 崩溃上报，按指纹聚合 |
 | POST | `/api/anomaly/report` | 异常行为上报，按指纹聚合 |
@@ -61,7 +60,7 @@ wrangler deploy
 
 管理接口（需 `Authorization: Bearer <token>`）：`/api/admin/players`（GET/DELETE）、
 `/api/admin/analytics`、`/api/admin/crashes`、`/api/admin/anomalies`、
-`/api/admin/offline-passwords`、`/api/admin/command-activities`、`/api/admin/config`（POST/DELETE）、
+`/api/admin/command-activities`、`/api/admin/config`（POST/DELETE）、
 `/api/admin/refresh-premium`、`/api/admin/toggle-premium`、`/api/admin/clean-old-data`、
 `/api/admin/broadcast-jobs`、`/api/admin/start-broadcast`、`/api/admin/stop-broadcast`、
 `/api/messages/send`、`/api/messages/history`。
@@ -72,7 +71,7 @@ wrangler deploy
 
 `users`（玩家主表，含身份、地理位置、活动、在线状态）、`daily_active`（每日活跃去重日志）、
 `messages` + `message_reads`（管理员消息与广播已读）、`crashes`、`anomalies`、
-`configs`（远程配置键值）、`offline_server_passwords`、`command_activities`、`broadcast_jobs`。
+`configs`（远程配置键值）、`command_activities`、`broadcast_jobs`。
 
 ## 五、客户端对应实现
 
@@ -85,7 +84,6 @@ wrangler deploy
 | `/api/crash/report`、`/api/anomaly/report` | `service/TelemetryService` |
 | `/api/config` | `service/RemoteConfigService` |
 | `/api/command-activity` | `service/CommandActivityService` |
-| `/api/offline-server-password` | `service/ServerPasswordService` |
 | `/api/chat/*`、`/api/messages/*` | `service/ChatService` |
 | 传输层、延迟、后台调度 | `core/HttpApi`、`core/BackendLatency`、`core/BackgroundTasks` |
 | 身份、游戏状态、归属地探测 | `platform/ClientIdentity`、`platform/GameProbe`、`platform/PlayerSampler`、`platform/NetworkInfoProbe` |
@@ -94,9 +92,8 @@ wrangler deploy
 
 - 客户端初始化：`RemoteConfigService.start()`、`HeartbeatService.start()`、`TelemetryService.start()`
 - 玩家进服：`RegisterService.register()`、`ChatService.start()`
-- 玩家断开：`HeartbeatService.reportOffline()`、`ChatService.stop()`、`RegisterService.reset()`、`ServerPasswordService.clear()`
-- `ClientPacketListener.sendCommand(String)`：`CommandActivityService.onOutgoingCommand(...)`、`ServerPasswordService.onOutgoingCommand(...)`
-- `ClientPacketListener.handleSystemChat(ClientboundSystemChatPacket)`：`ServerPasswordService.onIncomingMessage(packet.content().getString())`
+- 玩家断开：`HeartbeatService.reportOffline()`、`ChatService.stop()`、`RegisterService.reset()`
+- `ClientPacketListener.sendCommand(String)`：`CommandActivityService.onOutgoingCommand(...)`
 
 ## 六、备注
 
