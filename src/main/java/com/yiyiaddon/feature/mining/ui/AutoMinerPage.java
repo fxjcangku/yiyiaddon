@@ -41,14 +41,16 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
     // ── 入口按钮文案（逐字） ──
 
     private static final String CONSOLE_BUTTON = "§b打开控制台";
-    private static final String CONSOLE_HINT = "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / Baritone调优";
+    private static final String CONSOLE_HINT =
+        "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / 自用模式 / Baritone调优";
 
     // ── 配置记录入口（用户 2026-09-18：「是控制台下面新建一个按钮 服务器记录复原」、「我说弄在控制台按钮下面」） ──
 
     private static final String RECORD_BUTTON = "§b服务器记录复原";
     private static final String RECORD_HINT = "整套配置（设置 + 三个点位）一键保存，按服务器读取 / 替换 / 详情 / 删除";
 
-    /** 帮助页 8 个章节（旧 {@code buildHelpContent :1618-1683} 逐字；框线与 {@code [#]} 格式由 HelpPanelScreen 生成） */
+    /** 帮助页 9 个章节（旧 {@code buildHelpContent :1618-1683} 逐字 + 2026-09-20 追加「自用模式」；
+     *  框线与 {@code [#]} 格式由 HelpPanelScreen 生成） */
     private static final HelpPanelScreen.HelpSection[] HELP_SECTIONS = {
         new HelpPanelScreen.HelpSection("准备工作",
             "  §8├─ §f准备好挖矿工具 §7(推荐附魔耐久、效率)",
@@ -114,6 +116,31 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
             "  §d▸ §f检测假矿：对准可疑方块 §8→ §f本版本未落地 §7(随种子模式留白，无按钮、无指令)",
             "  §d▸ §f假矿判定：预测无矿但显示有矿 §8= §c假矿",
             "  §d▸ §f适用场景：防止挖到管理员放置的诱饵矿"
+        ),
+        new HelpPanelScreen.HelpSection("自用模式 §7(挖够就自己去卖)",
+            "  §b▸ §f开关在控制台顶栏 §7(就在「启用」开关左边)，配置在控制台「自用模式」页",
+            "  §b▸ §f只绑食物箱 §8— §7矿物箱与挂机修复点不需要 §7(点位页自动隐藏这两行，已绑的不会丢)",
+            "  §b▸ §f触发：背包里「出售物品」攒够设定组数就出发；背包先满也直接去卖",
+            "  §b▸ §f「出售物品」默认跟随目标选择页 §8— §7你在目标页选什么矿就卖什么（时运是掉落物、"
+                + "精准是原矿物品），不用自己填，也不会卖错",
+            "  §b▸ §f服务器另收别的方块（如圆石）时点「点击选择」自己挑一个 §8— §7挑了就覆盖跟随，"
+                + "↻ 清空即回到跟随",
+            "  §b▸ §f选错会被当场纠错 §8— §7选的那件在当前采集模式下掉不出来（精准采集挖石头掉石头、"
+                + "卖不到圆石）会当场拒收并说明；切采集模式时已选的也会自动换成会掉的那一件",
+            "  §b▸ §f死亡返回指令填 §f/back §8— §7落地后就地继续挖，不再重新 RTP",
+            "",
+            "  §a[1] §f回城 §8→ §7发「出售流程指令」，点「回城点击关键词」回主城大厅",
+            "  §a[2] §f寻路 §8→ §7按「NPC 坐标」走到「NPC 名字关键词」那个收购 NPC 旁",
+            "  §a[3] §f出售 §8→ §7右键 NPC 开收购菜单，循环：点出售物品 §8→ §f点「全部」 §8→ §f点「确认出售」，"
+                + "直到背包该物品清零",
+            "  §a[4] §f回服 §8→ §7再发流程指令，点「跨服点击关键词」打开服列表，勾选的「回程目标服」"
+                + "落地后直接继续 RTP 挖矿",
+            "",
+            "  §e⚠ §f全程静默 §8— §7所有菜单都在后台点，不弹界面、不抢鼠标",
+            "  §e⚠ §f服务器卡了就原地重试这一步 §7(单步超时 / 单步重试次数在自用模式页里调)，"
+                + "重试用完才停机播报，不会带着矿乱走",
+            "  §e⚠ §f耐久不管 §8— §7时运镐挖矿自带经验，靠经验修补自修，不前往挂机修复点",
+            "  §e⚠ §f背包满不管 §8— §7满了直接触发出售 §7(垃圾自动丢弃照常在跑)"
         ),
         new HelpPanelScreen.HelpSection("注意事项",
             "  §c⚠ §f模块运行中无法修改点位，必须先关闭模块",

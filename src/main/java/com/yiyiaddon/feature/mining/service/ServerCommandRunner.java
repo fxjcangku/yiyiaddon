@@ -116,32 +116,11 @@ public final class ServerCommandRunner {
      *                       旧实现无条件进 GUI 分支，每次卸货固定白站 {@code GUI_MAX_WAIT_TICKS} 刻）
      */
     public void executeCommand(String command, boolean allowGuiClick) {
-        if (mc.player == null || command == null) {
+        String cmd = normalize(command);
+        if (cmd == null) {
             return;
         }
 
-        // 全角标点归一：全角空格(　)与全角斜杠(／)转半角，再统一 trim
-        String cmd = command.replace('　', ' ').replace('／', '/').trim();
-        if (cmd.isEmpty()) {
-            return;
-        }
-
-        // 自动补充斜杠：如果命令不以/开头，自动添加
-        if (!cmd.startsWith("/")) {
-            cmd = "/" + cmd;
-        }
-        
-        // 移除多余的斜杠（如果有人输入 //rtp）
-        while (cmd.startsWith("//")) {
-            cmd = cmd.substring(1);
-        }
-
-        // 修正「/ rtp」斜杠后带空格的写法：服务器不接受斜杠与指令名之间有空格
-        cmd = cmd.replaceFirst("^/\\s+", "/");
-        if (cmd.length() <= 1) {
-            return;
-        }
-        
         // 去掉前缀/后发送
         markOwnCommand(cmd.substring(1));
         mc.player.connection.sendCommand(cmd.substring(1));
@@ -167,6 +146,54 @@ public final class ServerCommandRunner {
             waitingForGui = true;
             guiWaitTicks = 0;
         }
+    }
+
+    /**
+     * 只发指令、不进阻塞等待：给「发一条指令只为打开某个菜单」的流程用（自用模式的 {@code /cd}）。
+     *
+     * <p>{@link #executeCommand} 发完会进入阻塞态等传送落地，而 {@code /cd} 只是打开一个菜单、
+     * 玩家一动不动，走那条路会一路等到超时。这里共用同一套标点归一与「自家指令」打点
+     * （{@code CLIENT_COMMAND} 派发时不会把自己发的当成玩家手动干预），只是不发车。</p>
+     */
+    public void sendMenuCommand(String command) {
+        String cmd = normalize(command);
+        if (cmd == null) return;
+        markOwnCommand(cmd.substring(1));
+        mc.player.connection.sendCommand(cmd.substring(1));
+    }
+
+    /**
+     * 指令标点归一：全角空格(　)/全角斜杠(／)转半角、补斜杠、去多斜杠、修正「/ rtp」这种
+     * 斜杠后带空格的写法；无效指令返回 {@code null}。
+     *
+     * <p>{@link #executeCommand} 与 {@link #sendMenuCommand} 共用，两条路的指令口径因此完全一致。</p>
+     */
+    private String normalize(String command) {
+        if (mc.player == null || command == null) {
+            return null;
+        }
+
+        String cmd = command.replace('　', ' ').replace('／', '/').trim();
+        if (cmd.isEmpty()) {
+            return null;
+        }
+
+        // 自动补充斜杠：如果命令不以/开头，自动添加
+        if (!cmd.startsWith("/")) {
+            cmd = "/" + cmd;
+        }
+
+        // 移除多余的斜杠（如果有人输入 //rtp）
+        while (cmd.startsWith("//")) {
+            cmd = cmd.substring(1);
+        }
+
+        // 修正「/ rtp」斜杠后带空格的写法：服务器不接受斜杠与指令名之间有空格
+        cmd = cmd.replaceFirst("^/\\s+", "/");
+        if (cmd.length() <= 1) {
+            return null;
+        }
+        return cmd;
     }
 
     /**

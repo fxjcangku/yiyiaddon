@@ -180,6 +180,107 @@ public final class MiningSettings {
         "minecraft:cobblestone"
     ));
 
+    // ━━━ 自用模式（用户 2026-09-20 追加，旧项目没有对应项） ━━━
+    //
+    // 自用模式 = 「挖够就自己去卖掉」：挖满触发组数（或背包先满）时不卸货，改走
+    // 「回主城 → 寻路到收购 NPC → 发包交互一键出售 → 回子服 → 继续 RTP 挖」这条流程。
+    // 除「不要求绑定矿物箱 / 挂机修复点」「挖满后不去卸货而去出售」两点外，其余一切照旧
+    // （目标选择、秒破、连锁、丢弃、补给、死亡处理都走同一套既有实现）。
+    //
+    // 全程静默：所有菜单（快捷菜单 / 传送神兽 / 市场出售）都只读 player.containerMenu 的槽位、
+    // 发包点击，界面一个都不弹（见 AutoMinerModule#onOpenScreen 的门控）。
+
+    /** 自用模式｜打开后：不要求绑定矿物箱与挂机修复点，挖够就走去出售，其余设置与流程照旧 */
+    public boolean personalMode = false;
+
+    /**
+     * 自用出售物品｜存物品 ID（如 {@code minecraft:diamond}），留空 = <b>跟随目标选择页</b>。
+     *
+     * <p>用户 2026-09-20：「至于出售物品那些自动联动目标选择器 我选什么就显示出售什么」——
+     * 留空时实际拿去卖的就是目标选择页选中的那一个目标（时运列掉落物、精准列原矿物品），
+     * 所以默认状态下不可能填错。只有服务器另收别的方块（如圆石）时才手选一个覆盖它，
+     * 走 {@link #personalSellItem()} 取实际值。</p>
+     */
+    public String personalSellTarget = "";
+
+    /** 触发组数｜背包里自用出售矿石达到多少组就出发去卖（默认 20，取值域 1~36） */
+    public int personalSellStacks = 20;
+
+    /** 出售流程指令｜打开流程菜单的指令（默认 /cd；该菜单里既回主城也跨服传送） */
+    public String personalSellCommand = "/cd";
+
+    /** 回城点击关键词｜流程菜单里回主城大厅的槽位关键词（默认「返回主城」） */
+    public String personalSellCityKeyword = "返回主城";
+
+    /** 跨服点击关键词｜回程时打开子服传送界面的槽位关键词（默认「跨服传送」） */
+    public String personalSellCrossServerKeyword = "跨服传送";
+
+    /**
+     * 回程目标服｜子服传送界面里点的那个服（默认「生存世界#1」）。
+     *
+     * <p>服务器只有生存与资源两个子服，控制台里用两个互斥勾选框呈现（勾一个另一个自动取消），
+     * 存的就是勾中那条的服名关键词；到达后直接接现有 RTP 流程继续挖。</p>
+     */
+    public String personalSellReturnServer = "生存世界#1";
+
+    /** 出售数量关键词｜出售界面里「设为全部数量」的槽位关键词（默认「全部」） */
+    public String personalSellPickKeyword = "全部";
+
+    /** 确认出售关键词｜提交出售的槽位关键词（默认「确认出售」） */
+    public String personalSellConfirmKeyword = "确认出售";
+
+    /** 收购 NPC 名字关键词｜在坐标附近按显示名匹配实体（默认「黑市商人」，剥掉颜色码与空格后比对） */
+    public String personalSellNpcName = "黑市商人";
+
+    /** 收购 NPC 坐标 X｜固定坐标，寻路主路径（默认 -24424） */
+    public int personalSellNpcX = -24424;
+
+    /** 收购 NPC 坐标 Y｜固定坐标（默认 66） */
+    public int personalSellNpcY = 66;
+
+    /** 收购 NPC 坐标 Z｜固定坐标（默认 -5355） */
+    public int personalSellNpcZ = -5355;
+
+    /**
+     * 单步超时（秒）｜出售流程里每一步最长等多久（默认 10，取值域 1~60）。
+     *
+     * <p>服务器卡顿（TPS 掉、菜单不出、点击没反应）时就靠它把「这一步没成」判出来再重试，
+     * 而不是傻等或往下瞎走。</p>
+     */
+    public int personalSellStepTimeout = 10;
+
+    /** 单步重试次数｜单步超时后重试几次（默认 3，取值域 0~10）；整轮失败上限另由内部分级兜底 */
+    public int personalSellRetries = 3;
+
+    /** 回程目标服的两个勾选项（服务器只有这两个子服，界面按这两个名字出互斥勾选框） */
+    public static final List<String> PERSONAL_RETURN_SERVERS = List.of("生存世界#1", "资源世界#1");
+
+    // ── 自用出售物品的派生取值（纯读，三处显示与两个消费方共用同一口径） ──
+
+    /**
+     * 自用模式「出售物品」的原始取值：手选优先，留空取目标选择页选中的那一个目标（<b>原始目标</b>）。
+     *
+     * <p>跟随顺序与状态条「目标」格一致（<b>三选一</b>，模块自检保证最多只有一个非空）：
+     * 主世界矿石 → 下界矿石 → 普通方块。配置记录只回显这个原始值。</p>
+     *
+     * <p><b>真正拿去过滤背包的是 {@code AutoMinerModule#sellItemFilter()}</b>：它在跟随状态下还会把目标
+     * 按当前采集模式推导成<b>实际产物</b>（非精准采集挖石头掉圆石，精准才是石头本身），
+     * 否则「跟随石头」会一颗都数不到。</p>
+     *
+     * @return 手选值（可能是物品名，匹配层两种都认）或跟随到的目标 ID；两者都空则空串
+     */
+    public String personalSellItem() {
+        if (personalSellTarget != null && !personalSellTarget.isBlank()) return personalSellTarget.trim();
+        if (!overworldOreTarget.isBlank()) return overworldOreTarget;
+        if (!netherOreTarget.isBlank()) return netherOreTarget;
+        return blockTarget == null ? "" : blockTarget.trim();
+    }
+
+    /** 自用出售物品是否处于「跟随目标」状态（没手选） */
+    public boolean personalSellFollowsTarget() {
+        return personalSellTarget == null || personalSellTarget.isBlank();
+    }
+
     // ━━━ 秒破（旧项目 :433-452） ━━━
 
     /**
@@ -487,6 +588,23 @@ public final class MiningSettings {
         json.add("foodWhitelist", stringArray(foodWhitelist));
         json.add("placeBlocks", stringArray(placeBlocks));
 
+        // 自用模式（用户 2026-09-20 追加；全部是新键，老存档缺项一律保留默认值，不需要迁移）
+        json.addProperty("personalMode", personalMode);
+        json.addProperty("personalSellTarget", personalSellTarget);
+        json.addProperty("personalSellStacks", personalSellStacks);
+        json.addProperty("personalSellCommand", personalSellCommand);
+        json.addProperty("personalSellCityKeyword", personalSellCityKeyword);
+        json.addProperty("personalSellCrossServerKeyword", personalSellCrossServerKeyword);
+        json.addProperty("personalSellReturnServer", personalSellReturnServer);
+        json.addProperty("personalSellPickKeyword", personalSellPickKeyword);
+        json.addProperty("personalSellConfirmKeyword", personalSellConfirmKeyword);
+        json.addProperty("personalSellNpcName", personalSellNpcName);
+        json.addProperty("personalSellNpcX", personalSellNpcX);
+        json.addProperty("personalSellNpcY", personalSellNpcY);
+        json.addProperty("personalSellNpcZ", personalSellNpcZ);
+        json.addProperty("personalSellStepTimeout", personalSellStepTimeout);
+        json.addProperty("personalSellRetries", personalSellRetries);
+
         json.addProperty("fastBreak", fastBreak);
         json.addProperty("bypassAnticheat", bypassAnticheat);
         json.addProperty("breakInterval", breakInterval);
@@ -572,6 +690,23 @@ public final class MiningSettings {
         loadList(json, "keepWhitelist", keepWhitelist);
         loadList(json, "foodWhitelist", foodWhitelist);
         loadList(json, "placeBlocks", placeBlocks);
+
+        personalMode = boolOf(json, "personalMode", personalMode);
+        personalSellTarget = stringOf(json, "personalSellTarget", personalSellTarget);
+        personalSellStacks = clamp(intOf(json, "personalSellStacks", personalSellStacks), 1, 36);
+        personalSellCommand = stringOf(json, "personalSellCommand", personalSellCommand);
+        personalSellCityKeyword = stringOf(json, "personalSellCityKeyword", personalSellCityKeyword);
+        personalSellCrossServerKeyword =
+            stringOf(json, "personalSellCrossServerKeyword", personalSellCrossServerKeyword);
+        personalSellReturnServer = stringOf(json, "personalSellReturnServer", personalSellReturnServer);
+        personalSellPickKeyword = stringOf(json, "personalSellPickKeyword", personalSellPickKeyword);
+        personalSellConfirmKeyword = stringOf(json, "personalSellConfirmKeyword", personalSellConfirmKeyword);
+        personalSellNpcName = stringOf(json, "personalSellNpcName", personalSellNpcName);
+        personalSellNpcX = intOf(json, "personalSellNpcX", personalSellNpcX);
+        personalSellNpcY = intOf(json, "personalSellNpcY", personalSellNpcY);
+        personalSellNpcZ = intOf(json, "personalSellNpcZ", personalSellNpcZ);
+        personalSellStepTimeout = clamp(intOf(json, "personalSellStepTimeout", personalSellStepTimeout), 1, 60);
+        personalSellRetries = clamp(intOf(json, "personalSellRetries", personalSellRetries), 0, 10);
 
         fastBreak = boolOf(json, "fastBreak", fastBreak);
         bypassAnticheat = boolOf(json, "bypassAnticheat", bypassAnticheat);

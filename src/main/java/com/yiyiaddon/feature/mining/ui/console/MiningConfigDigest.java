@@ -73,6 +73,23 @@ public final class MiningConfigDigest {
         out.add(field("断线血量", s.autoDisconnectHealth + " §7格"));
         out.add("");
 
+        out.add(group("自用模式"));
+        out.add(field("自用模式", onOff(s.personalMode)));
+        out.add(field("出售物品", sellItemText(s)));
+        out.add(field("触发组数", s.personalSellStacks + " §7组"));
+        out.add(command("出售流程指令", s.personalSellCommand));
+        out.add(field("回城点击关键词", text(s.personalSellCityKeyword)));
+        out.add(field("跨服点击关键词", text(s.personalSellCrossServerKeyword)));
+        out.add(field("回程目标服", text(s.personalSellReturnServer)));
+        out.add(field("出售数量关键词", text(s.personalSellPickKeyword)));
+        out.add(field("确认出售关键词", text(s.personalSellConfirmKeyword)));
+        out.add(field("NPC 名字关键词", text(s.personalSellNpcName)));
+        out.add(field("NPC 坐标", "§f" + s.personalSellNpcX + " §7/ §f"
+            + s.personalSellNpcY + " §7/ §f" + s.personalSellNpcZ));
+        out.add(field("单步超时", s.personalSellStepTimeout + " §7秒"));
+        out.add(field("单步重试次数", s.personalSellRetries));
+        out.add("");
+
         out.add(group("物品管理"));
         out.add(field("保留白名单", items(s.keepWhitelist)));
         out.add(field("食物白名单", items(s.foodWhitelist)));
@@ -171,6 +188,17 @@ public final class MiningConfigDigest {
     /** 文本字段：空串说成「未设置」 */
     private static String text(String value) {
         return value == null || value.isBlank() ? "§8未设置" : value;
+    }
+
+    /**
+     * 自用出售物品：手选回显原文；留空 = 跟随目标选择页，标明「跟随目标」并给出跟随到的那个 ID。
+     *
+     * <p>这一项允许手填物品名（用户 2026-09-20），所以不能按登记 ID 解析显示名——会显示成「空气」。</p>
+     */
+    private static String sellItemText(MiningSettings s) {
+        String value = s.personalSellItem();
+        if (value == null || value.isBlank()) return "§8未指定（目标也没选）";
+        return s.personalSellFollowsTarget() ? "§7跟随目标 §8(" + value + ")" : value;
     }
 
     /** 白名单：逐个显示名 + 项数（空表说成「无」） */

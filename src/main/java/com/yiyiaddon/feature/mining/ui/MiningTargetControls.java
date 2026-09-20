@@ -160,15 +160,20 @@ public final class MiningTargetControls {
      *
      * <p>目标候选集合不在切换时缓存：每次打开选择器都按当前模式重算。控制台页额外触发整页重建，
      * 让「共 N 项」与新同步出来的目标立刻反映在行上。</p>
+     *
+     * <p>若自用模式手选的「出售物品」在新模式下已经掉不出来（如精准采集挖石头掉石头、卖不到圆石），
+     * {@code syncTargetsOnModeSwitch} 会顺手把它纠成会掉的那一件并回一句文案，这里弹渐入渐出提示框
+     * 让用户看得见（扫过场就懂自己设置被改了，也可以再改回去）。</p>
      */
     public void pickLootMode(int index) {
         if (index < 0 || index >= LootMode.values().length) return;
         module.settings().lootMode = LootMode.values()[index];
         overworldOreTotal = -1;
         netherOreTotal = -1;
-        module.syncTargetsOnModeSwitch();
+        String notice = module.syncTargetsOnModeSwitch();
         module.persistSettings();
         if (afterModeSwitch != null) afterModeSwitch.run();
+        if (notice != null) TooltipLayer.notify(notice);
     }
 
     /** 选中矿石产物；空串 = 未选择（旧 {@code ItemSetting} 的 {@code Items.AIR} 默认值语义） */

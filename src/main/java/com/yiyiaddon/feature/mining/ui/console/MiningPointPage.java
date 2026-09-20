@@ -104,6 +104,12 @@ public final class MiningPointPage {
     public void build(CompactStack stack) {
         stack.add(new Note(owner, "§7§l点位绑定 §8（准星对准方块后点「设置」）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        // 自用模式只绑食物箱（用户 2026-09-20：「只是不用绑定矿物箱子 挂机点位 其他都一样的」）：
+        // 两行不展示而不是删数据 —— 切回普通模式要能立刻看到原来绑的点位
+        if (module.isPersonalMode()) {
+            stack.add(new Note(owner, "§8自用模式不需要矿物箱与挂机修复点（挖满就去卖），只需绑食物箱", null,
+                ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        }
         stack.add(new PointCardGrid.Grid(pointCards()));
         stack.add(new ButtonStrip(owner, List.of(new Ctl(new Button("§c清空全部点位", this::openClearConfirm),
             "删除当前服务器已绑定的全部点位（不可恢复，会二次确认）")), ButtonStrip.BUTTON_HEIGHT));
@@ -129,10 +135,19 @@ public final class MiningPointPage {
 
     // ── 点位卡网格 ──
 
-    /** 三张点位卡：矿物箱 / 食物箱 / 挂机修复点（顺序取自枚举，题目配色沿用本页 {@link #pointTitleColor}） */
+    /**
+     * 点位卡：矿物箱 / 食物箱 / 挂机修复点（顺序取自枚举，题目配色沿用本页 {@link #pointTitleColor}）。
+     *
+     * <p>自用模式只留食物箱：另外两类在这个模式下用不上（不卸货、不挂机修复），
+     * 已绑定的数据照样留在绑定表里，切回普通模式立刻恢复显示。</p>
+     */
     private List<PointCardGrid.PointCard> pointCards() {
+        boolean personal = module.isPersonalMode();
         List<PointCardGrid.PointCard> cards = new ArrayList<>();
-        for (MiningPointType type : MiningPointType.values()) cards.add(pointCard(type));
+        for (MiningPointType type : MiningPointType.values()) {
+            if (personal && type != MiningPointType.FOOD) continue;
+            cards.add(pointCard(type));
+        }
         return cards;
     }
 
@@ -181,12 +196,12 @@ public final class MiningPointPage {
         };
     }
 
-    /** 清空全部点位：二次确认（确认动作与 {@code .wk 清空} 同源，正文按本模块三个点位写） */
+    /** 清空全部点位：二次确认（确认动作与 {@code .wk 清空} 同源，正文按本模块当前模式的点位写） */
     private void openClearConfirm() {
         if (owner.client() == null) return;
         owner.client().setScreen(new ConfirmPanelScreen("清空全部点位",
             List.of("§f将删除当前服务器已绑定的全部点位",
-                "§7矿物箱 · 食物箱 · 挂机修复点",
+                module.isPersonalMode() ? "§7食物箱" : "§7矿物箱 · 食物箱 · 挂机修复点",
                 "",
                 "§c此操作不可恢复。"),
             "§c§l确认", WkCommand::clearAllBindings, owner.client().screen));

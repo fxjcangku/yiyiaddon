@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.feature.mining.ui.console.MiningBaritonePage;
 import com.yiyiaddon.feature.mining.ui.console.MiningOverviewPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningPointPage;
+import com.yiyiaddon.feature.mining.ui.console.MiningPersonalPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningTargetPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningTeleportPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningThresholdPage;
@@ -91,6 +92,7 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
         TARGET("目标选择"),
         TELEPORT("传送指令"),
         THRESHOLD("触发条件"),
+        PERSONAL("自用模式"),
         BARITONE("Baritone调优");
 
         private final String title;
@@ -106,6 +108,14 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
 
     private final AutoMinerModule module;
     private final Body body = new Body();
+
+    /**
+     * 顶栏「自用模式」开关（用户 2026-09-20：「在启用开关旁边的加一个自用模式的开关」）。
+     *
+     * <p>提成字段而不是每次 {@code buildInto} 现造：开关是「点一下 → 重建整页」的控件，
+     * 每帧重建会换掉正在响应的实例；这里一份实例贯穿窗口生命周期，切换后只重建正文。</p>
+     */
+    private final MiningPersonalPage.ModeSwitch personalSwitch;
 
     /** 当前页签 */
     private Tab tab = Tab.OVERVIEW;
@@ -130,6 +140,8 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
     public MiningConsoleScreen(Screen parent, AutoMinerModule module) {
         super("自动挖矿控制台", parent);
         this.module = module;
+        // 顶栏附加件：切换模式后重建正文（点位的两行、自检项、状态条格子都随模式变）
+        this.personalSwitch = new MiningPersonalPage.ModeSwitch(module, this::reload);
         // 标题下的模块说明：与模块页标题下那行同源（用户 2026-09-17 口径：控制台里也要有说明）
         setSubtitle(module::description);
         content().add(body);
@@ -223,8 +235,9 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
     // ── 页面装配 ──
 
     private void buildInto(CompactStack stack) {
-        // 顶栏：状态文字 / 快捷键徽章 / 模块开关，压缩右对齐（用户 2026-09-17 口径；模块页那条已撤掉）
-        stack.add(new ConsoleHeaderBar(module));
+        // 顶栏：状态文字 / 快捷键徽章 / [自用模式开关] / 模块开关，压缩右对齐
+        // （用户 2026-09-17 口径；模块页那条已撤掉。附加件是用户 2026-09-20 要的「启用开关旁边的自用模式开关」）
+        stack.add(new ConsoleHeaderBar(module, personalSwitch));
         stack.add(new StatusStrip());
         buildTabs(stack);
 
@@ -234,6 +247,7 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
             case TARGET -> new MiningTargetPage(this, module).build(stack);
             case TELEPORT -> new MiningTeleportPage(this, module).build(stack);
             case THRESHOLD -> new MiningThresholdPage(this, module).build(stack);
+            case PERSONAL -> new MiningPersonalPage(this, module).build(stack);
             case BARITONE -> new MiningBaritonePage(this, module).build(stack);
         }
 
@@ -286,16 +300,29 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
             if (module == null) return empty();
             MiningSettings settings = module.settings();
             List<String> missing = module.selfCheck();
+            boolean personal = module.isPersonalMode();
             return new Status(new String[]{
                 "§7模块：" + (module.isEnabled() ? "§a运行中" : "§8未启用"),
                 "§7状态机：§f" + module.fsm().state().cn(),
                 "§7维度：§f" + WorldIdentity.dimensionDisplayName(WorldIdentity.dimension()),
                 "§7目标：§f" + targetName(settings),
-                pointCell(module, MiningPointType.MINERAL),
+                // 自用模式不要求矿物箱与挂机修复点：这两格换成自用模式的读数，避免整条状态条挂着两个必空的 ✗
+                personal ? "§7出售物品 §f" + sellItemName(module) : pointCell(module, MiningPointType.MINERAL),
                 pointCell(module, MiningPointType.FOOD),
-                pointCell(module, MiningPointType.AFK),
+                personal ? "§7流程指令 §f" + blank(settings.personalSellCommand) : pointCell(module, MiningPointType.AFK),
                 missing.isEmpty() ? "§a自检通过" : "§e自检缺 " + missing.size() + " 项"
             });
+        }
+
+        /** 自用模式「出售物品」格：跟随目标时标明跟随，手选时回显那一件（名字或 ID 都认，不按 ID 硬解析） */
+        private static String sellItemName(AutoMinerModule module) {
+            String name = module.getSellItemDisplayName();
+            if (name.isEmpty()) return "§8未指定";
+            return module.settings().personalSellFollowsTarget() ? "§7跟随§f" + name : name;
+        }
+
+        private static String blank(String text) {
+            return text == null || text.isBlank() ? "§8未填" : text;
         }
 
         /** 三格点位：`矿物箱 §a✓` / `矿物箱 §8✗`（用绑定表实况，不猜） */
