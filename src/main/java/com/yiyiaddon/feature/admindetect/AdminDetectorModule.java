@@ -108,8 +108,8 @@ public final class AdminDetectorModule extends Module {
      * 本次会话里在 Tab 玩家列表出现过的名字。
      *
      * <p>用来把「插件 NPC」与「vanish 的管理员」分开，见 {@link #isHiddenFromTab(Player)}。
-     * 模块启用时清空（同 {@link #nearbyThreats} 的生命周期），因此在世界里中途开关模块会丢失
-     * 「之前见过谁」这半份记忆 —— 此时仍由「没有自定义名字」那一半判据兜住。</p>
+     * 模块启用时清空（同 {@link #nearbyThreats} 的生命周期），因此在世界里中途开关模块会丢掉
+     * 「之前见过谁」这份记忆，此后 vanish 的人判不出来（残留边界见 {@link #isHiddenFromTab(Player)}）。</p>
      */
     private final Set<String> seenInTab = new HashSet<>();
 
@@ -366,16 +366,23 @@ public final class AdminDetectorModule extends Module {
      * —— 而插件 NPC 正是「创造能力的假玩家实体」（实体类型就是 {@code minecraft:player}、又不在 Tab 名单），
      * 于是自用模式去收购商人那里卖矿，一进检测范围就被判成「创造模式」管理员并直接断线。</p>
      *
-     * <p>不在 Tab 名单的实体统一改走「隐藏」通道：{@link #isHiddenFromTab} 自带 NPC 过滤
-     * （不在 Tab + 有自定义名字 = NPC），vanish 的真实管理员照样被它抓住，插件 NPC 被放行。</p>
+     * <p>不在 Tab 名单的实体只走「隐藏」通道，而 {@link #isHiddenFromTab} 要求「本次会话里在 Tab 名单
+     * 见过他」，不在 Tab 又从没出现过的插件 NPC 被前置排除放行。</p>
      */
     private String getThreatReason(Player player, String name, List<String> blacklist) {
         if (AdminDetectorSettings.containsName(blacklist, name)) return "黑名单";
-        if (isInTab(player)) {
+        boolean inTab = isInTab(player);
+        if (inTab) {
             if (settings.detectSpectator && isSpectator(player)) return "旁观者";
             if (settings.detectCreative && isCreative(player)) return "创造模式";
             if (settings.detectInvisible && player.isInvisible()) return "隐身";
         }
+        // 插件 NPC 前置排除（用户 2026-09-22：「npc 还是当成管理员了」）：不在 Tab 名单、且本次会话
+        // 从没在 Tab 名单里出现过 —— 真玩家进服时服务端必定下发玩家列表项，vanish 只可能「先可见、
+        // 后消失」，因此这种实体只可能是插件 NPC，四条形态判定一条都不该走。
+        // 上一次的修复只把「旁观/创造/隐身」挡在 Tab 名单里，NPC 改从下面这条「隐藏」通道命中
+        // （它的旧兜底「不带自定义名字」正是多数 NPC 的形态），于是照样断线。
+        if (!inTab && !seenInTab.contains(name)) return null;
         if (settings.detectHidden && isHiddenFromTab(player)) return "隐藏";
         return null;
     }
@@ -426,23 +433,26 @@ public final class AdminDetectorModule extends Module {
      * <p><b>本项目加强（用户 2026-09-16 裁定「能正常识别玩家过滤 npc 就行」，登记在迁移记录里）</b>：
      * 旧实现只看「不在 Tab 列表」，在带插件 NPC 的服务器上会把 NPC 判成管理员 —— 实测
      * {@code long.kkwmc.cn} 的新手向导 NPC（名字本身就是提示语）就命中了，导致模块一开就断线。
-     * 客户端无法直接问「你是不是 NPC」，因此用两条独立信号过滤：</p>
+     * 客户端无法直接问「你是不是 NPC」，因此只认一条信号：</p>
      *
      * <ul>
      *     <li><b>本次会话里在 Tab 列表见过他</b>：vanish 的轨迹必然是「先可见、后消失」，
-     *         而插件 NPC 从建立那一刻就不在 Tab 列表，永远进不了这份记忆；</li>
-     *     <li><b>他没有自定义名字</b>：真实玩家的名牌来自档案名 / 计分板队伍，不占用自定义名字组件；
-     *         插件 NPC 靠自定义名字显示「导游」「右键我前往新手任务地点」这类铭牌，因此带自定义名字。
-     *         这一条兜住「模块中途开启、丢掉前半份记忆」与「管理员在你进服前就已经隐身」两种情况。</li>
+     *         而插件 NPC 从建立那一刻就不在 Tab 列表，永远进不了这份记忆。</li>
      * </ul>
      *
-     * <p><b>残留边界</b>：服务器若给<b>真实玩家</b>设了自定义名字，且该玩家在你见到他之前就已隐身，
-     * 则判不出来 —— 这是客户端侧无法消除的固有盲区，登记在迁移记录的未验证项里。</p>
+     * <p><b>为什么删掉了「他没有自定义名字」那条兜底</b>（用户 2026-09-22：「npc 还是当成管理员了」）：
+     * 出售商人这类插件 NPC 用的是假玩家实体，名字来自档案名、并不占用自定义名字组件，因此恰好落进
+     * 「不在 Tab + 没自定义名字」这个组合，被当成 vanish 的隐藏管理员，走到收购点卖矿就断线。
+     * 拿「有没有铭牌」判 NPC 一开始就选错了信号 —— 铭牌是插件给 NPC 加的装饰，不是它的必要条件。</p>
+     *
+     * <p><b>残留边界</b>：管理员若<b>在你进服前就已经隐身</b>（本次会话里从没在 Tab 名单出现过），
+     * 或模块在世界里中途开启、丢掉了前半份记忆，则判不出来 —— 这是客户端侧无法消除的固有盲区：
+     * 这种形态与插件 NPC 在客户端完全同形，宁可漏检也不能误断。名单页的黑名单可以按名字强制命中。</p>
      */
     private boolean isHiddenFromTab(Player player) {
         if (mc.getConnection() == null) return false;
         if (mc.getConnection().getPlayerInfo(player.getUUID()) != null) return false;
-        return seenInTab.contains(player.getName().getString()) || !player.hasCustomName();
+        return seenInTab.contains(player.getName().getString());
     }
 
     /** 记下本刻 Tab 玩家列表里的全部人名（只增不减：要的就是「曾经见过」这份记忆）。 */
