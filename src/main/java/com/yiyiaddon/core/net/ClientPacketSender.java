@@ -11,7 +11,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
 import net.minecraft.network.protocol.common.custom.BrandPayload;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerAbilitiesPacket;
@@ -24,8 +23,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-
-import java.util.UUID;
 
 /**
  * 语义化直发通道：模块用「想做什么」的方式发包，包对象由核心构造。
@@ -207,16 +204,6 @@ public final class ClientPacketSender {
             predicting.retainKnownServerState(predictPos, level.getBlockState(predictPos), player);
             dispatch(connection, new ServerboundUseItemOnPacket(hand, hit, predicting.currentSequence()));
         }
-        return true;
-    }
-
-    // ── 资源包响应 ──
-
-    /** 回应服务器资源包推送（暴力绕过：直接接受并声明加载完成） */
-    public static boolean sendResourcePackResponse(UUID packId, ServerboundResourcePackPacket.Action action) {
-        Connection connection = connection();
-        if (connection == null || packId == null || action == null) return false;
-        dispatch(connection, new ServerboundResourcePackPacket(packId, action));
         return true;
     }
 
