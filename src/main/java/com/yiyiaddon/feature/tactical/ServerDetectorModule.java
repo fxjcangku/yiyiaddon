@@ -7,6 +7,7 @@ import com.yiyiaddon.core.event.ClientEvent;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
 import com.yiyiaddon.core.module.ModuleManager;
+import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.core.resourcepack.ResourcePackGate;
 import com.yiyiaddon.feature.tactical.config.ServerDetectorSettings;
 import com.yiyiaddon.feature.tactical.core.ServerFingerprints;
@@ -71,9 +72,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *         → {@link ModuleManager#setEnabledSilently(String, boolean)}（静默关，播报由本模块给出）；</li>
  *     <li><b>资源包推送接管</b>：旧 {@code handleResourcePackPushFromVanilla(packet, sendPacket)}
  *         由旧 Mixin 调用 → 本类的
- *         {@link #handleResourcePackPush(UUID, String, String, ResourcePackGate.Responder)}（模块拿不到
- *         包对象，改由框架层把 id / url / hash 三个字段传进来，响应包经框架层给的
- *         {@link ResourcePackGate.Responder} 发回本次推送那条连接）；</li>
+ *         {@link #handleResourcePackPush(UUID, String, String)}（模块拿不到包对象，改由框架层
+ *         把 id / url / hash 三个字段传进来），响应包走
+ *         {@link ClientPacketSender#sendResourcePackResponse}；</li>
  *     <li><b>资源包下载与提示</b>：旧 {@code ResourcePackDownloader}
  *         → {@link ResourcePackCache}（同源搬运的唯一合法下载器）。</li>
  * </ul>
@@ -561,22 +562,20 @@ public final class ServerDetectorModule extends Module {
      * <p><b>框架适配</b>：旧签名是
      * {@code handleResourcePackPushFromVanilla(ClientboundResourcePackPushPacket, Consumer<Packet<?>>)}，
      * 由旧 Mixin 在 {@code handleResourcePackPush} 头部调用；本项目禁止模块持有包对象与自行组包，
-     * 因此改由框架层把推送包的三个字段传进来，响应包经 {@link ResourcePackGate.Responder}
-     * 发回收到这次推送的那条连接。</p>
+     * 因此改由框架层把推送包的三个字段传进来，响应包走
+     * {@link ClientPacketSender#sendResourcePackResponse}。</p>
      *
      * <p><b>调用约定（框架层必须照此接线）</b>：在
      * {@code mixin/client/ResourcePackPushMixin} 的 {@code HEAD} 注入点、原版处理之前调用
      * （模块实例经 {@link ModuleManager#byId(String)} 取 {@value #MODULE_ID}）；
      * 返回 {@code true} 时框架须取消原版处理，返回 {@code false} 时放行原版。</p>
      *
-     * @param packId    服务器分配的包 ID（旧 {@code packet.id()}）
-     * @param url       下载地址（旧 {@code packet.url()}）
-     * @param hash      服务器给的 SHA-1（旧 {@code packet.hash()}）
-     * @param responder 响应通道（框架层给的、绑定到本次推送那条连接）
+     * @param packId 服务器分配的包 ID（旧 {@code packet.id()}）
+     * @param url    下载地址（旧 {@code packet.url()}）
+     * @param hash   服务器给的 SHA-1（旧 {@code packet.hash()}）
      * @return true 表示已接管并应取消原版处理；false 表示放行原版（可能同时已委托共享下载器缓存）
      */
-    public boolean handleResourcePackPush(UUID packId, String url, String hash,
-                                          ResourcePackGate.Responder responder) {
+    public boolean handleResourcePackPush(UUID packId, String url, String hash) {
         if (!isEnabled()) return false;
 
         ResourcePackMode mode = settings.resourcePackMode;
@@ -584,13 +583,13 @@ public final class ServerDetectorModule extends Module {
         if (mode == ResourcePackMode.BYPASS) {
             // required 和 optional 都拦截：cancel 原版处理后立即回 ACCEPTED + SUCCESSFULLY_LOADED，
             // 让服务器认为客户端已应用资源包，跳过下载直接进服。
-            // 必须走本次推送那条连接：资源包是在配置阶段推下来的，那时还没有游戏连接可发。
-            responder.respond(packId, ServerboundResourcePackPacket.Action.ACCEPTED);
-            responder.respond(packId, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED);
+            ClientPacketSender.sendResourcePackResponse(packId, ServerboundResourcePackPacket.Action.ACCEPTED);
+            ClientPacketSender.sendResourcePackResponse(packId, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED);
             ResourcePackCache.asyncNotify("§a✓ 已拦截资源包 §8(暴力绕过)");
             return true;
         } else if (mode == ResourcePackMode.AUTO_DOWNLOAD) {
-            // 放行原版：原版自己会回响应（配置阶段也发得出去），客户端不会被卡住。
+            // required 和 optional 都必须放行原版：cancel 原版处理会让服务器一直等待
+            // 资源包处理完成，客户端卡在「加入服务器中」（发 ACCEPTED 也救不回来）。
             // 旁路白嫖：交给共享下载器把文件多存一份到 yiyiaddon_resourcepacks。
             ResourcePackCache.downloadAsync(packId, url, hash,
                 settings.downloadRetries, settings.downloadTimeout * 1000, settings.resumeDownload);
