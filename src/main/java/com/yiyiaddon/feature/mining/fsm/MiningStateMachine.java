@@ -1327,11 +1327,16 @@ public final class MiningStateMachine {
             }
         }
 
-        // 优先级 4：满载检测（旧 :389-394）
-        int oreStacks = countOreStacks();
-        if (oreStacks >= module.getUnloadThreshold()) {
-            transitionTo(MinerState.UNLOADING);
-            return;
+        // 优先级 4：满载检测（旧 :389-394）。自用模式**整条跳过**：自用模式的「满载」含义是「去卖」，
+        // 上面 3.5 已经判过（触发组数 / 背包满）；这里再判一次会把「触发组数比满载组数大」的配置
+        // 拐进 UNLOADING，而自用模式不绑卸货点、不走卸货流程。设置与生效保持一致：
+        // 「触发条件」页的「满载组数」在自用模式下也已隐藏（用户 2026-09-21）。
+        if (!module.isPersonalMode()) {
+            int oreStacks = countOreStacks();
+            if (oreStacks >= module.getUnloadThreshold()) {
+                transitionTo(MinerState.UNLOADING);
+                return;
+            }
         }
 
         // 自动捡起目标矿掉落物（漏捡补偿；背包未满时才捡，旧 :396-397）
