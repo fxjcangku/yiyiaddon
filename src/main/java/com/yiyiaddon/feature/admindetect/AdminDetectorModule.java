@@ -382,7 +382,10 @@ public final class AdminDetectorModule extends Module {
         // 后消失」，因此这种实体只可能是插件 NPC，四条形态判定一条都不该走。
         // 上一次的修复只把「旁观/创造/隐身」挡在 Tab 名单里，NPC 改从下面这条「隐藏」通道命中
         // （它的旧兜底「不带自定义名字」正是多数 NPC 的形态），于是照样断线。
-        if (!inTab && !seenInTab.contains(name)) return null;
+        if (!inTab && !seenInTab.contains(name)) {
+            registerNpc(name);
+            return null;
+        }
         if (settings.detectHidden && isHiddenFromTab(player)) return "隐藏";
         return null;
     }
@@ -453,6 +456,33 @@ public final class AdminDetectorModule extends Module {
         if (mc.getConnection() == null) return false;
         if (mc.getConnection().getPlayerInfo(player.getUUID()) != null) return false;
         return seenInTab.contains(player.getName().getString());
+    }
+
+    /**
+     * 把识别出的插件 NPC 自动登记进白名单，并播报一条（用户 2026-09-22：「不能自动识别 npc 自己
+     * 添加到白名单吗」）。
+     *
+     * <p><b>走到这里的实体是什么</b>：既不在 Tab 名单、本次会话也从没在 Tab 名单出现过 —— 即
+     * {@link #getThreatReason} 判定的插件 NPC。登记后它不再进检测/播报/ESP，且下次会话依然豁免
+     * （白名单随设置一起落盘）。写进去的就是「名单」页那份白名单，用户看得见、删得掉，
+     * 因此这里只播报一次「新登记」，已在名单里的直接返回、不重复打扰。</p>
+     *
+     * <p><b>两个保险</b>：</p>
+     * <ul>
+     *     <li>只在实体内进过检测范围时登记 —— 主循环的距离判断在 {@link #getThreatReason} 之前，
+     *         远处的 NPC 不会被写进名单；</li>
+     *     <li>Tab 名单为空时不登记 —— 那种情况说明玩家列表根本没拿到（连接异常 / 服务端不下发），
+     *         「不在 Tab」这条判据失效，此时任何一个真人都会被当成 NPC，绝不能拿它往白名单里写。</li>
+     * </ul>
+     */
+    private void registerNpc(String name) {
+        if (name == null || name.isBlank()) return;
+        if (seenInTab.isEmpty()) return;
+        if (AdminDetectorSettings.containsName(settings.whitelist, name)) return;
+        settings.whitelist.add(name);
+        ModuleManager.saveSettings(this);
+        ClientChat.send(MESSAGE_MODULE, "§a✓ 识别到插件 NPC §8▸ " + highlightText(name)
+            + " §7已自动加入白名单 §8（可在「名单」页移除）");
     }
 
     /** 记下本刻 Tab 玩家列表里的全部人名（只增不减：要的就是「曾经见过」这份记忆）。 */
