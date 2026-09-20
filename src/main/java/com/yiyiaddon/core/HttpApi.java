@@ -70,13 +70,16 @@ public final class HttpApi {
     }
 
     /**
-     * 测量到后端的往返延迟，用于心跳上报的 {@code network_latency}。
+     * 测量到后端的往返延迟，用于心跳上报的 {@code network_latency} 与首页「后端状态」。
+     *
+     * <p>打的是 {@code /api/ping}（后端零 D1 查询的存活探测）而不是 {@code /api/stats}：
+     * 后者要跑 4 条 D1 查询，每 30 秒为测一次延迟而调用它，行读额度会被白白吃掉。</p>
      *
      * @return 毫秒；失败返回 -1
      */
     public static long measureLatency() {
         long begin = System.nanoTime();
-        Response response = get("/api/stats", Duration.ofSeconds(3));
+        Response response = get("/api/ping", Duration.ofSeconds(3));
         if (response.status() == 0) return -1L;
         return (System.nanoTime() - begin) / 1_000_000L;
     }

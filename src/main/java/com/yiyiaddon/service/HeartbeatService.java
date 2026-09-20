@@ -3,6 +3,7 @@ package com.yiyiaddon.service;
 import com.google.gson.JsonObject;
 import com.yiyiaddon.core.BackgroundTasks;
 import com.yiyiaddon.core.HttpApi;
+import com.yiyiaddon.core.Json;
 import com.yiyiaddon.platform.ClientIdentity;
 import com.yiyiaddon.platform.GameProbe;
 
@@ -14,6 +15,10 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>每 3 秒上报一次，后端 12 秒收不到心跳即判定离线；玩家断开连接时调用
  * {@link #reportOffline()} 可立即下线，无需等待超时。</p>
+ *
+ * <p><b>顺带当统计通道</b>：心跳响应里带回后端的累计用户数（写库心跳与被节流的心跳都带），
+ * 由 {@link HomeStats#acceptHeartbeat(int)} 交给首页 —— 首页因此不必再单独轮询 {@code /api/stats}，
+ * 刷新粒度就是后端的写库节流周期（30 秒）。</p>
  */
 public final class HeartbeatService {
 
@@ -56,7 +61,14 @@ public final class HeartbeatService {
         // 本地回环与局域网测试不参与在线统计，避免开发期污染后台数据。
         if ("multiplayer".equals(GameProbe.status()) && isLocalAddress(GameProbe.serverIp())) return;
 
-        if (HttpApi.post("/api/heartbeat", ReportPayload.heartbeat(), TIMEOUT).ok()) lastUuid = uuid;
+        HttpApi.Response response = HttpApi.post("/api/heartbeat", ReportPayload.heartbeat(), TIMEOUT);
+        if (!response.ok()) return;
+        lastUuid = uuid;
+
+        // 响应里带回累计用户数（写库心跳与被节流的心跳都带）：交给首页，首页因此不必再轮询 /api/stats。
+        // 老后端不返回该字段时 total_users 取 -1，HomeStats 会保留旧值并恢复自己的轮询兜底。
+        JsonObject root = response.json();
+        if (root != null) HomeStats.acceptHeartbeat(Json.integer(root, "total_users", -1));
     }
 
     private static boolean isLocalAddress(String ip) {
