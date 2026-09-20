@@ -1,6 +1,7 @@
 package com.yiyiaddon.feature.enchant.service;
 
 import com.yiyiaddon.feature.enchant.EnchantModule;
+import com.yiyiaddon.platform.container.ContainerAccess;
 import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.network.BlockPacketSender;
 import net.minecraft.client.Minecraft;
@@ -9,11 +10,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.AnvilMenu;
-import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.EnchantmentMenu;
 import net.minecraft.world.inventory.GrindstoneMenu;
-import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -35,6 +34,15 @@ import net.minecraft.world.phys.Vec3;
  *   <li>菜单就绪判断 {@code enchantMenuOpen:1876-1878} / {@code grindMenuOpen:1881-1883} /
  *       {@code chestMenuOpen:1886-1888} / {@code anvilMenuOpen:2231-2233}。</li>
  * </ul>
+ *
+ * <p><b>与旧项目的差异（唯一一处，已登记）</b>：旧 {@code chestMenuOpen:1887} 是
+ * {@code containerMenu instanceof ChestMenu}，只认箱子 / 木桶 / 铜箱 —— 潜影盒的
+ * {@code ShulkerBoxMenu} 判不中，而点位绑定明确允许潜影盒
+ * （{@code EnchantBindingService#isValidTarget} 的提示语「必须设置为箱子、木桶或潜影盒容器」）。
+ * 后果是成品箱 / 装备箱 / 铁砧箱 / 书本箱 / 青金石箱<b>只要设成潜影盒</b>，状态机每 tick 重发开箱包
+ * （反复开箱）且永远进不到搬运相（物品放不进去）。现改为与自动挖矿同一口径的
+ * {@code containerId != 0}，并把 {@code getRowCount() * 9} 换成 {@link #containerSlotCount}
+ * （潜影盒无行数概念）。</p>
  *
  * <p>{@link #closeContainer()} 相对旧项目 {@code mc.player.closeContainer()} 多一层
  * 「当前菜单不是玩家自身背包」防护：静默容器操作下菜单即界面，无防护时误调会把玩家自己开着的
@@ -97,27 +105,16 @@ public final class EnchantContainer {
     /**
      * 背包槽位 → 容器菜单槽位（旧 {@code containerSlotOf:1814-1821}）。
      *
-     * <p>全流程共用这一处换算：菜单前若干槽是容器本体，之后是玩家背包（最后 36 槽）。</p>
+     * <p>全流程共用这一处换算：菜单前若干槽是容器本体，之后是玩家背包（最后 36 槽）。
+     * 容器本体格数走 {@link #containerSlotCount}，与卸货 / 补给的遍历上界同一来源。</p>
      */
     public int containerSlotOf(AbstractContainerMenu handler, int invSlot) {
-        int containerSize = containerSlotCount(handler);
+        int slots = containerSlotCount(handler);
         if (invSlot < 9) {
-            return containerSize + 27 + invSlot;
+            return slots + 27 + invSlot;
         } else {
-            return containerSize + (invSlot - 9);
+            return slots + (invSlot - 9);
         }
-    }
-
-    /**
-     * 容器本体占用的槽位数（菜单总槽位 − 玩家背包 36 槽）。
-     *
-     * <p><b>取代只能对箱子用的 {@code getRowCount() * 9}</b>：潜影盒的菜单是
-     * {@link ShulkerBoxMenu}（{@code extends AbstractContainerMenu}，没有 {@code getRowCount}），
-     * 用行数换算的地方在潜影盒成品箱上会直接判成「界面没打开」→ 每 tick 重发开箱包（反复打开）。
-     * 箱子 / 陷阱箱 / 木桶 / 潜影盒共用这一条算式，与 {@link #containerSlotOf} 同一来源。</p>
-     */
-    public int containerSlotCount(AbstractContainerMenu handler) {
-        return Math.max(0, handler.slots.size() - INVENTORY_SLOTS);
     }
 
     // ── 空白书堆叠合并（旧 :1823-1870） ──
@@ -234,19 +231,29 @@ public final class EnchantContainer {
     }
 
     /**
-     * 方块容器菜单是否已打开（书本箱/青金石箱/成品箱/装备箱/铁砧箱共用）。
+     * 方块容器菜单是否已打开（书本箱 / 青金石箱 / 成品箱 / 装备箱 / 铁砧箱共用）。
      *
-     * <p><b>潜影盒必须一起认</b>：箱子 / 陷阱箱 / 木桶开出 {@link ChestMenu}，但潜影盒开出的是
-     * {@link ShulkerBoxMenu}（Minecraft 里两者互不相干）。旧项目只判 {@code instanceof ChestMenu}，
-     * 潜影盒做的成品箱永远判成「没打开」→ 状态机每 tick 重发一次开箱包（实机表现：潜影盒反复打开）。</p>
+     * <p><b>不按菜单类判（与自动挖矿 / 自动箱子同一口径）</b>：箱子 / 陷阱箱 / 木桶 / 铜箱开出的是
+     * {@code ChestMenu}，潜影盒开出的是 {@code ShulkerBoxMenu} —— 后者<b>不是</b> {@code ChestMenu} 的子类。
+     * 按类判会把「成品箱 = 潜影盒」永远判成未打开：状态机每 tick 重发一次开箱包（表现为反复开箱），
+     * 且永远进不到搬运那一相（成品放不进去）。</p>
+     *
+     * <p>判据一律复用平台层唯一实现 {@link ContainerAccess#openMenu()}（{@code containerId != 0}
+     * 即服务端已推来方块容器菜单，玩家自身背包菜单恒为 0），本类不再自带第二份判据。</p>
      */
     public boolean chestMenuOpen() {
-        return mc.player != null && isBlockContainerMenu(mc.player.containerMenu);
+        return ContainerAccess.openMenu() != null;
     }
 
-    /** 是否为方块容器菜单：箱子 / 陷阱箱 / 木桶（{@link ChestMenu}）与潜影盒（{@link ShulkerBoxMenu}） */
-    public static boolean isBlockContainerMenu(AbstractContainerMenu menu) {
-        return menu instanceof ChestMenu || menu instanceof ShulkerBoxMenu;
+    /**
+     * 容器本体槽位数（与 {@link #containerSlotOf} 同一口径：菜单总槽位 − 玩家背包 36 格）。
+     *
+     * <p>取代原先写死的 {@code ChestMenu#getRowCount() * 9}：行数是 {@code ChestMenu} 私有能力，
+     * 潜影盒没有行数概念（其容器槽固定 27 格），只有按「总槽位 − 背包」算才对两种容器都成立；
+     * 大箱子 54 格与木桶 27 格的取值与改前一致。</p>
+     */
+    public int containerSlotCount(AbstractContainerMenu handler) {
+        return handler.slots.size() - INVENTORY_SLOTS;
     }
 
     /** 铁砧菜单是否已打开 */
