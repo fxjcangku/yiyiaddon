@@ -15,6 +15,10 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.EntityHitResult;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 /**
  * 自用模式出售流程的底层动作（用户 2026-09-20 需求）。
  *
@@ -251,8 +255,7 @@ public final class MiningPersonalSell {
         double bestDist = Double.MAX_VALUE;
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity == mc.player) continue;
-            if (stripFormatting(entity.getDisplayName().getString()).contains(wanted)
-                || stripFormatting(entity.getName().getString()).contains(wanted)) {
+            if (matchesNpcName(entity, wanted)) {
                 double dist = entity.blockPosition().distSqr(center);
                 if (dist < bestDist) {
                     bestDist = dist;
@@ -261,6 +264,63 @@ public final class MiningPersonalSell {
             }
         }
         return best;
+    }
+
+    /**
+     * 名字是否对得上（用户 2026-09-21：「填名字跟 id 都能识别」）。
+     *
+     * <p>三个来源都要试，因为插件 NPC 的名字可能挂在任意一层：实体名（假玩家 NPC 就是它的档案名）、
+     * 自定义显示名，以及<b>记分板队伍的前后缀</b>。用户 2026-09-22 复现：头顶明明写着「黑市商人」，
+     * 按它匹配却扫不到实体 —— 那行字正是队伍装饰渲染出来的，既不进实体名、也不进显示名。</p>
+     */
+    private boolean matchesNpcName(Entity entity, String wanted) {
+        return stripFormatting(entity.getName().getString()).contains(wanted)
+            || stripFormatting(entity.getDisplayName().getString()).contains(wanted)
+            || decoratedName(entity).contains(wanted);
+    }
+
+    /** 实体「眼睛看到的名字」：队伍前缀 + 显示名 + 队伍后缀（拿不到队伍时退化成显示名） */
+    public String decoratedName(Entity entity) {
+        String base = entity.getDisplayName().getString();
+        if (mc.level == null) return stripFormatting(base);
+        var team = mc.level.getScoreboard().getPlayersTeam(entity.getScoreboardName());
+        if (team == null) return stripFormatting(base);
+        return stripFormatting(team.getPlayerPrefix().getString() + base + team.getPlayerSuffix().getString());
+    }
+
+    /**
+     * 诊断文本：列出配置坐标附近实体的真实名字（找不到收购 NPC 时写进 {@code latest.log}）。
+     *
+     * <p>用户 2026-09-22 复现「出售中」卡住：聊天栏每 5 秒报一次「附近找不到『黑市商人』」，可头顶
+     * 明明写着这四个字。这行日志把附近实体的名字逐层摊开（类型 / name / displayName / 队伍装饰后的
+     * 名字 / 距离），照着它把「收购 NPC 名字」填对即可；若连一个实体都没有，说明 NPC 不在客户端的
+     * 追踪范围内（配置坐标填错，或人还没真正到 NPC 附近）。</p>
+     *
+     * @return 一行文本；附近没有可列实体时给出原因
+     */
+    public String nearbyEntityDump() {
+        if (mc.level == null || mc.player == null) return "（世界未加载）";
+        BlockPos center = npcPos();
+        List<Entity> near = new ArrayList<>();
+        for (Entity entity : mc.level.entitiesForRendering()) {
+            if (entity == mc.player) continue;
+            if (entity.blockPosition().distSqr(center) <= 32 * 32) near.add(entity);
+        }
+        if (near.isEmpty()) return "（32 格内没有任何实体：NPC 不在客户端追踪范围内，或坐标填错）";
+        near.sort(Comparator.comparingDouble(entity -> entity.blockPosition().distSqr(center)));
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.min(8, near.size()); i++) {
+            Entity entity = near.get(i);
+            if (i > 0) sb.append(" | ");
+            sb.append(String.format("%s name=%s display=%s 队伍装饰=%s 距%.1f",
+                entity.getType().toString(),
+                entity.getName().getString(),
+                entity.getDisplayName().getString(),
+                decoratedName(entity),
+                Math.sqrt(entity.blockPosition().distSqr(center))));
+        }
+        if (near.size() > 8) sb.append(" …共 ").append(near.size()).append(" 个");
+        return sb.toString();
     }
 
     /**

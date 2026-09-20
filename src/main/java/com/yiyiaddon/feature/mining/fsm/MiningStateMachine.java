@@ -3098,8 +3098,13 @@ public final class MiningStateMachine {
                     var npc = personalSell.findNpc();
                     if (npc == null) {
                         module.warning("§e⚠ 附近找不到「" + module.settings().personalSellNpcName + "」§8▸ 按坐标再找一次");
+                        // 名字对不上时把附近实体的真实名字写进日志（头顶看到的字可能来自队伍装饰或全息实体）
+                        MINING_LOG.info("[卖矿流程] 关键词「{}」扫不到收购 NPC，附近实体：{}",
+                            module.settings().personalSellNpcName, personalSell.nearbyEntityDump());
                     } else {
                         personalSell.interactNpc(npc);
+                        MINING_LOG.info("[卖矿流程] 已右键收购 NPC：name={} display={} 类型={}",
+                            npc.getName().getString(), npc.getDisplayName().getString(), npc.getType().toString());
                     }
                 }
                 if (sellStepOutcome("打开收购菜单") == SellStep.RETRY) sellInteractTicks = 0;
