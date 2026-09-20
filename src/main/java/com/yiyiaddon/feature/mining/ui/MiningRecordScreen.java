@@ -121,17 +121,21 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
         for (ConfigRecord record : records) cards.add(card(record));
         content().add(new PointCardGrid.Grid(cards));
         content().add(new FlushNote("§8读取 / 替换 §7= 只认 §a✓ 本服§7 的记录（IP / 存档一致）　"
-            + "§8详情 §7= 看完整内容　§8删除 §7= 只删记录"));
+            + "§8详情 §7= 看完整内容　§8删除 §7= 只删记录　"
+            + "§8同一台服务器 / 存档只保留一条记录（两个模式共用，卡片头标出是哪一个）"));
     }
 
-    /** 一条记录一张卡：头 = 服务器身份，两行信息 = 目标/食物 与 点位数/保存时间，四个动作 */
+    /** 一条记录一张卡：头 = 服务器身份 + 模式徽标，两行信息 = 目标/采集/食物 与 关键阈值/点位数/保存时间 */
     private PointCardGrid.PointCard card(ConfigRecord record) {
         MiningSettings settings = module.recordSettings(record);
         boolean current = module.sameScopeAs(record);
-        String title = "§f" + record.displayName() + (current ? " §a✓ 本服" : "");
-        String info1 = settings == null ? "§c记录读不出来" : (targetText(settings) + " §8· §7食物 " + foodText(settings));
+        String title = "§f" + record.displayName() + (current ? " §a✓ 本服" : "")
+            + (settings == null ? "" : " " + modeBadge(settings.personalMode));
+        String info1 = settings == null ? "§c记录读不出来"
+            : targetText(settings) + " §8· §7采集 §f" + settings.lootMode + " §8· §7食物 " + foodText(settings);
         String info2 = "§7点位 §f" + record.pointCount() + "§7/3 §8· §7保存于 §f"
             + AutoMinerModule.recordTimeText(record.savedAt());
+        if (settings != null) info2 = thresholdSummary(settings) + " §8· " + info2;
         // 非本服那条的「读取 / 替换」压成灰色：不是禁用（点它要弹出「为什么不能动」），
         // 而是提前说明它不是本服的（用户 2026-09-18 要求写方向也按 IP 卡死）
         return new PointCardGrid.PointCard(title, info1, info2, List.of(
@@ -140,6 +144,24 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
             List.of(new Button("§b详情", () -> showDetails(record)),
                 new Button("§c删除", () -> confirmDelete(record)))))
             .icon(() -> RECORD_ICON);
+    }
+
+    /**
+     * 模式徽标（用户 2026-09-22：「自动挖矿配置保存没有区分什么模式」）。
+     *
+     * <p>同一台服务器 / 同一个存档只保留一条记录，两个模式（普通 / 自用）会互相覆盖，因此这份快照
+     * 属于哪套必须一眼看出来 —— 两者的目标三选一、传送链、触发条件都不一样（自用模式走卖矿链，
+     * 普通模式走卸货补给链），不标出来只能读回去才知道拿错了一套。</p>
+     */
+    private static String modeBadge(boolean personal) {
+        return personal ? "§b[自用模式]" : "§7[普通模式]";
+    }
+
+    /** 关键阈值摘要：自用模式看「触发组数」（挖满就去卖），普通模式看「满载组数」（挖满去卸货） */
+    private static String thresholdSummary(MiningSettings settings) {
+        return settings.personalMode
+            ? "§7触发 §f" + settings.personalSellStacks + "§7组"
+            : "§7满载 §f" + settings.unloadThreshold + "§7组";
     }
 
     /** 目标显示：三个单值目标三选一（与模块自检同一口径），并标出矿石还是方块、哪个维度 */
@@ -178,10 +200,15 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
             rebuild();
             return;
         }
+        // 覆盖前把旧记录属于哪种模式说清楚（用户 2026-09-22：「自动挖矿配置保存没有区分什么模式」）：
+        // 同一台服务器只保留一条记录，两个模式互相覆盖时不点明，读回去才发现拿到的是另一套配置
+        MiningSettings existing = module.serverRecordSettings();
+        String existingMode = existing == null ? "§8读不出来" : modeBadge(existing.personalMode);
         confirm("覆盖本服记录",
             List.of("§f本服已有一条记录 §7保存于 §f" + module.serverRecordTimeText(),
-                "§7继续保存会用当前配置覆盖它。",
+                "§7它是 " + existingMode + " §7的记录，当前是 " + modeBadge(module.isPersonalMode()) + "§7。",
                 "",
+                "§7继续保存会用当前配置覆盖它 §8（同一台服务器只保留一条记录）",
                 "§c旧记录内容不可恢复。"),
             "§e§l确认覆盖", () -> {
                 module.saveServerRecord();
@@ -265,6 +292,7 @@ public final class MiningRecordScreen extends PanelScreen implements ConsoleHost
         MiningSettings settings = module.recordSettings(record);
         List<String> lines = new ArrayList<>();
         lines.add("§7识别 §8▸ §f" + record.displayName());
+        lines.add("§7模式 §8▸ " + (settings == null ? "§8读不出来" : modeBadge(settings.personalMode)));
         lines.add("§7保存于 §8▸ §f" + AutoMinerModule.recordTimeText(record.savedAt()));
         lines.add("§7点位 §8▸ §f" + record.pointCount() + " §7/ 3");
         Map<MiningPointType, MiningPoint> points = module.recordPoints(record);
