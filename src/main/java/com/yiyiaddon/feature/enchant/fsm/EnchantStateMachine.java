@@ -36,8 +36,8 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.AnvilMenu;
-import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.EnchantmentMenu;
 import net.minecraft.world.inventory.GrindstoneMenu;
@@ -877,13 +877,13 @@ public final class EnchantStateMachine {
         }
         if (!container.chestMenuOpen()) return;
 
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
 
         switch (guiPhase) {
             case 0 -> {
                 boolean hasFreeSlot = false;
-                for (int i = 0; i < handler.getRowCount() * 9; i++) {
+                for (int i = 0; i < container.containerSlotCount(handler); i++) {
                     if (handler.getSlot(i).getItem().isEmpty()) { hasFreeSlot = true; break; }
                 }
                 if (!hasFreeSlot) {
@@ -968,7 +968,7 @@ public final class EnchantStateMachine {
         }
         if (!container.chestMenuOpen()) return;
 
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
 
         Item targetItem = isLapis ? Items.LAPIS_LAZULI : Items.BOOK;
@@ -987,7 +987,7 @@ public final class EnchantStateMachine {
         }
 
         int grabbed = 0;
-        for (int i = 0; i < handler.getRowCount() * 9 && grabbed < needCount; i++) {
+        for (int i = 0; i < container.containerSlotCount(handler) && grabbed < needCount; i++) {
             ItemStack stack = handler.getSlot(i).getItem();
             if (stack.getItem() == targetItem) {
                 int movedCount = stack.getCount();
@@ -1255,10 +1255,10 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
         // 每 tick 取一件目标装备，最多「每批取用数量」件（只取 gearTargetItem，其他装备不拿）
-        for (int i = 0; i < handler.getRowCount() * 9; i++) {
+        for (int i = 0; i < container.containerSlotCount(handler); i++) {
             ItemStack stack = handler.getSlot(i).getItem();
             if (stack.is(gearTargetItem)) {
                 mc.gameMode.handleContainerInput(syncId, i, 0, ContainerInput.QUICK_MOVE, mc.player);
@@ -1542,7 +1542,7 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
         // 复用「青金石补给组数」计算补足数量（与附魔书模式同一标准）
         int current = container.countInInventory(Items.LAPIS_LAZULI);
@@ -1553,7 +1553,7 @@ public final class EnchantStateMachine {
             return;
         }
         // 从青金石箱 QUICK_MOVE 青金石
-        for (int i = 0; i < handler.getRowCount() * 9; i++) {
+        for (int i = 0; i < container.containerSlotCount(handler); i++) {
             if (handler.getSlot(i).getItem().is(Items.LAPIS_LAZULI)) {
                 mc.gameMode.handleContainerInput(syncId, i, 0, ContainerInput.QUICK_MOVE, mc.player);
                 guiTick = module.settings().guiDelayTick;
@@ -1772,7 +1772,7 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
 
         // 铁砧可堆叠：QUICK_MOVE 会把整组一起拿走。改为「拿起整堆 → 右键放 1 个到背包 → 剩下的放回箱子」，只取 1 个。
@@ -1780,7 +1780,7 @@ public final class EnchantStateMachine {
         switch (guiPhase) {
             case 0 -> {
                 gearAnvilChestSlot = -1;
-                for (int i = 0; i < handler.getRowCount() * 9; i++) {
+                for (int i = 0; i < container.containerSlotCount(handler); i++) {
                     if (isAnvilItem(handler.getSlot(i).getItem())) {
                         gearAnvilChestSlot = i;
                         break;
@@ -2114,12 +2114,12 @@ public final class EnchantStateMachine {
             }
         }
         if (!container.chestMenuOpen()) return;
-        ChestMenu handler = (ChestMenu) mc.player.containerMenu;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int syncId = handler.containerId;
         switch (guiPhase) {
             case 0 -> {
                 boolean hasFreeSlot = false;
-                for (int i = 0; i < handler.getRowCount() * 9; i++) {
+                for (int i = 0; i < container.containerSlotCount(handler); i++) {
                     if (handler.getSlot(i).getItem().isEmpty()) { hasFreeSlot = true; break; }
                 }
                 if (!hasFreeSlot) {
