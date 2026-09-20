@@ -924,6 +924,10 @@ public final class MiningStateMachine {
         // 状态转换播报
         broadcastStateTransition(oldState, newState);
 
+        // 落一行日志（诊断自用模式跨服卖矿卡住，用户 2026-09-22）：卖矿链（SELL_*）如果不往下走了，
+        // 日志最后一行就是它停住的那一步，配合 [卖矿流程] 的指令 / 配置阶段记录能直接看出卡在哪
+        MINING_LOG.info("[卖矿流程] 状态机 {} → {}", oldState, newState);
+
         // 状态进入初始化
         onStateEnter(newState);
     }

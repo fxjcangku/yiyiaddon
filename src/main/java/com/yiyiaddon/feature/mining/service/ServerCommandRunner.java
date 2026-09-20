@@ -10,6 +10,8 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.chunk.LevelChunk;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 指令管理与防卡死网络中心
@@ -28,6 +30,9 @@ import net.minecraft.world.level.chunk.LevelChunk;
  * 唯一换掉的依赖是开箱式 GUI 点击（旧项目走 {@code Screen}）之外的原文一律保留。</p>
  */
 public final class ServerCommandRunner {
+
+    /** 指令日志：自用模式跨服卖矿的诊断输出（与模块、状态机同一个 logger 名） */
+    private static final Logger COMMAND_LOG = LoggerFactory.getLogger("yiyiaddon/mining");
 
     private final AutoMinerModule module;
     private final Minecraft mc;
@@ -118,6 +123,9 @@ public final class ServerCommandRunner {
     public void executeCommand(String command, boolean allowGuiClick) {
         String cmd = normalize(command);
         if (cmd == null) {
+            // 跨服 / 传送期间（配置阶段，玩家实体为空）流程若继续往下推就会走到这里 —— 静默丢弃。
+            // 不记这一行的话，表面现象只是「流程不动了」，无从判断指令到底发没发出去
+            COMMAND_LOG.warn("[卖矿流程] 指令被丢弃（当前没有玩家实体，多半在配置阶段）：{}", command);
             return;
         }
 
@@ -146,6 +154,9 @@ public final class ServerCommandRunner {
             waitingForGui = true;
             guiWaitTicks = 0;
         }
+
+        COMMAND_LOG.info("[卖矿流程] 发指令 {}（等 GUI={}，超时 {} 刻），玩家 tick={}",
+            cmd, waitingForGui, maxWaitTicks, mc.player.tickCount);
     }
 
     /**
@@ -157,9 +168,13 @@ public final class ServerCommandRunner {
      */
     public void sendMenuCommand(String command) {
         String cmd = normalize(command);
-        if (cmd == null) return;
+        if (cmd == null) {
+            COMMAND_LOG.warn("[卖矿流程] 菜单指令被丢弃（当前没有玩家实体，多半在配置阶段）：{}", command);
+            return;
+        }
         markOwnCommand(cmd.substring(1));
         mc.player.connection.sendCommand(cmd.substring(1));
+        COMMAND_LOG.info("[卖矿流程] 发菜单指令 {}（不等待传送），玩家 tick={}", cmd, mc.player.tickCount);
     }
 
     /**
