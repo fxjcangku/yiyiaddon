@@ -9,7 +9,12 @@ accessible class com/mojang/blaze3d/opengl/GlDevice
 # 并在绑定时校验；这两个类与 samplers 字段在 26.1.2 与 26.2 里都是包私有的。
 accessible class com/mojang/blaze3d/opengl/GlCommandEncoder
 accessible class com/mojang/blaze3d/opengl/GlRenderPass
+accessible class com/mojang/blaze3d/opengl/GlRenderPass$TextureViewAndSampler
 accessible field com/mojang/blaze3d/opengl/GlRenderPass samplers Ljava/util/HashMap;
+
+# 「绑定已被关闭」兜底要照原版口径核对「这个槽位是不是当前着色器程序真的需要的采样器」，
+# 需要读到管线自身（原版 trySetup 就是从 pipeline.program().getUniforms() 遍历的）。
+accessible field com/mojang/blaze3d/opengl/GlRenderPass pipeline Lcom/mojang/blaze3d/opengl/GlRenderPipeline;
 
 # 「是否正版验证服」判定：26.2 移除了 Connection#isEncrypted()，加密状态只剩管线里有没有
 # CipherDecoder 这一种表现，而 channel 是包私有字段。
