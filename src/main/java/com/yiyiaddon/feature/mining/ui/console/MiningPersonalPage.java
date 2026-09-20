@@ -32,10 +32,17 @@ import java.util.function.Supplier;
  * （直接调那两页的装配方法，一行都不复制）；关掉自用模式反过来隐藏本页
  * （见 {@code MiningConsoleScreen.Tab#visible}）。</p>
  *
- * <p><b>本页装什么</b>：① 出售物品（只读回显）+ 触发组数；② 「目标选择」页整页（采集模式、三个单值目标、
- * 物品管理三个名单）；③ 「传送指令」页里自用模式要用的行（前往挖矿指令、RTP 两项、前往补给指令、
- * 死亡返回指令、传送等待时长、RTP 冷却、传送失败重试）；④ 出售链本身（流程指令、菜单关键词、
- * 回程目标服、收购 NPC、卡顿重试）。</p>
+ * <p><b>本页装什么（顺序即设置顺序，2026-09-21 重排）</b>：① 「目标选择」页整页（采集模式、三个单值目标、
+ * 物品管理三个名单）；② 出售（出售物品只读回显 + 触发组数）；③ 「传送指令」页里自用模式要用的行
+ * （前往挖矿指令、RTP 两项、前往补给指令、死亡返回指令、传送等待时长、RTP 冷却、传送失败重试）；
+ * ④ 出售流程本身（流程指令 → 回城关键词 → 收购 NPC 坐标与名字 → 出售数量 → 确认出售 → 跨服关键词 →
+ * 回程目标服）；⑤ 卡顿与重试（单步超时 / 单步重试次数）。</p>
+ *
+ * <p><b>为什么是这个顺序</b>（用户 2026-09-21：「重新整理自用模式里面的配置排序 方便操作填写人性化
+ * 现在乱七八糟」）：按「先定挖什么、再定卖什么、再定去哪挖、最后定回城怎么卖」的因果链排，
+ * 且 ④ 内部逐行就是运行时点屏幕的顺序（开菜单 → 点回城 → 走到 NPC → 点物品 → 点「全部」→
+ * 点「确认出售」→ 点跨服 → 回勾选的服），与帮助页 [1]~[4] 的步骤逐条对上。
+ * 装卸货绑定的行本模式一概不出现（「触发条件」页在自用模式下也已隐藏那两行）。</p>
  *
  * <p><b>出售物品不单独设项</b>（用户 2026-09-21：「选择出售方块为什么可以选择？我说同步选择器」）：
  * 它就是目标三选一在当前采集模式下的产物（选石头没开精准采集，卖的就是圆石），只读回显，
@@ -86,8 +93,16 @@ public final class MiningPersonalPage {
             + "该模式用不到的页签已隐藏", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
-        stack.add(sellItemRow());
+        // ── ① 挖什么：目标整页（采集模式 + 三个单值目标 + 物品管理三个名单）──
+        // 摆最前：下面「出售」组的产物就是这一组推导出来的，先把挖什么定了，后面的行才有意义
+        stack.add(new Note(owner, "§7§l目标 §8（自用模式下「目标选择」页隐藏，这里就是那一页）", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        new MiningTargetPage(owner, module).build(stack);
 
+        // ── ② 卖什么、攒到多少走 ──
+        stack.add(new Note(owner, "§7§l出售 §8（上面选的产物攒够触发组数、或背包先满，就去卖）", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(sellItemRow());
         stack.add(new ConsoleRow(owner, () -> "触发组数",
             "背包里「出售物品」攒到多少组就出发去卖（1~36 组）。背包先满也直接去卖", null,
             List.of(new Ctl(intBox(1, 36, () -> settings.personalSellStacks,
@@ -95,17 +110,15 @@ public final class MiningPersonalPage {
                 resetInt("触发组数", () -> DEFAULTS.personalSellStacks,
                     value -> settings.personalSellStacks = value))));
 
-        stack.add(new Note(owner, "§7§l目标 §8（自用模式下「目标选择」页隐藏，这里就是那一页）", null,
-            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        // 整页挂过来：采集模式、三个单值目标、物品管理三个名单 —— 名单在自用模式下同样要能改
-        new MiningTargetPage(owner, module).build(stack);
-
+        // ── ③ 去哪挖、去哪补、死了怎么回来 ──
         stack.add(new Note(owner, "§7§l传送 §8（自用模式下「传送指令」页隐藏；"
             + "卸货与挂机修复那两行本模式用不到，已略过）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        // 整页挂过来：把传送那几条按原序装进本页
         new MiningTeleportPage(owner, module).build(stack, true);
 
-        stack.add(new Note(owner, "§7§l出售流程 §8（全程静默：不弹界面、不抢鼠标）", null,
+        // ── ④ 回城怎么卖：按运行顺序排（与帮助页 [1]~[4] 的步骤逐条对上）──
+        stack.add(new Note(owner, "§7§l出售流程 §8（全程静默：不弹界面、不抢鼠标；下面的顺序就是运行时点击顺序）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
         stack.add(new ConsoleRow(owner, () -> "出售流程指令",
@@ -121,36 +134,6 @@ public final class MiningPersonalPage {
                     value -> settings.personalSellCityKeyword = value)),
                 resetText("回城点击关键词", () -> DEFAULTS.personalSellCityKeyword,
                     value -> settings.personalSellCityKeyword = value))));
-
-        stack.add(new ConsoleRow(owner, () -> "跨服点击关键词",
-            "卖完回程时，流程菜单里打开子服列表的那个槽（默认「跨服传送」，图标是指南针）", null,
-            List.of(new Ctl(textBox(() -> settings.personalSellCrossServerKeyword,
-                    value -> settings.personalSellCrossServerKeyword = value)),
-                resetText("跨服点击关键词", () -> DEFAULTS.personalSellCrossServerKeyword,
-                    value -> settings.personalSellCrossServerKeyword = value))));
-
-        for (String server : MiningSettings.PERSONAL_RETURN_SERVERS) {
-            stack.add(returnServerRow(server));
-        }
-        stack.add(new Note(owner, "§8两个服只能勾一个：勾另一个会自动切过去（勾是「回哪个服继续挂机」）", null,
-            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-
-        stack.add(new ConsoleRow(owner, () -> "出售数量关键词",
-            "出售界面里「设为全部数量」那个槽的关键词（默认「全部」）", null,
-            List.of(new Ctl(textBox(() -> settings.personalSellPickKeyword,
-                    value -> settings.personalSellPickKeyword = value)),
-                resetText("出售数量关键词", () -> DEFAULTS.personalSellPickKeyword,
-                    value -> settings.personalSellPickKeyword = value))));
-
-        stack.add(new ConsoleRow(owner, () -> "确认出售关键词",
-            "提交出售那个槽的关键词（默认「确认出售」）", null,
-            List.of(new Ctl(textBox(() -> settings.personalSellConfirmKeyword,
-                    value -> settings.personalSellConfirmKeyword = value)),
-                resetText("确认出售关键词", () -> DEFAULTS.personalSellConfirmKeyword,
-                    value -> settings.personalSellConfirmKeyword = value))));
-
-        stack.add(new Note(owner, "§7§l收购 NPC", null,
-            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
         stack.add(new ConsoleRow(owner, () -> "NPC 坐标 X",
             "收购 NPC 的固定坐标（回主城后按它寻路，到了再用名字核对）", null,
@@ -180,6 +163,38 @@ public final class MiningPersonalPage {
                 resetText("NPC 名字关键词", () -> DEFAULTS.personalSellNpcName,
                     value -> settings.personalSellNpcName = value))));
 
+        stack.add(new ConsoleRow(owner, () -> "出售数量关键词",
+            "出售界面里「设为全部数量」那个槽的关键词（默认「全部」）", null,
+            List.of(new Ctl(textBox(() -> settings.personalSellPickKeyword,
+                    value -> settings.personalSellPickKeyword = value)),
+                resetText("出售数量关键词", () -> DEFAULTS.personalSellPickKeyword,
+                    value -> settings.personalSellPickKeyword = value))));
+
+        stack.add(new ConsoleRow(owner, () -> "确认出售关键词",
+            "提交出售那个槽的关键词（默认「确认出售」）", null,
+            List.of(new Ctl(textBox(() -> settings.personalSellConfirmKeyword,
+                    value -> settings.personalSellConfirmKeyword = value)),
+                resetText("确认出售关键词", () -> DEFAULTS.personalSellConfirmKeyword,
+                    value -> settings.personalSellConfirmKeyword = value))));
+
+        stack.add(new ConsoleRow(owner, () -> "跨服点击关键词",
+            "卖完回程时，流程菜单里打开子服列表的那个槽（默认「跨服传送」，图标是指南针）", null,
+            List.of(new Ctl(textBox(() -> settings.personalSellCrossServerKeyword,
+                    value -> settings.personalSellCrossServerKeyword = value)),
+                resetText("跨服点击关键词", () -> DEFAULTS.personalSellCrossServerKeyword,
+                    value -> settings.personalSellCrossServerKeyword = value))));
+
+        for (String server : MiningSettings.PERSONAL_RETURN_SERVERS) {
+            stack.add(returnServerRow(server));
+        }
+        stack.add(new Note(owner, "§8两个服只能勾一个：勾另一个会自动切过去（勾是「回哪个服继续挂机」）", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, "§8出售顺序：点出售物品 → 点「全部」→ 点「确认出售」，循环到背包清零", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, "§8然后回勾选的那个服，落地直接继续 RTP 挖矿；死亡返回指令填 /back 即可", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+
+        // ── ⑤ 卡顿与重试：传送与出售两步共用的兜底参数，摆最后 ──
         stack.add(new Note(owner, "§7§l卡顿与重试 §8（服务器卡了就原地重试，不带着矿乱走）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
@@ -196,11 +211,6 @@ public final class MiningPersonalPage {
                     value -> settings.personalSellRetries = value)),
                 resetInt("单步重试次数", () -> DEFAULTS.personalSellRetries,
                     value -> settings.personalSellRetries = value))));
-
-        stack.add(new Note(owner, "§8出售顺序：点出售物品 → 点「全部」→ 点「确认出售」，循环到背包清零", null,
-            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        stack.add(new Note(owner, "§8然后回勾选的那个服，落地直接继续 RTP 挖矿；死亡返回指令填 /back 即可", null,
-            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
     }
 
     // ── 行构件 ──
@@ -209,16 +219,21 @@ public final class MiningPersonalPage {
      * 出售物品行：<b>图标 + 名字，只读</b>（用户 2026-09-21：「出售物品下面不用带选择器懂？我目标选择器
      * 选择了什么 出售物品那一栏就出现选择的方块或者加图标名字就行了 而不是刷新按钮跟目标选择器」）。
      *
+     * <p><b>图标挂在值那一格里</b>（用户 2026-09-21：「出售物品图标移动到右边的物品名字前面」）：
+     * 早先挂在行首（{@code ConsoleRow#icon}），图标与名字分处一行两端，中间隔着标签与整段空白，
+     * 「这个图标是什么」要横着跨半行去对。名字本身就是值的一部分，图标必须贴着名字
+     * —— 于是改用 {@link SettingText#icon}，图标画在名字正左方，与名字同属右侧那一格。</p>
+     *
      * <p>值恒等于目标三选一在当前采集模式下的产物（{@code AutoMinerModule#sellItemFilter()}），
      * 与背包计数、菜单点选、播报、状态条读的是同一个取值，所以行上看到什么就卖什么；
      * 推导不出来时（没选目标 / 产物没有物品形态）这里直接显示纠错那句话。</p>
      */
     private ConsoleRow sellItemRow() {
         return new ConsoleRow(owner, () -> "出售物品",
-            "不用选：你在下面选什么目标，这里就是它挖出来的产物（选石头、没开精准采集，卖的就是圆石）"
+            "不用选：你在上面选什么目标，这里就是它挖出来的产物（选石头、没开精准采集，卖的就是圆石）"
                 + " —— 背包数的是它、菜单点的是它、播报念的也是它",
-            null, List.of(new Ctl(new SettingText(this::sellItemStatus, SELL_ITEM_STATE_WIDTH))))
-            .icon(module::sellItemIcon);
+            null, List.of(new Ctl(new SettingText(this::sellItemStatus, SELL_ITEM_STATE_WIDTH)
+                .icon(module::sellItemIcon))));
     }
 
     /** 出售物品的当前值：产物名（不是目标本身时标出「XX掉落」，如「圆石 (石头掉落)」）；推导不出来时显示纠错那句话 */
