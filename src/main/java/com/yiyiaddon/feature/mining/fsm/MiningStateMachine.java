@@ -9,6 +9,7 @@ import com.yiyiaddon.feature.mining.model.MiningPoint;
 import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.feature.mining.navigation.BlockPlacer;
 import com.yiyiaddon.feature.mining.service.MiningContainer;
+import com.yiyiaddon.feature.mining.service.MiningPersonalSell;
 import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
 import com.yiyiaddon.feature.mining.service.ToolDurability;
 import com.yiyiaddon.feature.mining.service.WardenWarningGuard;
@@ -354,6 +355,59 @@ public final class MiningStateMachine {
     private int noContainerTicks = 0;                  // 标点位置无容器持续 tick
     private static final int NO_CONTAINER_TIMEOUT = 200; // 无容器 10 秒（200 tick）后停机
 
+    // ── 自用模式出售流程（用户 2026-09-20） ──
+    // 「挖够就自己去卖掉」的四态链：SELL_TRAVEL（回主城）→ SELL_PATH（寻路到收购 NPC）→
+    // SELL_TRADE（交互 + 循环出售到背包清零）→ SELL_RETURN（回子服）→ 交回 GO_WILD 继续 RTP。
+    // 每一步都是「等 → 超时 → 重试 → 用完停机」三级兜底：服务器卡顿（TPS 掉、菜单不出、
+    // 点了没反应）时原地重试，绝不带着一身矿往下瞎走。
+    private final MiningPersonalSell personalSell;
+    /** 当前步骤已等待刻数（每步推进时清零） */
+    private int sellStepTicks = 0;
+    /** 当前步骤已重试次数（推进到下一步时清零） */
+    private int sellStepRetries = 0;
+    /** 当前步骤序号（各态自己解释自己的取值） */
+    private int sellPhase = 0;
+    /** 出售中：已完成的「点矿石 → 点全部 → 点确认出售」轮数 */
+    private int sellRounds = 0;
+    /** 出售中：上一轮结算时背包里的矿石数量（-1 = 本轮还没结算过） */
+    private int sellLastOreCount = -1;
+    /** 出售中：连续「点了却一颗没少」的轮数（攒到上限说明菜单没在收，停机而不是死循环） */
+    private int sellNoProgressRounds = 0;
+    /** 出售中：上一次点击后的菜单状态号，用来等「服务端已处理完这一次点击」 */
+    private int sellLastMenuState = -1;
+    /** 本态是否已下发过寻路目标（SELL_PATH 用） */
+    private boolean sellPathIssued = false;
+    /**
+     * SELL_PATH 的寻路目标格：收购 NPC 正面朝向前方一格（{@link MiningPersonalSell#npcStandPos()}）。
+     *
+     * <p>缓存成字段而不是每刻重算：算一次要扫一遍实体表按名字匹配，而 NPC 是站着不动的。
+     * 每 {@link #SELL_TARGET_REFRESH_TICKS} 刻刷一次 —— 只为兜住「刚落地时实体还没同步、
+     * 那一刻退回配置坐标」的情况。</p>
+     */
+    private BlockPos sellTargetPos = null;
+    /** SELL_PATH：上次采样时与 NPC 的距离平方（Double.MAX_VALUE = 本态尚未采样） */
+    private double sellLastDist = Double.MAX_VALUE;
+    /** SELL_PATH：连续无接近的采样轮数 */
+    private int sellStallCount = 0;
+    /** SELL_PATH：寻路目标格的刷新间隔（刻）；NPC 不动，只为兜住落地瞬间实体未同步 */
+    private static final int SELL_TARGET_REFRESH_TICKS = 20;
+    /** SELL_TRADE：距上次戳 NPC 的刻数（每 {@link #SELL_INTERACT_INTERVAL} 刻重试一次） */
+    private int sellInteractTicks = 0;
+    /** 出售轮数上限：一轮最多卖 64 个，20 组最坏 20 轮，64 轮足够且不会死循环 */
+    private static final int SELL_MAX_ROUNDS = 64;
+    /** 连续无进展轮数上限：两轮点下去一颗没少，说明菜单根本没在收 */
+    private static final int SELL_NO_PROGRESS_LIMIT = 2;
+    /** 单步重试上限（设置值再按它封顶，防手滑填大数字后无限重试） */
+    private static final int SELL_RETRY_HARD_LIMIT = 10;
+    /** 交互 NPC 的重试间隔（刻）：一次没打开菜单，1.5 秒后再戳一次 */
+    private static final int SELL_INTERACT_INTERVAL = 30;
+    /** 落地稳定刻数：位置跳变后再等这么多刻（跨服传送后有位置修正 / 客户端世界重建） */
+    private static final int SELL_LAND_SETTLE_TICKS = 20;
+    /** 一轮出售的结算等待刻数：确认出售后等这么久再看背包（原版菜单同步一拍 32 刻以内） */
+    private static final int SELL_ROUND_SETTLE_TICKS = 20;
+    /** 到收购 NPC 的「算到了」距离平方（原版实体交互距离约 3 格，留一格余量） */
+    private static final double NPC_ARRIVE_DISTANCE_SQR = 16.0;
+
     // ── 背包读数可信窗口（防止把「客户端背包还没同步完」误判成「真的没有镐子」） ──
     // 用户 2026-09-17 实机证据（chatlog + latest.log）：自检通过（同一背包里镐子、食物都在）→
     // /wild 传送 → 客户端背包被服务端重发（服务器「重生式传送」会重建世界与玩家）→ 进入 MINING 的
@@ -604,6 +658,17 @@ public final class MiningStateMachine {
         this.combat = new MiningCombat(module);
         this.waterBreaker = new WaterEscapeBreaker(module);
         this.wardenGuard = new WardenWarningGuard();
+        this.personalSell = new MiningPersonalSell(module);
+    }
+
+    /**
+     * 自用模式出售流程的动作层（用户 2026-09-20）。
+     *
+     * <p>模块的界面门控要用它判「当前这个容器界面是不是我方出售菜单」（是就压掉，不弹不抢鼠标），
+     * 见 {@code AutoMinerModule#onOpenScreen}。</p>
+     */
+    public MiningPersonalSell personalSell() {
+        return personalSell;
     }
 
     /**
@@ -686,6 +751,19 @@ public final class MiningStateMachine {
         wardenGuard.reset();
         playerCommandText = "";
         playerCommandTick = -100000;
+        // 自用模式出售流程：连静默门控一起清（停机后服务端再推容器界面时不该被压掉）
+        personalSell.reset();
+        sellStepTicks = 0;
+        sellStepRetries = 0;
+        sellPhase = 0;
+        sellRounds = 0;
+        sellLastOreCount = -1;
+        sellNoProgressRounds = 0;
+        sellLastMenuState = -1;
+        sellPathIssued = false;
+        sellLastDist = Double.MAX_VALUE;
+        sellStallCount = 0;
+        sellInteractTicks = 0;
         combatReturnState = MinerState.MINING;
     }
 
@@ -708,7 +786,8 @@ public final class MiningStateMachine {
         // 停机不是「转进食」：照常收掉秒破会话与寻路（nextState 传 IDLE 只作分类用）
         onStateExit(state, MinerState.IDLE);
         mc.options.keyUse.setDown(false);
-        if (state == MinerState.UNLOADING || state == MinerState.SUPPLY || state == MinerState.REPAIR) {
+        if (state == MinerState.UNLOADING || state == MinerState.SUPPLY || state == MinerState.REPAIR
+            || isSellState(state)) {
             module.getBaritone().updateSetting("allowBreak", module.getAllowBreak());
             // 物流态被关模块时同样要把放置/跑酷还回用户设置，否则它们会一直停在 false
             module.getBaritone().updateSetting("allowPlace", module.settings().allowPlace);
@@ -816,6 +895,10 @@ public final class MiningStateMachine {
             case DEATH_HANDLING -> tickDeathHandling();
             case RESPAWN_WAIT -> tickRespawnWait();
             case COMBAT -> tickCombat();
+            case SELL_TRAVEL -> tickSellTravel();
+            case SELL_PATH -> tickSellPath();
+            case SELL_TRADE -> tickSellTrade();
+            case SELL_RETURN -> tickSellReturn();
         }
     }
 
@@ -841,7 +924,7 @@ public final class MiningStateMachine {
     /** 状态进入副作用（旧 {@code onStateEnter}，{@code :221-251} 逐条一致；战斗态为本项目新增） */
     private void onStateEnter(MinerState newState) {
         if (newState == MinerState.UNLOADING || newState == MinerState.SUPPLY || newState == MinerState.REPAIR
-            || newState == MinerState.DEATH_HANDLING || newState == MinerState.COMBAT) {
+            || newState == MinerState.DEATH_HANDLING || newState == MinerState.COMBAT || isSellState(newState)) {
             module.getContainer().closeContainer();
             module.getBaritone().stop();
         }
@@ -851,9 +934,10 @@ public final class MiningStateMachine {
         // 旧实现只在进入 MINING 时恢复全局值，于是 GO_WILD / EATING / DEATH_HANDLING 期间 Baritone 一直
         // 停在物流值上；玩家在物流态关模块时全局 allowBreak 会被永久改掉（关模块不会回到挖矿态来恢复）。
         boolean logistics = newState == MinerState.UNLOADING || newState == MinerState.SUPPLY
-            || newState == MinerState.REPAIR;
+            || newState == MinerState.REPAIR || isSellState(newState);
         module.getBaritone().updateSetting("allowBreak", switch (newState) {
-            case UNLOADING, SUPPLY, REPAIR -> module.isLogisticsBreakBlocks();
+            case UNLOADING, SUPPLY, REPAIR, SELL_TRAVEL, SELL_PATH, SELL_TRADE, SELL_RETURN ->
+                module.isLogisticsBreakBlocks();
             default -> module.getAllowBreak();
         });
         // 物流态禁用搭路（用户 2026-09-18：「卸货的时候还是会搭路爬上去卸货」）：
@@ -973,6 +1057,13 @@ public final class MiningStateMachine {
             // 容器会话收尾：中途被死亡/岩浆/卡死等分支打断时箱子可能还开着，
             // 残留期间所有背包点击都会被客户端当「窗口不匹配」吞掉（换食物、丢垃圾全部失效）
             module.getContainer().closeContainer();
+        }
+        if (isSellState(oldState)) {
+            // 出售流程的容器收尾（同上：市场菜单开着时被打断不能留着）
+            module.getContainer().closeContainer();
+            // 离开整条出售链（转 GO_WILD / 停机）才解除界面静默门控；
+            // 链内态与态之间（回城 → 寻路 → 出售 → 回服）保持静默，不中途松开
+            if (!isSellState(nextState)) personalSell.endFlow();
         }
         if (oldState == MinerState.COMBAT) {
             // 还原 Baritone 的怪物规避（战斗期间临时关掉了，见 onStateEnter）
@@ -1138,14 +1229,18 @@ public final class MiningStateMachine {
             ensureMiningToolInHand();
         }
         // 2a：带经验修补的工具低于阈值 → 前往挂机点联动杀戮光环修复（旧 :348-367）
-        if (findDamagedToolSlot(true) != -1) {
-            module.getSoundNotifier().notifyLowDurability();
-            transitionTo(MinerState.REPAIR);
-            return;
-        }
-
         // 2b：低于阈值但**没有经验修补**的工具 → 修不了，不前往挂机点，只提示（用户 2026-09-19 需求）
-        if (handleUnrepairableTool()) return;
+        //
+        // 自用模式把这两条整段跳过（用户 2026-09-20）：自用模式不绑挂机修复点，时运镐挖矿自带经验、
+        // 靠经验修补自修，「耐久」在这里不是要处理的输入；真走下去只会去找一个根本没绑定的挂机点。
+        if (!module.isPersonalMode()) {
+            if (findDamagedToolSlot(true) != -1) {
+                module.getSoundNotifier().notifyLowDurability();
+                transitionTo(MinerState.REPAIR);
+                return;
+            }
+            if (handleUnrepairableTool()) return;
+        }
 
         // 优先级 2.5：饱食度检测（低于15时进食；背包没白名单食物则直接去补给，旧 :369-380）
         FoodData foodData = mc.player.getFoodData();
@@ -1184,6 +1279,20 @@ public final class MiningStateMachine {
             module.getSoundNotifier().notifyLowFood();
             transitionTo(MinerState.SUPPLY);
             return;
+        }
+
+        // 优先级 3.5：自用模式出售触发（用户 2026-09-20）——挖够触发组数、或背包先满，就去卖。
+        // 放在卸货检测之前：自用模式根本不走卸货流程，同一刻只可能命中这一条（普通模式这条恒不成立）。
+        if (module.isPersonalMode()) {
+            if (personalSellReady()) {
+                transitionTo(MinerState.SELL_TRAVEL);
+                return;
+            }
+            if (personalSell.isInventoryFull()) {
+                module.info("§e⚠ 背包已满 §8▸ 提前前往出售");
+                transitionTo(MinerState.SELL_TRAVEL);
+                return;
+            }
         }
 
         // 优先级 4：满载检测（旧 :389-394）
@@ -2625,6 +2734,454 @@ public final class MiningStateMachine {
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    //  自用模式：出售流程四态（用户 2026-09-20）
+    //
+    //  挖满触发组数（或背包先满）→ SELL_TRAVEL → SELL_PATH → SELL_TRADE → SELL_RETURN → GO_WILD。
+    //  四态与卸货 / 补给同构：每态一个 tick 方法 + 显式阶段号 + 「等超时 → 重试 → 用完停机」，
+    //  底层动作（读菜单 / 点槽位 / 找 NPC）在 MiningPersonalSell。
+    //
+    //  两条贯穿全程的约定：
+    //    · 全程静默：只读 player.containerMenu 的槽位，界面不弹不抢鼠标（模块侧门控见具体实现）；
+    //    · 全程按「我方传送」认领位置跳变：回城 / 回子服都是点菜单触发的、没有指令线索，
+    //      不认领就会被手动传送检测判成「玩家把号传走了」而直接停机。
+    // ═══════════════════════════════════════════════════════════════════
+
+    /** 是否处于自用模式出售链的任意一态（物流口径与静默门控共用一处判据） */
+    private static boolean isSellState(MinerState s) {
+        return s == MinerState.SELL_TRAVEL || s == MinerState.SELL_PATH
+            || s == MinerState.SELL_TRADE || s == MinerState.SELL_RETURN;
+    }
+
+    /** 自用模式：背包里「出售物品」是否已达触发组数（组数 = 总数 / 64，与卸货口径一致） */
+    private boolean personalSellReady() {
+        String target = module.sellItemFilter();
+        if (target == null || target.isBlank()) return false;
+        return personalSell.countTargetInBag() / 64 >= module.settings().personalSellStacks;
+    }
+
+    /** 自用模式：背包里出售物品的组数（进入出售流程时播报带上「带了多少组」） */
+    private int countPersonalOre() {
+        return personalSell.countTargetInBag() / 64;
+    }
+
+    /** 出售链播报里的物品名：手选 / 跟随目标取同一处显示名，取不到（目标没选且没手选）退回目标矿名 */
+    private String sellItemName(String fallback) {
+        String name = module.getSellItemDisplayName();
+        return name.isEmpty() ? fallback : name;
+    }
+
+    /** 单步推进结果：继续等 / 已重试（调用方回到本步起点）/ 已停机（调用方直接 return） */
+    private enum SellStep { CONTINUE, RETRY, ABORT }
+
+    /**
+     * 单步超时判定与重试（服务器卡顿时靠它原地重试，而不是傻等或往下瞎走）。
+     *
+     * <p>判据只看「本步已经等了多久」：每步推进时 {@code sellStepTicks} 清零、每次重试时也清零，
+     * 所以同一个超时窗口对每一步都成立。</p>
+     *
+     * @return {@link SellStep#CONTINUE} 继续等；{@link SellStep#RETRY} 已重试（调用方回本步起点）；
+     *         {@link SellStep#ABORT} 重试用完已停机（调用方必须立即 return）
+     */
+    private SellStep sellStepOutcome(String actionName) {
+        if (sellStepTicks < personalSell.stepTimeoutTicks()) return SellStep.CONTINUE;
+        int limit = Math.min(personalSell.stepRetries(), SELL_RETRY_HARD_LIMIT);
+        if (sellStepRetries < limit) {
+            sellStepRetries++;
+            sellStepTicks = 0;
+            module.warning("§e⚠ " + actionName + "未响应 §8▸ 重试 " + sellStepRetries + "/" + limit);
+            return SellStep.RETRY;
+        }
+        return sellAbort(actionName);
+    }
+
+    /** 出售流程单步彻底失败：停机 + 播报（绝不带着一身矿继续往下走） */
+    private SellStep sellAbort(String actionName) {
+        module.getBaritone().stop();
+        module.error("§c✗ " + actionName + "失败 §8▸ 出售流程中断，自动挖矿已停止"
+            + "（可在控制台调大「单步超时 / 单步重试次数」）");
+        if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
+        return SellStep.ABORT;
+    }
+
+    /** 菜单状态号：服务端每处理完一次点击就 +1；-1 = 菜单没开（判「这一次点击生效了没有」） */
+    private int sellMenuStateId() {
+        var menu = personalSell.menu();
+        return menu == null ? -1 : menu.getStateId();
+    }
+
+    /** 重发「寻路到收购 NPC 前面那一格」（GoalNear 1：站在它前面一格或紧邻格，都在交互距离内） */
+    private void repathNpc(BlockPos pos) {
+        var baritone = module.getBaritone().getBaritoneInstance();
+        if (baritone != null) baritone.getCustomGoalProcess().setGoalAndPath(new GoalNear(pos, 1));
+    }
+
+    /** 是否已在收购 NPC 的交互距离内（按眼睛到实体中心判；实体没扫到时退回配置坐标） */
+    private boolean nearNpc() {
+        if (mc.player == null) return false;
+        var npc = personalSell.findNpc();
+        Vec3 center = npc != null
+            ? npc.position()
+            : new Vec3(personalSell.npcPos().getX() + 0.5,
+                personalSell.npcPos().getY() + 0.5, personalSell.npcPos().getZ() + 0.5);
+        return mc.player.getEyePosition().distanceToSqr(center) <= NPC_ARRIVE_DISTANCE_SQR;
+    }
+
+    /**
+     * 阶段：SELL_TRAVEL（回主城大厅 —— 收购 NPC 所在）。
+     *
+     * <p>阶段 0 发流程指令（{@code /cd}）→ 1 等菜单出现并点「返回主城」→ 2 等传送落地 →
+     * 3 落地稳定（跨服传送后有位置修正 / 客户端世界重建）→ SELL_PATH。</p>
+     */
+    private void tickSellTravel() {
+        if (stateTick == 1) {
+            sellPhase = 0;
+            sellStepTicks = 0;
+            sellStepRetries = 0;
+            personalSell.beginFlow();
+        }
+        // 玩家自己开着界面（背包 / 控制台）时只等不做：我方只读 containerMenu 的槽位，
+        // 这时往下点会按错菜单的 containerId 发包
+        if (mc.screen instanceof AbstractContainerScreen<?>) return;
+        // 回城是点菜单触发的、没有指令线索：整个等待期持续按「我方传送」认领位置跳变
+        ownTeleportPendingTicks = Math.max(ownTeleportPendingTicks, OWN_TELEPORT_PENDING_TICKS);
+
+        sellStepTicks++;
+        switch (sellPhase) {
+            case 0 -> {
+                module.getCmdManager().sendMenuCommand(module.settings().personalSellCommand);
+                sellPhase = 1;
+                sellStepTicks = 0;
+            }
+            case 1 -> {
+                if (!personalSell.hasMenu()) {
+                    if (sellStepOutcome("打开流程菜单") == SellStep.RETRY) sellPhase = 0;
+                    return;
+                }
+                String keyword = module.settings().personalSellCityKeyword;
+                if (!personalSell.clickKeyword(keyword)) {
+                    if (sellStepOutcome("点击「" + keyword + "」") == SellStep.RETRY) sellPhase = 0;
+                    return;
+                }
+                sellStepRetries = 0;
+                sellPhase = 2;
+                sellStepTicks = 0;
+            }
+            case 2 -> {
+                if (!teleportJumpThisTick) {
+                    if (sellStepOutcome("回主城传送") == SellStep.RETRY) sellPhase = 0; // 重开菜单再点一次
+                    return;
+                }
+                sellStepRetries = 0;
+                sellPhase = 3;
+                sellStepTicks = 0;
+            }
+            case 3 -> {
+                // 落地稳定：跨服传送后还有一次位置修正，紧接着开始寻路会按旧坐标算
+                if (teleportJumpThisTick) { // 第二段跳变 → 重新计时
+                    sellStepTicks = 0;
+                    return;
+                }
+                if (sellStepTicks < SELL_LAND_SETTLE_TICKS) return;
+                module.getContainer().closeContainer();
+                transitionTo(MinerState.SELL_PATH);
+            }
+            default -> sellAbort("回主城");
+        }
+    }
+
+    /**
+     * 阶段：SELL_PATH（从主城落点寻路到收购 NPC <b>前面那一格</b>）。
+     *
+     * <p>目标格来自 {@link MiningPersonalSell#npcStandPos()}（NPC 正面朝向前方一格；实体没扫到时退回
+     * 配置坐标），到 NPC 的交互距离内即转 {@code SELL_TRADE} 发包；走不到就重发目标，连续两轮无接近
+     * 直接停机（城里地形复杂，硬绕只会越走越远）。</p>
+     */
+    private void tickSellPath() {
+        if (stateTick == 1) {
+            sellPathIssued = false;
+            sellTargetPos = null;
+            sellLastDist = Double.MAX_VALUE;
+            sellStallCount = 0;
+            sellStepTicks = 0;
+            sellStepRetries = 0;
+            personalSell.beginFlow(); // 链路中途进入（异常重启）时也要保证静默门控是开的
+        }
+        if (mc.screen instanceof AbstractContainerScreen<?>) return;
+
+        if (nearNpc()) {
+            module.getBaritone().stop();
+            transitionTo(MinerState.SELL_TRADE);
+            return;
+        }
+
+        if (module.getBaritone().getBaritoneInstance() == null) {
+            sellAbort("寻路到收购 NPC（Baritone 未加载）");
+            return;
+        }
+        // 目标格按需刷新：落地那一刻实体表可能还没同步（当时会退回配置坐标），隔一秒再取一次真身朝向
+        if (sellTargetPos == null || stateTick % SELL_TARGET_REFRESH_TICKS == 0) {
+            sellTargetPos = personalSell.npcStandPos();
+        }
+        if (!sellPathIssued || (!module.getBaritone().isCustomGoalActive() && stateTick % 10 == 0)) {
+            sellPathIssued = true;
+            repathNpc(sellTargetPos);
+        }
+        if (sellPathStalled(sellTargetPos)) return;
+        if (stateTick > PATH_TIMEOUT_TICKS) {
+            module.getBaritone().stop();
+            sellAbort("寻路到收购 NPC（超时）");
+        }
+    }
+
+    /**
+     * 收购 NPC 寻路的停滞监测（与卸货那套同口径：首次采样只记基准 → 无进展重发 → 再不行停机）。
+     *
+     * <p>单独写一条而不是复用 {@code logisticsStalled}：那一条的文案与脱困话术都按「容器」写死
+     * （含「临时允许破坏挡路方块」这一级 —— 城里拆人家方块是事故），目标是坐标点时直接复用会串味。</p>
+     */
+    private boolean sellPathStalled(BlockPos target) {
+        if (mc.player == null || target == null) return false;
+        if (stateTick < LOGISTICS_SAMPLE_TICKS || stateTick % LOGISTICS_SAMPLE_TICKS != 0) return false;
+        double dist = mc.player.blockPosition().distSqr(target);
+        double last = sellLastDist;
+        sellLastDist = dist;
+        if (last == Double.MAX_VALUE) return false; // 首次采样没有可比的距离，只记基准
+        if (last - dist >= LOGISTICS_MIN_APPROACH) {
+            sellStallCount = 0;
+            return false;
+        }
+        sellStallCount++;
+        if (sellStallCount < 2) return false; // 宽限一轮：Baritone 绕路 / 重新算路都要几秒
+        if (sellStallCount == 2) {
+            module.getBaritone().stop();
+            repathNpc(target);
+            module.info("§e⚠ 收购 NPC 寻路无进展 §8▸ 重新计算路线");
+            return false;
+        }
+        module.getBaritone().stop();
+        sellAbort("寻路到收购 NPC（无进展）");
+        return true;
+    }
+
+    /**
+     * 阶段：SELL_TRADE（交互收购 NPC → 循环出售到背包清零）。
+     *
+     * <p>一轮 = 点矿石 → 点「全部」→ 点「确认出售」→ 等结算。每一步都先等「服务端已处理完上一次
+     * 点击」（菜单状态号变化）再点下一个槽：市场菜单一屏里这些槽是同时存在的，不等刷新连点会点到
+     * 上一屏的按钮（数量还没选上就点确认 → 一颗都卖不出去）。</p>
+     *
+     * <p>卖多轮是必须的：一次「全部」只提交一屏的上限（实测 64 个），20 组要跑多轮，所以整段做成
+     * 「点一轮 → 看背包少没少 → 没卖完继续」的循环，直到背包清零；连续两轮一颗没少就停机
+     * （菜单没在收：服务器卡 / 商品被下架 / 背包读数不可信）。</p>
+     */
+    private void tickSellTrade() {
+        if (stateTick == 1) {
+            sellPhase = 0;
+            sellStepTicks = 0;
+            sellStepRetries = 0;
+            sellRounds = 0;
+            sellLastOreCount = -1;
+            sellNoProgressRounds = 0;
+            sellLastMenuState = -1;
+            sellInteractTicks = 0;
+            module.getBaritone().stop();
+            personalSell.beginFlow();
+        }
+        if (mc.screen instanceof AbstractContainerScreen<?>) return;
+
+        String filter = module.sellItemFilter();
+        if (filter == null || filter.isBlank()) {
+            sellAbort("出售（未指定出售物品：目标没选、也没手选）");
+            return;
+        }
+
+        // 背包已清零：整条出售完成
+        if (sellRounds > 0 && personalSell.countTargetInBag() == 0) {
+            transitionTo(MinerState.SELL_RETURN);
+            return;
+        }
+        // 菜单被服务端关掉（卖完自动关 / 掉线重开）：回到「戳 NPC 开菜单」，但别把轮数清零
+        if (sellPhase != 0 && !personalSell.hasMenu()) {
+            sellPhase = 0;
+            sellStepTicks = 0;
+            sellInteractTicks = 0;
+            return;
+        }
+
+        sellStepTicks++;
+        switch (sellPhase) {
+            case 0 -> {
+                if (personalSell.hasMenu()) {
+                    sellPhase = 1;
+                    sellStepTicks = 0;
+                    sellStepRetries = 0;
+                    return;
+                }
+                sellInteractTicks++;
+                if (sellInteractTicks % SELL_INTERACT_INTERVAL == 0) {
+                    var npc = personalSell.findNpc();
+                    if (npc == null) {
+                        module.warning("§e⚠ 附近找不到「" + module.settings().personalSellNpcName + "」§8▸ 按坐标再找一次");
+                    } else {
+                        personalSell.interactNpc(npc);
+                    }
+                }
+                if (sellStepOutcome("打开收购菜单") == SellStep.RETRY) sellInteractTicks = 0;
+            }
+            case 1 -> {
+                if (personalSell.countTargetInBag() == 0) {
+                    transitionTo(MinerState.SELL_RETURN);
+                    return;
+                }
+                if (!personalSell.clickTarget()) {
+                    if (sellStepOutcome("点击要卖的矿物") == SellStep.RETRY) sellPhase = 0;
+                    return;
+                }
+                sellLastMenuState = sellMenuStateId();
+                sellPhase = 2;
+                sellStepTicks = 0;
+            }
+            case 2 -> {
+                if (!menuRefreshed()) return;
+                String keyword = module.settings().personalSellPickKeyword;
+                if (!personalSell.clickKeyword(keyword)) {
+                    if (sellStepOutcome("点击「" + keyword + "」") == SellStep.RETRY) sellPhase = 1;
+                    return;
+                }
+                sellLastMenuState = sellMenuStateId();
+                sellPhase = 3;
+                sellStepTicks = 0;
+            }
+            case 3 -> {
+                if (!menuRefreshed()) return;
+                String keyword = module.settings().personalSellConfirmKeyword;
+                if (!personalSell.clickKeyword(keyword)) {
+                    if (sellStepOutcome("点击「" + keyword + "」") == SellStep.RETRY) sellPhase = 2;
+                    return;
+                }
+                sellLastMenuState = sellMenuStateId();
+                sellPhase = 4;
+                sellStepTicks = 0;
+            }
+            case 4 -> {
+                // 等结算：这一屏的矿石从背包扣掉需要服务端几拍（原版 32 刻一轮同步）
+                if (sellStepTicks < SELL_ROUND_SETTLE_TICKS) return;
+                int now = personalSell.countTargetInBag();
+                if (now == 0) {
+                    transitionTo(MinerState.SELL_RETURN);
+                    return;
+                }
+                if (sellLastOreCount < 0 || now < sellLastOreCount) {
+                    // 这一轮确实卖掉了（或第一次结算）：记进度，继续下一轮
+                    sellLastOreCount = now;
+                    sellNoProgressRounds = 0;
+                } else {
+                    sellNoProgressRounds++;
+                }
+                sellRounds++;
+                if (sellRounds >= SELL_MAX_ROUNDS) {
+                    sellAbort("出售（连续 " + sellRounds + " 轮仍未卖完）");
+                    return;
+                }
+                if (sellNoProgressRounds >= SELL_NO_PROGRESS_LIMIT) {
+                    sellAbort("出售（连续 " + sellNoProgressRounds + " 轮一颗未少，收购菜单没有成交）");
+                    return;
+                }
+                sellPhase = 1;
+                sellStepTicks = 0;
+                sellStepRetries = 0;
+            }
+            default -> sellAbort("出售");
+        }
+    }
+
+    /** 上一步点击是否已被服务端处理（菜单状态号变化）；超时就按「这一步没生效」走重试 */
+    private boolean menuRefreshed() {
+        if (sellLastMenuState < 0) return true; // 没记过基准（异常路径）：不拦
+        if (sellMenuStateId() != sellLastMenuState) {
+            sellStepRetries = 0;
+            return true;
+        }
+        sellStepOutcome("等待菜单刷新");
+        return false;
+    }
+
+    /**
+     * 阶段：SELL_RETURN（回子服 → 交回 GO_WILD 继续 RTP 挖矿）。
+     *
+     * <p>阶段 0 收菜单并发流程指令 → 1 点「跨服传送」→ 2 点勾选的目标服 → 3 等传送落地 →
+     * 4 落地稳定后转 {@link MinerState#GO_WILD}（前往挖矿指令 + RTP 选单那条既有链路，不另造）。</p>
+     */
+    private void tickSellReturn() {
+        if (stateTick == 1) {
+            sellPhase = 0;
+            sellStepTicks = 0;
+            sellStepRetries = 0;
+            personalSell.beginFlow();
+        }
+        if (mc.screen instanceof AbstractContainerScreen<?>) return;
+        ownTeleportPendingTicks = Math.max(ownTeleportPendingTicks, OWN_TELEPORT_PENDING_TICKS);
+
+        sellStepTicks++;
+        switch (sellPhase) {
+            case 0 -> {
+                module.getContainer().closeContainer(); // 先收掉收购菜单，再开流程菜单
+                module.getCmdManager().sendMenuCommand(module.settings().personalSellCommand);
+                sellPhase = 1;
+                sellStepTicks = 0;
+            }
+            case 1 -> {
+                if (!personalSell.hasMenu()) {
+                    if (sellStepOutcome("打开流程菜单") == SellStep.RETRY) sellPhase = 0;
+                    return;
+                }
+                String keyword = module.settings().personalSellCrossServerKeyword;
+                if (!personalSell.clickKeyword(keyword)) {
+                    if (sellStepOutcome("点击「" + keyword + "」") == SellStep.RETRY) sellPhase = 0;
+                    return;
+                }
+                sellLastMenuState = sellMenuStateId();
+                sellPhase = 2;
+                sellStepTicks = 0;
+            }
+            case 2 -> {
+                if (!personalSell.hasMenu()) {
+                    if (sellStepOutcome("打开子服列表") == SellStep.RETRY) sellPhase = 0;
+                    return;
+                }
+                if (!menuRefreshed()) return;
+                String server = module.settings().personalSellReturnServer;
+                if (!personalSell.clickKeyword(server)) {
+                    if (sellStepOutcome("点击「" + server + "」") == SellStep.RETRY) sellPhase = 1;
+                    return;
+                }
+                sellPhase = 3;
+                sellStepTicks = 0;
+            }
+            case 3 -> {
+                if (!teleportJumpThisTick) {
+                    if (sellStepOutcome("回子服传送") == SellStep.RETRY) sellPhase = 0;
+                    return;
+                }
+                sellStepRetries = 0;
+                sellPhase = 4;
+                sellStepTicks = 0;
+            }
+            case 4 -> {
+                if (teleportJumpThisTick) { // 第二段跳变（跨服传送常分两段）→ 重新计时
+                    sellStepTicks = 0;
+                    return;
+                }
+                if (sellStepTicks < SELL_LAND_SETTLE_TICKS) return;
+                module.getContainer().closeContainer();
+                // 回到「前往野外」：/wild + RTP 选单 + 落地进挖矿，全是既有实现
+                transitionTo(MinerState.GO_WILD);
+            }
+            default -> sellAbort("返回服务器");
+        }
+    }
+
     /** 旧 {@code tickSupply}，{@code :1193-1283} 逐字（点位来源换成 {@code MiningPointStore}） */
     private void tickSupply() {
         ServerCommandRunner cmdMgr = module.getCmdManager();
@@ -2999,6 +3556,15 @@ public final class MiningStateMachine {
         }
 
         // 阶段 3：返回野外恢复挖矿
+        //
+        // 自用模式例外（用户 2026-09-20）：死亡返回指令填的是 /back，人已经回到被发现的那个位置，
+        // 再走 GO_WILD 会把刚落地的位置又用 /wild + RTP 送走 —— 等于 /back 白做。所以自用模式下
+        // 直接进 MINING 就地接着挖（死亡点在岩浆里那条已在阶段 1 跳过 /back，照样去野外换区）。
+        if (module.isPersonalMode()) {
+            module.info("§a✓ 已返回死亡点 §8▸ 就地继续挖矿");
+            transitionTo(MinerState.MINING);
+            return;
+        }
         transitionTo(MinerState.GO_WILD);
     }
 
@@ -3345,10 +3911,19 @@ public final class MiningStateMachine {
             }
             case REPAIR -> "§c⚠ " + toolName(findDamagedTool()) + "耐久过低 §8▸ 联动杀戮光环修复中";
             case DEATH_HANDLING -> "§c✗ 检测到死亡 §8▸ 已调用自动重生";
-            case RESPAWN_WAIT -> "§6复活完成 §8▸ 返回挂机点";
+            case RESPAWN_WAIT -> module.isPersonalMode()
+                ? "§6复活完成 §8▸ 返回死亡点"   // 自用模式的死亡返回指令是 /back，回到死亡点就地接着挖
+                : "§6复活完成 §8▸ 返回挂机点";
             // 战斗态的播报由 MiningCombat 带怪物名发出（「发现 xx → 主动出击」/「苦力怕引信点燃 → 后撤熄灭」），
             // 这里返回空串不重复播报
             case COMBAT -> "";
+            // 自用模式出售链（用户 2026-09-20）：四态各播一条。卖的东西单独取名字——它可能手选了别的
+            // 方块（如圆石），不一定等于目标矿；取不到就退回目标矿名
+            case SELL_TRAVEL -> String.format("§b开始出售 §8▸ 回主城 · 带 %d 组 %s",
+                countPersonalOre(), sellItemName(target));
+            case SELL_PATH -> "§b回城完成 §8▸ 正在寻路到收购 NPC";
+            case SELL_TRADE -> "§b出售中 §8▸ 与收购 NPC 交易";
+            case SELL_RETURN -> "§b出售完成 §8▸ 返回服务器继续挖矿";
         };
 
         if (!message.isEmpty()) module.info(message);
