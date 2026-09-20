@@ -359,14 +359,35 @@ public final class AdminDetectorModule extends Module {
     /**
      * 判定玩家命中的危险特征，未命中返回 null。
      * 黑名单优先级最高，其次按旁观 / 创造 / 隐身 / 隐藏顺序。
+     *
+     * <p><b>只有 Tab 名单里的玩家才走「旁观 / 创造 / 隐身」三条</b>（用户 2026-09-21：「管理员检测会把
+     * npc 当成管理员直接把我 t 了 那个出售商人就是创造」）：别人的游戏模式只能从 Tab 的
+     * {@code PlayerInfo} 里读，读不到时 {@link #isCreative} 会退回实体自身的能力位 {@code instabuild}
+     * —— 而插件 NPC 正是「创造能力的假玩家实体」（实体类型就是 {@code minecraft:player}、又不在 Tab 名单），
+     * 于是自用模式去收购商人那里卖矿，一进检测范围就被判成「创造模式」管理员并直接断线。</p>
+     *
+     * <p>不在 Tab 名单的实体统一改走「隐藏」通道：{@link #isHiddenFromTab} 自带 NPC 过滤
+     * （不在 Tab + 有自定义名字 = NPC），vanish 的真实管理员照样被它抓住，插件 NPC 被放行。</p>
      */
     private String getThreatReason(Player player, String name, List<String> blacklist) {
         if (AdminDetectorSettings.containsName(blacklist, name)) return "黑名单";
-        if (settings.detectSpectator && isSpectator(player)) return "旁观者";
-        if (settings.detectCreative && isCreative(player)) return "创造模式";
-        if (settings.detectInvisible && player.isInvisible()) return "隐身";
+        if (isInTab(player)) {
+            if (settings.detectSpectator && isSpectator(player)) return "旁观者";
+            if (settings.detectCreative && isCreative(player)) return "创造模式";
+            if (settings.detectInvisible && player.isInvisible()) return "隐身";
+        }
         if (settings.detectHidden && isHiddenFromTab(player)) return "隐藏";
         return null;
+    }
+
+    /**
+     * 这个实体在 Tab 玩家名单里吗 —— 客户端能拿到的「是不是真玩家」的唯一权威来源。
+     *
+     * <p>插件用假玩家实体伪装的 NPC 从建立起就不在 Tab 名单（{@code getPlayerInfo} 恒为 null），
+     * 真玩家（含 vanish 前见过的）则在 Tab 里出现过。</p>
+     */
+    private boolean isInTab(Player player) {
+        return mc.getConnection() != null && mc.getConnection().getPlayerInfo(player.getUUID()) != null;
     }
 
     /**
@@ -386,7 +407,13 @@ public final class AdminDetectorModule extends Module {
         return getGameMode(player) == GameType.SPECTATOR;
     }
 
-    /** 判断玩家是否为创造模式，优先 Tab 列表游戏模式，缺失时退回实体能力位。 */
+    /**
+     * 判断玩家是否为创造模式：优先 Tab 列表游戏模式，缺失时退回实体能力位。
+     *
+     * <p>能力位这条兜底只对「Tab 名单内、但 Tab 没带游戏模式」的玩家有意义 —— 调用方
+     * {@link #getThreatReason} 已把不在 Tab 名单的实体（插件 NPC）挡在外面，否则它们的
+     * {@code instabuild} 会被当成管理员。</p>
+     */
     private boolean isCreative(Player player) {
         GameType gameMode = getGameMode(player);
         if (gameMode != null) return gameMode == GameType.CREATIVE;
