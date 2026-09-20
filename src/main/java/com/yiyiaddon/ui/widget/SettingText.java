@@ -2,9 +2,11 @@ package com.yiyiaddon.ui.widget;
 
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.function.Supplier;
 
@@ -19,6 +21,9 @@ public class SettingText extends SettingWidget {
     private static final float DEFAULT_WIDTH = 200f;
     private static final float FONT_SIZE = 11f;
     private static final String UNAVAILABLE = "状态不可用";
+    /** 文字前物品图标的边长与它到文字的间距 */
+    private static final float ICON_SIZE = 16f;
+    private static final float ICON_GAP = 6f;
 
     private final Supplier<String> text;
     private final float width;
@@ -26,6 +31,8 @@ public class SettingText extends SettingWidget {
     private final Supplier<Float> dynamicWidth;
     /** 文字左对齐；默认右对齐，贴住自身宽度区域的右边界（设置行右侧的状态值口径）。 */
     private boolean alignLeft;
+    /** 文字前的物品图标（可选）：非 null 时与文字一起组成「图标 + 名字」的一格，画在文字正左方 */
+    private Supplier<ItemStack> icon;
 
     public SettingText(Supplier<String> text) {
         this(text, DEFAULT_WIDTH, null);
@@ -66,6 +73,23 @@ public class SettingText extends SettingWidget {
         return this;
     }
 
+    /**
+     * 在文字正左方挂一枚物品图标（链式），组成「图标 + 名字」的一格。
+     *
+     * <p><b>为什么要挂到状态值这一格里</b>：物品图标放在行首（{@code ConsoleRow#icon}）时，图标与
+     * 「它是什么东西」的名字分处一行两端，中间隔着标签与整段空白；名字本身就是值的一部分时，
+     * 图标应该跟名字贴在一起（用户 2026-09-21：「出售物品图标移动到右边的物品名字前面」）。</p>
+     *
+     * <p>图标由 {@link ItemIconCache} 绘制（走全屏统一的抽帧链路，未命中缓存的物品当帧不画）；
+     * 文字可用宽度相应让出一格图标，宁可文字先截断，也不让图标溢出控件区。</p>
+     *
+     * @param icon 每帧取一次；返回 {@code null} 或空物品时既不画、也不占横向空间
+     */
+    public SettingText icon(Supplier<ItemStack> icon) {
+        this.icon = icon;
+        return this;
+    }
+
     @Override
     public float getWidth() {
         if (dynamicWidth == null) return width;
@@ -82,13 +106,22 @@ public class SettingText extends SettingWidget {
     public void draw(Canvas canvas, float x, float y, float alpha) {
         String shown = resolve();
         if (shown.isEmpty()) return;
+        ItemStack iconStack = icon == null ? null : icon.get();
+        boolean drawIcon = iconStack != null && !iconStack.isEmpty();
+        // 有图标时文字可用宽度让出一格图标：文字更宽时先截断文字，不让图标压出行外
+        float textRoom = drawIcon ? Math.max(1f, width - ICON_SIZE - ICON_GAP) : width;
         float textWidth = MinecraftText.measure(shown, FONT_SIZE, false);
-        if (textWidth > width) {
+        if (textWidth > textRoom) {
             // 超宽：退化为纯文本截断，保证不溢出控件区域（颜色码在截断时丢弃）
-            shown = CardLayout.ellipsize(MinecraftText.strip(shown), width, FONT_SIZE);
+            shown = CardLayout.ellipsize(MinecraftText.strip(shown), textRoom, FONT_SIZE);
             textWidth = FontRenderer.measureTextWidth(shown, FONT_SIZE);
         }
-        MinecraftText.draw(canvas, shown, alignLeft ? x : x + width - textWidth, y + 14f, FONT_SIZE,
+        float textX = alignLeft ? x : x + width - textWidth;
+        if (drawIcon) {
+            ItemIconCache.getInstance().draw(canvas, iconStack, textX - ICON_GAP - ICON_SIZE,
+                y + (getHeight() - ICON_SIZE) / 2f, ICON_SIZE);
+        }
+        MinecraftText.draw(canvas, shown, textX, y + 14f, FONT_SIZE,
                 ClickGuiThemeColors.current().secondaryText, alpha);
     }
 
