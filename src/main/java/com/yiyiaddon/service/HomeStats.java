@@ -20,8 +20,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p><b>统计的双通道</b>（2026-09-20 改造，目标是「省额度 + 刷得快」）：</p>
  * <ol>
  *   <li><b>心跳通道</b>（世界内，零额外请求）：客户端每 3 秒一次的心跳本来就带身份、位置、延迟上报，
- *       后端在写库心跳（30 秒一次）时把累计用户数一并回带，被节流的心跳读后端内存缓存回带 ——
- *       于是首页的「启用人数」每 30 秒跟一次新，客户端一次 /api/stats 都不用发；</li>
+ *       后端在写库心跳（30 秒一次）时把累计用户数与在线人数一并回带，被节流的心跳读后端内存缓存回带 ——
+ *       于是首页的「累计使用人数」与「在线人数」每 30 秒跟一次新，客户端一次 /api/stats 都不用发；</li>
  *   <li><b>轮询通道</b>（主菜单 / 老后端兜底）：{@code /api/stats} 每 {@link #INTERVAL_SECONDS} 秒一次。
  *       心跳通道最近 {@link #HEARTBEAT_FRESH_MILLIS} 内送回数据时这一轮直接跳过。</li>
  * </ol>
@@ -44,6 +44,13 @@ public final class HomeStats {
 
     private static volatile int rank = -1;
     private static volatile int totalUsers = -1;
+    /**
+     * 本扩展<b>此刻在线</b>的人数（后端按心跳判定）；{@code -1} = 还没拿到过数据。
+     *
+     * <p>与 {@link #totalUsers}（累计用户数）不同：这个是实时值，会随别人上下线变化，
+     * 首页账户条把它显示在玩家名后面（用户 2026-09-20：「名字后面」+「是当前在线人数」）。</p>
+     */
+    private static volatile int onlineUsers = -1;
     private static volatile boolean backendOnline;
     private static volatile long lastSyncMillis;
     /** 心跳通道最近一次送回统计的时刻；0 表示从未（老后端或还没进过世界）。 */
@@ -71,14 +78,17 @@ public final class HomeStats {
     }
 
     /**
-     * 心跳通道回填：心跳响应里带回的累计用户数（写库心跳与被节流的心跳都带）。
+     * 心跳通道回填：心跳响应里带回的累计用户数与在线人数（写库心跳与被节流的心跳都带）。
      *
-     * @param totalUsersValue 后端返回值；{@code <= 0} 视为未带回（老后端），保留旧值
+     * @param totalUsersValue 后端返回的累计用户数；{@code <= 0} 视为未带回（老后端），保留旧值
+     * @param onlineValue     后端返回的在线人数；{@code <= 0} 视为未带回，保留旧值
+     *                        （世界内在心跳的客户端自己必然在线，因此真值至少为 1）
      * @return 是否带回数据；调用方不需要它，但保留返回值便于自检与埋点
      */
-    public static boolean acceptHeartbeat(int totalUsersValue) {
+    public static boolean acceptHeartbeat(int totalUsersValue, int onlineValue) {
         if (totalUsersValue <= 0) return false;
         totalUsers = totalUsersValue;
+        if (onlineValue > 0) onlineUsers = onlineValue;
         heartbeatDataMillis = System.currentTimeMillis();
         return true;
     }
@@ -132,6 +142,11 @@ public final class HomeStats {
         return totalUsers;
     }
 
+    /** 本扩展当前在线人数；{@code -1} = 还没拿到过数据（界面显示占位，不显示 0）。 */
+    public static int onlineUsers() {
+        return onlineUsers;
+    }
+
     /** 账户身份：正版 / 离线。 */
     public static boolean premium() {
         return ClientIdentity.premium();
@@ -158,6 +173,7 @@ public final class HomeStats {
             if (!heartbeatFresh()) {
                 StatsSnapshot stats = StatsService.fetch();
                 if (stats.totalUsers() > 0) totalUsers = stats.totalUsers();
+                if (stats.onlineUsers() > 0) onlineUsers = stats.onlineUsers();
             }
 
             // 后端存活与延迟：30 秒缓存，世界内由心跳刷新、主菜单由本轮刷新。

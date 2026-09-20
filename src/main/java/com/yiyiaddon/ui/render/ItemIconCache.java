@@ -696,6 +696,14 @@ public final class ItemIconCache {
      * <p>经临时 GL 纹理 + FBO 用 {@code glBlitFramebuffer} 中转，而不是直接对主 Framebuffer 调
      * {@code glReadPixels}：主 Framebuffer 可能是多重采样的，多重采样缓冲上直接回读是非法操作。</p>
      *
+     * <p><b>像素打包状态必须整体隔离</b>（用户侧真机取证 2026-09-20，见复盘 149）：{@code glReadPixels}
+     * 往我们这块 ByteBuffer 里写多少、按什么行距写，由上下文级的 PBO 绑定与 {@code GL_PACK_*}
+     * 决定，而 LWJGL 的容量校验只按 {@code width × height × 4} 算。别处（Skija 自身的读回、
+     * 截图类模组、Iris / Sodium / Voxy）一旦留下非 0 的 {@code PACK_ROW_LENGTH} 或还绑着
+     * PBO，驱动就会按错误的行距往缓冲区<b>外</b>写 —— 那台机器上的表现是 nvoglv64.dll 在
+     * glReadPixels 里 {@code EXCEPTION_ACCESS_VIOLATION}（写越界）直接闪退整个客户端。
+     * 因此这里把打包状态保存 → 清零 → 还原，哪怕外面留着脏状态，我们这一次回读也是紧致行距。</p>
+     *
      * @param box {@code [x, y（自下往上）, 宽, 高]}，Framebuffer 像素坐标
      * @return 像素字节；失败返回 null
      */
@@ -711,6 +719,15 @@ public final class ItemIconCache {
         int[] oldDrawFramebuffer = new int[1];
         int[] oldViewport = new int[4];
         int[] oldScissorBox = new int[4];
+        int[] oldPackBuffer = new int[1];
+        int[] oldPackRowLength = new int[1];
+        int[] oldPackAlignment = new int[1];
+        int[] oldPackSkipPixels = new int[1];
+        int[] oldPackSkipRows = new int[1];
+        int[] oldPackImageHeight = new int[1];
+        int[] oldPackSkipImages = new int[1];
+        boolean packSwapBytes = glIsEnabled(GL_PACK_SWAP_BYTES);
+        boolean packLsbFirst = glIsEnabled(GL_PACK_LSB_FIRST);
         boolean framebufferSrgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
         glGetIntegerv(GL_ACTIVE_TEXTURE, oldActiveTexture);
         glActiveTexture(GL_TEXTURE0);
@@ -720,10 +737,35 @@ public final class ItemIconCache {
         glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, oldDrawFramebuffer);
         glGetIntegerv(GL_VIEWPORT, oldViewport);
         glGetIntegerv(GL_SCISSOR_BOX, oldScissorBox);
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, oldPackBuffer);
+        glGetIntegerv(GL_PACK_ROW_LENGTH, oldPackRowLength);
+        glGetIntegerv(GL_PACK_ALIGNMENT, oldPackAlignment);
+        glGetIntegerv(GL_PACK_SKIP_PIXELS, oldPackSkipPixels);
+        glGetIntegerv(GL_PACK_SKIP_ROWS, oldPackSkipRows);
+        glGetIntegerv(GL_PACK_IMAGE_HEIGHT, oldPackImageHeight);
+        glGetIntegerv(GL_PACK_SKIP_IMAGES, oldPackSkipImages);
+
+        // 清零打包状态：解绑 PBO（否则 pixels 会被驱动当成该缓冲的偏移量）、行距回归紧致
+        // width × 4、对齐 1（RGBA8 下与默认 4 等价，但把「别人改过的 8」也一并摁回默认值）
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+        glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+        glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0);
+        glPixelStorei(GL_PACK_SKIP_IMAGES, 0);
+        glPixelStorei(GL_PACK_SWAP_BYTES, GL_FALSE);
+        glPixelStorei(GL_PACK_LSB_FIRST, GL_FALSE);
 
         int textureId = 0;
         int framebufferId = 0;
         try {
+            // 取不到主帧缓冲的名字（回落值 0 = 窗口默认帧缓冲）时宁可不回读：那个缓冲区的内容不受
+            // 我们控制，而且正是驱动最不擅长的读写目标 —— 返回 null 让调用方走「本帧不画格子」的
+            // 保守路径，比冒险读窗口后缓冲稳。
+            int sourceFramebuffer = SkiaGlBackend.mainFramebufferId();
+            if (sourceFramebuffer == 0) return null;
+
             textureId = glGenTextures();
             framebufferId = glGenFramebuffers();
             glBindTexture(GL_TEXTURE_2D, textureId);
@@ -737,7 +779,7 @@ public final class ItemIconCache {
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId, 0);
             if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return null;
 
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, SkiaGlBackend.mainFramebufferId());
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, sourceFramebuffer);
             if (glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return null;
 
             glDisable(GL_FRAMEBUFFER_SRGB);
@@ -777,6 +819,16 @@ public final class ItemIconCache {
             glBindTexture(GL_TEXTURE_2D, oldTexture[0]);
             glBindSampler(0, oldSampler[0]);
             glActiveTexture(oldActiveTexture[0]);
+            // 打包状态逐个还原（先还参数、最后还 PBO 绑定：绑定还原后 pixels 语义就回到外面那套了）
+            glPixelStorei(GL_PACK_ROW_LENGTH, oldPackRowLength[0]);
+            glPixelStorei(GL_PACK_ALIGNMENT, oldPackAlignment[0]);
+            glPixelStorei(GL_PACK_SKIP_PIXELS, oldPackSkipPixels[0]);
+            glPixelStorei(GL_PACK_SKIP_ROWS, oldPackSkipRows[0]);
+            glPixelStorei(GL_PACK_IMAGE_HEIGHT, oldPackImageHeight[0]);
+            glPixelStorei(GL_PACK_SKIP_IMAGES, oldPackSkipImages[0]);
+            glPixelStorei(GL_PACK_SWAP_BYTES, packSwapBytes ? GL_TRUE : GL_FALSE);
+            glPixelStorei(GL_PACK_LSB_FIRST, packLsbFirst ? GL_TRUE : GL_FALSE);
+            glBindBuffer(GL_PIXEL_PACK_BUFFER, oldPackBuffer[0]);
             if (framebufferSrgb) {
                 glEnable(GL_FRAMEBUFFER_SRGB);
             } else {

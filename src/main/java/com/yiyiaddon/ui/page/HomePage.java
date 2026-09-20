@@ -53,7 +53,8 @@ import java.util.function.Consumer;
  * 首页仪表盘：五块内容自上而下，每一块都是「此刻能拿来判断 / 拿来动手」的东西。
  *
  * <ol>
- *   <li><b>账户</b>：头像旁直接显示「用户名：正版 / 离线」，下面是排名 / 人数 / 后端 / 地区 / IP / 同步时间；</li>
+ *   <li><b>账户</b>：头像旁直接显示「用户名：正版 / 离线」，名字后面是本扩展当前在线人数小标，
+ *       下面是排名 / 人数 / 后端 / 地区 / IP / 同步时间；</li>
  *   <li><b>本次会话</b>：服务器 / 维度 / 坐标 / 帧率 / 延迟 / 在线时长 / 服务器资源 / 启用模块数；</li>
  *   <li><b>常用模块</b>（用户自己收藏的模块，一键开关）与 <b>需要处理</b>（启用中但自检不通过的模块）；</li>
  *   <li><b>运行中</b>（只列启用中的模块与此刻在做什么）与 <b>星露谷 · 本维度</b>；</li>
@@ -111,6 +112,18 @@ public final class HomePage extends BasePage {
     /** 账户条：头像旁紧跟「玩家名：正版 / 离线」，不再展示过长 UUID。 */
     private static final float ACCOUNT_H = 50f;
     private static final float ACCOUNT_AVATAR = 36f;
+
+    /**
+     * 账户条里「当前在线人数」小标（用户 2026-09-20：「名字后面」+「是当前在线人数」）。
+     *
+     * <p>名字与它之间的间隔、小标自身的内边距与圆点尺寸：圆点在文字左侧、表示「在线」语义；
+     * 小标整体高 {@link #ONLINE_CHIP_H}、圆角取半高，与数据格共用同一套玻璃质感。</p>
+     */
+    private static final float ONLINE_GAP = 10f;
+    private static final float ONLINE_CHIP_H = 20f;
+    private static final float ONLINE_CHIP_PAD_X = 8f;
+    private static final float ONLINE_DOT = 6f;
+    private static final float ONLINE_DOT_GAP = 6f;
 
     /** 卡片标题高度与卡片底部留白（列表行数之外的那点余量）。 */
     private static final float CARD_HEADER_H = 30f;
@@ -339,7 +352,7 @@ public final class HomePage extends BasePage {
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         refreshFavorites();
 
-        drawDataCard(canvas, x, dataCardY(y, scrollOffset), contentW, alpha, tc);
+        drawDataCard(canvas, x, dataCardY(y, scrollOffset), contentW, alpha, tc, mouseX, mouseY);
         drawStatusCard(canvas, x, statusCardY(y, scrollOffset), contentW, alpha, tc);
 
         float listY = listRowY(y, scrollOffset);
@@ -357,12 +370,15 @@ public final class HomePage extends BasePage {
     /**
      * 账户卡：紧凑账户条 + 六项数据格（首行四项等宽，次行 1:2 —— 跨两列的 IP 格才放得下 IPv6）。
      *
-     * <p>格子顺序：用户排名 / 使用人数 / 后端状态 / 最后同步，网络地区 / IP。
+     * <p>格子顺序：用户排名 / 累计使用人数 / 后端状态 / 最后同步，网络地区 / IP。
+     * 第二格是<b>累计</b>口径（历史总数，只增不减），与账户条名字后面那枚「当前在线人数」小标
+     * 不是一回事，因此标签写全「累计使用人数」，不省成「使用人数」（用户 2026-09-20 的原始反馈）。
      * 里面的「网络状态」被 IP 顶掉了 —— 出口 IP 探得出来就说明网络通，同一件事不再占两格；
      * IP 按数据上色（主题高亮色），不再挤在账户条的 ID 后面（用户 2026-09-18：「IP 跑到框外了」）。
      * IP 格还兼挂出口提示（探测到代理时右上角一枚角标），具体见 {@link #proxyBadge()}。</p>
      */
-    private void drawDataCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc) {
+    private void drawDataCard(Canvas canvas, float x, float y, float w, float alpha, ClickGuiThemeColors tc,
+                              float mouseX, float mouseY) {
         drawCardBg(canvas, x, y, w, dataCardH(), alpha, tc);
 
         boolean premium = HomeStats.premium();
@@ -372,7 +388,7 @@ public final class HomePage extends BasePage {
         int totalUsers = HomeStats.totalUsers();
         String ip = HomeStats.ip();
 
-        drawAccountStrip(canvas, x, y, w, alpha, tc, premium);
+        drawAccountStrip(canvas, x, y, w, alpha, tc, premium, mouseX, mouseY);
 
         int labelC = GlassPanel.withAlpha(tc.secondaryText, alpha);
         int valueC = GlassPanel.withAlpha(tc.primaryText, alpha);
@@ -381,13 +397,13 @@ public final class HomePage extends BasePage {
         int accentC = GlassPanel.withAlpha(tc.accent, alpha);
 
         String[] labels = {
-                UiText.t("用户排名", "Rank"), UiText.t("使用人数", "Users"),
+                UiText.t("用户排名", "Rank"), UiText.t("累计使用人数", "Total Users"),
                 UiText.t("后端状态", "Backend"),
                 UiText.t("网络地区", "Region"), UiText.t("IP", "IP"), UiText.t("最后同步", "Last Sync")
         };
         String[] values = {
                 rank > 0 ? "#" + rank : UNKNOWN,
-                totalUsers > 0 ? String.format(Locale.ROOT, "%,d", totalUsers) : UNKNOWN,
+                totalUsers > 0 ? formatCount(totalUsers) : UNKNOWN,
                 backend ? UiText.t("正常", "Online") : UiText.t("异常", "Offline"),
                 regionLabel(HomeStats.countryCode(), HomeStats.region()),
                 ip == null || ip.isBlank() ? UNKNOWN : ip,
@@ -408,7 +424,7 @@ public final class HomePage extends BasePage {
     }
 
     /**
-     * 账户条：头像旁直接显示「玩家名：正版 / 离线」。
+     * 账户条：头像旁直接显示「玩家名：正版 / 离线」，名字后面紧跟「累计使用人数」小标。
      *
      * <p>身份一律取<b>会话账户</b>（{@link ClientIdentity}）而不是玩家实体 —— 正版链路下服务器会重写
      * 实体 UUID，用实体 UUID 会跟后端统计口径对不上（同 {@code ClientIdentity} 的既有约定）。
@@ -418,9 +434,15 @@ public final class HomePage extends BasePage {
      * 身份标签放在用户名<b>前面</b>（`正版：yiyijia` / `离线：yiyijia`），先看到自己是不是正版；
      * 分段着色：正版为绿色，离线为红色。{@code FontRenderer} 是 Skia 自绘、
      * 不解析 {@code §} 颜色码，所以颜色必须靠分段绘制传入，不能写进字符串。</p>
+     *
+     * <p><b>当前在线人数小标</b>（用户 2026-09-20：「名字后面」+「是当前在线人数」）：显示的是
+     * <b>本扩展</b>此刻在线的玩家数（{@link HomeStats#onlineUsers()}，后端按心跳判定），
+     * 不是当前服务器的玩家数 —— 因此不能和本页其它「服务器」数据混读，悬停给出完整口径说明
+     * （文案沿用旧项目 {@code UserStatsModule} 的「当前有 N 位玩家在线」）。取不到数据时小标显示占位、
+     * 圆点转灰，与数据格的 {@code --} 同一口径，不伪造 0。</p>
      */
     private void drawAccountStrip(Canvas canvas, float x, float y, float w, float alpha,
-                                  ClickGuiThemeColors tc, boolean premium) {
+                                  ClickGuiThemeColors tc, boolean premium, float mouseX, float mouseY) {
         int nameC = GlassPanel.withAlpha(tc.primaryText, alpha);
         int accountC = GlassPanel.withAlpha(premium ? COLOR_GOOD : COLOR_BAD, alpha);
 
@@ -439,14 +461,66 @@ public final class HomePage extends BasePage {
         float textX = avatarX + ACCOUNT_AVATAR + 10f;
         float nameX = textX + accountW + (colonW + colonInk) / 2f + 4f;
 
+        float innerRight = x + w - CARD_PAD;
+        int online = HomeStats.onlineUsers();
+        boolean onlineKnown = online > 0;
+        String chipText = onlineKnown
+                ? UiText.t("在线 ", "Online ") + online + UiText.t(" 人", " online")
+                : UiText.t("在线 --", "Online --");
+        float chipW = ONLINE_CHIP_PAD_X * 2f + ONLINE_DOT + ONLINE_DOT_GAP
+                + FontRenderer.measureTextWidth(chipText, 11f);
+
+        // 小标紧贴名字右缘（不是右对齐到卡片边缘）：名字按「留给小标的位置」省略，
+        // 再用 Math.min 收口 —— 极长名字下小标也绝不越出卡片内边界（绘制与命中同一坐标）。
         String name = ClientIdentity.name();
         String nameLabel = CardLayout.ellipsize(
                 name == null || name.isBlank() ? UNKNOWN : name,
-                Math.max(60f, x + w - CARD_PAD - nameX), 13f);
+                Math.max(60f, innerRight - ONLINE_GAP - chipW - nameX), 13f);
+        float nameEnd = nameX + FontRenderer.measureTextWidthBold(nameLabel, 13f);
+        float chipX = Math.min(nameEnd + ONLINE_GAP, innerRight - chipW);
+
         float baseline = CardLayout.baseline(y + ACCOUNT_H / 2f, 13f);
         FontRenderer.drawTextBold(canvas, account, textX, baseline, 12f, accountC);
         FontRenderer.drawTextBold(canvas, colon, textX + accountW, baseline, 12f, accountC);
         FontRenderer.drawTextBold(canvas, nameLabel, nameX, baseline, 13f, nameC);
+
+        drawOnlineChip(canvas, chipX, y + (ACCOUNT_H - ONLINE_CHIP_H) / 2f, chipW, chipText,
+                online, alpha, tc, mouseX, mouseY);
+    }
+
+    /**
+     * 「当前在线人数」小标：圆点 + 文案，弱底细边的胶囊。
+     *
+     * <p>圆点与数字同色系：拿到数据时为在线绿（{@link #COLOR_GOOD}），数据未到时转灰
+     * （{@link ClickGuiThemeColors#labelTertiary}）—— 一眼区分「真的没人」与「还没同步」。
+     * 悬停给出完整口径（这句是旧项目 {@code UserStatsModule} 的原文）。</p>
+     */
+    private static void drawOnlineChip(Canvas canvas, float x, float y, float w, String text, int online,
+                                       float alpha, ClickGuiThemeColors tc, float mouseX, float mouseY) {
+        boolean known = online > 0;
+        int tone = known ? COLOR_GOOD : tc.labelTertiary;
+        float centerY = y + ONLINE_CHIP_H / 2f;
+
+        GlassPanel.frost(canvas, x, y, w, ONLINE_CHIP_H, ONLINE_CHIP_H / 2f, tc.field, 0.42f, alpha);
+        GlassPanel.rim(canvas, x, y, w, ONLINE_CHIP_H, ONLINE_CHIP_H / 2f, tc.rim, alpha, 0.05f);
+
+        float dotX = x + ONLINE_CHIP_PAD_X;
+        GlassPanel.fill(canvas, dotX, centerY - ONLINE_DOT / 2f, ONLINE_DOT, ONLINE_DOT,
+                ONLINE_DOT / 2f, tone, alpha);
+        FontRenderer.drawText(canvas, text, dotX + ONLINE_DOT + ONLINE_DOT_GAP,
+                CardLayout.baseline(centerY, 11f), 11f,
+                GlassPanel.withAlpha(known ? tc.primaryText : tc.secondaryText, alpha));
+
+        if (known && hovered(mouseX, mouseY, x, y, w, ONLINE_CHIP_H)) {
+            TooltipLayer.show(UiText.t("当前使用该扩展的玩家", "Players using this addon")
+                    + "\n§f" + UiText.t("当前有 ", "Currently ") + online
+                    + UiText.t(" 位玩家在线", " online"), mouseX, mouseY);
+        }
+    }
+
+    /** 人数文案：与数据格同一口径（千分位分隔），两处共用一份，避免各写各的格式。 */
+    private static String formatCount(int count) {
+        return String.format(Locale.ROOT, "%,d", count);
     }
 
     /**
@@ -703,7 +777,8 @@ public final class HomePage extends BasePage {
             float cx = x + i * (colW + CELL_GAP);
             GlassPanel.frost(canvas, cx, y, colW, CELL_ROW_H, 8f, tc.field, 0.42f, alpha);
             GlassPanel.rim(canvas, cx, y, colW, CELL_ROW_H, 8f, tc.rim, alpha, 0.05f);
-            FontRenderer.drawText(canvas, labels[index], cx + 9f, y + LABEL_BASELINE, 10f, labelC);
+            FontRenderer.drawText(canvas, CardLayout.ellipsize(labels[index], colW - 18f, 10f),
+                    cx + 9f, y + LABEL_BASELINE, 10f, labelC);
 
             String badge = badges == null ? null : badges[index];
             if (badge != null) {
