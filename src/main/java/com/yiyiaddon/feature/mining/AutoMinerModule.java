@@ -56,6 +56,8 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -167,6 +169,15 @@ public final class AutoMinerModule extends Module {
     );
 
     private final Minecraft mc = Minecraft.getInstance();
+
+    /** 挖矿流程日志（跨服卖矿的诊断输出，与 {@code MiningStateMachine} 用同一个 logger 名） */
+    private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/mining");
+
+    /** 阶段监视：上一刻是否处于游戏阶段（初始 true，避免刚启用时误报一次「进入配置阶段」） */
+    private boolean phaseInGame = true;
+
+    /** 阶段监视：连续处于配置阶段 / 未连接的刻数 */
+    private int phaseWaitTicks = 0;
 
     /** 全部设置项的数据载体（文案与默认值来自旧项目） */
     private final MiningSettings settings = new MiningSettings();
@@ -884,9 +895,48 @@ public final class AutoMinerModule extends Module {
         }
     }
 
+    /**
+     * 连接阶段监视（诊断用，用户 2026-09-22：「触发了自用模式的出售 然后不知道是不是传送太快了
+     * 导致卡在了重新配置中 你要加个日志看看吗 这是传送子服的？」）。
+     *
+     * <p>自用模式卖矿必然跨服回挖矿服，客户端每次都要走一遍「游戏阶段 → 配置阶段 → 游戏阶段」；
+     * 配置阶段在客户端就是「没有游戏连接、没有玩家实体」那一段（{@code getConnection()} 为
+     * {@code null}），服务端 / 代理没下发完成配置时界面一直停在「重新配置中…」。这里记下进入时刻、
+     * 当前状态机、离开时的持续时长，卡住时对着 {@code logs/latest.log} 搜 {@code [卖矿流程]} 就能
+     * 分清两种情形：日志里有「进入配置阶段」而没有「配置阶段结束」= 服务器那头没走完；
+     * 连「进入」都没有 = 流程卡在我们自己这一步。</p>
+     */
+    private void trackConnectionPhase(Minecraft client) {
+        boolean inGame = client.getConnection() != null && client.player != null && client.level != null;
+        if (inGame == phaseInGame) {
+            // 每 5 秒报一次，能直观看出「卡了多久」
+            if (!inGame && ++phaseWaitTicks % 100 == 0) {
+                LOGGER.warn("[卖矿流程] 仍停在配置阶段：已等待 {} 秒，状态机 {}", phaseWaitTicks / 20, fsm.state());
+            }
+            return;
+        }
+        phaseInGame = inGame;
+        if (inGame) {
+            LOGGER.info("[卖矿流程] 配置阶段结束，回到游戏阶段（本次持续 {} 刻 ≈ {} 秒），状态机 {}",
+                phaseWaitTicks, phaseWaitTicks / 20.0f, fsm.state());
+        } else {
+            LOGGER.info("[卖矿流程] 进入配置阶段（跨服 / 传送触发），状态机 {}，位置 {}", fsm.state(), posText(client));
+        }
+        phaseWaitTicks = 0;
+    }
+
+    /** 位置文本（诊断日志用；玩家实体已消失时给出「未知」而不是抛异常） */
+    private static String posText(Minecraft client) {
+        if (client.player == null) return "未知";
+        var pos = client.player.blockPosition();
+        return pos.getX() + "," + pos.getY() + "," + pos.getZ();
+    }
+
     /** 每刻推进：低血断线优先 + 垃圾丢弃分频 + 秒破发包循环 + 状态机 */
     @Override
     public void onTick(Minecraft client) {
+        // 必须排在「玩家实体为空」的早退之前：配置阶段正是 player / level 都为 null 的那一段
+        trackConnectionPhase(client);
         if (client.player == null || client.level == null) return;
         // 副手口粮锁：模块运行中且副手确实是口粮时，玩家手动的 F 换手会被发包闸门丢弃
         // （用户 2026-09-19：「能不能运行期间锁死副手食物不让切换？除非停止模块」）。
