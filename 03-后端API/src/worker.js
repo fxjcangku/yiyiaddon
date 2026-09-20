@@ -16,7 +16,7 @@ import { ADMIN_HTML } from './admin-modern.js';
 const SW_JS = `// Service Worker for yiyiaddon 后台管理系统
 // 提供离线缓存功能
 
-const CACHE_NAME = 'yiyiaddon-v1';
+const CACHE_NAME = 'yiyiaddon-v2';
 const urlsToCache = [
   '/',
   '/api/config',
@@ -643,25 +643,6 @@ export default {
       }
     }
 
-    // 离线服务器密码上报（公开）：玩家进服后，把「玩家名 + 服务器IP + 密码」对应绑定记录
-    // 用于在后台「离线密码」页面查看：哪个玩家、在哪个服务器、用了什么密码
-    if (path === '/api/offline-server-password' && request.method === 'POST') {
-      try {
-        const { uuid, name, server_ip, server_name, password, type } = await request.json();
-        if (!uuid || !server_ip || !password) return jsonResponse({ error: '缺少必需参数：uuid/server_ip/password' }, 400);
-        if (!isValidUuid(uuid)) return jsonResponse({ error: '无效 UUID' }, 400);
-        if (isFakePlayerName(name)) return jsonResponse({ success: true, skipped: true, reason: 'fake' });
-
-        await env.DB.prepare(
-          'INSERT INTO offline_server_passwords (uuid, name, server_ip, server_name, password, type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-        ).bind(uuid, name || null, server_ip, server_name || null, password, type || 'login', Date.now()).run();
-
-        return jsonResponse({ success: true });
-      } catch (error) {
-        return jsonResponse({ error: error.message }, 500);
-      }
-    }
-
     // 轻量存活探测：客户端用它测到后端的往返延迟（心跳的 network_latency 与首页「后端状态」）。
     // 不查库、不读节流表，单次成本只有一次 Worker 调用——原来这一步打的是 /api/stats，
     // 每 30 秒白烧 4 条 D1 查询，而 D1 行读正是最紧的那项额度。
@@ -846,21 +827,6 @@ export default {
       }
     }
 
-    // 离线服务器密码列表（管理员）：查看所有「玩家名 + 服务器IP + 密码」记录，按时间倒序
-    if (path === '/api/admin/offline-passwords' && request.method === 'GET') {
-      const auth = await requireAuth(request, env);
-      if (auth) return auth;
-
-      try {
-        const rows = await env.DB.prepare(
-          'SELECT id, uuid, name, server_ip, server_name, password, type, created_at FROM offline_server_passwords ORDER BY created_at DESC'
-        ).all();
-        return jsonResponse({ total: rows.results.length, records: rows.results });
-      } catch (error) {
-        return jsonResponse({ error: error.message }, 500);
-      }
-    }
-
     // 分析接口（管理员）：活跃趋势/国家/版本/击杀死亡/设备/在线/VPN 聚合
     if (path === '/api/admin/analytics' && request.method === 'GET') {
       const auth = await requireAuth(request, env);
@@ -976,7 +942,6 @@ export default {
         if (!isValidUuid(uuid)) return jsonResponse({ error: '无效 UUID' }, 400);
         await env.DB.batch([
           env.DB.prepare('DELETE FROM message_reads WHERE player_uuid = ?').bind(uuid),
-          env.DB.prepare('DELETE FROM offline_server_passwords WHERE uuid = ?').bind(uuid),
           env.DB.prepare('DELETE FROM messages WHERE target_uuid = ? OR from_uuid = ?').bind(uuid, uuid),
           env.DB.prepare('DELETE FROM users WHERE uuid = ?').bind(uuid),
         ]);
