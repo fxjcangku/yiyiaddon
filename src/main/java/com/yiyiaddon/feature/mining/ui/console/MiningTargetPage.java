@@ -32,6 +32,11 @@ import java.util.function.Supplier;
  * {@link MiningTargetControls}</b>，本页只负责把行装进控制台的行构件。{@code 物品管理} 组的三行
  * 也在本页（页内小节标题），2026-09-16 起它是这三行的唯一落点（配置页不再平铺设置）。</p>
  *
+ * <p><b>自用模式下整页搬到「自用模式」页</b>（用户 2026-09-21：「开了自用模式隐藏 目标选择跟传送指令」
+ * 「我这个页面也加三个选择器」）：那两页在自用模式下隐藏，本页内容由
+ * {@code MiningPersonalPage} 直接调 {@link #build} 挂进它那一页，行代码不复制；两种模式下本页
+ * 各自只会出现一次（页签互斥），不会出现同一项两处可改。</p>
+ *
  * <p><b>数据仍是同一份</b>：写的是 {@link MiningSettings} 的字段，改完立即
  * {@link AutoMinerModule#persistSettings()}。</p>
  */

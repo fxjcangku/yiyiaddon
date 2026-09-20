@@ -1,11 +1,8 @@
 package com.yiyiaddon.feature.mining.service;
 
 import com.yiyiaddon.feature.mining.AutoMinerModule;
-import com.yiyiaddon.feature.mining.config.MiningSettings;
-import com.yiyiaddon.feature.mining.ui.MiningRegistry;
 import com.yiyiaddon.platform.container.ContainerAccess;
 import com.yiyiaddon.platform.container.SilentContainer;
-import com.yiyiaddon.ui.screen.SelectorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -30,11 +27,10 @@ import net.minecraft.world.phys.EntityHitResult;
  * {@code AutoMinerModule#onOpenScreen} 压掉，否则会弹出来抢鼠标）。槽位匹配沿用 RTP 选单那套口径：
  * 悬停名剥掉颜色码与空格后做包含比对（{@code ServerCommandRunner#handleGuiAutoClick}）。</p>
  *
- * <p><b>物品判据</b>：卖的是 {@link MiningSettings#personalSellItem()} —— 手选值优先，留空则<b>跟随
- * 目标选择页</b>选中的那个目标（用户 2026-09-20：「自动联动目标选择器 我选什么就显示出售什么」），
- * 所以默认状态下与正在挖的矿天然同源，不会填错。手选值来自控制台的选择器，是登记 ID
- * （{@code minecraft:cobblestone} 这类服务器另收的方块也直接可点）；匹配层仍保留名字比对，
- * 是为了兼容早前版本里手填过物品名的存档。</p>
+ * <p><b>物品判据</b>：卖的是 {@code AutoMinerModule#sellItemFilter()} —— <b>目标三选一在当前采集模式下的
+ * 产物</b>（用户 2026-09-21：「同步选择器 我选什么就显示出售什么」），所以默认状态下与正在挖的矿天然
+ * 同源，不会卖错。匹配层同时认 ID 与显示名：服务器把商品改名（{@code §a钻石} 这类）时按名字包含比对
+ * 仍能命中，改名前后的菜单都能点。</p>
  */
 public final class MiningPersonalSell {
 
@@ -43,10 +39,6 @@ public final class MiningPersonalSell {
 
     /** 是否处于「我方菜单流程」中：从发流程指令起、到整条出售链结束（含中途停机）为止 */
     private boolean menuFlowActive;
-
-    /** {@link #canResolveTarget()} 的缓存键（用户填的原文）；自检每帧都问，不能每帧遍历注册表 */
-    private String resolveCacheKey;
-    private boolean resolveCacheValue;
 
     public MiningPersonalSell(AutoMinerModule module) {
         this.module = module;
@@ -108,29 +100,41 @@ public final class MiningPersonalSell {
         return true;
     }
 
-    // ── 出售目标（用户 2026-09-20：填名字或 ID 都能识别） ──
+    // ── 出售目标（跟随目标三选一在当前采集模式下的产物） ──
 
     /**
-     * 实际要卖的物品（{@link MiningSettings#personalSellItem()}：手选优先，留空跟随目标选择页）
-     * → 这件物品算不算它。
+     * 菜单点选用的判据：登记 ID 精确命中，或<b>显示名包含</b>。
      *
-     * <p>两种填法都认（用户 2026-09-20：「填名字跟id都能识别」）：能解析成登记的物品 ID
-     * （{@code minecraft:diamond}）就按 ID 精确匹配；否则按物品显示名做包含比对
-     * （两边都先剥掉颜色码与空白），所以「钻石」这种中文名也认。</p>
+     * <p>名字那条是给服务端改名留的后路（用户 2026-09-20：「填名字跟id都能识别」）：商品被改成
+     * 「{@code §b高级钻石}」时 ID 不再是原物品，但剥掉颜色码后的名字里仍含着「钻石」。</p>
      */
-    private boolean matchesTarget(ItemStack stack) {
+    private boolean matchesMenuTarget(ItemStack stack) {
         String filter = module.sellItemFilter();
         if (filter == null || filter.isBlank() || stack.isEmpty()) return false;
-        String trimmed = filter.trim();
-        Identifier id = Identifier.tryParse(trimmed);
-        if (id != null && BuiltInRegistries.ITEM.getValue(id) != null) {
-            return id.equals(BuiltInRegistries.ITEM.getKey(stack.getItem()));
-        }
-        String wanted = stripFormatting(trimmed);
+        if (isTargetId(stack, filter)) return true;
+        String wanted = stripFormatting(module.getSellItemDisplayName());
         return !wanted.isEmpty() && stripFormatting(stack.getHoverName().getString()).contains(wanted);
     }
 
-    /** 点菜单里第一个命中「出售矿石」的槽位（收购列表里那件商品的那一格） */
+    /**
+     * 背包计数用的判据：<b>只认 ID</b>。
+     *
+     * <p>刻意不走名字包含：「钻石」是「钻石块」的子串，按名字数会把钻石块一起算进去 ——
+     * 触发组数会提前达标，卖完真钻石后结算又清不了零，整条链在原地空转。</p>
+     */
+    private boolean matchesBagTarget(ItemStack stack) {
+        String filter = module.sellItemFilter();
+        return stack != null && !stack.isEmpty() && filter != null && !filter.isBlank()
+            && isTargetId(stack, filter);
+    }
+
+    /** 这件物品的登记 ID 是否等于目标 ID（目标 ID 解析不出物品时恒为 {@code false}） */
+    private static boolean isTargetId(ItemStack stack, String filter) {
+        Identifier id = Identifier.tryParse(filter.trim());
+        return id != null && id.equals(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+    }
+
+    /** 点菜单里第一个命中「出售物品」的槽位（收购列表里那件商品的那一格） */
     public boolean clickTarget() {
         Slot slot = findTargetSlot();
         if (slot == null) return false;
@@ -138,7 +142,7 @@ public final class MiningPersonalSell {
         return true;
     }
 
-    /** 菜单里是否还有「出售矿石」的槽位（判断当前是不是还停在商品列表） */
+    /** 菜单里是否还有「出售物品」的槽位（判断当前是不是还停在商品列表） */
     public boolean menuHasTarget() {
         return findTargetSlot() != null;
     }
@@ -147,36 +151,9 @@ public final class MiningPersonalSell {
         AbstractContainerMenu menu = menu();
         if (menu == null) return null;
         for (Slot slot : menu.slots) {
-            if (matchesTarget(slot.getItem())) return slot;
+            if (matchesMenuTarget(slot.getItem())) return slot;
         }
         return null;
-    }
-
-    /**
-     * 实际要卖的物品能不能对上物品（自检用）。
-     *
-     * <p>先当登记 ID 试（注册表里查得到就算认得出），再当名字试（注册表里有物品的显示名包含它）。
-     * 名字探测要遍历上千个物品的显示名，而自检每帧都会跑（状态条那一格），所以按文本缓存结论：
-     * 文本没变就直接返回上次结果，只有用户改字 / 目标页改选时才真的遍历一次。</p>
-     */
-    public boolean canResolveTarget() {
-        String filter = module.sellItemFilter();
-        if (filter == null || filter.isBlank()) return false;
-        if (filter.equals(resolveCacheKey)) return resolveCacheValue;
-        resolveCacheKey = filter;
-        resolveCacheValue = probeTarget(filter.trim());
-        return resolveCacheValue;
-    }
-
-    private boolean probeTarget(String trimmed) {
-        Identifier id = Identifier.tryParse(trimmed);
-        if (id != null && BuiltInRegistries.ITEM.getValue(id) != null) return true;
-        String wanted = stripFormatting(trimmed);
-        if (wanted.isEmpty()) return false;
-        for (SelectorScreen.Entry entry : MiningRegistry.itemEntries()) {
-            if (stripFormatting(entry.title()).contains(wanted)) return true;
-        }
-        return false;
     }
 
     private Slot findKeywordSlot(String keyword) {
@@ -200,12 +177,12 @@ public final class MiningPersonalSell {
 
     // ── 背包 ──
 
-    /** 主背包（0~35）里命中「出售矿石」的物品总数量 */
+    /** 主背包（0~35）里命中「出售物品」的物品总数量（只认 ID，见 {@link #matchesBagTarget}） */
     public int countTargetInBag() {
         int total = 0;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
-            if (matchesTarget(stack)) total += stack.getCount();
+            if (matchesBagTarget(stack)) total += stack.getCount();
         }
         return total;
     }

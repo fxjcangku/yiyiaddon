@@ -22,7 +22,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.inventory.ContainerInput;
@@ -284,6 +283,14 @@ public final class MiningStateMachine {
     // 修补模式数据（旧 :70-82）
     /** 修复态超时｜10 分钟（20 tick/秒 × 600 秒）没修满就停机并播报，见 {@link #tickRepair} */
     private static final int REPAIR_TIMEOUT_TICKS = 12000;
+    /**
+     * 可用镐的剩余耐久下限：没有经验修补的镐，剩余必须 <b>大于</b> 这个值才算「有镐子」。
+     *
+     * <p>用户 2026-09-21：「剩下1点耐久停下来 不要把镐子挖爆」—— 剩 1 点再挖一块就爆，
+     * 等于当场失去挖矿能力，宁可提前停机。带经验修补的镐不受这条约束（挖矿得经验会自己修回来），
+     * 见 {@link #isUsablePickaxe(ItemStack)}。</p>
+     */
+    private static final int USABLE_DURABILITY_FLOOR = 1;
     private ItemStack savedTool = ItemStack.EMPTY;
     private ItemStack savedWeapon = ItemStack.EMPTY;
     private int savedToolSlot = -1;
@@ -1212,6 +1219,29 @@ public final class MiningStateMachine {
         }
         pickaxeMissingTicks = 0;
 
+        // 优先级 2.0：够得着的镐里没有「现在就能直接拿来挖」的（模式对得上 + 还能挖）→ 换一把，
+        // 换不到就停机（用户 2026-09-21：「剩下1点耐久停下来 不要把镐子挖爆」＋「精准采集不放行
+        // 一定要带精准采集的」）。
+        //   · 模式这一维与启动自检同源（module.matchesLootMode）：精准采集模式必须带精准采集附魔，
+        //     时运模式要时运镐或普通镐 —— 自检放行什么，运行期就只认什么；
+        //   · 耐久只管**没有经验修补**的镐（剩 1 点算报废），带经验修补的一律算能用；
+        //   · 独立于下面的耐久阈值：阈值被调到 1 或 0 时 2b 不再命中，这条照样成立；
+        //   · 只看快捷栏 0-8：副手是常驻食物位（自动进食一直占着它），且 Baritone 的自动选工具
+        //     也只认快捷栏，副手与背包 9~35 的镐都不能当「还有镐」的依据；
+        //   · 背包同步窗口内不判（与上面的「缺少镐子」同一道保护），避免换维度 / 传送式重生时误停机。
+        if (inventoryTrustTicks <= 0 && !hasReadyPickaxeInReach()) {
+            // 先试着换一把能用的继续挖（顶上来的可能来自主背包），真换不到才停机
+            if (swapInReadyPickaxe() || module.getContainer().ensureToolsInHotbar()) return;
+            module.getBaritone().stop();
+            // 副手放着镐这种配置很隐蔽（副手是常驻食物位、Baritone 又用不到它），停机时点一句免得白停
+            String offhandHint = isReadyPickaxe(mc.player.getOffhandItem())
+                ? "（副手那把镐用不上，请放进快捷栏）" : "";
+            module.error("§c✗ 没有能用的镐子 §8▸ 当前是「" + module.settings().lootMode + "」模式，快捷栏与背包里都"
+                + "没有" + module.requiredPickaxeName() + "（或剩余耐久不足）" + offhandHint + "，自动挖矿已停止");
+            if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
+            return;
+        }
+
         // 运行期定期补一次「工具回快捷栏」：玩家中途手动整理背包后工具可能又被放回背包，
         // 而 Baritone 的自动选工具只认快捷栏 0-8，看不到背包里的工具
         if (stateTick % 100 == 0) {
@@ -1229,18 +1259,20 @@ public final class MiningStateMachine {
             ensureMiningToolInHand();
         }
         // 2a：带经验修补的工具低于阈值 → 前往挂机点联动杀戮光环修复（旧 :348-367）
-        // 2b：低于阈值但**没有经验修补**的工具 → 修不了，不前往挂机点，只提示（用户 2026-09-19 需求）
-        //
-        // 自用模式把这两条整段跳过（用户 2026-09-20）：自用模式不绑挂机修复点，时运镐挖矿自带经验、
-        // 靠经验修补自修，「耐久」在这里不是要处理的输入；真走下去只会去找一个根本没绑定的挂机点。
-        if (!module.isPersonalMode()) {
-            if (findDamagedToolSlot(true) != -1) {
-                module.getSoundNotifier().notifyLowDurability();
-                transitionTo(MinerState.REPAIR);
-                return;
-            }
-            if (handleUnrepairableTool()) return;
+        //     自用模式跳过这一条（用户 2026-09-20）：自用模式不绑挂机修复点，时运镐挖矿自带经验、
+        //     靠经验修补自修，「耐久」不是要处理的输入；真走下去只会去找一个根本没绑定的挂机点。
+        if (!module.isPersonalMode() && findDamagedToolSlot(true) != -1) {
+            module.getSoundNotifier().notifyLowDurability();
+            transitionTo(MinerState.REPAIR);
+            return;
         }
+
+        // 2b：低于阈值但**没有经验修补**的镐子 → 修不了：改用背包内其余镐子继续挖，真没得换才停机
+        //     （旧 :348-367 与 handleUnrepairableTool()）。
+        //     自用模式**照走这一条**（用户 2026-09-21：「加上吧 我原来的代码 不是没经验修补的稿子快没耐用
+        //     了 就会换一把稿子继续挖吗 实在没耐久了才停下」）：自用模式只是不去挂机修复点，
+        //     「镐子用不了就停」这件事必须在 —— 否则镐子报废后挖矿彻底没产出，状态机还一直空跑。
+        if (handleUnrepairableTool()) return;
 
         // 优先级 2.5：饱食度检测（低于15时进食；背包没白名单食物则直接去补给，旧 :369-380）
         FoodData foodData = mc.player.getFoodData();
@@ -2233,12 +2265,46 @@ public final class MiningStateMachine {
         LocalPlayer player = mc.player;
         if (player == null) return;
         var inventory = player.getInventory();
-        if (Block.byItem(inventory.getSelectedItem().getItem()) == Blocks.AIR) return;
-        for (int slot = 0; slot < 9; slot++) {
-            if (!inventory.getItem(slot).is(ItemTags.PICKAXES)) continue;
-            selectHotbar(slot);
-            return;
+
+        // 手上这把镐不能用（不符合当前采集模式，或没有经验修补且只剩 1 点耐久）→ 换成快捷栏里
+        // 最合适的那把（模式对得上、剩余耐久最多），别把它挖爆、也别拿时运镐去挖精准模式的目标
+        // （用户 2026-09-21）。快捷栏里没有合适的就什么都不做 —— 停机与否交给优先级 2.0 的单一判据，
+        // 避免同一件事两处下结论。
+        ItemStack selected = inventory.getSelectedItem();
+        if (isPickaxe(selected) && !isReadyPickaxe(selected)) {
+            int best = findBestHotbarReadyPickaxe();
+            if (best >= 0) {
+                selectHotbar(best);
+                return;
+            }
         }
+
+        // 主手不是方块（Baritone 会认成「已经拿着挖矿工具」）：切到快捷栏里最合适的那把镐。
+        // 这里同样只认「能用」的镐 —— 拿一把不符合模式的镐去挖，等于产出直接错。
+        if (Block.byItem(inventory.getSelectedItem().getItem()) == Blocks.AIR) return;
+        int best = findBestHotbarReadyPickaxe();
+        if (best >= 0) selectHotbar(best);
+    }
+
+    /**
+     * 快捷栏（0~8）里最合适的一把镐：{@link #isReadyPickaxe(ItemStack)} 通过，取剩余耐久最多的
+     * （带经验修补的视为无限，见 {@link #sortableRemaining(ItemStack)}）。没有返回 -1。
+     */
+    private int findBestHotbarReadyPickaxe() {
+        if (mc.player == null) return -1;
+        var inventory = mc.player.getInventory();
+        int best = -1;
+        int bestRemaining = USABLE_DURABILITY_FLOOR;
+        for (int slot = 0; slot < 9; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!isReadyPickaxe(stack)) continue;
+            int remaining = sortableRemaining(stack);
+            if (remaining > bestRemaining) {
+                bestRemaining = remaining;
+                best = slot;
+            }
+        }
+        return best;
     }
 
     /**
@@ -2765,7 +2831,7 @@ public final class MiningStateMachine {
         return personalSell.countTargetInBag() / 64;
     }
 
-    /** 出售链播报里的物品名：手选 / 跟随目标取同一处显示名，取不到（目标没选且没手选）退回目标矿名 */
+    /** 出售链播报里的物品名：取目标在当前采集模式下的产物显示名，取不到（目标没选）退回目标矿名 */
     private String sellItemName(String fallback) {
         String name = module.getSellItemDisplayName();
         return name.isEmpty() ? fallback : name;
@@ -2992,7 +3058,7 @@ public final class MiningStateMachine {
 
         String filter = module.sellItemFilter();
         if (filter == null || filter.isBlank()) {
-            sellAbort("出售（未指定出售物品：目标没选、也没手选）");
+            sellAbort("出售（没选目标：在「自用模式」页选一个要挖的矿或方块）");
             return;
         }
 
@@ -3085,7 +3151,9 @@ public final class MiningStateMachine {
                     return;
                 }
                 if (sellNoProgressRounds >= SELL_NO_PROGRESS_LIMIT) {
-                    sellAbort("出售（连续 " + sellNoProgressRounds + " 轮一颗未少，收购菜单没有成交）");
+                    // 纠错：一颗未少只可能是收购菜单里根本没有这件商品（服主改名了，或这个目标本服不收）
+                    sellAbort("出售（连续 " + sellNoProgressRounds + " 轮一颗未少：收购菜单里没找到「"
+                        + sellItemName(module.sellItemFilter()) + "」这件商品，可能是服主改名了或这个目标本服不收）");
                     return;
                 }
                 sellPhase = 1;
@@ -3683,27 +3751,140 @@ public final class MiningStateMachine {
         }
 
         module.getBaritone().stop();
-        module.error("§c✗ " + name + " 没有经验修补 §8▸ 不回去挂机点修复，背包已无其余镐子，自动挖矿已停止");
+        module.error("§c✗ " + name + " 没有经验修补 §8▸ 不回去挂机点修复，背包已没有能继续挖的"
+            + module.requiredPickaxeName() + "（剩 1 点耐久的也停），自动挖矿已停止");
         if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
         return true;
     }
 
     /**
-     * 背包（含副手）里是否还有除 {@code excludeSlot} 之外的镐子。
+     * 背包（含副手）里是否还有除 {@code excludeSlot} 之外<b>能接着挖的</b>镐：判据
+     * {@link #isReadyPickaxe(ItemStack)}（模式对得上 + 还能挖）。
      *
-     * <p>判据只看「是不是镐子」，不要求耐久、也不要求经验修补 —— 用户的期望是
-     * 「还有别的镐子就别停」，这把用坏了换下一把即可。</p>
+     * <p>判据里的「模式对得上」这一维是用户 2026-09-21 追加的（「万一手边没有第二把精准采集的镐，
+     * 就变成掉落物了」）：原先只看「是不是镐子」，精准模式下会提示「改用背包内其余镐子继续挖矿」——
+     * 那把可能是时运镐或普通镐，挖出来的是掉落物而不是要卖的原矿方块。模式不符就当没有别的镐，
+     * 宁可停机播报，也不换一把会把产出搞错的镐。</p>
      *
-     * @param excludeSlot 受损镐子所在槽位（{@code -2} = 副手），不计入
+     * <p>带经验修补的镐在 {@link #isUsablePickaxe(ItemStack)} 里一律算能用（挖矿得经验会自己修回来），
+     * 所以「只有一把带经验修补的精准镐」这种配置永远不会被这里判成没镐、也不会被换走。</p>
+     *
+     * <p>不数副手（用户 2026-09-21：「我的吃东西一直放副手的」）：副手是常驻食物位，且 Baritone
+     * 只认快捷栏，副手那把镐用不上。判定是「还能不能接着挖」，够不着的位置不算。</p>
+     *
+     * @param excludeSlot 受损镐子所在槽位（{@code -2} = 副手，此时等于全背包都要扫），不计入
      */
     private boolean hasOtherPickaxe(int excludeSlot) {
         if (mc.player == null) return false;
-        if (excludeSlot != -2 && isPickaxe(mc.player.getOffhandItem())) return true;
         for (int i = 0; i < 36; i++) {
             if (i == excludeSlot) continue;
-            if (isPickaxe(mc.player.getInventory().getItem(i))) return true;
+            if (isReadyPickaxe(mc.player.getInventory().getItem(i))) return true;
         }
         return false;
+    }
+
+    /**
+     * 快捷栏（0~8）里有没有<b>现在就能直接拿来挖</b>的镐，判据 {@link #isReadyPickaxe(ItemStack)}。
+     *
+     * <p><b>只看快捷栏</b>（用户 2026-09-21：「我的吃东西一直放副手的 你检测副手干吊」）：</p>
+     * <ul>
+     *   <li>副手是常驻食物位 —— 自动进食那一套一直占着它，检测它没有意义；</li>
+     *   <li>Baritone 的自动选工具也只认快捷栏 0-8（见下方补工具那段注释），副手与背包 9~35 的镐
+     *       都够不着，拿来当「还有镐」的依据只会让手上的报废镐一路挖到爆。</li>
+     * </ul>
+     *
+     * <p>背包 9~35 里有镐时不用慌：优先级 2.0 会先 {@link #swapInReadyPickaxe()} 把它换进快捷栏。</p>
+     */
+    private boolean hasReadyPickaxeInReach() {
+        if (mc.player == null) return false;
+        for (int i = 0; i < 9; i++) {
+            if (isReadyPickaxe(mc.player.getInventory().getItem(i))) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 把主背包里<b>最合适</b>的一把镐换到快捷栏，顶掉手上 / 快捷栏里那把不能用的（用户 2026-09-21）。
+     *
+     * <p>优先顶掉<b>手上</b>那把（不符合模式或已报废）；手上不是镐时先找快捷栏空槽，实在没有就顶掉
+     * 快捷栏里第一把不符合模式或已报废的镐。只发一次交换包，换上来之后
+     * {@link #hasReadyPickaxeInReach()} 立刻为真，所以不会连发。</p>
+     *
+     * @return true = 已发包换槽（调用方本刻直接 return，下一刻再判）
+     */
+    private boolean swapInReadyPickaxe() {
+        if (mc.player == null || mc.gameMode == null) return false;
+        var inventory = mc.player.getInventory();
+
+        int target = -1;
+        ItemStack selected = inventory.getSelectedItem();
+        if (isPickaxe(selected) && !isReadyPickaxe(selected)) {
+            target = inventory.getSelectedSlot();
+        } else {
+            for (int i = 0; i < 9 && target < 0; i++) {
+                if (inventory.getItem(i).isEmpty()) target = i;
+            }
+            for (int i = 0; i < 9 && target < 0; i++) {
+                if (isPickaxe(inventory.getItem(i)) && !isReadyPickaxe(inventory.getItem(i))) target = i;
+            }
+        }
+        if (target < 0) return false;
+
+        int source = -1;
+        int bestRemaining = USABLE_DURABILITY_FLOOR;
+        for (int i = 9; i < 36; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!isReadyPickaxe(stack)) continue;
+            int remaining = sortableRemaining(stack);
+            if (remaining > bestRemaining) {
+                bestRemaining = remaining;
+                source = i;
+            }
+        }
+        if (source < 0) return false;
+
+        swapWithHotbar(source, target);
+        return true;
+    }
+
+    /**
+     * 这把镐现在能不能直接拿来挖：<b>模式对得上</b>（{@code AutoMinerModule#matchesLootMode}，
+     * 精准采集模式必须带精准采集附魔）+ 还能挖。
+     *
+     * <p>模式这一维与启动自检同源 —— 自检放行了什么，运行期就只认什么，不会出现
+     * 「自检通过、Baritone 却拿时运镐去挖精准模式的目标」。</p>
+     */
+    private boolean isReadyPickaxe(ItemStack stack) {
+        return isUsablePickaxe(stack) && module.matchesLootMode(stack);
+    }
+
+    /** 排序用的剩余耐久：带经验修补的镐视为无限（挖矿得经验会自己修回来，不该被淘汰） */
+    private int sortableRemaining(ItemStack stack) {
+        return ItemIdentifier.hasMending(stack) ? Integer.MAX_VALUE : remainingDurability(stack);
+    }
+
+    /** 剩余耐久；没有耐久组件（不可损坏）返回 {@link Integer#MAX_VALUE} */
+    private int remainingDurability(ItemStack stack) {
+        Integer maxDamage = stack.get(DataComponents.MAX_DAMAGE);
+        Integer damage = stack.get(DataComponents.DAMAGE);
+        if (maxDamage == null || damage == null) return Integer.MAX_VALUE;
+        return maxDamage - damage;
+    }
+
+    /**
+     * 这把镐还能不能继续挖。
+     *
+     * <p><b>带经验修补的镐一律算能用</b>（用户 2026-09-21：「我说的是没经验修补的稿子」）——
+     * 挖矿得经验时会自己修回来，自用模式的口径就是「不管它」，剩多少耐久都不在这里拦。</p>
+     *
+     * <p>没有经验修补的镐：剩余耐久必须 &gt; {@value #USABLE_DURABILITY_FLOOR}。剩 1 点再挖一块就爆，
+     * 等于当场失去挖矿能力，所以宁可提前停机；没有耐久组件（不可损坏）的模组镐永远算能用 ——
+     * 不能因为读不到 {@code MAX_DAMAGE} 就当报废。</p>
+     */
+    private boolean isUsablePickaxe(ItemStack stack) {
+        if (!isPickaxe(stack)) return false;
+        if (ItemIdentifier.hasMending(stack)) return true;
+        return remainingDurability(stack) > USABLE_DURABILITY_FLOOR;
     }
 
     /**
@@ -3917,8 +4098,8 @@ public final class MiningStateMachine {
             // 战斗态的播报由 MiningCombat 带怪物名发出（「发现 xx → 主动出击」/「苦力怕引信点燃 → 后撤熄灭」），
             // 这里返回空串不重复播报
             case COMBAT -> "";
-            // 自用模式出售链（用户 2026-09-20）：四态各播一条。卖的东西单独取名字——它可能手选了别的
-            // 方块（如圆石），不一定等于目标矿；取不到就退回目标矿名
+            // 自用模式出售链（用户 2026-09-20）：四态各播一条。卖的东西单独取名字——它是目标在当前
+            // 采集模式下的产物（选石头没开精准就是圆石），不一定等于目标本身；取不到就退回目标矿名
             case SELL_TRAVEL -> String.format("§b开始出售 §8▸ 回主城 · 带 %d 组 %s",
                 countPersonalOre(), sellItemName(target));
             case SELL_PATH -> "§b回城完成 §8▸ 正在寻路到收购 NPC";
@@ -4030,6 +4211,21 @@ public final class MiningStateMachine {
         if (mc.getConnection() != null) {
             mc.getConnection().send(new ServerboundSetCarriedItemPacket(slot));
         }
+    }
+
+    /**
+     * 把主背包槽与快捷栏槽对调（旧项目走 {@code InvUtils.move().from(...).toHotbar(...)}，
+     * 本项目换 26.1.2 原语）。
+     *
+     * <p>走 {@code ContainerInput.SWAP}：点击<b>主背包</b>槽、button 传快捷栏下标（0~8）即「与那个
+     * 快捷栏槽交换物品」，与 {@link #swapWithOffhand(int)}（button = 40 表示副手）同一口径。
+     * 主背包 9~35 在 {@code InventoryMenu} 里槽位下标同值。</p>
+     */
+    private void swapWithHotbar(int invSlot, int hotbarSlot) {
+        if (mc.player == null || mc.gameMode == null) return;
+        if (invSlot < 9 || invSlot >= 36 || hotbarSlot < 0 || hotbarSlot > 8) return;
+        mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, invSlot,
+            hotbarSlot, ContainerInput.SWAP, mc.player);
     }
 
     /**

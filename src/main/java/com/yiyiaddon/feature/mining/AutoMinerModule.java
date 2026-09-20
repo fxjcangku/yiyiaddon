@@ -598,19 +598,14 @@ public final class AutoMinerModule extends Module {
         if (settings.respawnCommand.trim().isEmpty()) missing.add("§b死亡返回指令§f·未填写");
 
         // 自用模式专有缺项（用户 2026-09-20）：出售流程缺关键项就走到一半卡住，启动前先拦住。
-        // 出售物品留空 = 跟随上面那个「目标」，所以它天然与正在挖的矿同源（用户 2026-09-20：
-        // 「自动联动目标选择器 我选什么就显示出售什么」），这里只拦「目标也没选」与「手填的认不出」。
+        // 出售物品不单独设项：它直接取目标三选一在当前采集模式下的产物（用户 2026-09-21：
+        // 「同步选择器 我选什么就显示出售什么」），所以只剩「目标没选」与「产物拿不到手上」两种缺法。
         if (settings.personalMode) {
             if (sellItemFilter().isBlank()) {
-                missing.add("§b自用出售物品§f·未指定（目标选择页选好矿即可，也可以自己点选一个）");
-            } else if (!fsm.personalSell().canResolveTarget()) {
-                // 手填的名字/ID 对不上任何物品（拼错了 / 抄错了 ID）：先拦住，别等挖满才发现卖不掉
-                missing.add("§b自用出售物品§f·识别不到这个物品（填物品名或 ID）");
-            } else if (sellItemMismatchReason(sellItemFilter()) != null) {
-                // 手选的那件在当前采集模式下根本不会掉（用户 2026-09-20：「我想卖的方块是圆石，
-                // 我选了精准采集模式，那不是掉的是石头吗」）：一颗都数不到，攒不够组数不会出发，
-                // 背包满兜底触发后又会在收购菜单里找不到那件商品
-                missing.add("§b自用出售物品§f·与目标 / 采集模式不符（点「点击选择」重挑）");
+                missing.add("§b自用目标§f·未选择（在本页选一个要挖的矿或方块）");
+            } else if (!sellItemUsable()) {
+                // 目标产物没有物品形态（水、岩浆这类方块）：背包里根本不会出现，一颗都卖不掉
+                missing.add("§b自用目标§f·这个目标没有能出售的产物（换一个）");
             }
             if (settings.personalSellCommand.trim().isEmpty()) missing.add("§b出售流程指令§f·未填写");
             if (settings.personalSellCityKeyword.trim().isEmpty()) missing.add("§b回城点击关键词§f·未填写");
@@ -1581,14 +1576,89 @@ public final class AutoMinerModule extends Module {
     /**
      * 自用出售物品的显示名（播报 / 状态条 / 配置详情共用）。
      *
-     * <p>取 {@link #sellItemFilter()}（手选优先，留空跟随目标在当前模式下的产物），能解析成登记物品
-     * 就用它的悬停名；手填的是物品名（解析不成 ID）时<b>原样回显</b>——按 ID 解析会显示成「空气」。
-     * 跟随到没有物品形态的方块（水、岩浆这类）时同样回显原文。</p>
+     * <p>取 {@link #sellItemFilter()}（目标在当前采集模式下的产物），能解析成登记物品就用它的悬停名；
+     * 没有物品形态（水、岩浆这类方块）时退回方块名或原文——按物品 ID 硬解析会显示成「空气」。</p>
      *
-     * @return 显示名；两者都空（目标没选且没手选）返回空串
+     * @return 显示名；目标没选返回空串
      */
     public String getSellItemDisplayName() {
         return displayNameOf(sellItemFilter());
+    }
+
+    /** 当前模式要求的镐（运行期停机播报与提示共用）：「带精准采集的镐」/「时运镐或普通镐」 */
+    public String requiredPickaxeName() {
+        return isSilkTouchMode() ? "带精准采集的镐" : "时运镐或普通镐";
+    }
+
+    /**
+     * 这把镐符合当前采集模式吗（用户 2026-09-21：「精准采集不放行 一定要带精准采集的」）。
+     *
+     * <p>判据与启动自检完全同源，避免「自检放行、运行期乱挖」：</p>
+     * <ul>
+     *   <li>精准采集模式 —— <b>必须</b>带精准采集附魔；普通镐、时运镐一律不放行
+     *       （挖出来的是掉落物，不是要卖的原矿方块）；</li>
+     *   <li>时运模式 —— 时运镐或普通镐都行，唯独精准镐不行（会把掉落物挖成原矿方块）。</li>
+     * </ul>
+     */
+    public boolean matchesLootMode(ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !isPickaxe(stack)) return false;
+        boolean silk = hasEnchant(stack, Enchantments.SILK_TOUCH);
+        boolean fortune = hasEnchant(stack, Enchantments.FORTUNE);
+        return isSilkTouchMode() ? silk : (fortune || !silk);
+    }
+
+    /**
+     * 自用出售物品的纠错说明（状态条 / 出售物品那一行 / 渐入渐出提示框共用同一处判据）。
+     *
+     * <p><b>为什么还需要纠错</b>：跟随口径下「卖什么」由目标现推，不会出现「填错」这种状态，
+     * 但仍有推导不出来的两种情形 —— ① 目标没选（无人可依）；② 目标产物在物品注册表里查不到，
+     * 也就是<b>没有物品形态的方块</b>（水、岩浆、火、耕地这类）：背包里永远不会出现，攒多少组都卖不掉，
+     * 背包满兜底触发后还会在收购菜单里找不到那件商品。这两种就在这里给一句能照着改的话。</p>
+     *
+     * @return 说明文案；正常返回 {@code null}
+     */
+    public String sellItemNotice() {
+        if (!settings.personalMode) return null;
+        String filter = sellItemFilter();
+        if (filter.isBlank()) return "§e先选目标 §8▸ 选一个要挖的矿或方块";
+        if (itemOf(filter) == null) {
+            return "§e这个目标没有能出售的产物 §8▸ 换一个（水、岩浆这类方块进不了背包）";
+        }
+        return null;
+    }
+
+    /** 自用出售物品的图标（控制台那一行的行首）；目标没选或产物没有物品形态时返回空栈 */
+    public ItemStack sellItemIcon() {
+        Item item = itemOf(sellItemFilter());
+        return item == null ? ItemStack.EMPTY : new ItemStack(item);
+    }
+
+    /** 出售物品能不能真的拿到手上（自检与 UI 的判据同源）：{@code false} = 没选目标或产物没有物品形态 */
+    public boolean sellItemUsable() {
+        String filter = sellItemFilter();
+        return !filter.isBlank() && itemOf(filter) != null;
+    }
+
+    /**
+     * 出售物品的「来源」尾巴：<b>产物与目标不是同一件</b>时给出它是谁掉出来的。
+     *
+     * <p>典型就是石头：非精准采集挖石头掉圆石，行上写成「圆石 (石头掉落)」——用户一眼能看出
+     * 卖的不是他选的方块本身，而是它的掉落物（用户 2026-09-21：「精准采集挖石头就变成石头了」：
+     * 精准与否决定卖石头还是圆石，这件事必须在行上看得见，不能只存在于推导里）。产物就是目标本身
+     * （如目标选圆石、或精准采集下的石头）时返回 {@code null}，行上不加尾巴。</p>
+     *
+     * @return 如「石头掉落」；目标没选或产物即目标返回 {@code null}
+     */
+    public String sellItemSourceNote() {
+        String produced = sellItemFilter();
+        if (produced.isBlank()) return null;
+        // 跟随顺序与状态条「目标」格一致（三选一）：主世界矿石 → 下界矿石 → 普通方块
+        for (String target : new String[]{settings.overworldOreTarget, settings.netherOreTarget,
+            settings.blockTarget == null ? "" : settings.blockTarget}) {
+            if (target == null || target.isBlank()) continue;
+            return target.equals(produced) ? null : displayNameOf(target) + "掉落";
+        }
+        return null;
     }
 
     /**
@@ -1640,53 +1710,17 @@ public final class AutoMinerModule extends Module {
     }
 
     /**
-     * 自用模式实际拿去卖的物品：手选优先，留空则跟随「目标在当前采集模式下的产物」。
+     * 自用模式实际拿去卖的物品：<b>目标三选一在当前采集模式下的产物</b>，用户不单独设这一项。
      *
-     * <p><b>跟随跟的是产出、不是目标本身</b>（用户 2026-09-20：「自动联动目标选择器 我选什么就显示
-     * 出售什么 这样子就不会错了」）：目标选石头、又没开精准采集，掉的是圆石，所以跟随值就是圆石 ——
-     * 若直接跟随目标 ID（石头），背包里一颗都数不到。所有业务消费点（结算、触发、播报、状态条）都读这里。</p>
+     * <p><b>取的是产出、不是目标本身</b>（用户 2026-09-20：「自动联动目标选择器 我选什么就显示
+     * 出售什么 这样子就不会错了」）：目标选石头、又没开精准采集，掉的是圆石，所以取值就是圆石 ——
+     * 若直接取目标 ID（石头），背包里一颗都数不到。所有业务消费点（背包计数、触发、菜单点选、
+     * 播报、状态条、自检）都读这里。</p>
      *
-     * @return 登记物品 ID（手选值可能是早前手填的物品名，匹配层两种都认）；两边都空返回空串
+     * @return 登记物品 ID；目标没选（无人可依）返回空串
      */
     public String sellItemFilter() {
-        if (!settings.personalSellFollowsTarget()) return settings.personalSellItem();
         return expectedSellItem();
-    }
-
-    /**
-     * 自用出售物品与「目标 + 采集模式」对不上时的说明（选择器据此拒绝加入、自检据此拦住启动）。
-     *
-     * <p>典型请求（用户 2026-09-20）：「我想卖的方块是圆石，我选了精准采集模式，那不是掉的是石头吗」
-     * —— 精准采集挖石头掉石头，圆石一件都进不了背包，挖满一趟也卖不出去。这里把「当前只会掉什么」
-     * 直接说出来，文案原样进渐入渐出的提示框。</p>
-     *
-     * @param itemId 待判定的物品 ID
-     * @return 说明文案；对得上（或非自用模式、没选目标、传入空值）返回 {@code null}
-     */
-    public String sellItemMismatchReason(String itemId) {
-        if (!settings.personalMode || itemId == null || itemId.isBlank()) return null;
-        String expected = expectedSellItem();
-        if (expected.isBlank() || expected.equals(itemId)) return null;
-        return "§e采集模式对不上 §8▸ 当前只会掉「§f" + displayNameOf(expected)
-            + "§8」，不是「§f" + displayNameOf(itemId) + "§8」";
-    }
-
-    /**
-     * 切换采集模式后的自动纠错：手选的出售物品在新模式下已经卖不出去时，换成会掉的那一件。
-     *
-     * <p>切换是系统动作（用户只动了一个分段控件），原手选值因此失效属于系统该负责的部分，所以这里
-     * 直接改，并返回文案让调用方弹渐入渐出提示框。跟随状态（留空）不动 —— 它本来就是现推的产物。
-     * 非自用模式不动（手选值只在自用模式里有意义）。</p>
-     *
-     * @return 需要提示的文案；没改任何东西返回 {@code null}
-     */
-    public String correctSellItemForMode() {
-        if (!settings.personalMode || settings.personalSellFollowsTarget()) return null;
-        String expected = expectedSellItem();
-        if (expected.isBlank() || expected.equals(settings.personalSellItem())) return null;
-        settings.personalSellTarget = expected;
-        persistSettings();
-        return "§e⚠ 采集模式已切换 §8▸ 出售物品同步为「§f" + displayNameOf(expected) + "§8」";
     }
 
     /**
@@ -1695,12 +1729,10 @@ public final class AutoMinerModule extends Module {
      * <p>时运的掉落物 ↔ 精准的原矿，改的是同一座矿：不这么做，切模式后目标会落在候选集合之外，
      * 自检与状态机的目标判定一起失效。认不出的产物保持原值（不猜、不清空）。</p>
      *
-     * <p>自用出售物品同批纠错（用户 2026-09-20）：见 {@link #correctSellItemForMode()}，
-     * 提示文案交给调用方弹（模块层不碰 UI）。</p>
-     *
-     * @return 需要弹提示框的文案；没有变化返回 {@code null}
+     * <p>自用出售物品不需要跟着纠错（用户 2026-09-21）：它不是独立设置，而是每次由目标现推产物，
+     * 模式一换它自己就跟着换。</p>
      */
-    public String syncTargetsOnModeSwitch() {
+    public void syncTargetsOnModeSwitch() {
         boolean silk = isSilkTouchMode();
         if (!settings.overworldOreTarget.isBlank()) {
             settings.overworldOreTarget = equivalentTargetId(settings.overworldOreTarget, silk, false);
@@ -1708,7 +1740,6 @@ public final class AutoMinerModule extends Module {
         if (!settings.netherOreTarget.isBlank()) {
             settings.netherOreTarget = equivalentTargetId(settings.netherOreTarget, silk, true);
         }
-        return correctSellItemForMode();
     }
 
     /** 旧产物 ID → 新模式等价产物 ID（旧 {@code equivalentItem :1272-1296}） */
