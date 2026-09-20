@@ -86,6 +86,11 @@ import java.util.List;
  *       旧点位字段（{@code posBook} 等 14 个）→ {@link com.yiyiaddon.feature.enchant.repository.EnchantPointStore}。</li>
  *   <li>旧 {@code 目标装备}</b>解析走 {@code BuiltInRegistries.ITEM}（旧项目走
  *       {@code level.registryAccess()}；物品是静态注册表，取值等价）。</li>
+ *   <li><b>目标模式互斥与运行中切换</b>（用户 2026-09-19 报缺陷后修正）：
+ *       ① {@code rebuildActiveTasks} 只取当前模式该用的词条组（旧项目 13 组合并，
+ *       导致切到自定义附魔后仍在跑原版附魔书勾的词条）；
+ *       ② 运行中切换模式走 {@link #restartForModeSwitch(EnchantTargetMode)} 重启，
+ *       不带着旧模式的任务列表 / GEAR 运行态继续跑。</li>
  * </ol>
  */
 public final class EnchantStateMachine {
@@ -111,6 +116,14 @@ public final class EnchantStateMachine {
     private EnchantState state = EnchantState.IDLE;
     /** 启动检查链全部通过后为 true；启动失败或关闭时为 false（见类注释第 2 条） */
     private boolean active;
+    /**
+     * 本次激活时的目标模式（旧项目没有这一项）。
+     *
+     * <p>运行中把「目标模式」切走时，已建好的任务列表与 GEAR 运行态都属于旧模式，必须按新模式重启，
+     * 否则会出现「切到自定义附魔，还在附魔原版附魔书的词条」甚至 GEAR 运行态为空指针。
+     * 每次激活链走完都记下当前值，因此只有「激活之后又切换」才会触发重启。</p>
+     */
+    private EnchantTargetMode lastTargetMode = null;
     private String lastNotifiedState = "";
     /** 发包附魔提示去重锁：整次运行只在首次进入附魔阶段播一句，避免附魔→砂轮循环每轮刷屏 */
     private boolean 发包附魔提示已播 = false;
@@ -240,6 +253,7 @@ public final class EnchantStateMachine {
         killAuraEnabledByUs = false;
 
         announceGearStartup();
+        lastTargetMode = module.settings().targetMode;
         active = true;
     }
 
@@ -278,18 +292,10 @@ public final class EnchantStateMachine {
         补给重试次数 = 0;
         killAuraEnabledByUs = false;
 
-        int vanillaTasks = countSelectedTasks(List.of(
-            EnchantSettings.VANILLA_ARMOR_ENCHANTS,
-            EnchantSettings.VANILLA_MELEE_ENCHANTS,
-            EnchantSettings.VANILLA_TOOL_ENCHANTS,
-            EnchantSettings.VANILLA_BOW_ENCHANTS,
-            EnchantSettings.VANILLA_FISHING_ENCHANTS,
-            EnchantSettings.VANILLA_TRIDENT_ENCHANTS,
-            EnchantSettings.VANILLA_CROSSBOW_ENCHANTS,
-            EnchantSettings.VANILLA_COMMON_ENCHANTS
-        ));
+        int vanillaTasks = countSelectedTasks(EnchantSettings.BOOK_GROUPS);
         int extensionTasks = activeTasks.size() - vanillaTasks;
         announceStartup(activeTasks.size(), vanillaTasks, extensionTasks);
+        lastTargetMode = module.settings().targetMode;
         active = true;
     }
 
@@ -303,6 +309,32 @@ public final class EnchantStateMachine {
     /** 旧 {@code toggle()}：本模块自己判定要停机时调用（延后一帧关，避免生命周期重入） */
     private void disableSelf() {
         mc.execute(() -> ModuleManager.setEnabledSilently(EnchantModule.MODULE_ID, false));
+    }
+
+    /**
+     * 运行中目标模式被切换：按新模式重新走一次「启动自检 → 启动链」。
+     *
+     * <p><b>为什么是重启而不是就地改状态</b>：三种模式互斥，词条列表（{@code rebuildActiveTasks}）、
+     * GEAR 的装备队列 / 铁砧计划、以及容器相位都是模式私有的运行态；就地改写一定会留下旧模式的残留
+     * （旧项目正是如此：切到自定义附魔后 {@code activeTasks} 还是上一次建好的那份）。走
+     * {@link ModuleManager} 重启可复用既有的自检与激活链（第 169 条：同一份逻辑不写两遍），
+     * 新模式点位没配好时会照常给出「还差 N 项没配好」的提示。</p>
+     *
+     * <p>关闭用静默、开启用带播报：玩家刚点的是「切换模式」，只需要看到一条切模式说明 +
+     * 「已开启」（或自检缺项），不需要再看一条「已关闭」。</p>
+     */
+    private void restartForModeSwitch(EnchantTargetMode mode) {
+        stopKillAura();
+        pathing.stop();
+        // 停掉可能还开着的静默容器：容器相位是模式私有运行态，不关掉会带到新模式
+        container.closeContainer();
+        container.resetMergeBooks();
+        active = false;
+        module.info("§7目标模式已切换为 " + highlightFunction(mode.title()) + "§7，正在按新模式重新启动...");
+        mc.execute(() -> {
+            ModuleManager.setEnabledSilently(EnchantModule.MODULE_ID, false);
+            ModuleManager.setEnabled(EnchantModule.MODULE_ID, true);
+        });
     }
 
     // ── 启动播报（旧 :958-982 / :2063-2087） ──
@@ -418,6 +450,17 @@ public final class EnchantStateMachine {
     public void tick() {
         if (!active) return;
         if (mc.player == null || mc.level == null) return;
+
+        // 运行中切换目标模式：旧模式的任务列表 / 运行态整体作废（BOOK 与 CUSTOM 的词条按模式取用、
+        // GEAR 另有装备队列与铁砧计划），必须按新模式重走一次「自检 → 启动链」才干净。
+        // 旧项目 目标模式.onChanged 只重排界面、不动运行态，于是切了模式仍在跑旧模式的词条。
+        EnchantTargetMode mode = module.settings().targetMode;
+        if (lastTargetMode != null && lastTargetMode != mode) {
+            restartForModeSwitch(mode);
+            return;
+        }
+        lastTargetMode = mode;
+
         if (!module.pointStore().matchesCurrentContext()) {
             module.error("检测到服务器或维度发生变化，已停止寻路并关闭模块！");
             stopKillAura();
@@ -2214,32 +2257,24 @@ public final class EnchantStateMachine {
      */
     private void rebuildActiveTasks() {
         activeTasks.clear();
-        boolean customMode = module.settings().targetMode == EnchantTargetMode.CUSTOM;
-        List<List<String>> enchantmentGroups = customMode
-            ? List.of(
-                EnchantSettings.SWORD_ENCHANTS,
-                EnchantSettings.AXE_ENCHANTS,
-                EnchantSettings.BOW_ENCHANTS,
-                EnchantSettings.ARMOR_ENCHANTS,
-                EnchantSettings.OTHER_ENCHANTS)
-            : List.of(
-                EnchantSettings.VANILLA_ARMOR_ENCHANTS,
-                EnchantSettings.VANILLA_MELEE_ENCHANTS,
-                EnchantSettings.VANILLA_TOOL_ENCHANTS,
-                EnchantSettings.VANILLA_BOW_ENCHANTS,
-                EnchantSettings.VANILLA_FISHING_ENCHANTS,
-                EnchantSettings.VANILLA_TRIDENT_ENCHANTS,
-                EnchantSettings.VANILLA_CROSSBOW_ENCHANTS,
-                EnchantSettings.VANILLA_COMMON_ENCHANTS);
-        for (List<String> group : enchantmentGroups) {
-            for (String entry : group) {
+        EnchantTargetMode mode = module.settings().targetMode;
+        // 词条组只从「设置里那一份组定义」取（BOOK_GROUPS / CUSTOM_GROUPS，与设置页控件、
+        // resetGroup 同源），本类不再另抄一份词条清单（第 169 条：同源逻辑只留一份）。
+        // GEAR 模式不走词条抽取流程（它只认「装备附魔配置」里的极品方案），给空列表即可
+        List<EnchantSettings.EnchantGroup> groups = switch (mode) {
+            case BOOK -> EnchantSettings.BOOK_GROUPS;
+            case CUSTOM -> EnchantSettings.CUSTOM_GROUPS;
+            case GEAR -> List.of();
+        };
+        for (EnchantSettings.EnchantGroup group : groups) {
+            for (String entry : group.entries()) {
                 if (module.settings().isSelected(entry) && !activeTasks.contains(entry)) {
                     activeTasks.add(entry);
                 }
             }
         }
-        // 自定义附魔目标（输入框手填的词条）只服务 CUSTOM 模式
-        if (!customMode) return;
+        // 自定义附魔目标（输入框手填的词条）只在 CUSTOM 模式并入，BOOK 模式一律不认
+        if (mode != EnchantTargetMode.CUSTOM) return;
         for (String task : module.settings().customEnchantTargets) {
             String normalized = normalizeEnchantmentText(task);
             if (!normalized.isEmpty() && !activeTasks.contains(normalized)) activeTasks.add(normalized);
@@ -2247,10 +2282,10 @@ public final class EnchantStateMachine {
     }
 
     /** 统计若干组里已勾选的词条数（旧 {@code countSelectedTasks:1740-1748}） */
-    private int countSelectedTasks(List<List<String>> groups) {
+    private int countSelectedTasks(List<EnchantSettings.EnchantGroup> groups) {
         int count = 0;
-        for (List<String> group : groups) {
-            for (String entry : group) {
+        for (EnchantSettings.EnchantGroup group : groups) {
+            for (String entry : group.entries()) {
                 if (module.settings().isSelected(entry)) count++;
             }
         }
