@@ -1315,8 +1315,12 @@ public final class AutoMinerModule extends Module {
         report.append("\n§7挖矿模式　§8▸ ").append(highlightText("普通模式")).append("§r");
         report.append("\n§7扫描方式　§8▸ §f视野内所有目标矿");
 
-        // 触发阈值：三项合并一行，高亮数值
-        report.append("\n§7触发阈值　§8▸ §f满载 ").append(highlightText(settings.unloadThreshold + " 组")).append("§r")
+        // 触发阈值：三项合并一行，高亮数值。满载那栏随模式取值 —— 自用模式「满载」的含义是
+        // 「出发去卖」（触发组数 personalSellStacks），普通模式才是卸货阈值 unloadThreshold
+        // （用户 2026-09-22：「这个触发阈值是普通模式的 我现在设置的是一组」：自用模式下卸货阈值
+        // 既不参与运行、界面上也已隐藏，报它等于报了个假的数）
+        int triggerStacks = settings.personalMode ? settings.personalSellStacks : settings.unloadThreshold;
+        report.append("\n§7触发阈值　§8▸ §f满载 ").append(highlightText(triggerStacks + " 组")).append("§r")
               .append("§f · 饥饿 ").append(highlightText(String.valueOf(settings.hungerThreshold))).append("§r")
               .append("§f · 耐久 ").append(highlightText(String.valueOf(settings.durabilityThreshold))).append("§r");
 

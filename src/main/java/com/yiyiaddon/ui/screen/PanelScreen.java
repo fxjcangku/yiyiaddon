@@ -377,18 +377,12 @@ public abstract class PanelScreen extends SkiaScreen {
                     AddonConfig.blurTintColor(), AddonConfig.blurStrength);
         }
 
-        // 轻微环境压暗提升玻璃与游戏场景的景深差异，不影响面板内文字对比度。
-        GlassPanel.fill(canvas, 0f, 0f, width, height, 0f, tc.shadow,
-                alpha * (tc.dark ? 0.16f : 0.10f));
-
         canvas.save();
         frame.applyTransform(canvas, width, height);
         // 面板自下方略微上浮归位；关闭时反向下沉
         canvas.translate(0f, (1f - alpha) * ENTER_RISE);
         try {
             GlassPanel.shadow(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.shadow, alpha, 1.15f);
-            GlassPanel.frost(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.window,
-                    AddonConfig.panelBlur ? 0.62f : 0.94f, alpha);
 
             canvas.save();
             canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);

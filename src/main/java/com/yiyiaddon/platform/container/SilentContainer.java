@@ -1,11 +1,20 @@
 package com.yiyiaddon.platform.container;
 
 import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.ui.render.SkiaScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.achievement.StatsScreen;
+import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.multiplayer.ServerReconfigScreen;
+import net.minecraft.client.gui.screens.options.OptionsScreen;
+import net.minecraft.client.gui.screens.social.SocialInteractionsScreen;
 
 /**
  * 静默容器统一闸门：所有「自己发包开方块容器」的模块共用这一份界面判据。
@@ -74,12 +83,115 @@ public final class SilentContainer {
      * 该界面只画进度条 —— 真实加载推进与「客户端已加载」上报都在
      * {@code ClientPacketListener#tick} 里由 {@code levelLoadTracker} 完成，拦掉它不影响传送与落地发包。</p>
      *
-     * @return true = 该拦（玩家确实开着界面，且这次要开的是加载界面）
+     * <p><b>只拦「玩家自己的界面」</b>（用户 2026-09-22：「一直开在这里你懂吗」）：跨服出售走的是代理的
+     * <b>重新配置</b> —— 服务端在游戏阶段发 {@code StartConfiguration}，原版先
+     * {@code ClientPacketListener#handleConfigurationStart} → {@code Minecraft#clearClientLevel(new
+     * ServerReconfigScreen(...))}，而那个界面<b>自己永远不会关</b>（源码里只有「30 秒后可点断开连接」
+     * 与转发 {@code connection.tick()}），唯一的收场路径就是随后 {@code handleLogin} 开出来的
+     * {@code LevelLoadingScreen}：{@code LevelLoadingScreen#tick} 在 {@code loadTracker.isLevelReady()}
+     * 时 {@code onClose()}。所以老写法「只要开着界面就拦」会把加载界面连同这条收场路径一起吞掉，
+     * 客户端永久停在「重新配置中…」（实测日志：{@code 星露谷 界面观察：ServerReconfigScreen}
+     * 从进服一直挂到玩家手动点「断开连接」，全程世界/实体正常、NPC 也能戳开）。
+     * 系统过渡界面（重新配置 / 连接中 / 断线）一律放行，让原版自己收场。</p>
+     *
+     * @return true = 该拦（玩家确实开着自己的界面，且这次要开的是加载界面）
      */
     public static boolean isLevelLoadingHijack(String screenClassName) {
         if (screenClassName == null || screenClassName.isBlank()) return false;
-        if (Minecraft.getInstance().gui.screen() == null) return false;
-        return LevelLoadingScreen.class.getName().equals(screenClassName);
+        if (!LevelLoadingScreen.class.getName().equals(screenClassName)) return false;
+        return isPlayerOwnedScreen(Minecraft.getInstance().gui.screen());
+    }
+
+    /**
+     * 值得在传送 / 换服时保住的「玩家自己的界面」。
+     *
+     * <p>判据必须窄：{@link SkiaScreen}（我方全部控制台 / 面板 / 选择器）、容器与背包、聊天，
+     * 以及原版暂停菜单那一族（游戏菜单 / 选项 / 进度 / 统计 / 玩家列表）—— 这些都是<b>玩家自己开的</b>，
+     * 传送时被「加载地形中」顶掉纯属干扰（用户 2026-09-22 截图报的就是游戏菜单被顶掉）。
+     * 其余（含原版的重新配置、连接中、断线界面）都是「原版自己会收场」的过渡界面，
+     * 拦掉它们的加载界面等于掐断收场路径 —— 见 {@link #isLevelLoadingHijack}。</p>
+     *
+     * <p>暂停菜单那一族放行是安全的：跨服「重新配置」时原版会<b>无条件</b>把
+     * {@code ServerReconfigScreen} 盖上来（不经此处判断），随后收场用的仍是那上面的加载界面。</p>
+     */
+    public static boolean isPlayerOwnedScreen(Screen screen) {
+        if (screen == null) return false;
+        return screen instanceof SkiaScreen
+            || screen instanceof AbstractContainerScreen<?>
+            || screen instanceof ChatScreen
+            || screen instanceof PauseScreen
+            || screen instanceof OptionsScreen
+            || screen instanceof AdvancementsScreen
+            || screen instanceof StatsScreen
+            || screen instanceof SocialInteractionsScreen;
+    }
+
+    /**
+     * 原版自己开的「系统过渡界面」（传送 / 换服途中的那些）。
+     *
+     * <p><b>一律放行、绝不能拦</b>：{@code ServerReconfigScreen#tick} 是配置阶段唯一在 tick 连接的地方
+     * （{@code clearClientLevel} 把 {@code gameMode} 置空，{@code MultiPlayerGameMode#tick} 不再跑），
+     * 拦掉它连接直接冻住 —— 就是 2026-09-22 那次「卡在重新配置中」。{@code LevelLoadingScreen} 则是
+     * 它唯一的收场路径。</p>
+     *
+     * <p>所以「跨服时玩家正开着的界面被顶掉」不能靠拦，只能靠 {@link #stashPlayerScreenBefore} 记账、
+     * {@link #reclaimPlayerScreen} 归还。</p>
+     */
+    public static boolean isSystemTransitionScreen(Screen screen) {
+        return screen instanceof ServerReconfigScreen || screen instanceof LevelLoadingScreen;
+    }
+
+    // ── 玩家自己的界面：被系统过渡界面顶掉时先记账，回到游戏阶段再归还 ──────────────
+
+    /** 被过渡界面顶掉的那个玩家界面（引用），null = 没有账 */
+    private static Screen stashedPlayerScreen;
+
+    /** 记账时刻：超时作废，免得某次传送半途断线后隔很久把旧界面弹回来 */
+    private static long stashedPlayerScreenAtMs;
+
+    /** 账的有效期（毫秒）：一次跨服往返实测 1~2 秒，15 秒足够宽裕 */
+    private static final long STASH_MAX_MS = 15_000L;
+
+    /**
+     * 系统过渡界面即将顶掉玩家自己的界面时先记账（{@code MinecraftSetScreenMixin} 在界面真的被换上时调）。
+     *
+     * <p>用户 2026-09-22：「还是关闭了我的 esc 返回那个键」—— 跨服回挖矿服走代理<b>重新配置</b>，
+     * 玩家正开着的游戏菜单 / 控制台页会被「重新配置中…」无条件盖掉，而那个界面拦不得（见
+     * {@link #isSystemTransitionScreen}）。盖掉之后原版收场用的是加载界面，界面一关就回到游戏里，
+     * 此时把记账的这个界面放回去，玩家看到的就是「我的界面一直开着」。</p>
+     *
+     * <p>只在「过渡界面顶掉玩家自己的界面」时记，且已有账不覆盖 —— 一次跨服会连顶两次
+     * （重新配置 → 加载地形），要保住的是最初那个。</p>
+     */
+    public static void stashPlayerScreenBefore(Screen incoming, Minecraft client) {
+        if (client == null || incoming == null) return;
+        if (!isSystemTransitionScreen(incoming)) return;
+        if (stashedPlayerScreen != null) return;
+        Screen current = client.gui.screen();
+        if (!isPlayerOwnedScreen(current)) return;
+        stashedPlayerScreen = current;
+        stashedPlayerScreenAtMs = System.currentTimeMillis();
+    }
+
+    /**
+     * 界面被关掉那一刻（{@code setScreen(null)}），若账还在就把它还回去。
+     *
+     * <p>只在「真的回到游戏里」才还：配置阶段 {@code player / level} 都为空，那几次关屏（重新配置 /
+     * 加载）不能把界面提前弹出来；落地后加载界面自己关掉的那一次才是收尾。</p>
+     *
+     * @return 该放回来的界面；没有账 / 还没回到游戏 / 账过期都给 {@code null}
+     */
+    public static Screen reclaimPlayerScreen(Minecraft client) {
+        Screen stashed = stashedPlayerScreen;
+        if (stashed == null || client == null) return null;
+        if (System.currentTimeMillis() - stashedPlayerScreenAtMs > STASH_MAX_MS) {
+            stashedPlayerScreen = null;
+            return null;
+        }
+        if (!isSystemTransitionScreen(client.gui.screen())) return null;
+        if (client.player == null || client.level == null) return null;
+        stashedPlayerScreen = null;
+        return stashed;
     }
 
     /**

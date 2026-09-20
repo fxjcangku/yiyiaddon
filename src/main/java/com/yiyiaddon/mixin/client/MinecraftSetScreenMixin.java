@@ -1,6 +1,8 @@
 package com.yiyiaddon.mixin.client;
 
 import com.yiyiaddon.core.event.EventDispatcher;
+import com.yiyiaddon.platform.container.SilentContainer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,13 +27,32 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 挂在头部则可以直接取消整个调用：界面根本不建、鼠标状态一动不动，
  * 与旧项目 {@code OpenScreenEvent} 的时机一致（{@link EventDispatcher#onScreenOpen} 里
  * {@code mc.player.containerMenu} 仍照常同步，后台物流发包不受影响）。</p>
+ *
+ * <p>同一处顺手管「系统过渡界面顶掉玩家界面」这件事（用户 2026-09-22：「还是关闭了我的 esc 返回
+ * 那个键」）：跨服「重新配置」那个界面拦不得（拦了连接冻住），只能在被顶掉时记账、收场时归还 ——
+ * 见 {@link SilentContainer#stashPlayerScreenBefore} / {@link SilentContainer#reclaimPlayerScreen}。</p>
  */
 @Mixin(Gui.class)
 public abstract class MinecraftSetScreenMixin {
 
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void yiyiaddon$silentContainerBeforeOpen(Screen screen, CallbackInfo ci) {
-        if (screen == null) return; // 关界面（含内部收尾）一律放行
-        if (EventDispatcher.onScreenOpen(screen)) ci.cancel();
+        Gui self = (Gui) (Object) this;
+        Minecraft client = Minecraft.getInstance();
+        if (screen == null) {
+            // 关界面（含内部收尾）一律放行，但若这次关屏是「过渡结束」就把被顶掉的玩家界面还回去
+            Screen restore = SilentContainer.reclaimPlayerScreen(client);
+            if (restore != null) {
+                ci.cancel();
+                self.setScreen(restore);
+            }
+            return;
+        }
+        if (EventDispatcher.onScreenOpen(screen)) {
+            ci.cancel();
+            return;
+        }
+        // 界面真的要被换上去了：若是系统过渡界面顶掉玩家自己的界面，先记一笔（拦不得，只能还）
+        SilentContainer.stashPlayerScreenBefore(screen, client);
     }
 }

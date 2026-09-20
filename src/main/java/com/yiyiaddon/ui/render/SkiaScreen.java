@@ -81,6 +81,18 @@ public abstract class SkiaScreen extends Screen {
         framePending = false;
         // 先截取图标，再画面板：截取要求隐藏格子仍是主 Framebuffer 的最上层内容。
         ItemIconCache.getInstance().capturePending();
+        // 截完<b>立刻</b>把画面备份写回，不再依赖「面板绘制路径里那一次写回」。
+        //
+        // 那条路径是 {@code SkiaGlBackend#begin} → {@code paintBackdrop}，它有两个前提：这一帧真的走到
+        // 面板绘制、且 {@code begin} 拿得到 canvas。只要有一帧不满足（换屏、surface 重建、面板这一帧
+        // 没画），格子就裸露在屏幕上；更糟的是<b>下一帧的备份会把这份裸露当成「干净画面」备份下来</b>，
+        // 于是残影被反复备份、反复画回、每帧再过一次面板玻璃的模糊 —— 越糊越久。用户 2026-09-22 截图里
+        // 那条横贯面板的光带（两端还露着格子底色的黑方块）就是这么滚出来的。
+        //
+        // 放在这里是无条件的一步：本方法的调用点（帧末 Mixin）必然在格子落地之后、面板绘制之前，
+        // 既保证格子被盖住，也保证面板玻璃采样到的是干净画面。原有的两处写回（begin / flushBackdrop）
+        // 此时已无备份可取，自动退化为空操作。
+        ItemIconCache.getInstance().flushBackdrop();
         drawFrame(this.width, this.height, frameMouseX, frameMouseY, frameDelta);
     }
 

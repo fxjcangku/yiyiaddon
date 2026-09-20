@@ -7,6 +7,7 @@ import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.PlayerSkin;
 
+import java.nio.charset.StandardCharsets;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -128,12 +129,25 @@ public final class PlayerListProbe {
      * （观感是 Steve/Alex 之一）。两者都不需要 Mojang 会话服，因此断网也有头像。</p>
      *
      * <p>绘制走 {@code PlayerFaceCache.draw}，本方法只负责给出皮肤，不做缓存。</p>
+     *
+     * <p><b>已离线的人必须自己造一个离线 UUID</b>（用户 2026-09-22：「选择玩家或者 npc 之后 有几率无法
+     * 点击继续添加 死按钮 点不动」，日志实锤 {@code NullPointerException: Profile ID must not be null}
+     * @ {@code PlayerListProbe.skin}）：{@link Candidate#id()} 对已离线成员是 {@code null}（名单里只存名字），
+     * 直接 {@code new GameProfile(null, name)} 必抛；而这一句跑在「点击选择」按钮的 runnable 里 ——
+     * 异常一出选择器压根没打开，表现就是按钮死了，名单里只要有离线成员就每次都死。改用按名字派生的
+     * 离线 UUID（与原版离线模式同一算法，同名恒定、不联网），拿不到真皮肤时照旧退回默认头。</p>
      */
     public static PlayerSkin skin(Candidate candidate) {
         if (candidate == null) return DefaultPlayerSkin.getDefaultSkin();
         GameProfile profile = candidate.profile();
-        if (profile == null) profile = new GameProfile(candidate.id(), candidate.name());
+        if (profile == null) profile = new GameProfile(offlineId(candidate), candidate.name());
         return skinOf(profile);
+    }
+
+    /** 候选的 UUID：在场的人用真实 UUID，已离线的人用按名字派生的离线 UUID（同名恒定） */
+    private static UUID offlineId(Candidate candidate) {
+        if (candidate.id() != null) return candidate.id();
+        return UUID.nameUUIDFromBytes(("OfflinePlayer:" + candidate.name()).getBytes(StandardCharsets.UTF_8));
     }
 
     /** 按 GameProfile 取皮肤：优先 Tab 名单里已下发的那份，取不到退回默认皮肤。 */
