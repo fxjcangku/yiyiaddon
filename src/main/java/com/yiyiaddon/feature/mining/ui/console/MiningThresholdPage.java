@@ -41,13 +41,19 @@ public final class MiningThresholdPage {
     /** 装配本页内容。 */
     public void build(CompactStack stack) {
         MiningSettings settings = module.settings();
+        // 自用模式隐藏两行与卸货流程绑定的项（用户 2026-09-21：「触发条件 在自用模式启动下也不要出现隐藏」）：
+        // 「满载组数」判的是卸货触发，自用模式根本不走 UNLOADING（挖满直接 SELL_TRAVEL，阈值在「自用模式」页的
+        // 「触发组数」）；「潜影盒打包机」绑的是矿物箱填装，自用模式连矿物箱都不绑定。留着只会让人以为要设。
+        boolean personal = module.isPersonalMode();
 
-        stack.add(new ConsoleRow(owner, () -> "满载组数",
-            "背包矿物达到多少组时触发卸货", null,
-            List.of(new Ctl(intBox(1, 36, () -> settings.unloadThreshold,
-                    value -> settings.unloadThreshold = value, null)),
-                resetInt("满载组数", () -> DEFAULTS.unloadThreshold, null,
-                    value -> settings.unloadThreshold = value))));
+        if (!personal) {
+            stack.add(new ConsoleRow(owner, () -> "满载组数",
+                "背包矿物达到多少组时触发卸货", null,
+                List.of(new Ctl(intBox(1, 36, () -> settings.unloadThreshold,
+                        value -> settings.unloadThreshold = value, null)),
+                    resetInt("满载组数", () -> DEFAULTS.unloadThreshold, null,
+                        value -> settings.unloadThreshold = value))));
+        }
 
         stack.add(new ConsoleRow(owner, () -> "食物阈值",
             "背包食物少于此数量时触发补给", null,
@@ -65,7 +71,9 @@ public final class MiningThresholdPage {
         int thresholdMax = Math.max(toolMax, MiningSettings.DURABILITY_THRESHOLD_FALLBACK_MAX);
 
         stack.add(new ConsoleRow(owner, () -> "耐久阈值",
-            "工具剩余耐久低于此值时前往挂机点修补（上限自动取你手持工具的满耐久：木镐 59 / 钻石镐 1561 / 下界合金镐 2031，主手不是工具时看副手，都没拿工具时按 2031）；无经验修补的工具修不了，不前往挂机点、只提示", null,
+            personal
+                ? "自用模式不移交挂机点修补：没带经验修补的镐低于此值时提示换镐（带经验修补的不管，挖矿自带经验会自修；剩 1 点耐久的镐一律不再用来挖）"
+                : "工具剩余耐久低于此值时前往挂机点修补（上限自动取你手持工具的满耐久：木镐 59 / 钻石镐 1561 / 下界合金镐 2031，主手不是工具时看副手，都没拿工具时按 2031）；无经验修补的工具修不了，不前往挂机点、只提示", null,
             List.of(new Ctl(intBox(1, thresholdMax, () -> settings.durabilityThreshold,
                     value -> settings.durabilityThreshold = value, null)),
                 resetInt("耐久阈值", () -> DEFAULTS.durabilityThreshold, null,
@@ -88,13 +96,15 @@ public final class MiningThresholdPage {
                 resetToggle("自动断线", () -> DEFAULTS.autoDisconnect,
                     value -> settings.autoDisconnect = value))));
 
-        stack.add(new ConsoleRow(owner, () -> "潜影盒打包机",
-            "卸货时把矿物箱(潜影盒)填满，检测到满后等红石推盒换新盒，自动重开箱继续放，直到背包目标矿放完才RTP。给搭配潜影盒打包机的挂机用户使用。",
-            null,
-            List.of(new Ctl(toggle(() -> settings.shulkerPacker,
-                    value -> settings.shulkerPacker = value)),
-                resetToggle("潜影盒打包机", () -> DEFAULTS.shulkerPacker,
-                    value -> settings.shulkerPacker = value))));
+        if (!personal) {
+            stack.add(new ConsoleRow(owner, () -> "潜影盒打包机",
+                "卸货时把矿物箱(潜影盒)填满，检测到满后等红石推盒换新盒，自动重开箱继续放，直到背包目标矿放完才RTP。给搭配潜影盒打包机的挂机用户使用。",
+                null,
+                List.of(new Ctl(toggle(() -> settings.shulkerPacker,
+                        value -> settings.shulkerPacker = value)),
+                    resetToggle("潜影盒打包机", () -> DEFAULTS.shulkerPacker,
+                        value -> settings.shulkerPacker = value))));
+        }
 
         // 状态播报（用户 2026-09-18：「加一个播报状态的按钮，默认开启，提示用户可以在配置页面关闭播报，
         // 或者弄个自动折叠信息的」——两个都做了：开关在运行时关掉全部状态类播报，
