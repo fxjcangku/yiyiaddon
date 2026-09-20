@@ -292,16 +292,7 @@ public final class EnchantStateMachine {
         补给重试次数 = 0;
         killAuraEnabledByUs = false;
 
-        int vanillaTasks = countSelectedTasks(List.of(
-            EnchantSettings.VANILLA_ARMOR_ENCHANTS,
-            EnchantSettings.VANILLA_MELEE_ENCHANTS,
-            EnchantSettings.VANILLA_TOOL_ENCHANTS,
-            EnchantSettings.VANILLA_BOW_ENCHANTS,
-            EnchantSettings.VANILLA_FISHING_ENCHANTS,
-            EnchantSettings.VANILLA_TRIDENT_ENCHANTS,
-            EnchantSettings.VANILLA_CROSSBOW_ENCHANTS,
-            EnchantSettings.VANILLA_COMMON_ENCHANTS
-        ));
+        int vanillaTasks = countSelectedTasks(EnchantSettings.BOOK_GROUPS);
         int extensionTasks = activeTasks.size() - vanillaTasks;
         announceStartup(activeTasks.size(), vanillaTasks, extensionTasks);
         lastTargetMode = module.settings().targetMode;
@@ -573,8 +564,6 @@ public final class EnchantStateMachine {
     }
 
     private void tickFarming() {
-        restoreHangoutView();
-        startKillAura();
         // 挂机中玩家手动走离挂机位：先停掉我们开的杀戮光环，再转回寻路态让 Baritone 把玩家拉回挂机点
         // （用户 2026-09-20：挂机循环下手动走通挂机点后没被拉回，可以随意走动——旧项目缺这一判据）
         if (!arrivedAtHangout()) {
@@ -582,6 +571,8 @@ public final class EnchantStateMachine {
             setState(EnchantState.WALK_TO_FARM);
             return;
         }
+        restoreHangoutView();
+        startKillAura();
         int targetLevel = roundTargetLevel();
         if (mc.player.experienceLevel >= targetLevel) {
             stopKillAura();
@@ -596,9 +587,9 @@ public final class EnchantStateMachine {
     }
 
     /**
-     * 挂机循环「本轮」的目标经验等级（唯一实现，{@link #tickFarming} 与 {@link #tickIdle} 共用，
-     * 避免同一判据留两份）：附魔书 / 自定义模式按「30 级 + 每多一次抽取 3 级」估算，
-     * 装备模式用当前任务记录的需求等级。
+     * 挂机循环「本轮」的目标经验等级（唯一实现，{@link #tickFarming} 与
+     * {@link #tickIdle} 共用，避免同一判据留两份）：
+     * 附魔书 / 自定义模式按「30 级 + 每多一次抽取 3 级」估算，装备模式用当前任务记录的需求等级。
      */
     private int roundTargetLevel() {
         return module.settings().targetMode == EnchantTargetMode.GEAR
@@ -2250,22 +2241,25 @@ public final class EnchantStateMachine {
     /**
      * 重建附魔书 / 自定义模式的目标词条列表（旧 {@code rebuildActiveTasks:1720-1738}）。
      *
-     * <p><b>用户 2026-09-19 裁定：词条只取当前目标模式该用的那几组，两种模式绝不互相污染。</b>
-     * 旧项目把 13 个多选组一次性全并进来（{@code :1722-1726}），于是「原版附魔书」模式勾的词条
-     * 在切到「自定义附魔」后照样生效 —— 实机表现就是「切到自定义附魔了，还在附魔上一个模式的词条，
-     * 自定义那边一个都没勾也能跑」。现在按模式取用：</p>
-     * <ul>
-     *   <li>{@code BOOK} → {@link EnchantSettings#BOOK_GROUPS} 的 8 个原版组；</li>
-     *   <li>{@code CUSTOM} → {@link EnchantSettings#CUSTOM_GROUPS} 的 5 个扩展组
-     *       + {@code 自定义附魔目标} 文本项（该页只在 CUSTOM 可见，故只在 CUSTOM 并入）。</li>
-     * </ul>
+     * <p><b>用户 2026-09-16 裁定修正</b>：旧项目的 {@code enchantmentGroups} 数组
+     * （{@code :1722-1726}）只列了剑、斧、弓、护甲与 8 个原版组，<b>漏掉了「工具与通用附魔属性」组</b>
+     * （该组在 {@code :545} 是真实存在的多选控件，箱子里能勾却被这里忽略，表现为「勾了不干活」）。
+     * 本项目按用户裁定补上该组，位置与 CUSTOM 页的控件顺序一致（护甲之后、原版组之前），
+     * 差异登记见 {@code 45-阶段11-...差异清单.md} 的 D10。</p>
      *
-     * <p><b>用户 2026-09-16 裁定修正（D10）依然成立</b>：旧数组漏掉的「工具与通用附魔属性」组，
-     * 现在作为 {@link EnchantSettings#CUSTOM_GROUPS} 的第 5 组一并纳入，位置与 CUSTOM 页控件顺序一致。</p>
+     * <p><b>用户 2026-09-20 裁定修正（词条来源按模式隔离）</b>：旧实现在两种模式下<b>都</b>把
+     * CUSTOM 的 5 组 + 自定义附魔目标并进任务列表，而控制台只在 {@code CUSTOM} 模式下才显示
+     * 这两处入口。于是「原版附魔书」模式里，页面上 8 组原版词条全是「已选择 0 项」，
+     * 模块却因为看不见的 CUSTOM 残留勾选 / 自定义目标照常启动并一直附魔
+     * （用户实机：{@code customEnchantTargets=["永生 2","永生 1"]}、{@code enchantSelection={}}）。
+     * 现按模式取源：{@code BOOK} 只用 {@link EnchantSettings#BOOK_GROUPS} 的 8 组，
+     * {@code CUSTOM} 只用 {@link EnchantSettings#CUSTOM_GROUPS} 的 5 组 + 自定义附魔目标。</p>
      */
     private void rebuildActiveTasks() {
         activeTasks.clear();
         EnchantTargetMode mode = module.settings().targetMode;
+        // 词条组只从「设置里那一份组定义」取（BOOK_GROUPS / CUSTOM_GROUPS，与设置页控件、
+        // resetGroup 同源），本类不再另抄一份词条清单（第 169 条：同源逻辑只留一份）。
         // GEAR 模式不走词条抽取流程（它只认「装备附魔配置」里的极品方案），给空列表即可
         List<EnchantSettings.EnchantGroup> groups = switch (mode) {
             case BOOK -> EnchantSettings.BOOK_GROUPS;
@@ -2279,19 +2273,19 @@ public final class EnchantStateMachine {
                 }
             }
         }
-        if (mode == EnchantTargetMode.CUSTOM) {
-            for (String task : module.settings().customEnchantTargets) {
-                String normalized = normalizeEnchantmentText(task);
-                if (!normalized.isEmpty() && !activeTasks.contains(normalized)) activeTasks.add(normalized);
-            }
+        // 自定义附魔目标（输入框手填的词条）只在 CUSTOM 模式并入，BOOK 模式一律不认
+        if (mode != EnchantTargetMode.CUSTOM) return;
+        for (String task : module.settings().customEnchantTargets) {
+            String normalized = normalizeEnchantmentText(task);
+            if (!normalized.isEmpty() && !activeTasks.contains(normalized)) activeTasks.add(normalized);
         }
     }
 
     /** 统计若干组里已勾选的词条数（旧 {@code countSelectedTasks:1740-1748}） */
-    private int countSelectedTasks(List<List<String>> groups) {
+    private int countSelectedTasks(List<EnchantSettings.EnchantGroup> groups) {
         int count = 0;
-        for (List<String> group : groups) {
-            for (String entry : group) {
+        for (EnchantSettings.EnchantGroup group : groups) {
+            for (String entry : group.entries()) {
                 if (module.settings().isSelected(entry)) count++;
             }
         }
