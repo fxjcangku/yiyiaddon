@@ -1,5 +1,7 @@
 package com.yiyiaddon.core.resourcepack;
 
+import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
+
 import java.util.UUID;
 
 /**
@@ -10,6 +12,11 @@ import java.util.UUID;
  * 但 Mixin 属于框架层，不允许反向依赖业务模块（否则每加一个资源包策略都要改 Mixin）。
  * 折中做法：模块在启用时把自己的处理器注册进来，Mixin 只问闸门「要不要取消原版流程」。</p>
  *
+ * <p><b>响应必须走 {@link Responder}</b>（2026-09-21 修）：响应包要发回<b>收到这次推送的那条连接</b>。
+ * 早先接管方拿 {@code ClientPacketSender} 按「当前游戏连接」发包，而原版在<b>配置阶段</b>就下发资源包
+ * 推送，那时玩家实体尚未创建、{@code Minecraft#getConnection()} 为 {@code null} —— 包根本发不出去，
+ * 服务端就一直在等资源包处理完成，客户端卡死在「重新配置中…」（跨服回到子服时必现）。</p>
+ *
  * <p><b>线程：</b>{@link #handle} 在 Mixin 的 {@code HEAD} 注入点被调用，可能仍在网络线程
  * （早于原版的线程切换）。处理器实现只允许做「读设置 + 发响应包（{@code Connection.send}
  * 本身线程安全）+ 交给异步提示通道」这三件事，禁止触碰客户端世界与界面。</p>
@@ -19,11 +26,22 @@ import java.util.UUID;
  */
 public final class ResourcePackGate {
 
+    /**
+     * 响应通道：把资源包响应发回「收到这次推送的那条连接」。
+     *
+     * <p>由框架层实现（Mixin 用推送方的 {@code send}），配置阶段与游戏阶段都能发出。</p>
+     */
+    @FunctionalInterface
+    public interface Responder {
+
+        void respond(UUID packId, ServerboundResourcePackPacket.Action action);
+    }
+
     /** 资源包推送处理器：返回 {@code true} 表示已接管，框架须取消原版处理 */
     @FunctionalInterface
     public interface Handler {
 
-        boolean handle(UUID packId, String url, String hash);
+        boolean handle(UUID packId, String url, String hash, Responder responder);
     }
 
     private static volatile String ownerId;
@@ -55,12 +73,14 @@ public final class ResourcePackGate {
      *
      * <p>处理器抛异常时一律返回 {@code false}：接管失败必须退回原版流程，
      * 否则玩家会卡在资源包界面进不去服务器。</p>
+     *
+     * @param responder 响应通道（见 {@link Responder}）；为 {@code null} 时直接放行原版
      */
-    public static boolean handle(UUID packId, String url, String hash) {
+    public static boolean handle(UUID packId, String url, String hash, Responder responder) {
         Handler current = handler;
-        if (current == null) return false;
+        if (current == null || responder == null) return false;
         try {
-            return current.handle(packId, url, hash);
+            return current.handle(packId, url, hash, responder);
         } catch (Throwable ignored) {
             return false;
         }
