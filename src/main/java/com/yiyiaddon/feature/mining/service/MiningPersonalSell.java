@@ -8,7 +8,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
@@ -41,8 +43,14 @@ public final class MiningPersonalSell {
     private final AutoMinerModule module;
     private final Minecraft mc = Minecraft.getInstance();
 
+    /** 「按名字找不到就按坐标就近选」的兜底半径（格）：配置坐标是玩家站在 NPC 旁边采的 */
+    private static final double NPC_NEAR_RANGE = 3.0;
+
     /** 是否处于「我方菜单流程」中：从发流程指令起、到整条出售链结束（含中途停机）为止 */
     private boolean menuFlowActive;
+
+    /** 本轮出售是否已播报过「名字没用上，改按坐标就近选」（每轮 beginFlow 重置，避免刷屏） */
+    private boolean npcFallbackAnnounced;
 
     public MiningPersonalSell(AutoMinerModule module) {
         this.module = module;
@@ -53,6 +61,7 @@ public final class MiningPersonalSell {
     /** 进入出售流程：此后服务端推来的容器界面一律静默（不弹、不抢鼠标） */
     public void beginFlow() {
         menuFlowActive = true;
+        npcFallbackAnnounced = false;
     }
 
     /** 结束出售流程（离开整条链 / 停机时调用）：之后的容器界面交给既有门控判 */
@@ -237,33 +246,96 @@ public final class MiningPersonalSell {
     }
 
     /**
-     * 在配置坐标附近找一个「显示名包含关键词」的实体（收购 NPC）。
+     * 在配置坐标附近找出收购 NPC。
      *
-     * <p>NPC 是插件用假玩家实体伪装的（{@code minecraft:player}），所以<b>不能按实体类型找</b>：
-     * 只能扫实体列表按名字匹配。<b>不能排除「玩家类型实体」</b>——伪装成玩家的 NPC 在客户端
-     * 就是一个玩家实体，按类型排除会把 NPC 一起排掉；只排除自己（否则可能把自己当 NPC 去交互）。</p>
+     * <p><b>三层判据，逐层放宽</b>（用户 2026-09-22 实机复现后按日志定案）：</p>
+     * <ol>
+     *     <li><b>名字命中玩家实体</b>：填的是实体真名（如 {@code CIT-a011feed8824}）时直接命中；</li>
+     *     <li><b>名字命中全息</b>：头顶那行「黑市商人[收购]」若是 {@code text_display} 全息，就以它为中心
+     *         取最近的假玩家 NPC —— 全息就浮在 NPC 头顶，这一步能把「按看得见的字填」也接上；</li>
+     *     <li><b>只按坐标就近</b>：名字压根不是实体名时，取配置坐标最近的假玩家 NPC。</li>
+     * </ol>
      *
-     * @return 命中的实体；附近没有则 {@code null}（调用方退回「按坐标寻路」）
+     * <p>为什么必须兜底到坐标：插件 NPC 的真名是随机串（本服实测 {@code CIT-a011feed8824}），玩家不可能猜到，
+     * 而配置坐标是他站在 NPC 旁边采的（实测距 NPC 0.0 格），所以「就近」比「猜名字」可靠得多。第 3 层命中时
+     * 播报一次，说明名字没用上、换成了就近选。</p>
+     *
+     * <p><b>只认假玩家</b>：候选必须是玩家实体、且不在 Tab 玩家名单里（插件 NPC 不下发列表项），
+     * 这样就近兜底不会右键到路人身上；传送神兽那种 {@code slime} 也不会被选中。</p>
+     *
+     * @return 命中的实体；三层都没命中则 {@code null}（调用方按坐标重试）
      */
     public Entity findNpc() {
         if (mc.level == null || mc.player == null) return null;
         String wanted = stripFormatting(module.settings().personalSellNpcName);
-        if (wanted.isEmpty()) return null;
-
         BlockPos center = npcPos();
-        Entity best = null;
-        double bestDist = Double.MAX_VALUE;
+
+        Entity named = null;
+        double namedDist = Double.MAX_VALUE;
+        Entity hologram = null;
+        double hologramDist = Double.MAX_VALUE;
+        List<Entity> nearby = new ArrayList<>();
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity == mc.player) continue;
-            if (matchesNpcName(entity, wanted)) {
-                double dist = entity.blockPosition().distSqr(center);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    best = entity;
+            nearby.add(entity);
+            if (wanted.isEmpty()) continue;
+            double dist = entity.blockPosition().distSqr(center);
+            if (isNpcActor(entity)) {
+                if (matchesNpcName(entity, wanted) && dist < namedDist) {
+                    namedDist = dist;
+                    named = entity;
+                }
+            } else {
+                String text = hologramText(entity);
+                if (text != null && text.contains(wanted) && dist < hologramDist) {
+                    hologramDist = dist;
+                    hologram = entity;
                 }
             }
         }
+        if (named != null) return named;
+
+        BlockPos anchor = hologram != null ? hologram.blockPosition() : center;
+        Entity best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (Entity entity : nearby) {
+            if (!isNpcActor(entity)) continue;
+            double dist = entity.blockPosition().distSqr(anchor);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = entity;
+            }
+        }
+        if (best == null || bestDist > NPC_NEAR_RANGE * NPC_NEAR_RANGE) return null;
+        if (!npcFallbackAnnounced) {
+            npcFallbackAnnounced = true;
+            module.info("§7「" + module.settings().personalSellNpcName + "」不是实体名 §8▸ §7已按坐标就近选中收购 NPC §f"
+                + best.getName().getString());
+        }
         return best;
+    }
+
+    /**
+     * 这个实体像不像「插件 NPC」：是玩家实体、但不在 Tab 玩家名单里。
+     *
+     * <p>假玩家 NPC 的实体类型就是 {@code minecraft:player}，服务端不会给它下发玩家列表项，
+     * 所以「在 Tab 名单里」的才是真人；据此把真人排除，就近兜底时才不会右键到路人身上。
+     * 名单尚未同步时（刚落地）会短暂把真人当成 NPC —— 代价只是多一次右键，无害。</p>
+     */
+    private boolean isNpcActor(Entity entity) {
+        if (!(entity instanceof Player player)) return false;
+        return mc.getConnection() == null || mc.getConnection().getPlayerInfo(player.getUUID()) == null;
+    }
+
+    /**
+     * 全息展示实体的文本（{@code minecraft:text_display} 那类）；不是展示实体返回 {@code null}。
+     *
+     * <p>关键：这类实体的文本<b>不经过</b> {@code getName()} / {@code getDisplayName()}（实测两个都是空串），
+     * 只能从 {@code Display.TextDisplay#getText()} 取 —— 否则「头顶明明写着黑市商人却扫不到」。</p>
+     */
+    private static String hologramText(Entity entity) {
+        if (entity instanceof Display.TextDisplay text) return stripFormatting(text.getText().getString());
+        return null;
     }
 
     /**
