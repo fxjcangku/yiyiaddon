@@ -380,6 +380,17 @@ public final class AutoMinerModule extends Module {
         return scope.isEmpty() ? "" : recordTimeText(MiningConfigRecordStore.savedAt(scope));
     }
 
+    /**
+     * 本服那条记录的设置（「覆盖本服记录」确认窗据此说出旧记录属于哪种模式）；没有记录返回 {@code null}。
+     *
+     * <p>用户 2026-09-22：「自动挖矿配置保存没有区分什么模式」—— 同一台服务器只保留一条记录，
+     * 两个模式（普通 / 自用）互相覆盖时不把旧记录的模式摆出来，玩家要读回去才发现拿到的是另一套配置。</p>
+     */
+    public MiningSettings serverRecordSettings() {
+        String scope = recordScopeKey();
+        return scope.isEmpty() ? null : recordSettings(MiningConfigRecordStore.find(scope));
+    }
+
     /** 全部已保存的配置记录（只列点过「保存本服记录」的，按保存时间从新到旧） */
     public List<ConfigRecord> serverRecords() {
         return MiningConfigRecordStore.list();
