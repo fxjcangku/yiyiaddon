@@ -108,6 +108,24 @@ public final class ConfirmPanelScreen extends PanelScreen {
      */
     public static ConfirmPanelScreen notice(String windowTitle, String headline, List<String> items,
                                            Screen parent, Supplier<Screen> settingsTarget) {
+        return new ConfirmPanelScreen(windowTitle, noticeLines(headline, items), "§a§l知道了", null, parent,
+            true, settingsTarget, true);
+    }
+
+    /**
+     * 原地只读提示窗（按条目排版）：点掉后回上级窗口，不退出整个界面。
+     *
+     * <p>与 {@link #notice(String, String, List, Screen)} 只差收尾目标：那个回游戏，这个回上级窗口。
+     * 排版共用 {@link #noticeLines}，两处不会各排一套。</p>
+     */
+    public static ConfirmPanelScreen noticeInPlace(String windowTitle, String headline, List<String> items,
+                                                  Screen parent) {
+        return new ConfirmPanelScreen(windowTitle, noticeLines(headline, items), "§a§l知道了", null, parent,
+            true, null, false);
+    }
+
+    /** 只读提示窗的正文排版（结论行 + 逐条提示）；{@link #notice} 与 {@link #noticeInPlace} 共用 */
+    private static List<String> noticeLines(String headline, List<String> items) {
         List<String> lines = new ArrayList<>();
         lines.add(headline);
         lines.add("");
@@ -124,7 +142,7 @@ public final class ConfirmPanelScreen extends PanelScreen {
                 lines.add("§8\u3000§c§l" + plain(text.substring(cut + 3)));
             }
         }
-        return new ConfirmPanelScreen(windowTitle, lines, "§a§l知道了", null, parent, true, settingsTarget, true);
+        return lines;
     }
 
     /** 剥掉 §x 颜色码：弹窗里统一红色加粗，原文配色不参与叠加（文字内容不动） */

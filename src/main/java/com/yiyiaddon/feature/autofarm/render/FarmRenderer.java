@@ -33,7 +33,7 @@ import net.minecraft.world.phys.AABB;
  * <p><b>显示 / 颜色 / 渲染模式全部来自各自独立的 {@link EspRenderObject}</b>
  * （用户 2026-09-19：「所有标点选择点位位置的模块参照星露谷农场的点位设置」）：
  * 关掉任意一类不影响其它类，颜色在绘制瞬间解析（彩虹色随 {@link EspColor} 免费获得）。
- * 字牌的样式另走共用件 {@link PointLabelText}（加粗 + 主题强调色 + 底板）：
+ * 字牌的样式另走共用件 {@link PointLabelText}（加粗 + 该箱子自己的方框色 + 底板）：
  * 四个箱子是容器，写「[世界]名字」。</p>
  */
 public final class FarmRenderer {
@@ -87,10 +87,10 @@ public final class FarmRenderer {
         if (settings.renderLabels.show) {
             // 农田两个角（农场点位1 / 农场点位2）是区域选点，用户 2026-09-19 定稿不画字牌
             // ——「这个不显示，默认渲染 ESP 就可以了」；农场范围由「农场边界」那个框表达
-            boxLabel(renderer, SiteType.SINGLE_STORAGE, "单作物箱");
-            boxLabel(renderer, SiteType.MULTI_STORAGE, "多作物箱");
-            boxLabel(renderer, SiteType.SEED_STORAGE, "种子补货箱");
-            boxLabel(renderer, SiteType.POISON_STORAGE, "杂物箱");
+            boxLabel(renderer, SiteType.SINGLE_STORAGE, "单作物箱", settings.renderSingleBox);
+            boxLabel(renderer, SiteType.MULTI_STORAGE, "多作物箱", settings.renderMultiBox);
+            boxLabel(renderer, SiteType.SEED_STORAGE, "种子补货箱", settings.renderSeedBox);
+            boxLabel(renderer, SiteType.POISON_STORAGE, "杂物箱", settings.renderPoisonBox);
         }
     }
 
@@ -140,10 +140,14 @@ public final class FarmRenderer {
     /**
      * 箱子字牌（容器）：挂在方框正上方；大箱子水平居中于两格并集，否则字牌会偏向一侧。
      *
-     * <p>样式与内容统一走 {@link PointLabelText}（用户 2026-09-19）：加粗 + 主题强调色 + 底板，
-     * 容器写「[世界]名字」，字号取设置里的「字牌大小」。</p>
+     * <p>样式与内容统一走 {@link PointLabelText}（用户 2026-09-19）：加粗 + 底板，容器写「[世界]名字」，
+     * 字号取设置里的「字牌大小」。</p>
+     *
+     * <p><b>颜色取该箱子自己的方框色</b>（用户 2026-09-21：「不同颜色合理分配」）：四个箱子各传自己的
+     * {@link EspColor}（含彩虹），与「星露谷点位字牌」「自动附魔点位字牌」同一条口径。此前一律跟 UI
+     * 主题强调色，而三套内置主题的强调色都是蓝，四个字牌全一个颜色，方框却是金 / 粉紫 / 青 / 红四色。</p>
      */
-    private void boxLabel(EspRenderer renderer, SiteType type, String text) {
+    private void boxLabel(EspRenderer renderer, SiteType type, String text, EspRenderObject object) {
         FarmSite site = module.site(type);
         if (site == null || !site.inCurrentDimension()) return;
         BlockPos pos = site.pos();
@@ -157,6 +161,6 @@ public final class FarmRenderer {
         }
         double labelY = pos.getY() + 1.4;
         PointLabelText.containerLabel(renderer, text, site.dimension(), centerX, labelY, centerZ,
-            module.settings().labelSize);
+            module.settings().labelSize, object.color.currentRgb());
     }
 }

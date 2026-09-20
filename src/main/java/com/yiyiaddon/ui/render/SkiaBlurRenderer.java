@@ -25,7 +25,16 @@ import static org.lwjgl.opengl.GL45.*;
 public final class SkiaBlurRenderer {
     private static final SkiaBlurRenderer INSTANCE = new SkiaBlurRenderer();
     private static final float MIN_CAPTURE_MARGIN = 18f;
+    /**
+     * 世界帧截取时在面板矩形之外再留的余量（GUI 逻辑像素）。
+     *
+     * <p>要同时容下模糊半径（{@link #blurSigma} 最大 21，需要约 2 倍余量）与开合动画期间面板一帧的位移，
+     * 否则玻璃会采到面板矩形之外、或退化成现场采样（自反馈）。</p>
+     */
+    private static final float WORLD_FRAME_PAD = 48f;
     private final Paint blurPaint = new Paint().setAntiAlias(true);
+    /** 主题色蒙版：玻璃画完之后叠在面板区域上，决定「这块玻璃有多深」。 */
+    private final Paint tintPaint = new Paint().setAntiAlias(true);
     /** 折射仅绘制窄边带，不对每个控件重复捕获或模糊场景。 */
     private final Paint refractionPaint = new Paint().setAntiAlias(true);
     private final SkiaGlBackend framebufferBackend = new SkiaGlBackend();
@@ -34,6 +43,20 @@ public final class SkiaBlurRenderer {
     private ImageFilter encodeFilter;
     private float filterSigma = Float.NaN;
     private boolean nativeLoaded = false;
+
+    /**
+     * 本帧登记的「面板玻璃区域」（GUI 逻辑坐标，已含外扩）；由画面板的屏幕在抽帧阶段登记。
+     *
+     * <p><b>为什么要单独登记、而不是玻璃自己现场采样</b>（用户 2026-09-21：「黑块没有了 但是蓝色的还有」）：
+     * 玻璃绘制发生在帧末，那时主帧缓冲里面板区域已经是<b>上一帧的面板自身</b>（行底色、文字）。
+     * 现场采样等于「把上一帧的面板再模糊一次盖回面板」，逐帧累积成一片扩散的蓝灰雾 —— 面板上原来那层
+     * 不透明霜化把这条路遮住了，霜化撤掉后自反馈就显形。正解是让玻璃采样<b>世界帧</b>：
+     * GUI 通道开始画之前（世界已画完、界面还没上屏）把这块区域截下来存着，帧末玻璃用它当背景。</p>
+     */
+    private float[] worldFrameRequest;
+    /** GUI 通道之前截下的世界帧贴图（GPU 纹理，不回落 CPU），以及它在 GUI 逻辑坐标下的矩形。 */
+    private Image worldFrameImage;
+    private float[] worldFrameBox;
 
     private SkiaBlurRenderer() {}
 
@@ -45,6 +68,56 @@ public final class SkiaBlurRenderer {
         int[] framebuffer = new int[1];
         glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, framebuffer);
         return framebuffer[0];
+    }
+
+    /**
+     * 登记本帧要采样的面板玻璃区域（GUI 逻辑坐标，调用方已含外扩）。
+     *
+     * <p>由画玻璃的 {@link #render} 顺手登记：本帧画到哪里，就为**下一帧**的
+     * {@link #captureWorldFrame()}（GUI 通道之前）准备要截的世界区域。玻璃是模糊背景，
+     * 用上一帧截下的世界帧在观感上没有差别；外扩留出模糊半径与开合动画一帧的位移。</p>
+     */
+    public void requestWorldFrame(float x, float y, float width, float height) {
+        worldFrameRequest = new float[]{x, y, width, height};
+    }
+
+    /**
+     * 在 GUI 通道开始绘制之前截下登记区域的世界帧（世界已画完、界面还没上屏）。
+     *
+     * <p>由 {@code GuiRendererMixin} 在 {@code GuiRenderer#render} 的 HEAD 调用，紧接着才轮到 ESP
+     * 叠加层与界面绘制。截取走 {@code glBlitFramebuffer} 到临时纹理 + Skija 收养，不回落 CPU，
+     * 每帧一次、区域为一个面板大小，开销可忽略。</p>
+     */
+    public void captureWorldFrame() {
+        float[] request = worldFrameRequest;
+        if (request == null) {
+            // 这一帧没有玻璃要画（或没登记）：保留上一帧的世界帧。丢掉它只会让玻璃退回现场采样，
+            // 把上一帧的面板再糊一遍 —— 那正是要避免的蓝雾；旧一帧的世界在模糊背景里看不出来。
+            return;
+        }
+        worldFrameRequest = null;
+        Minecraft client = Minecraft.getInstance();
+        if (request[2] <= 1f || request[3] <= 1f) return;
+        if (client == null || client.getWindow() == null || client.getMainRenderTarget() == null) return;
+        ensureNativeLoaded();
+        DirectContext context = SkiaGlBackend.sharedContext();
+        if (context == null) return;
+        Capture capture = captureRegion(context, client, mainFramebufferId(client),
+                request[0], request[1], request[2], request[3],
+                (float) client.getWindow().getGuiScale(), 0f);
+        if (capture.image == null) return;
+        releaseWorldFrame();
+        worldFrameImage = capture.image;
+        worldFrameBox = new float[]{capture.dstX, capture.dstY, capture.dstW, capture.dstH};
+    }
+
+    /** 释放本帧的世界帧贴图（下一帧截取前、或资源重载 / 分辨率变化时调用）。 */
+    public void releaseWorldFrame() {
+        if (worldFrameImage != null) {
+            worldFrameImage.close();
+            worldFrameImage = null;
+        }
+        worldFrameBox = null;
     }
 
     public boolean render(Minecraft client, float x, float y, float width, float height, float radius, int tintColor, float strength) {
@@ -118,7 +191,11 @@ public final class SkiaBlurRenderer {
         float scale = (float) client.getWindow().getGuiScale();
         boolean blurEnabled = strength > 0.001f;
         float blurSigma = blurEnabled ? blurSigma(strength) : 0f;
-        Capture capture = captureRegion(context, client, sourceFramebufferId, x, y, width, height, scale, Math.max(MIN_CAPTURE_MARGIN, blurSigma * 2f));
+        // 为下一帧的世界帧截取登记区域（模糊半径 + 动画位移都留出来）
+        requestWorldFrame(x - WORLD_FRAME_PAD, y - WORLD_FRAME_PAD,
+                width + WORLD_FRAME_PAD * 2f, height + WORLD_FRAME_PAD * 2f);
+        Capture capture = backgroundCapture(context, client, sourceFramebufferId, x, y, width, height, scale,
+                Math.max(MIN_CAPTURE_MARGIN, blurSigma * 2f));
         if (capture.image == null) return false;
 
         if (blurEnabled) ensureFilters(blurSigma);
@@ -134,10 +211,39 @@ public final class SkiaBlurRenderer {
                     true);
 
             drawRefraction(canvas, capture, x, y, width, height, radius);
+            // 主题色蒙版：用户 2026-09-21「怎么感觉你把我的主题调浅色了 没以前深色了」——
+            // 这块颜色原来就在，之前跟霜化层一起被撤掉了，面板于是比以往亮。它叠在玻璃图像之上，
+            // 属于「不透明玻璃」的一部分，不参与跨帧累积，可以放心保留。
+            tintPaint.setColor(glassTint(tintColor));
+            canvas.drawRRect(RRect.makeXYWH(x, y, width, height, radius), tintPaint);
             return true;
         } finally {
             blurPaint.setImageFilter(null);
             canvas.restore();
+            releaseCapture(capture);
+        }
+    }
+
+    /**
+     * 玻璃背景的来源：优先用 GUI 通道之前截下的**世界帧**（见 {@link #requestWorldFrame}），
+     * 取不到才现场对主帧缓冲做区域采样。
+     *
+     * <p>现场采样在帧末拿到的是上一帧的面板自身 —— 直接把面板再模糊一次盖回面板，会形成自反馈；
+     * 世界帧是界面还没上屏时的画面，才是玻璃真正该透出的背景。</p>
+     */
+    private Capture backgroundCapture(DirectContext context, Minecraft client, int sourceFramebufferId,
+                                      float x, float y, float width, float height, float scale, float margin) {
+        Image frame = worldFrameImage;
+        float[] box = worldFrameBox;
+        if (frame != null && box != null) {
+            return new Capture(frame, frame.getWidth(), frame.getHeight(), box[0], box[1], box[2], box[3], true);
+        }
+        return captureRegion(context, client, sourceFramebufferId, x, y, width, height, scale, margin);
+    }
+
+    /** 释放一次采样的贴图；借来的世界帧归 {@link #releaseWorldFrame()} 管，不能在这里关。 */
+    private static void releaseCapture(Capture capture) {
+        if (capture != null && !capture.borrowed && capture.image != null) {
             capture.image.close();
         }
     }
@@ -148,7 +254,10 @@ public final class SkiaBlurRenderer {
         float scale = (float) client.getWindow().getGuiScale();
         boolean blurEnabled = strength > 0.001f;
         float blurSigma = blurEnabled ? blurSigma(strength) : 0f;
-        Capture capture = captureRegion(context, client, sourceFramebufferId, x, y, width, height, scale, Math.max(MIN_CAPTURE_MARGIN, blurSigma * 2f));
+        requestWorldFrame(x - WORLD_FRAME_PAD, y - WORLD_FRAME_PAD,
+                width + WORLD_FRAME_PAD * 2f, height + WORLD_FRAME_PAD * 2f);
+        Capture capture = backgroundCapture(context, client, sourceFramebufferId, x, y, width, height, scale,
+                Math.max(MIN_CAPTURE_MARGIN, blurSigma * 2f));
         if (capture.image == null) return false;
 
         if (blurEnabled) ensureFilters(blurSigma);
@@ -163,14 +272,25 @@ public final class SkiaBlurRenderer {
                 canvas.clipRRect(shape, true);
                 canvas.drawImageRect(capture.image, source, destination, SamplingMode.LINEAR, blurPaint, true);
                 drawRefraction(canvas, capture, region.x(), region.y(), region.width(), region.height(), region.radius());
+                tintPaint.setColor(glassTint(tintColor));
+                canvas.drawRRect(shape, tintPaint);
                 canvas.restore();
             }
             return true;
         } finally {
             blurPaint.setImageFilter(null);
             canvas.restore();
-            capture.image.close();
+            releaseCapture(capture);
         }
+    }
+
+    /**
+     * 玻璃色调：取自当前主题的窗面色，透明度按设置里的玻璃色调 alpha 折半（保留透明度设置的控制作用，
+     * 浅色主题也不会被固定黑色污染）。面板的「深 / 浅」最终由它决定。
+     */
+    private static int glassTint(int requested) {
+        return ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window,
+                ((requested >>> 24) / 255f) * 0.45f);
     }
 
     /**
@@ -271,7 +391,7 @@ public final class SkiaBlurRenderer {
             glDeleteFramebuffers(target.framebufferId);
             handedOff = true;
             return new Capture(target.image, copyW, copyH,
-                    left / scale, top / scale, copyW / scale, copyH / scale);
+                    left / scale, top / scale, copyW / scale, copyH / scale, false);
         } finally {
             if (target != null && !handedOff) {
                 glDeleteFramebuffers(target.framebufferId);
@@ -421,7 +541,7 @@ public final class SkiaBlurRenderer {
     }
 
     private static class Capture {
-        private static final Capture EMPTY = new Capture(null, 0, 0, 0f, 0f, 0f, 0f);
+        private static final Capture EMPTY = new Capture(null, 0, 0, 0f, 0f, 0f, 0f, false);
 
         private final Image image;
         private final int width;
@@ -430,8 +550,11 @@ public final class SkiaBlurRenderer {
         private final float dstY;
         private final float dstW;
         private final float dstH;
+        /** true 表示这张图是借来的（世界帧），本类不得关闭它。 */
+        private final boolean borrowed;
 
-        private Capture(Image image, int width, int height, float dstX, float dstY, float dstW, float dstH) {
+        private Capture(Image image, int width, int height, float dstX, float dstY, float dstW, float dstH,
+                        boolean borrowed) {
             this.image = image;
             this.width = width;
             this.height = height;
@@ -439,6 +562,7 @@ public final class SkiaBlurRenderer {
             this.dstY = dstY;
             this.dstW = dstW;
             this.dstH = dstH;
+            this.borrowed = borrowed;
         }
     }
 

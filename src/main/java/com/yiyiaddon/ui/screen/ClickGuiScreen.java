@@ -309,7 +309,7 @@ public class ClickGuiScreen extends SkiaScreen {
     @Override
     protected void drawFrame(int width, int height, int mouseX, int mouseY, float delta) {
         if (minecraft == null) return;
-        Canvas canvas = glBackend.begin(SkiaGlBackend.mainFramebufferId());
+        Canvas canvas = glBackend.beginScreenFrame(SkiaGlBackend.mainFramebufferId());
         if (canvas == null) return;
         try {
             drawPanel(canvas, width, height, mouseX, mouseY);
@@ -415,10 +415,10 @@ public class ClickGuiScreen extends SkiaScreen {
 
         drawPanelGlass(canvas, width, height, cardX, cardY, cardW, cardH, cardRadius);
 
-        // 控制中心式环境压暗把视觉焦点收回面板，透明度足够低，不掩盖游戏状态。
         ClickGuiThemeColors backdropColors = ClickGuiThemeColors.current();
-        GlassPanel.fill(canvas, 0f, 0f, width, height, 0f, backdropColors.shadow,
-                animT * (backdropColors.dark ? 0.16f : 0.10f));
+        // 控制中心式环境压暗把视觉焦点收回面板，透明度足够低，不掩盖游戏状态；保持在玻璃之后，
+        // 面板吃这一档暗度，深浅与既有主题一致（不改配色）。
+        ambientDim(canvas, width, height, backdropColors, animT);
 
         hoveredTab = -1;
         closeHovered = false;
@@ -602,6 +602,14 @@ public class ClickGuiScreen extends SkiaScreen {
                 SkiaGlBackend.mainFramebufferId(), frame.toScreenX(x, width), frame.toScreenY(y, height),
                 frame.toScreenLength(w), frame.toScreenLength(h), frame.toScreenLength(radius),
                 AddonConfig.blurTintColor(), AddonConfig.blurStrength);
+    }
+
+    /** 主面板玻璃矩形：与 {@link #drawPanelGlass} 同一矩形，再按 {@link #GLASS_MARGIN} 外扩。 */
+    @Override
+    protected float[] glassRegion() {
+        float[] l = layout();
+        return glassRegionOf(frame.toScreenX(l[0], width), frame.toScreenY(l[1], height),
+                frame.toScreenLength(l[2]), frame.toScreenLength(l[3]));
     }
 
     /** 侧栏页头的版本行：模组版本号 + 运行中的游戏版本（两条版本线模组版本号相同，靠它区分）。 */

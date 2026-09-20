@@ -203,26 +203,42 @@ public final class ItemModelDispatchIndex {
         /**
          * 物品栈在当前资源里的派发模型键。
          *
-         * <p>读「基础物品 + {@code custom_model_data} 第 0 位」，取不超过该值的最大阈值条目；
-         * 取值低于全部阈值、或该基础物品没有阈值表时退回它的直接模型定义；都取不到返回 {@code null}
+         * <p>读「模型入口 + {@code custom_model_data} 第 0 位」，取不超过该值的最大阈值条目；
+         * 取值低于全部阈值、或该入口没有阈值表时退回它的直接模型定义；都取不到返回 {@code null}
          * （绝不猜：宁可判不出来，也不乱认身份）。</p>
          */
         public String modelKeyOf(ItemStack stack) {
+            String matched = dispatchedModelOf(stack);
+            if (matched != null) return matched;
+            String modelId = modelIdOf(stack);
+            return modelId == null ? null : directByItem.get(modelId);
+        }
+
+        /**
+         * 物品栈<b>按阈值命中</b>的派发模型键；没有阈值表 / 没有 {@code custom_model_data} / 低于全部阈值
+         * 时返回 {@code null}。
+         *
+         * <p><b>与 {@link #modelKeyOf} 的唯一区别是不做「直接模型」兜底</b>，而这一条差别很关键：
+         * 原版物品的 {@code assets/minecraft/items/<id>.json} 会被登记成 {@code minecraft:item/<id>}，
+         * 那是客户端内部写法、不是自定义身份。把它当「反查结果」拿去覆盖物品自己的 {@code item_model}
+         * 组件，反而会把自定义物品认成原版（真机事故：ItemsAdder 服务器的洒水器 / 作物展示物一律解析成
+         * {@code minecraft:paper}，世界识别三条判据全空）。</p>
+         */
+        public String dispatchedModelOf(ItemStack stack) {
             if (stack == null || stack.isEmpty()) return null;
-            String itemId = itemIdOf(stack);
-            if (itemId == null) return null;
+            String modelId = modelIdOf(stack);
+            if (modelId == null) return null;
 
-            List<Dispatch> entries = dispatchByItem.get(itemId);
-            if (entries == null) return directByItem.get(itemId);
-
+            List<Dispatch> entries = dispatchByItem.get(modelId);
+            if (entries == null) return null;
             Float value = customModelDataOf(stack, 0);
-            if (value == null) return directByItem.get(itemId);
+            if (value == null) return null;
             String matched = null;
             for (Dispatch entry : entries) {
                 if (value >= entry.threshold()) matched = entry.modelKey();
                 else break;
             }
-            return matched != null ? matched : directByItem.get(itemId);
+            return matched;
         }
 
         /** 物品栈是否就是某个模型键（{@code item_model} 组件之外的第二条判据） */
@@ -451,6 +467,24 @@ public final class ItemModelDispatchIndex {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     //  Minecraft 侧读取
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /**
+     * 物品栈的<b>模型入口 id</b>：{@code item_model} 组件优先，缺失时退回物品注册表 id。
+     *
+     * <p>与客户端解析模型的口径一致：组件值就是 {@code assets/<ns>/items/<id>.json} 的查找键。
+     * 绝大多数布局里两者相同（ItemsAdder 把自定义物品挂在载体上，组件值就是载体 id，
+     * 真机取证：{@code minecraft:paper}）；但「组件指向自定义 id」的布局（组件 =
+     * {@code customcrops:sprinkler_1}）只有按组件值查才能命中它的派发表。</p>
+     */
+    private static String modelIdOf(ItemStack stack) {
+        try {
+            Identifier model = stack.get(DataComponents.ITEM_MODEL);
+            if (model != null) return model.toString().toLowerCase(Locale.ROOT);
+        } catch (Exception ignored) {
+            // 读组件失败：退回注册表 id
+        }
+        return itemIdOf(stack);
+    }
 
     /** 物品栈的注册表 id；取不到返回 {@code null} */
     private static String itemIdOf(ItemStack stack) {

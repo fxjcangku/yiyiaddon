@@ -1,6 +1,7 @@
 package com.yiyiaddon.feature.stardew.point;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.yiyiaddon.feature.stardew.StardewContext;
@@ -48,21 +49,23 @@ public final class StardewPointManager {
      * @param identity 身份键（洒水器 canonicalKey 等）；null = 无身份
      * @param typeName 中文类型名（如「高级洒水器」）；null = 用业务类型名
      * @param evidence 证据状态（已确认 / 候选 等）；null = 未知
+     * @param sprinklerCoverage 覆盖范围实测结论（仅洒水器；null = 还没测出来，渲染与统计退回物品说明 / 等级估算）
      */
     public record StardewPoint(int x, int y, int z, String dimension,
                                String verify, String identity, String typeName, String evidence, String serverKey,
-                               SprinklerWorldBinding sprinklerBinding) {
+                               SprinklerWorldBinding sprinklerBinding, SprinklerCoverage sprinklerCoverage) {
 
         /** 新点位记录当前服务器键，旧格式读取时则以经校验的文件作用域补齐。 */
         public StardewPoint(int x, int y, int z, String dimension, String verify, String identity, String typeName, String evidence) {
-            this(x, y, z, dimension, verify, identity, typeName, evidence, StardewContext.serverKey(), null);
+            this(x, y, z, dimension, verify, identity, typeName, evidence, StardewContext.serverKey(), null, null);
         }
 
-        /** 洒水器点位同时保存人工确认的世界载体绑定。 */
+        /** 洒水器点位：人工确认的世界载体绑定 + 覆盖范围实测结论（后者可能还没有）。 */
         public StardewPoint(int x, int y, int z, String dimension, String verify, String identity,
-                            String typeName, String evidence, SprinklerWorldBinding sprinklerBinding) {
+                            String typeName, String evidence, SprinklerWorldBinding sprinklerBinding,
+                            SprinklerCoverage sprinklerCoverage) {
             this(x, y, z, dimension, verify, identity, typeName, evidence,
-                StardewContext.serverKey(), sprinklerBinding);
+                StardewContext.serverKey(), sprinklerBinding, sprinklerCoverage);
         }
 
         /** 无验证证据的点位（农田角点等纯坐标点位） */
@@ -72,6 +75,22 @@ public final class StardewPointManager {
 
         public BlockPos pos() {
             return new BlockPos(x, y, z);
+        }
+
+        /** 换上一份实测覆盖范围（其余字段一律不动；传 null 表示丢掉实测结论，退回物品说明 / 等级估算） */
+        public StardewPoint withCoverage(SprinklerCoverage coverage) {
+            return new StardewPoint(x, y, z, dimension, verify, identity, typeName, evidence, serverKey,
+                sprinklerBinding, coverage);
+        }
+
+        /**
+         * <b>仍适用</b>的实测覆盖范围：换服 / 重新提取资源（指纹变化）后自动视为无效，返回 {@code null}。
+         *
+         * <p>渲染与统计一律走这个方法，不直接读 {@link #sprinklerCoverage()}——否则换了服务器还会
+         * 拿旧结论画框（三级洒水器的范围被套到另一台服务器的初级洒水器上）。</p>
+         */
+        public SprinklerCoverage measuredCoverage() {
+            return sprinklerCoverage != null && sprinklerCoverage.appliesNow() ? sprinklerCoverage : null;
         }
 
         public boolean inCurrentDimension() {
@@ -119,7 +138,7 @@ public final class StardewPointManager {
                         string(p, "维度"), string(p, "验证"), string(p, "身份"),
                         string(p, "类型"), string(p, "证据"),
                         string(p, "服务器") == null ? serverKey : string(p, "服务器"),
-                        parseSprinklerBinding(p)));
+                        parseSprinklerBinding(p), parseSprinklerCoverage(p)));
                 }
             }
         } catch (Exception ignored) {
@@ -153,6 +172,47 @@ public final class StardewPointManager {
             string(binding, "资源语义身份"), string(binding, "资源模型"));
     }
 
+    /**
+     * 覆盖范围实测结论：字段不全 / 一格都没有时返回 {@code null}（退回物品说明 / 等级估算）。
+     *
+     * <p>单格偏移格式是 {@code "dx,dz"}；某一格写坏了只跳过那一格，不让一个坏值废掉整份实测。</p>
+     */
+    private static SprinklerCoverage parseSprinklerCoverage(JsonObject point) {
+        if (!point.has("实测范围") || !point.get("实测范围").isJsonObject()) return null;
+        JsonObject coverage = point.getAsJsonObject("实测范围");
+        String serverKey = string(coverage, "服务器");
+        String fingerprint = string(coverage, "资源指纹");
+        if (serverKey == null || fingerprint == null
+            || !coverage.has("范围") || !coverage.get("范围").isJsonArray()) return null;
+        List<Long> cells = new ArrayList<>();
+        for (var element : coverage.getAsJsonArray("范围")) {
+            Long cell = parseCoverageCell(element);
+            if (cell != null) cells.add(cell);
+        }
+        if (cells.isEmpty()) return null;
+        return new SprinklerCoverage(serverKey, fingerprint, List.copyOf(cells), intOr(coverage, "矩形内干盆", 0));
+    }
+
+    /** 实测单格偏移（{@code "-1,2"}）→ 打包键；格式不对返回 null */
+    private static Long parseCoverageCell(JsonElement element) {
+        try {
+            String[] parts = element.getAsString().split(",");
+            if (parts.length != 2) return null;
+            return SprinklerCoverage.key(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 读取整数字段；缺失 / 类型不对一律回退默认值（旧版与手改档兼容） */
+    private static int intOr(JsonObject obj, String key, int fallback) {
+        try {
+            return obj.has(key) && !obj.get(key).isJsonNull() ? obj.get(key).getAsInt() : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
     /** 保存当前内存点位（原子写入，失败保留旧档） */
     public synchronized boolean save(String serverKey) {
         if (serverKey == null || !serverKey.equals(loadedServer)) return false;
@@ -182,6 +242,19 @@ public final class StardewPointManager {
                     if (binding.semanticIdentity() != null) worldBinding.addProperty("资源语义身份", binding.semanticIdentity());
                     if (binding.semanticModel() != null) worldBinding.addProperty("资源模型", binding.semanticModel());
                     p.add("世界绑定", worldBinding);
+                }
+                if (point.sprinklerCoverage() != null) {
+                    SprinklerCoverage coverage = point.sprinklerCoverage();
+                    JsonObject measured = new JsonObject();
+                    measured.addProperty("服务器", coverage.serverKey());
+                    measured.addProperty("资源指纹", coverage.fingerprint());
+                    JsonArray cells = new JsonArray();
+                    for (long cell : coverage.cells()) {
+                        cells.add(SprinklerCoverage.dxOf(cell) + "," + SprinklerCoverage.dzOf(cell));
+                    }
+                    measured.add("范围", cells);
+                    measured.addProperty("矩形内干盆", coverage.dryInside());
+                    p.add("实测范围", measured);
                 }
                 arr.add(p);
             }
@@ -406,16 +479,32 @@ public final class StardewPointManager {
         var level = Minecraft.getInstance().level;
         if (level == null || !ResourceExtractionService.isReady() || !GameProbe.isMultiplayer()
             || !level.isLoaded(pos) || index == null || selectedKeys == null || selectedKeys.isEmpty()) return null;
-        BlockSemantic semantic = BlockStateModelResolver.resolve(level.getBlockState(pos));
+        List<SprinklerDefinition> candidates = new ArrayList<>();
+        for (String key : selectedKeys) {
+            if (index.entryByKey(key) instanceof SprinklerDefinition sprinkler) candidates.add(sprinkler);
+        }
+        return matchSprinklerBySemantic(BlockStateModelResolver.resolve(level.getBlockState(pos)), candidates);
+    }
+
+    /**
+     * 方块语义 → 洒水器定义：在给定候选里按「语义身份 == 洒水器身份键」或「语义模型 ∈ 候选世界模型」唯一命中。
+     *
+     * <p><b>判据只此一份：</b>世界方块路径（{@link #matchSelectedSprinkler}）与展示实体路径
+     * （{@code StardewPointActions} 读 {@code block_display} 携带的方块状态）必须走同一条比对，
+     * 否则会出现「同一台洒水器，站在世界里认得出、摆成展示物就认不出」这种自相矛盾。</p>
+     *
+     * <p>语义模型可能是一串候选（含水 / 朝向等属性各指向一份模型，用 {@code |} 连接），
+     * 因此按候选逐个比，只要有一个相等就算命中；命中多个<b>不同</b>洒水器时返回 {@code null}（歧义不当证据）。</p>
+     */
+    public static SprinklerDefinition matchSprinklerBySemantic(BlockSemantic semantic,
+                                                               List<SprinklerDefinition> candidates) {
+        if (semantic == null || candidates == null || candidates.isEmpty()) return null;
         List<String> models = new ArrayList<>();
         if (semantic.model() != null) {
-            for (String candidate : semantic.model().split("\\|")) {
-                models.add(candidate.trim());
-            }
+            for (String candidate : semantic.model().split("\\|")) models.add(candidate.trim());
         }
         SprinklerDefinition match = null;
-        for (String key : selectedKeys) {
-            if (!(index.entryByKey(key) instanceof SprinklerDefinition sprinkler)) continue;
+        for (SprinklerDefinition sprinkler : candidates) {
             boolean hit = (semantic.identity() != null && semantic.identity().equals(sprinkler.identityKey()))
                 || (sprinkler.blockModel() != null && models.contains(sprinkler.blockModel()));
             if (!hit) continue;

@@ -100,16 +100,36 @@ public final class SkiaGlBackend {
     }
 
     /**
+     * 界面绘制专用入口：取画布前先把隐藏格子的画面备份写回主帧缓冲，并立刻 flush 落地。
+     *
+     * <p><b>为什么写回必须在界面自己的这个后端上做</b>（用户 2026-09-20：选择器正中一条横贯面板的
+     * 放大图标横带，两端露着格子底色的黑方块；关掉面板模糊时最清楚）：写回与面板绘制必须<b>同一个
+     * Skija 表面、同一个后端</b> —— 换成常驻共享后端那条路径实测「画了但没落到呈现上」，
+     * 面板透明处照样看得见格子。</p>
+     *
+     * <p>为什么不做在 {@link #begin} 里人人有份：主帧缓冲上不止界面一条 Skija 路径 —— ESP 叠加层
+     * （{@code WorldOverlay#renderOverlay}）跑在 {@code GuiRenderer.render} 的 HEAD，那时 GUI 通道
+     * 还没开始画，它一取画布就会把备份白白用掉。写回本身已改为幂等（见
+     * {@code ItemIconCache#paintBackdrop}），这里只保证「界面这条路径一定画过一次」。</p>
+     *
+     * <p>写完立刻 flush：紧接着的面板玻璃（{@link SkiaBlurRenderer}）用 {@code glBlitFramebuffer}
+     * 直接读主帧缓冲的 GPU 当前内容，读不到还滞留在 Skija 命令缓冲里的写回，就会把隐藏格子采样进玻璃
+     * （开着面板模糊时那块白糊）。</p>
+     */
+    public Canvas beginScreenFrame(int targetFramebufferId) {
+        Canvas canvas = begin(targetFramebufferId);
+        if (canvas == null) return null;
+        ItemIconCache.getInstance().paintBackdrop(canvas);
+        context.flushAndSubmit(surface);
+        return canvas;
+    }
+
+    /**
      * 取画布。
      *
-     * <p><b>这里刻意不做「隐藏格子画面备份的写回」</b>（用户 2026-09-20：「选择器一打开就闪出
-     * 一条放大的物品图标 / 横贯面板的光带」，关掉面板模糊时看得最清楚）：写回是一次性动作，
-     * 备份画回后即销毁。而主帧缓冲上不止界面一条 Skija 路径 —— ESP 叠加层
-     * （{@code WorldOverlay#renderOverlay}）跑在 {@code GuiRenderer.render} 的 HEAD，那是
-     * 「GUI 通道还没开始画」的时刻：它一取画布就会把备份消费掉，随后 GUI 通道照常把隐藏格子画上去，
-     * 等帧末轮到面板时备份早已不在 —— 格子裸露，面板透明处直接看见那两行放大图标。
-     * 写回统一由 {@code SkiaScreen#renderSkiaFrame} 在截取图标之后立刻执行
-     * （见 {@code ItemIconCache#flushBackdrop}）。</p>
+     * <p><b>这里刻意不做「隐藏格子画面备份的写回」</b>：写回统一由界面绘制路径
+     * （{@link #beginScreenFrame}）执行，原因见该方法注释 —— 放进 {@link #begin} 等于人人有份，
+     * ESP 叠加层这种跑在 GUI 通道之前的旁路会抢先把备份用掉。</p>
      */
     public Canvas begin(int targetFramebufferId) {
         if (drawing) return canvas;

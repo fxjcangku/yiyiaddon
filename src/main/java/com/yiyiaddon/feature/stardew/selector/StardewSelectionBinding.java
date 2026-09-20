@@ -251,5 +251,45 @@ public final class StardewSelectionBinding {
             }
             return result;
         }
+
+        /**
+         * 把一个键并入本类选择（已在集合里则不动），并立刻写回当前服务器档位。
+         *
+         * <p><b>给程序化改动路径用</b>（实机反馈 2026-09-22）：「种植区域」页换作物只改区域档的
+         * {@code 作物键}，与「目标作物」勾选是两处数据；只改一处会让这块地被跳过——启动提醒报
+         * 「区域 N（XX）绑的作物不在目标作物里，这块地会被跳过」，任务规划也直接跳过它，
+         * 玩家还得回选择器手动再勾一次。</p>
+         *
+         * <p><b>只增不减</b>：其它区域 / 其它用途仍在用的旧勾选一律保留，绝不替玩家做删除决定。</p>
+         *
+         * @param key 稳定键（作物键或资源键）；不属于本类别 / 已选中时不做任何事
+         * @return 是否真的新勾上了一个键
+         */
+        public boolean select(String key) {
+            if (key == null || key.isBlank() || !isValidKey(key)) return false;
+            List<String> current = get();
+            if (current.contains(key)) return false;
+            current.add(key);
+            persist();
+            return true;
+        }
+
+        /**
+         * 把一个键从本类选择里去掉，并立刻写回当前服务器档位；本来就不在集合里时不做任何事。
+         *
+         * <p><b>谁可以调它：</b>只有能自己证明「这个键确实已经没有任何地方在用了」的调用方
+         * （例：{@code StardewFarmModule#changeRegionCrop} 的「真实替换」——旧品种换下去之后，
+         * 全服再没有区域绑它）。选择集合是玩家的意图记录，替玩家删东西必须站得住脚，
+         * 光凭「我觉得他不种了」不许调。</p>
+         *
+         * @return 是否真的删掉了一个键
+         */
+        public boolean deselect(String key) {
+            if (key == null || key.isBlank()) return false;
+            List<String> current = get();
+            if (!current.remove(key)) return false;
+            persist();
+            return true;
+        }
     }
 }

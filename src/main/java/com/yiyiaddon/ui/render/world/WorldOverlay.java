@@ -131,9 +131,9 @@ public final class WorldOverlay {
      * 画上去会被后续的 blitToScreen 整体覆盖。</p>
      *
      * <p><b>这里只能开普通画布，不能写回隐藏格子备份</b>：本方法跑在 GUI 通道开始之前，
-     * 而隐藏格子的画面备份是一次性的、必须留给帧末画面板的界面路径消费
-     * （{@code SkiaGlBackend#beginScreenFrame}）。在这里抢先取画布会把备份白白用掉，
-     * 随后 GUI 通道画上的格子就无人覆盖 —— 面板透明处会露出两行放大的物品图标。</p>
+     * 而隐藏格子的画面备份必须由帧末画面板的界面路径来写回
+     * （{@code SkiaGlBackend#beginScreenFrame}，兜底见 {@code ItemIconCache#flushBackdrop}）。
+     * 在这里抢先取画布会把备份白白用掉，随后 GUI 通道画上的格子在该帧就少了一次覆盖。</p>
      */
     public static void renderOverlay() {
         if (!collectedThisFrame) return;

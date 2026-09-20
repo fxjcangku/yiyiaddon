@@ -21,7 +21,8 @@ import java.util.List;
  *
  * <p>颜色取自设置项 {@code 未处理颜色 / 已处理颜色 / 处理中颜色}（ARGB 整数），
  * 框样式取自设置项 {@code ESP框样式}（仅线条 / 仅面 / 线+面），
- * 头顶字牌字号取自设置项 {@code 字牌大小}（用户 2026-09-19：「文字大小自定义」）；
+ * 头顶字牌字号取自设置项 {@code 字牌大小}（用户 2026-09-19：「文字大小自定义」），
+ * 字牌颜色跟着上面这套三态框色（用户 2026-09-21：「不同颜色合理分配」）；
  * 仅在 {@code ESP高亮} 开启时渲染。</p>
  */
 public final class AutoChestRenderer {
@@ -81,14 +82,15 @@ public final class AutoChestRenderer {
             renderer.blockBox(target.pos().getX(), target.pos().getY(), target.pos().getZ(),
                     color, color, shapeMode, LINE_THICKNESS);
 
-            // 头顶字牌：写「[世界]名字」（共用件 PointLabelText：加粗 + 主题强调色 + 底板 + 居中，
-            // 用户 2026-09-19）；字号走设置项「字牌大小」（实际字号再由渲染器乘全局「文字大小倍率」），
-            // 三态区分仍由框色表达
+            // 头顶字牌：写「[世界]名字」（共用件 PointLabelText：加粗 + 底板 + 居中，用户 2026-09-19）；
+            // 字号走设置项「字牌大小」（实际字号再由渲染器乘全局「文字大小倍率」）；
+            // 颜色直接用上面这一帧算出来的框色（用户 2026-09-21：「不同颜色合理分配」）——
+            // 于是「绿字 = 未处理、黄字 = 处理中、红字 = 已处理」与框色同一套三态语义，不再是一个颜色
             double centerX = target.pos().getX() + 0.5;
             double labelY = target.pos().getY() + LABEL_Y_OFFSET;
             double centerZ = target.pos().getZ() + 0.5;
             PointLabelText.containerLabel(renderer, AutoChestModule.formatContainerName(target.containerType()),
-                target.dimension(), centerX, labelY, centerZ, settings.labelSize);
+                target.dimension(), centerX, labelY, centerZ, settings.labelSize, color & 0xFFFFFF);
         }
     }
 

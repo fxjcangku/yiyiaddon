@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.stardew.task;
 
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
+import com.yiyiaddon.feature.stardew.point.SprinklerWorldBinding;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.recognition.PotState;
@@ -92,7 +93,11 @@ final class StardewFarmReporter {
             return;
         }
         BlockState state = mc.level.getBlockState(point.pos());
-        boolean vanished = state.isAir();
+        // 贴图形态洒水器的载体是展示实体，那一格本来就是空气：空气但挂着展示实体 = 载体还在，
+        // 不是被挖掉（与绑定点位、准星对点共用 SprinklerWorldBinding 的同一份判据，禁止两份逻辑）。
+        // 真机事故：洒水器好端端立在田里，点位却每轮巡检都判「已被挖掉」并停机刷屏。
+        boolean vanished = state.isAir()
+            && !(type == StardewPointType.SPRINKLER && SprinklerWorldBinding.displayCarrierAt(point.pos()));
         boolean notContainer = !vanished && type.requiresContainer()
             && !(mc.level.getBlockEntity(point.pos()) instanceof Container);
         if (!vanished && !notContainer) {

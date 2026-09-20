@@ -4,6 +4,9 @@ import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.ui.screen.ClickGuiScreen;
 import com.yiyiaddon.ui.widget.SettingModule;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -25,7 +28,7 @@ import java.util.function.Consumer;
  *         {@link ModuleKeybindStore} 提供读写，存在模块状态配置里，界面配置重置不会清掉它们。</li>
  * </ul>
  *
- * <p>触发条件保持原样：需要出现「按下」这一跳变、界面已关闭且不处于录制状态。</p>
+ * <p>触发条件：需要出现「按下」这一跳变、当前处于可唤出的界面状态（游戏里 / 菜单类界面）且不处于录制状态。</p>
  */
 public final class ModuleKeybindManager {
 
@@ -79,7 +82,7 @@ public final class ModuleKeybindManager {
         readBindings();
     }
 
-    /** 每客户端 tick 调用：界面关闭时触发按下的绑定。 */
+    /** 每客户端 tick 调用：处于可唤出的界面状态、且出现「按下」跳变时触发绑定的动作。 */
     public static void tick(Minecraft client) {
         initialize();
         if (client == null) return;
@@ -89,10 +92,26 @@ public final class ModuleKeybindManager {
             boolean down = isKeyDown(client, key);
             boolean previous = LAST_DOWN.getOrDefault(id, false);
             LAST_DOWN.put(id, down);
-            if (down && !previous && client.screen == null && !isCapturing()) {
+            if (down && !previous && canTrigger(client) && !isCapturing()) {
                 trigger(client, id);
             }
         }
+    }
+
+    /**
+     * 当前界面状态下是否允许唤出面板。
+     *
+     * <p><b>放行两类：</b>游戏里（无任何界面）、以及菜单类界面（主菜单 / 暂停界面）——
+     * 后者是用户实机反馈要的（2026-09-22：主菜单按 G 没反应）。
+     * <b>其余界面一律不放行</b>：箱子、聊天、设置、我们自己的页面都可能是「正在输入 / 正在操作」的地方，
+     * 抢键会把玩家正在干的事顶掉。</p>
+     *
+     * <p>菜单类界面下打开面板时把<b>当前界面当父级</b>（见 {@link #trigger}），ESC 原路返回菜单，
+     * 不会掉进「既没界面又没世界」的空屏。</p>
+     */
+    private static boolean canTrigger(Minecraft client) {
+        Screen screen = client.screen;
+        return screen == null || screen instanceof TitleScreen || screen instanceof PauseScreen;
     }
 
     public static boolean beginCapture(String id) {
@@ -215,7 +234,9 @@ public final class ModuleKeybindManager {
 
     private static void trigger(Minecraft client, String id) {
         if (ACTION_CLICK_GUI.equals(id)) {
-            client.setScreen(new ClickGuiScreen(null));
+            // 父级给当前界面：从主菜单 / 暂停界面打开时 ESC 原路返回菜单；游戏里（无界面）仍是 null，
+            // 与既有行为一字不差。
+            client.setScreen(new ClickGuiScreen(client.screen));
             return;
         }
         if (isModuleBinding(id)) {

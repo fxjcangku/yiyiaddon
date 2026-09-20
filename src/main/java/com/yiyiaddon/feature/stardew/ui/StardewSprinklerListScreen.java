@@ -1,7 +1,10 @@
 package com.yiyiaddon.feature.stardew.ui;
 
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
+import com.yiyiaddon.feature.stardew.point.SprinklerCoverage;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
+import com.yiyiaddon.feature.stardew.point.StardewPointType;
+import com.yiyiaddon.feature.stardew.profile.StardewSprinklerRangeStore;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.TextLine;
@@ -9,6 +12,7 @@ import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
 import com.yiyiaddon.ui.screen.PanelScreen;
 import com.yiyiaddon.ui.widget.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
@@ -41,11 +45,13 @@ public final class StardewSprinklerListScreen extends PanelScreen {
             addField("§7点位", "§8暂未绑定");
         } else {
             for (StardewPointManager.StardewPoint point : points) {
+                // 行图标＝洒水器的代表物品（与控制台点位卡同源，见 StardewPointType#iconItemId）
+                ItemStack icon = StardewPointType.SPRINKLER.icon();
                 content().add(new CompactRow("§f" + label(point), () -> hint(point),
                     new Button("§c删除", () -> {
                         module.removeSprinklerPoint(point);
                         rebuild();
-                    }).danger().small()));
+                    }).danger().small()).icon(() -> icon));
             }
         }
 
@@ -66,20 +72,38 @@ public final class StardewSprinklerListScreen extends PanelScreen {
             + "  §8·  §7" + (point.typeName() == null ? "洒水器" : point.typeName());
     }
 
-    /** 悬停说明：维度 + 设置时的验证来源（紧凑行的提示是单行纯文本，不带颜色码） */
+    /** 悬停说明：维度 + 设置时的验证来源 + 覆盖范围（画框用物品说明的能力范围，实测当对照附上） */
     private static String hint(StardewPointManager.StardewPoint point) {
         String dimension = WorldContextFormatter.dimensionSummary(point.dimension());
         return "维度 " + (dimension == null ? "未知" : dimension)
-            + " · 验证 " + (point.verify() == null ? "未验证" : point.verify());
+            + " · 验证 " + (point.verify() == null ? "未验证" : point.verify())
+            + " · 覆盖 " + coverageHint(point);
+    }
+
+    /**
+     * 覆盖范围一行：<b>先写画框实际用的来源</b>（物品说明的真实范围优先），实测当证据附上并标明是下限 ——
+     * 实测数的是湿盆，盆群铺得比能力小就只测得出一小片（真机：5×5 的盆群里，13×13 的高级也只测出 5×5，
+     * 但在边角放盆试验确认 13×13 是真的）。
+     */
+    private static String coverageHint(StardewPointManager.StardewPoint point) {
+        SprinklerCoverage measured = point.measuredCoverage();
+        String stated = StardewSprinklerRangeStore.sideText(point.identity());
+        String evidence = measured == null
+            ? "未实测"
+            : "实测 " + measured.width() + "×" + measured.depth() + "（湿盆 " + measured.cells().size() + " 格，下限）";
+        if (stated != null) return "按物品说明 " + stated + " · " + evidence;
+        return measured == null ? "未实测（按等级估算）" : evidence + " · 画框按此项";
     }
 
     private void confirmClearAll() {
         if (minecraft == null) return;
-        minecraft.setScreen(new ConfirmPanelScreen("清空全部洒水器",
+        // 原地版确认窗：确认后回控制台，而不是把整个界面关掉回游戏
+        // —— 用户 2026-09-22：「二次确认之后就直接关闭 ui 了，不应该到模块设置页面吗」
+        minecraft.setScreen(ConfirmPanelScreen.inPlace("清空全部洒水器",
             List.of("§f将删除当前服务器已绑定的全部洒水器点位",
                 "§7种子箱 / 成品箱 / 补水点 / 种植区域不受影响",
                 "",
                 "§c此操作不可恢复。"),
-            "§c§l确认", module::clearSprinklerPoints, minecraft.screen));
+            "§c§l确认", module::clearSprinklerPoints, parent));
     }
 }

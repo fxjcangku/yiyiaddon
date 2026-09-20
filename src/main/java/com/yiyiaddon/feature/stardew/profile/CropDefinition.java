@@ -50,6 +50,19 @@ public record CropDefinition(
         return seedModel != null && !seedModel.isBlank();
     }
 
+    /**
+     * 本作物在图示上代表自己的模型键：<b>成熟产物优先，无产物回退种子</b>。
+     *
+     * <p>选择器的作物行、控制台「种植区域」列表行、世界里的区域字牌都读这一份 ——
+     * 一处改了三个界面同时生效，不会出现「列表画番茄、字牌画番茄种子」。</p>
+     */
+    public String iconModel() {
+        if (produceModels != null && !produceModels.isEmpty()) {
+            return produceModels.get(0);
+        }
+        return seedModel;
+    }
+
     /** 种子展示名（优先资源中文名，其次作物名） */
     public String seedDisplayName() {
         return seedName != null && !seedName.isBlank() ? seedName : chineseName + "种子";

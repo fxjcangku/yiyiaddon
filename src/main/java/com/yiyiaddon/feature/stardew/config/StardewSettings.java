@@ -105,18 +105,18 @@ public final class StardewSettings {
     /** 成品箱：金（收成） */
     public final EspRenderObject renderOutputBox = new EspRenderObject("成品箱",
         "高亮成品箱方块", 0xFFB300, 160, ShapeMode.Lines);
-    /** 补水点：蓝（水） */
+    /** 补水点：水蓝（水；用户 2026-09-21 指定该取值） */
     public final EspRenderObject renderWaterSource = new EspRenderObject("补水点",
-        "高亮补水点方块", 0x1E6FFF, 180, ShapeMode.Lines);
+        "高亮补水点方块", 0x35B7FF, 180, ShapeMode.Lines);
     /** 岩浆箱：橙红（岩浆），下界盆取岩浆、存空桶 */
     public final EspRenderObject renderLavaBox = new EspRenderObject("岩浆箱",
         "高亮岩浆箱方块（下界种植盆取岩浆、存回空桶）", 0xFF6A00, 180, ShapeMode.Lines);
     /** 龙息箱：紫（龙息），末地盆取龙息、存玻璃瓶 */
     public final EspRenderObject renderBreathBox = new EspRenderObject("龙息箱",
         "高亮龙息箱方块（末地种植盆取龙息、存回玻璃瓶）", 0xB44FFF, 180, ShapeMode.Lines);
-    /** 点位字牌：只有显示开关（加粗、颜色跟随界面主题），没有渲染模式、没有单独颜色 */
+    /** 点位字牌：只有显示开关（加粗、颜色跟随各类点位方框色），没有渲染模式、没有单独颜色 */
     public final EspRenderObject renderLabels = new EspRenderObject("点位字牌",
-        "各绑定点位头顶的文字标签（加粗 + 底板，颜色跟随界面主题，只有显示开关，没有单独颜色与渲染模式）",
+        "各绑定点位头顶的文字标签（加粗 + 底板，颜色跟随各类点位方框色，只有显示开关，没有单独颜色与渲染模式）",
         0xFFFFFF, 255, null, false);
 
     /**
@@ -134,7 +134,7 @@ public final class StardewSettings {
         renderSeedBox, renderOutputBox, renderWaterSource, renderLavaBox, renderBreathBox, renderLabels);
 
     /** 调色板版本：小于它的旧存档会被 {@link #migratePalette()} 升级一次 */
-    private static final int PALETTE_REVISION = 2;
+    private static final int PALETTE_REVISION = 3;
 
     /**
      * 改过名的渲染对象：当前名 → 旧名。
@@ -146,14 +146,14 @@ public final class StardewSettings {
     private static final Map<String, String> LEGACY_RENDER_NAME = Map.of(
         "种植区域", "农田边界");
 
-    /** 上一版出厂默认色（按渲染对象名），只用来判断「这个颜色玩家有没有动过」 */
-    private static final Map<String, int[]> LEGACY_PALETTE = Map.of(
-        "洒水器本体", new int[]{0x00B4FF, 60},
-        "洒水器覆盖范围", new int[]{0x00C8FF, 40},
-        "洒水器点位", new int[]{0x00FFB4, 150},
-        "种子箱", new int[]{0x00C8FF, 120},
-        "成品箱", new int[]{0xFFAA00, 120},
-        "补水点", new int[]{0xFF00FF, 120});
+    /** 历版出厂默认色（按渲染对象名，一名可多版），只用来判断「这个颜色玩家有没有动过」 */
+    private static final Map<String, int[][]> LEGACY_PALETTE = Map.of(
+        "洒水器本体", new int[][]{{0x00B4FF, 60}},
+        "洒水器覆盖范围", new int[][]{{0x00C8FF, 40}},
+        "洒水器点位", new int[][]{{0x00FFB4, 150}},
+        "种子箱", new int[][]{{0x00C8FF, 120}},
+        "成品箱", new int[][]{{0xFFAA00, 120}},
+        "补水点", new int[][]{{0xFF00FF, 120}, {0x1E6FFF, 180}});
 
     // ━━━ 六类选择（内存镜像，按 ServerKey 落盘见 StardewSelectionStore） ━━━
 
@@ -332,17 +332,21 @@ public final class StardewSettings {
     }
 
     /**
-     * 调色板升级（旧存档一次性）：把「还等于上一版默认色」的对象换成新默认色。
+     * 调色板升级（旧存档一次性）：把「还等于历版出厂默认色」的对象换成新默认色。
      *
      * <p>玩家自己调过的颜色一律保留，所以升级不会抹掉手工配置；颜色本来就已经是别的值的也不动。
-     * 旧默认色是上一版出厂值（补水点原为洋红、洒水器本体原为亮蓝等），与新默认色互相不冲突。</p>
+     * 历版出厂值按对象存成一组（补水点原为洋红 {@code 0xFF00FF}、后为 {@code 0x1E6FFF}，
+     * 现为水蓝 {@code 0x35B7FF}），命中任意一版即视为「没动过」，升到当前默认色。</p>
      */
     private void migratePalette() {
         for (EspRenderObject object : renderObjects) {
-            int[] legacy = LEGACY_PALETTE.get(object.name());
-            if (legacy == null) continue;
-            if (object.color.rgb() != legacy[0] || object.color.alpha() != legacy[1]) continue;
-            object.color.rgb(object.defaultRgb()).alpha(object.defaultAlpha());
+            int[][] past = LEGACY_PALETTE.get(object.name());
+            if (past == null) continue;
+            for (int[] color : past) {
+                if (object.color.rgb() != color[0] || object.color.alpha() != color[1]) continue;
+                object.color.rgb(object.defaultRgb()).alpha(object.defaultAlpha());
+                break;
+            }
         }
     }
 

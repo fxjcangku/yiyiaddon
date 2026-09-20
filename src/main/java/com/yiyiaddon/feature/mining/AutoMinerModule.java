@@ -33,6 +33,7 @@ import com.yiyiaddon.feature.mining.vein.MiningVeinMiner;
 import com.yiyiaddon.integration.baritone.BaritoneChatTranslations;
 import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.eat.OffhandRationLock;
+import com.yiyiaddon.platform.player.WalkSpeedBoost;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.page.ModulePage;
@@ -45,9 +46,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -1006,49 +1004,20 @@ public final class AutoMinerModule extends Module {
 
     // ── 走路提速（用户 2026-09-18：默认加点移速，不做设置项） ────────────────────
 
-    /** 移速加成修饰符的 id（瞬态，只在本模块开着期间挂在玩家身上） */
-    private static final Identifier WALK_SPEED_MODIFIER_ID =
-        Identifier.fromNamespaceAndPath("yiyiaddon", "miner_walk_speed");
-
-    /**
-     * 移速加成档位（用户 2026-09-18：「速度二试一下 如果被 t 我让你改成 1」）。
-     *
-     * <p>档位按药水那套命名：<b>1 档 = 速度一（+20%）</b>、<b>2 档 = 速度二（+40%）</b>。
-     * 要调就改这一个数字，下面那行自己算——客户端跑得比服务端认的快就会被拉回，
-     * 被拉回就往下调一档。</p>
-     */
-    private static final int WALK_SPEED_LEVEL = 2;
-
-    /** 客户端移速加成：每档 +20% 玩家基础移速 0.1（见 {@link #WALK_SPEED_LEVEL}） */
-    private static final double WALK_SPEED_BONUS = 0.02 * WALK_SPEED_LEVEL;
-
     /**
      * 给玩家挂上走路提速。
      *
-     * <p>用户原话：<i>「在帮我默认加点移速 发点包也行 走快一点点就行了 不用加设置 就默认写在代码里面」</i>。
-     * 实现用<b>瞬态</b>属性修饰符：不落盘、模块关掉就摘干净、不新增任何设置项。</p>
-     *
-     * <p><b>关于幅度</b>：客户端跑多快，服务端仍按自己那份移速做移动校验，差距超出容差就是
-     * 「你移动得太快」被拉回。所以做成了可调档位（见 {@link #WALK_SPEED_LEVEL}）：
-     * 按用户要求先上 2 档（+40%）试，真被拉回就降 1 档（+20%）。</p>
-     *
-     * <p>写在世界同步之后调用：服务端下发属性包会整体重置客户端的属性实例，
-     * 瞬态修饰符会被冲掉，所以每刻补挂一次（已挂上时是两次查表，可忽略）。</p>
+     * <p>实现已抽到 {@link WalkSpeedBoost}：用户 2026-09-21 要求把这份加速「一比一复刻」到星露谷农场，
+     * 两处各留一份会随档位调整走散，也会在两个模块同时开着时叠成 +80%。档位、瞬态语义、
+     * 「每刻补挂」的原因都写在那个类里，本模块只保留调用点。</p>
      */
     private void applyWalkSpeed() {
-        if (mc.player == null) return;
-        AttributeInstance speed = mc.player.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed == null || speed.getModifier(WALK_SPEED_MODIFIER_ID) != null) return;
-        speed.addTransientModifier(new AttributeModifier(
-            WALK_SPEED_MODIFIER_ID, WALK_SPEED_BONUS, AttributeModifier.Operation.ADD_VALUE));
+        WalkSpeedBoost.apply();
     }
 
     /** 摘掉走路提速（关模块时调用，玩家身上不留任何本模块的修饰符） */
     private void clearWalkSpeed() {
-        if (mc.player == null) return;
-        AttributeInstance speed = mc.player.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed == null) return;
-        speed.removeModifier(WALK_SPEED_MODIFIER_ID);
+        WalkSpeedBoost.clear();
     }
 
     // ── 自动断线（用户 2026-09-18 追加：服务器死亡掉落，血量到线先退服保命） ──────────────

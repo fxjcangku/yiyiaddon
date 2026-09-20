@@ -2,6 +2,7 @@ package com.yiyiaddon.feature.stardew.recognition;
 
 import com.yiyiaddon.feature.stardew.profile.StardewCropNameStore;
 import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
+import com.yiyiaddon.platform.resource.BlockStateModelResolver;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Display;
@@ -24,7 +25,8 @@ import java.util.Map;
  * 世界里根本没有对应的作物方块——盆上方永远是空气。展示实体<b>没有碰撞箱</b>，
  * 所以准星点不中、{@code .id 方块} 也读不到，只能靠本探测。</p>
  *
- * <p><b>身份口径与方块路径完全一致：</b>展示物品的 {@code item_model} 就是
+ * <p><b>身份口径与方块路径完全一致：</b>模型键走 {@code resolvedModelOf}（资源包派发表按「载体 +
+ * {@code custom_model_data}」阈值命中优先，其次 {@code item_model} 组件），再归一成
  * {@code customcrops:chinese_cabbage_stage_3} 这种身份串，直接喂给
  * {@link CropRuntimeStateResolver} 得到的作物键 / 阶段 / 成熟判定与方块路径同源，
  * 不存在「两条链路结论不同」的问题。</p>
@@ -93,14 +95,50 @@ public final class StardewCropDisplayProbe {
      * <p>准星直接命中展示实体时用这个：读的是<b>此刻</b>的实体，不依赖归档。
      * 非展示实体 / 非 customcrops 物品一律返回 {@code null}。
      * 顺带学名——这类服上「白菜幼苗 / 白菜生长期」正是作物中文名的唯一证据。</p>
+     *
+     * <p><b>身份口径（2026-09-21 修正）：</b>模型键走
+     * {@link StardewInventoryService#resolvedModelOf(ItemStack)} —— {@code item_model} 组件优先，
+     * 缺失时由资源包派发表按「基础物品 + {@code custom_model_data}」反查，再压平成扁平身份。
+     * 旧实现只读 {@code ITEM_MODEL}，于是 ItemsAdder 旧布局服务器（整服自定义物品挂在
+     * {@code minecraft:paper} 上、没有 {@code item_model}）的展示实体<b>整批被忽略</b>：
+     * 真机取证，jmy.seasonmc.xyz 的初级洒水器 = {@code minecraft:paper} +
+     * {@code custom_model_data 10635} —— 世界上明明挂着 {@code item_display}，
+     * 诊断却报「附近 8 格内没有展示实体」，作物与洒水器一并失明。</p>
      */
     public static String modelOf(Entity entity) {
         if (!(entity instanceof Display.ItemDisplay display)) return null;
         ItemStack stack = display.getItemStack();
         if (stack == null || stack.isEmpty()) return null;
         StardewCropNameStore.observe(stack);
-        String model = StardewInventoryService.itemModelOf(stack);
-        return model == null || !model.startsWith("customcrops:") ? null : model;
+        return identityOf(StardewInventoryService.resolvedModelOf(stack));
+    }
+
+    /**
+     * 展示物模型键 → 带命名空间的语义身份（如 {@code customcrops:cabbage_stage_1}）。
+     *
+     * <p><b>旧布局的目录形态要借目录里的作物名（2026-09-21 修正）：</b>真机派发表取证
+     * （jmy.seasonmc.xyz，{@code assets/minecraft/items/paper.json}）里阶段模型是
+     * {@code customcrops:item/crops/cabbage/stage_1} —— <b>阶段名里没有作物名</b>，
+     * 压平取末段只剩 {@code stage_1}，而身份派生规则对「只有 stage_N、没有父目录」的形态
+     * 如实返回 null（索引层就是这样，才只有极少数作物有真实阶段）。因此末段是纯阶段名时
+     * 交给 {@code deriveIdentityPath}，它会拼回父目录里的作物名得到 {@code cabbage_stage_1}。</p>
+     *
+     * <p>其余末段自身就是一条完整身份：{@code cabbage}（成熟产物）、{@code cabbage_seeds}（种子）、
+     * {@code gigantic_cabbage}（特殊阶段）、{@code sprinkler_1} / {@code dry_pot}（工具）。
+     * 这些若走「去掉首段再整串拼接」会得到 {@code cabbage_cabbage} 这种假身份，所以直接取末段。</p>
+     */
+    private static String identityOf(String model) {
+        if (model == null || model.isBlank()) return null;
+        int colon = model.indexOf(':');
+        if (colon < 0 || !"customcrops".equals(model.substring(0, colon))) return null;
+        String path = model.substring(colon + 1);
+        int slash = path.lastIndexOf('/');
+        String last = slash >= 0 ? path.substring(slash + 1) : path;
+        if (last.isBlank()) return null;
+        String identity = last.startsWith("stage")
+            ? BlockStateModelResolver.deriveIdentityPath(model)
+            : last;
+        return identity == null || identity.isBlank() ? null : "customcrops:" + identity;
     }
 
     /**

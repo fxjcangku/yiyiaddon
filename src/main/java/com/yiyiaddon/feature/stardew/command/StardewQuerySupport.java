@@ -12,6 +12,7 @@ import com.yiyiaddon.feature.stardew.profile.StardewHarvestAction;
 import com.yiyiaddon.feature.stardew.profile.StardewHarvestRule;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceScanner;
+import com.yiyiaddon.feature.stardew.profile.StardewSprinklerRangeStore;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
 import com.yiyiaddon.feature.stardew.recognition.CropRuntimeStateResolver;
@@ -210,6 +211,40 @@ public final class StardewQuerySupport {
             + (out.length() == 0 ? "无（本服资源包里没有金色 / 巨大 / 变种阶段）" : out);
     }
 
+    /**
+     * 诊断用一行：自学到的洒水器「工作范围」（服务器写在物品说明里的，见
+     * {@link StardewSprinklerRangeStore}）。
+     *
+     * <p>换服最想知道的就是「这台服务器的范围学到了没」：学到了就按它画框，没学到才退回等级估算。
+     * 一行里同时给出「种数」与「逐个的边长」，认不出来的资源包也能一眼看出差在哪。</p>
+     */
+    private String sprinklerRangeLine() {
+        Map<String, String> learned = StardewSprinklerRangeStore.learned();
+        if (learned.isEmpty()) {
+            // 分清三种「未学到」：索引里根本没有洒水器（资源没检测）/ 没认出过实物 / 认出了但说明里没范围。
+            // 三者的处置完全不同，含糊成一句「未学到」就会让人白折腾（真机踩过）。
+            if (index.entriesFor(StardewSelectorCategory.SPRINKLER).isEmpty()) {
+                return "§8资源未就绪（索引里没有洒水器）· 先跑一次资源检测，再进世界";
+            }
+            Set<String> observed = StardewSprinklerRangeStore.observedKeys();
+            if (observed.isEmpty()) {
+                return "§8未学到（本会话还没认出过洒水器实物）· 走近一台洒水器站两秒即自动学会";
+            }
+            return "§8未学到（已认出 " + String.join("、", observed)
+                + "，但物品说明里没有「工作范围 A * B」）· 暂按等级估算";
+        }
+        StringBuilder text = new StringBuilder("§f").append(learned.size()).append(" 种（物品说明自学）§8：§f");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : learned.entrySet()) {
+            if (!first) text.append("§8、§f");
+            first = false;
+            StardewToolDefinition definition = index.entryByKey(entry.getKey());
+            text.append(definition == null ? entry.getKey() : definition.displayName())
+                .append(" ").append(entry.getValue());
+        }
+        return text.toString();
+    }
+
     public List<String> diagnosticLines() {
         List<String> lines = new ArrayList<>();
         // 先把「眼里能看到的物品」学一遍：玩家常是把商店 / 种子箱开着直接跑诊断的，
@@ -252,6 +287,7 @@ public final class StardewQuerySupport {
             + " §8· §f水壶 " + index.entriesFor(StardewSelectorCategory.WATERING_CAN).size()
             + " §8· §f洒水器 " + index.entriesFor(StardewSelectorCategory.SPRINKLER).size()
             + " §8· §f温室玻璃 " + index.entriesFor(StardewSelectorCategory.SHELTER).size());
+        lines.add("§f洒水器范围 §8▸ " + sprinklerRangeLine());
         lines.add("§f阶段模型 §8▸ §f" + withStages + " 种作物有真实阶段（其余无法在世界里按阶段识别）");
         lines.add(specialStageLine());
         lines.add(index.lastFailure() == null
@@ -369,21 +405,29 @@ public final class StardewQuerySupport {
     }
 
     /**
-     * 附近展示实体（{@code item_display} / {@code block_display}）承载的内容：物品模型 + 服务器下发的名字。
+     * 附近展示实体（{@code item_display} / {@code block_display}）承载的内容：坐标 + 物品模型 + 服务器下发的名字。
      *
      * <p>作物如果走展示实体渲染，这里就会出现 {@code customcrops:<作物>_stage_N}——它同时给出两条
      * 关键信息：世界识别该按什么键匹配，以及该作物在这一服的中文名（资源包无语言文件时唯一来源）。</p>
+     *
+     * <p><b>键必须走 {@link StardewInventoryService#resolvedModelOf}（2026-09-21 修正）：</b>旧实现只读
+     * {@code item_model}，缺失时退化成「基础物品 id」，而 ItemsAdder 旧布局整服共用同一个载体
+     * （真机取证：jmy.seasonmc.xyz 的洒水器 / 稻草人都是 {@code minecraft:paper}），于是所有展示物挤成
+     * 一个键、只剩第一个，诊断看起来像「这些展示物都没被识别」。</p>
+     *
+     * <p><b>逐条带坐标（2026-09-21 补）：</b>展示物一个个列出来才能回答「洒水器到底在哪一格、它是哪一台」——
+     * 只报模型键时，多台同类展示物挤成一条，看不出数量也看不出位置，绑不上时无从下手比对。</p>
      */
     private static String nearbyDisplaySummary() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return "无";
-        Map<String, String> seen = new LinkedHashMap<>();
+        List<String> entries = new ArrayList<>();
         for (Entity entity : nearbyEntities(mc)) {
             String key = null;
             String label = null;
             if (entity instanceof Display.ItemDisplay display) {
                 ItemStack stack = display.getItemStack();
-                key = StardewInventoryService.itemModelOf(stack);
+                key = StardewInventoryService.resolvedModelOf(stack);
                 if (key == null && !stack.isEmpty()) key = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
                 label = stack.isEmpty() ? null : stack.getHoverName().getString();
             } else if (entity instanceof Display.BlockDisplay display) {
@@ -391,17 +435,10 @@ public final class StardewQuerySupport {
             }
             if (key == null || key.isBlank()) continue;
             String name = label == null || label.isBlank() ? "无" : label;
-            seen.putIfAbsent(key, name);
-            if (seen.size() >= 8) break;
+            entries.add(entity.blockPosition().toShortString() + " " + key + "(" + name + ")");
+            if (entries.size() >= 8) break;
         }
-        if (seen.isEmpty()) return "无";
-        StringBuilder text = new StringBuilder();
-        int i = 0;
-        for (Map.Entry<String, String> entry : seen.entrySet()) {
-            if (i++ > 0) text.append("§8、§f");
-            text.append(entry.getKey()).append("(").append(entry.getValue()).append(")");
-        }
-        return text.toString();
+        return entries.isEmpty() ? "无" : String.join("§8、§f", entries);
     }
 
     /** 玩家周围 12 格内的实体（含无碰撞箱的展示实体） */

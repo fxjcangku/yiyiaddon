@@ -78,7 +78,8 @@ public final class StardewCommand extends ClientCommand {
 
     /** 根节点子命令字面量（注册顺序） */
     private static final List<String> ROOT_SUBCOMMANDS = List.of(
-        "绑定", "添加洒水器", "移除洒水器", "移除", "种植区域", "标记成熟", "控制台", "季节", "状态", "诊断", "清空", "预览范围");
+        "绑定", "添加洒水器", "移除洒水器", "移除", "种植区域", "标记成熟", "控制台", "季节", "状态", "诊断", "清空",
+        "实测范围", "预览范围");
 
     /** {@code 绑定} / {@code 移除} 的点位字面量 */
     private static final List<String> POINT_NAMES = List.of("种子箱", "成品箱", "补水点");
@@ -124,6 +125,7 @@ public final class StardewCommand extends ClientCommand {
             case "状态" -> status();
             case "诊断" -> diagnose();
             case "清空" -> clear();
+            case "实测范围" -> measureCoverage(context);
             case "预览范围" -> toggleRangePreview();
             default -> {
                 context.error("未知子命令：" + context.arg(0));
@@ -188,6 +190,9 @@ public final class StardewCommand extends ClientCommand {
             // 添加洒水器：可选的类型参数，只列当前已选的洒水器类型
             case "添加洒水器" -> context.size() == 1 && module != null
                 ? module.sprinklerTypeCompletions() : List.of();
+
+            // 实测范围：清除是唯一参数
+            case "实测范围" -> context.size() == 1 ? List.of("清除") : List.of();
 
             default -> List.of();
         };
@@ -822,6 +827,23 @@ public final class StardewCommand extends ClientCommand {
         // 没读过资源就认不出洒水器类型，开了也是一片空白，只会让人以为功能坏了。
         if (!module.rangePreviewOn() && !resourceGate(module, "范围预览失败", "未开启")) return;
         module.toggleRangePreview();
+    }
+
+    /**
+     * {@code .stardew 实测范围 [清除]}：围着已绑定洒水器数湿盆，把真实覆盖范围写进点位文件。
+     *
+     * <p>清除不要资源闸门：它是「丢掉实测结论」的退路，资源没就绪时也必须敲得动。</p>
+     */
+    private void measureCoverage(CommandContext context) {
+        StardewFarmModule module = module();
+        if (module == null) return;
+        if ("清除".equals(context.arg(1))) {
+            module.clearSprinklerCoverage();
+            return;
+        }
+        // 实测要读资源包识别盆型（干 / 湿）：没资源时只会把每一格都认成未知，先说清资源问题
+        if (!resourceGate(module, "实测范围失败", "未实测")) return;
+        module.measureSprinklerCoverage();
     }
 
     /** {@code .stardew 控制台}：打开整屏控制台（概览 / 种植 / 后勤 / 点位 / 日志） */

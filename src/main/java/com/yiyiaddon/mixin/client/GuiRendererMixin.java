@@ -1,6 +1,7 @@
 package com.yiyiaddon.mixin.client;
 
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.gui.render.GuiRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,6 +28,9 @@ public abstract class GuiRendererMixin {
 
     @Inject(method = "render", at = @At("HEAD"))
     private void yiyiaddon$renderWorldOverlay(GpuBufferSlice fogBuffer, CallbackInfo callbackInfo) {
+        // 先取「世界帧」：此刻主帧缓冲只有世界（界面还没上屏），是面板玻璃唯一干净的背景来源。
+        // 顺序必须在叠加层之前 —— 否则截到的世界帧里会带上 ESP 字牌。
+        SkiaBlurRenderer.getInstance().captureWorldFrame();
         WorldOverlay.renderOverlay();
     }
 }

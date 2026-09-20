@@ -1222,7 +1222,11 @@ public final class StardewCoordinator {
         } else if (retryCount >= MAX_RETRY) {
             // 杂物可能是砸不掉的东西（服务端保护方块 / 屏障）：给它一个退避窗口，
             // 否则每一轮都会重新走到那一格再试一次，观感就是站在田里原地打转。
-            if (taskType == TaskType.CLEAR_JUNK) planner.blockNavigationTarget(TaskType.CLEAR_JUNK, targetPot);
+            // 收割同理：右键确实发出去了、世界却一点没变（作物其实不熟 / 服务端另有条件）时，
+            // 不该按秒重发右键刷屏——退避窗口内先去做别的格，到期再回来试一次。
+            if (taskType == TaskType.CLEAR_JUNK || taskType == TaskType.HARVEST) {
+                planner.blockNavigationTarget(taskType, targetPot);
+            }
             phase = Phase.REPLAN;
         } else {
             retryCount++;

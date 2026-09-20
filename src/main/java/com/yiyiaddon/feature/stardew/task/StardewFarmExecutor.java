@@ -64,6 +64,12 @@ final class StardewFarmExecutor {
     private int offhandParkedSlot = -1;
     /** 暂放的那件东西（换回时用来核对那一格还是它） */
     private ItemStack offhandParkedItem;
+    /** 主手物品暂放在哪个背包槽（-1 = 没借过）；见 {@link #parkMainHand(Minecraft, int, String)} */
+    private int mainHandParkedSlot = -1;
+    /** 暂放主手物品时选中的快捷栏槽（换回前要先切回它，见 {@link #restoreParkedMainHand()}） */
+    private int mainHandParkedSelected = -1;
+    /** 暂放的那件主手东西（换回时用来核对那一格还是它） */
+    private ItemStack mainHandParkedItem;
     /**
      * 当前工具 / 种子在哪只手上：副手放的壶 / 种子 / 肥料一律走副手动作，其余走主手。
      *
@@ -259,11 +265,24 @@ final class StardewFarmExecutor {
         boolean sent = owner.adapter.face(owner.targetPot.above())
             && owner.adapter.interactBlock(hand, owner.targetPot.above(), Direction.UP);
         // 收不动只有两种可能：作物其实不在方块里（展示实体服要右键实体），或者右键包发不出去。
-        // 这条日志把「该格此刻是什么」直接写清楚，不用再靠猜。
-        LOGGER.info("[星露谷] 收割交互 手={} 目标={} {} 发包={}",
-            hand == InteractionHand.OFF_HAND ? "副手" : "主手", owner.targetPot.above(),
-            cellSummary(owner.targetPot.above()), sent);
+        // 这条日志把「哪只手、两只手各拿着什么、该格此刻是什么」直接写清楚，不用再靠猜
+        // （实机取证 2026-09-21：手=副手连发 40 多包零效果，手=主手一次就收掉，区别就在这里）。
+        LOGGER.info("[星露谷] 收割交互 手={} 手持={} 另一手={} 目标={} {} 发包={}",
+            hand == InteractionHand.OFF_HAND ? "副手" : "主手",
+            itemLabel(handItem(hand)), itemLabel(itemLabelOtherHand(hand)),
+            owner.targetPot.above(), cellSummary(owner.targetPot.above()), sent);
         return sent;
+    }
+
+    /** 指定那只手上的物品（日志用）；没有玩家时回空栈，绝不抛异常 */
+    private static ItemStack handItem(InteractionHand hand) {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player == null ? ItemStack.EMPTY : mc.player.getItemInHand(hand);
+    }
+
+    /** 另一只手（相对本次动作那只手）上的物品，日志用 */
+    private static ItemStack itemLabelOtherHand(InteractionHand hand) {
+        return handItem(hand == InteractionHand.OFF_HAND ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
     }
 
     /**
@@ -898,23 +917,26 @@ final class StardewFarmExecutor {
     }
 
     /**
-     * 收割要「一只手空着」（空手右键：拿工具 / 食物会改变服务端对这次交互的解释）：主手空 → 直接用主手；
-     * 主手有东西 → 切到一个空热键栏槽；9 格全满 → 退到副手；副手也占着 → 把副手物品暂放到背包空格，
-     * 用副手收割，收完由 {@link #restoreHandNow()} 放回。
+     * 收割要「一只手空着」（空手右键：拿工具 / 食物会改变服务端对这次交互的解释）。
      *
-     * <p><b>最后那一步是本项目对旧实现唯一的改动</b>（实机反馈：「我要副手也不影响收菜」）。旧实现
-     * （{@code StardewCoordinator.prepareHarvestHand()}）到「副手也占着」就直接返回 {@code null}——
-     * 热键栏 9 格全满时拿着东西站田里，就永远收不了菜，而且一声不响。现在改成借用原版「F 键换副手」
-     * 的同一个动作，把副手物品暂放到背包空格（优先靠后的空格，尽量不占用模块自己要放的格子），
-     * 腾出一只空手照常收割；物品在本次任务结束（{@code replan}）或模块停机时放回。</p>
+     * <p><b>取手顺序（主手优先，副手只兜底）</b>：主手空 → 直接用主手；主手有东西 → 切到一个空热键栏槽；
+     * 9 格全满 → 把当前手持物暂放到背包空格，腾出一只空的主手；背包也没有空格 → 用空副手；
+     * 副手也占着 → 把副手物品暂放到背包空格，用副手收割。两处暂放都在任务结束（{@code replan}）
+     * 或模块停机时由 {@link #restoreHandNow()} 放回。</p>
      *
-     * <p><b>为什么只借副手、不动主手</b>：主手那件东西正在被模块用（种子 / 水壶 / 工具），动它等于
-     * 打乱播种与补水节奏；副手对模块没用，借它最便宜，一次任务最多两次点击包。背包也一个空格都
-     * 没有时才真正放弃（那时连卸货都做不了）。</p>
+     * <p><b>为什么副手只能兜底（2026-09-21 实机取证）</b>：同一片农田、同一种绊线作物，主手空手右键
+     * 收得掉，改成「副手空手、主手拿着东西」后连发 40 多包服务端一动不动（{@code latest.log} 里
+     * 「收割交互 手=主手 … 发包=true」后面紧跟 16 次播种，而「手=副手」连发一整分钟零效果）。
+     * 服务端插件对 {@code hand=OFF_HAND} 的方块交互与主手不一条路，只有「主手空手右键」才是各服
+     * 通用的原版口径。因此腾手一律先腾主手，副手那条路留着兜底（背包也满时至少还有一只手能用）。</p>
+     *
+     * <p><b>为什么先把主手物暂放进背包</b>：主手那件东西此刻并没有被模块使用（收割是空手动作），
+     * 暂放它只花两次点击包（换出 + 换回），换来的是「在只认主手的服上真的能收」。暂放只动背包空格、
+     * 不动模块自己要用的格子，槽位从后往前找。</p>
      *
      * <p><b>为什么要记日志</b>（实机反馈：一直显示「正在收获」，地里却一点动静都没有）：
      * 取手这条链路原本一声不响，玩家根本无从知道是「没手可用」。日志只在<strong>非平凡情形</strong>
-     * 下打——副手占着东西、借用副手、或干脆没有空手——正常「主手本来就空」的情况不打，免得刷屏。</p>
+     * 下打——副手占着东西、借用主手 / 副手、或干脆没有空手——正常「主手本来就空」的情况不打，免得刷屏。</p>
      */
     private InteractionHand prepareHarvestHand() {
         Minecraft mc = Minecraft.getInstance();
@@ -933,6 +955,13 @@ final class StardewFarmExecutor {
             if (offhandBusy(mc)) {
                 LOGGER.info("[星露谷] 收割取手：切到空热键栏槽 {}（主手={} 副手={}）", slot + 1, main, off);
             }
+            return InteractionHand.MAIN_HAND;
+        }
+        // 热键栏 9 格全满：把当前手持物暂放进背包空格，腾出一只空的主手。这一步排在副手兜底之前
+        // ——副手交互在部分服务端不收（见方法注释），主手空手右键才是各服通用口径。
+        int free = lastFreeBackpackSlot(mc);
+        if (free >= 0 && parkMainHand(mc, free, main)) {
+            noFreeHandNotified = false;
             return InteractionHand.MAIN_HAND;
         }
         // 已经借过副手（本任务内）：服务站点的副手此刻是空的，直接用它。
@@ -986,6 +1015,63 @@ final class StardewFarmExecutor {
     }
 
     /**
+     * 把当前手持物暂放到背包空格，腾出一只空的主手。
+     *
+     * <p>动作用的是「背包槽 ↔ 选中快捷栏槽」的 SWAP（与 {@link #holdSeed} 把背包里的种子换进主手
+     * 同一个原版动作，只是方向相反），所以不需要切槽：选中槽原地变空、那件东西落到背包空格里。</p>
+     *
+     * <p>槽位由调用方从后往前找：模块自己的播种 / 卸货运货都往靠前的空格堆，借靠后的格子最不容易打架。
+     * 已经借过就直接复用（第二次调用时主手通常已经空了，会由 {@link #prepareHarvestHand()} 提前返回）。</p>
+     *
+     * @return true 表示主手已腾空（可以用主手收割）
+     */
+    private boolean parkMainHand(Minecraft mc, int free, String main) {
+        if (mc.player == null) return false;
+        if (mainHandParkedSlot >= 0) return mc.player.getMainHandItem().isEmpty();
+        ItemStack parked = mc.player.getMainHandItem().copy();
+        int selected = mc.player.getInventory().getSelectedSlot();
+        if (!owner.adapter.swapToHotbar(free)) return false;
+        mainHandParkedSlot = free;
+        mainHandParkedSelected = selected;
+        mainHandParkedItem = parked;
+        LOGGER.info("[星露谷] 收割取手：主手物品 {} 暂放到物品栏槽 {}（背包区），改用空主手收割（收完放回）",
+            main, free + 1);
+        return true;
+    }
+
+    /**
+     * 把暂放的主手物品换回主手（本次任务结束 / 模块停机时调用）。
+     *
+     * <p>与 {@link #restoreParkedOffhand()} 同一口径：只在那一格确实还放着当初挪过去的那件东西时才换回，
+     * 玩家中途动了那一格就不碰它，东西留在背包里不丢。</p>
+     *
+     * <p>换回是「背包槽 ↔ 选中快捷栏槽」的 SWAP，必须先把选中槽切回当初那一格——任务期间模块可能
+     * 切过槽（例如收完去播种）。</p>
+     */
+    private void restoreParkedMainHand() {
+        if (mainHandParkedSlot < 0) return;
+        int slot = mainHandParkedSlot;
+        int selected = mainHandParkedSelected;
+        ItemStack parked = mainHandParkedItem;
+        mainHandParkedSlot = -1;
+        mainHandParkedSelected = -1;
+        mainHandParkedItem = null;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || parked == null) return;
+        ItemStack now = mc.player.getInventory().getItem(slot);
+        if (now.isEmpty() || !ItemStack.isSameItemSameComponents(now, parked)) {
+            LOGGER.info("[星露谷] 主手暂放物品未换回：物品栏槽 {} 已不是当初暂放的东西，留在背包里", slot + 1);
+            return;
+        }
+        if (selected >= 0 && mc.player.getInventory().getSelectedSlot() != selected) {
+            owner.adapter.selectHotbar(selected);
+        }
+        if (owner.adapter.swapToHotbar(slot)) {
+            LOGGER.info("[星露谷] 主手暂放物品已换回（原暂放在物品栏槽 {}）", slot + 1);
+        }
+    }
+
+    /**
      * 把暂放的副手物品换回副手（本次任务结束 / 模块停机时调用）。
      *
      * <p>只在那一格确实还放着当初挪过去的那件东西时才换回：玩家中途把别的东西放进去了，
@@ -1028,10 +1114,12 @@ final class StardewFarmExecutor {
     }
 
     void restoreHandNow() {
+        // 借来的手一定要还（主手 / 副手两处暂放），与「是否恢复主手」这个开关无关：
+        // 两个还原方法都会先把暂放状态清干净再动手，所以放在玩家判空之前，避免残留状态带到下一轮。
+        restoreParkedMainHand();
+        restoreParkedOffhand();
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        // 借来的副手物品一定要还，与「是否恢复主手」这个开关无关；副手取用状态也一起复位。
-        restoreParkedOffhand();
         activeHand = InteractionHand.MAIN_HAND;
         if (!owner.restoreHand) {
             owner.handSwapped = false;

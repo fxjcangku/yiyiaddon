@@ -186,8 +186,11 @@ public final class StardewProfileAssembler {
         }
         activeHarvestRules = updated;
         profile = buildActiveProfile(serverKey);
+        // 成功文案把「成熟阶段」写出来（实机反馈：只看到「收获规则已确认 · 菠萝，一次性补种」时
+        // 玩家分不清这算不算学习成功，也不知道学到的成熟阶段是哪一个）
         statusReporter.state("LEARN_OK:" + learned.cropKey(), "收获规则已确认",
-            StardewQuerySupport.cropDisplayName(index, learned.cropKey()) + "，"
+            StardewQuerySupport.cropDisplayName(index, learned.cropKey())
+                + "（成熟阶段 " + learned.matureStage() + "），"
                 + (learned.lifecycle() == StardewCropLifecycle.REGROW ? "保株再生" : "一次性补种"));
     }
 

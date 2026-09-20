@@ -361,12 +361,9 @@ public final class StardewTargetSelectScreen extends PanelScreen {
             + "\n§7识别状态 §8▸ §7" + evidenceLabel(entry.evidence().displayName());
     }
 
-    /** 作物主图标：优先成熟产物模型，无产物回退种子模型 */
+    /** 作物主图标：优先成熟产物模型，无产物回退种子模型（口径见 {@link CropDefinition#iconModel()}） */
     private static String cropProduceModel(CropDefinition crop) {
-        if (crop.produceModels() != null && !crop.produceModels().isEmpty()) {
-            return crop.produceModels().get(0);
-        }
-        return crop.seedModel();
+        return crop.iconModel();
     }
 
     /** 资源识别可信度（已确认 / 攻略 / 候选 / 未知）——旧项目 evidenceLabel 同口径 */

@@ -21,7 +21,9 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 星露谷图标预览工厂（真实资源校验版）。
@@ -47,6 +49,23 @@ import java.util.List;
 public final class StardewPreview {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/stardew");
+
+    /** 模型 parent 链的深度上限：层模型的贴图常声明在父模型上，但要防资源包里出现环。 */
+    private static final int MAX_MODEL_DEPTH = 8;
+
+    /** 物品图集定义：物品模型的贴图引用优先在这一张图集里反查 sprite 名。 */
+    private static final Identifier ITEM_ATLAS =
+        Identifier.fromNamespaceAndPath("minecraft", "atlases/items.json");
+
+    /** 图集定义所在目录（图集定义一律挂在 {@code minecraft} 命名空间下）。 */
+    private static final String ATLAS_DIRECTORY = "atlases";
+
+    /**
+     * sprite 名 → 贴图 PNG 资源路径（惰性构建一次；{@code null} 表示还没建过）。
+     *
+     * <p>资源包重载后由资源生命周期服务调用 {@link #invalidate()} 作废。</p>
+     */
+    private static volatile Map<String, String> spriteTextures;
 
     private StardewPreview() {
     }
@@ -129,6 +148,143 @@ public final class StardewPreview {
             + " 模型引用=" + (modelRef == null ? "（解析失败）" : modelRef)
             + " texture=" + (texture == null ? "（未在模型里声明）" : texture)
             + " 结论=可渲染";
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  模型键 → 贴图路径
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /**
+     * 物品模型键 → 贴图 PNG 资源路径（例 {@code customcrops:textures/item/crops/corn/corn.png}）。
+     *
+     * <p><b>用途</b>：ESP 世界字牌的图标只能直接读资源包 PNG（见 {@code TextureImageCache} 的说明），
+     * 拿不到物品渲染链路，因此需要这一层「模型键 → 贴图」解析。解析不出来返回 {@code null}，
+     * 调用方退化成纯文字字牌——图标缺失不该让字牌消失。</p>
+     *
+     * <p>链路与真实渲染一致：{@code items/<id>.json} 的 {@code model.model} 指向模型引用，
+     * 模型文件里 {@code textures.layer0} 就是贴图；旧布局（ItemsAdder 等）没有 {@code items/}
+     * 定义，模型键本身就是 {@code models/<path>.json} 的键（真机取证：
+     * {@code customcrops:item/crops/corn/corn}）。层模型常把贴图留在父模型上，故沿 parent 链找。</p>
+     */
+    public static String textureOf(String itemModelId) {
+        String modelRef = modelReferenceOf(itemModelId);
+        if (modelRef == null) return null;
+        String textureKey = readModelTexture(modelRef);
+        if (textureKey == null) return null;
+        // 一、按原版语义：layer0 就是裸贴图路径（标准资源包走这条）
+        String direct = existingPng(textureKey);
+        if (direct != null) return direct;
+        // 二、按图集 sprite 名反查：ItemsAdder 旧布局的 layer0 是它自建图集里的 sprite 名
+        //     （真机取证：customcrops 玉米模型写的是 "ia:75"，真实贴图在
+        //      {"type":"single","resource":"customcrops:item/crops/corn/corn","sprite":"ia:75"} 里）
+        String key = canonical(textureKey);
+        String mapped = key == null ? null : spriteTextures().get(key);
+        if (mapped == null) return null;
+        // 表里存的已经是拼好的 PNG 路径，这里只校验它真实存在（不能再走 existingPng，
+        // 那会把 textures/ 前缀再拼一次，路径直接作废）
+        Identifier png = Identifier.tryParse(mapped);
+        return png != null && exists(png) ? mapped : null;
+    }
+
+    /** 资源包重载后作废图集反查表（与 {@code ItemModelDispatchIndex.invalidate()} 同一时机） */
+    public static void invalidate() {
+        spriteTextures = null;
+    }
+
+    /** 物品模型键 → 模型引用：新布局走 {@code items/} 定义，旧布局把键本身当模型文件键 */
+    private static String modelReferenceOf(String itemModelId) {
+        Identifier id = Identifier.tryParse(itemModelId == null ? "" : itemModelId);
+        if (id == null) return null;
+        Identifier defLocation = itemDefLocation(id);
+        if (exists(defLocation)) {
+            String ref = modelReference(readJson(defLocation));
+            if (ref != null) return ref;
+        }
+        return itemModelId;
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  图集 sprite 反查（ItemsAdder 旧布局的 layer0 专用）
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /** 惰性构建一次的图集反查表；资源包没就绪时返回空表且不缓存这个结论 */
+    private static Map<String, String> spriteTextures() {
+        Map<String, String> local = spriteTextures;
+        if (local != null) return local;
+        List<PackResources> packs = packs();
+        if (packs.isEmpty()) return Map.of();
+        synchronized (StardewPreview.class) {
+            if (spriteTextures == null) spriteTextures = buildSpriteTextures(packs);
+            return spriteTextures;
+        }
+    }
+
+    /**
+     * 扫描当前生效资源包里的图集定义，建立「sprite 名 → 真实贴图 PNG」的反查表。
+     *
+     * <p><b>为什么需要它</b>（本服真机取证）：ItemsAdder 旧布局的作物模型只写
+     * {@code "textures":{"layer0":"ia:75"}} —— {@code ia:75} 不是贴图路径，而是它自建图集里的
+     * sprite 名，真实贴图写在图集定义的
+     * {@code {"type":"single","resource":"customcrops:item/crops/corn/corn","sprite":"ia:75"}}
+     * 条目里。图集定义本身放在 overlay 目录（本服为 {@code ia_overlay_modern_atlas}），由
+     * {@code pack.mcmeta} 的 {@code overlays} 声明、原版合并后提供，因此按资源包列表读到的就是
+     * 客户端真正生效的那一份，图集类型（{@code items} / {@code blocks}）也不用写死。</p>
+     *
+     * <p>顺序：物品图集先整表登记，其余图集再兜底；同一 sprite 名先到先占，于是生效资源包压过
+     * 原版包（与 {@link #exists(Identifier)} 同一口径）。IA 的 sprite 序号全局唯一，不会跨图集撞名。</p>
+     */
+    private static Map<String, String> buildSpriteTextures(List<PackResources> packs) {
+        Map<String, String> out = new HashMap<>();
+        // packs() 是「低优先级在前」，倒序遍历即高优先级优先
+        for (int i = packs.size() - 1; i >= 0; i--) collectAtlas(packs.get(i), ITEM_ATLAS, out);
+        for (int i = packs.size() - 1; i >= 0; i--) collectAtlases(packs.get(i), out);
+        return out;
+    }
+
+    /** 读一个具体图集定义文件并登记其中的 sprite；单个包读不到 / 读坏就跳过 */
+    private static void collectAtlas(PackResources pack, Identifier atlasId, Map<String, String> out) {
+        try {
+            IoSupplier<InputStream> supplier = pack.getResource(PackType.CLIENT_RESOURCES, atlasId);
+            if (supplier != null) registerSprites(readJson(supplier), out);
+        } catch (Exception ignored) {
+            // 单个包异常：继续读其余包
+        }
+    }
+
+    /** 扫完某个包的全部图集定义（含 {@code pack.mcmeta} overlays 合并后的那一份） */
+    private static void collectAtlases(PackResources pack, Map<String, String> out) {
+        try {
+            pack.listResources(PackType.CLIENT_RESOURCES, "minecraft", ATLAS_DIRECTORY, (id, supplier) -> {
+                if (id == null || !id.getPath().endsWith(".json")) return;
+                registerSprites(readJson(supplier), out);
+            });
+        } catch (Exception ignored) {
+            // 单个包异常：继续读其余包
+        }
+    }
+
+    /**
+     * 登记一个图集定义里的 sprite 映射。
+     *
+     * <p>只认 {@code sources[].type = single}：它的 {@code sprite}（缺省等于 {@code resource}）
+     * 就是模型里写的那个名字，{@code resource} 才是真实贴图。其它类型（{@code directory} /
+     * {@code filter} / {@code paletted_permutations} / {@code unstitch}）一律跳过——宁可少认，不猜结构；
+     * {@code directory} 那种「sprite 名 = 资源名」的写法，一的裸路径分支本来就能直接命中。</p>
+     */
+    private static void registerSprites(JsonObject atlas, Map<String, String> out) {
+        if (atlas == null || !atlas.has("sources") || !atlas.get("sources").isJsonArray()) return;
+        for (JsonElement element : atlas.getAsJsonArray("sources")) {
+            if (!element.isJsonObject()) continue;
+            JsonObject source = element.getAsJsonObject();
+            String type = primitive(source, "type");
+            if (type != null && !"single".equals(type) && !"minecraft:single".equals(type)) continue;
+            String resource = primitive(source, "resource");
+            if (resource == null) continue;
+            String sprite = primitive(source, "sprite");
+            String name = canonical(sprite == null ? resource : sprite);
+            String png = pngPathOf(resource);
+            if (name != null && png != null) out.putIfAbsent(name, png);
+        }
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -215,6 +371,47 @@ public final class StardewPreview {
         }
     }
 
+    /** 贴图引用（{@code <ns>:<path>}）→ 贴图 PNG 资源路径；非法返回 {@code null} */
+    private static String pngPathOf(String textureRef) {
+        Identifier id = Identifier.tryParse(textureRef == null ? "" : textureRef);
+        if (id == null) return null;
+        return Identifier.fromNamespaceAndPath(id.getNamespace(), "textures/" + id.getPath() + ".png").toString();
+    }
+
+    /** 贴图引用 → 它在当前资源包里真实存在的 PNG 路径；不存在返回 {@code null} */
+    private static String existingPng(String textureRef) {
+        String png = pngPathOf(textureRef);
+        if (png == null) return null;
+        Identifier id = Identifier.tryParse(png);
+        return id != null && exists(id) ? png : null;
+    }
+
+    /** 贴图引用的规范形式（{@code ns:path}）；非法返回 {@code null}（两侧都过这一道，避免写法差异漏配） */
+    private static String canonical(String reference) {
+        Identifier id = Identifier.tryParse(reference == null ? "" : reference);
+        return id == null ? null : id.toString();
+    }
+
+    /** 读取一个已拿到的 JSON 资源；不可读 / 非对象返回 {@code null} */
+    private static JsonObject readJson(IoSupplier<InputStream> supplier) {
+        if (supplier == null) return null;
+        try (InputStream in = supplier.get()) {
+            JsonElement root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            return root != null && root.isJsonObject() ? root.getAsJsonObject() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /** JSON 字符串字段（缺失 / 非字符串返回 {@code null}） */
+    private static String primitive(JsonObject obj, String key) {
+        if (obj == null || !obj.has(key)) return null;
+        JsonElement element = obj.get(key);
+        if (element == null || !element.isJsonPrimitive()) return null;
+        String value = element.getAsString();
+        return value == null || value.isBlank() ? null : value;
+    }
+
     /** 读取 {@code items/<id>.json} 里 {@code model.model} 指向的模型引用 */
     private static String modelReference(JsonObject def) {
         if (def == null || !def.has("model") || !def.get("model").isJsonObject()) return null;
@@ -223,13 +420,28 @@ public final class StardewPreview {
         return model.get("model").getAsString();
     }
 
-    /** 读取模型文件里声明的贴图（层模型 layer0 / 方块模型 textures.0） */
+    /**
+     * 读取模型（含 parent 链）里声明的贴图：层模型 {@code layer0} / 方块模型 {@code textures.0}。
+     *
+     * <p>链上都没有返回 {@code null}。{@code #layer0} 这类值是对本模型 {@code textures} 里变量的引用，
+     * 不是贴图路径，跳过它继续往父模型找。</p>
+     */
     private static String readModelTexture(String modelRef) {
-        Identifier modelId = Identifier.tryParse(modelRef);
-        if (modelId == null) return null;
-        Identifier modelLocation = Identifier.fromNamespaceAndPath(modelId.getNamespace(),
-            "models/" + modelId.getPath() + ".json");
-        JsonObject model = readJson(modelLocation);
+        String ref = modelRef;
+        for (int depth = 0; ref != null && depth < MAX_MODEL_DEPTH; depth++) {
+            Identifier modelId = Identifier.tryParse(ref);
+            if (modelId == null) return null;
+            JsonObject model = readJson(modelsLocation(modelId));
+            if (model == null) return null;
+            String texture = declaredTexture(model);
+            if (texture != null && !texture.startsWith("#")) return texture;
+            ref = parentOf(model);
+        }
+        return null;
+    }
+
+    /** 模型自己声明的贴图（层模型 layer0 / 方块模型 textures.0） */
+    private static String declaredTexture(JsonObject model) {
         if (model == null || !model.has("textures") || !model.get("textures").isJsonObject()) return null;
         JsonObject textures = model.getAsJsonObject("textures");
         for (String key : new String[]{"layer0", "0", "particle", "all"}) {
@@ -238,5 +450,16 @@ public final class StardewPreview {
             }
         }
         return null;
+    }
+
+    /** 模型的 {@code parent} 引用；没有返回 {@code null} */
+    private static String parentOf(JsonObject model) {
+        if (model == null || !model.has("parent") || !model.get("parent").isJsonPrimitive()) return null;
+        return model.get("parent").getAsString();
+    }
+
+    /** 模型文件的位置：{@code <ns>:models/<path>.json} */
+    private static Identifier modelsLocation(Identifier modelId) {
+        return Identifier.fromNamespaceAndPath(modelId.getNamespace(), "models/" + modelId.getPath() + ".json");
     }
 }

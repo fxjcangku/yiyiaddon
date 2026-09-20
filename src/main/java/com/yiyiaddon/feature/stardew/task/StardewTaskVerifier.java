@@ -217,7 +217,7 @@ final class StardewTaskVerifier {
             String reason;
             if (!owner.learningInteractionSent) reason = "空手右键交互包未发送";
             else if (!potRetained) reason = "下方种植盆未保留，证据不满足安全学习条件";
-            else if (!worldEvidence) reason = "成熟植株状态未发生可验证变化";
+            else if (!worldEvidence) reason = "该阶段空手右键后世界没有任何变化（不是可收获阶段，或服务端另有收法）";
             else reason = "未观察到对应掉落物或库存增加";
             String key = learningKey(owner.learningCropKey, owner.learningMatureStage);
             if (owner.reportedLearningFailures.add(key)) {

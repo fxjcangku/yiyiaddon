@@ -94,10 +94,17 @@ public final class StardewPointPage {
         return object;
     }
 
-    /** 清空全部点位：二次确认（正文与确认按钮逐字照旧控制台） */
+    /**
+     * 清空全部点位：二次确认（正文与确认按钮逐字照旧控制台）。
+     *
+     * <p><b>必须用原地版确认窗</b>（用户 2026-09-22：「二次确认之后就直接关闭 ui 了，不应该到模块设置页面吗」）：
+     * 默认构造器的语义是「确认完回到游戏」，于是清完点位把整个控制台一起关了，
+     * 玩家还得重新按键打开。{@link ConfirmPanelScreen#inPlace} 收尾回上级窗口，
+     * 控制台 {@code init()} 会重建正文，数量当场变 0。</p>
+     */
     private void openClearConfirm() {
         if (owner.client() == null) return;
-        owner.client().setScreen(new ConfirmPanelScreen("清空全部点位",
+        owner.client().setScreen(ConfirmPanelScreen.inPlace("清空全部点位",
             List.of("§f将删除当前服务器已绑定的全部点位",
                 "§7种子箱 · 成品箱 · 补水点 · 洒水器（种植区域在「农田」卡片里单独清空）",
                 "",
@@ -173,18 +180,14 @@ public final class StardewPointPage {
         }
 
         /**
-         * 点位卡图标（与原版语义一一对应，未绑定也显示、不留空洞）：种子箱＝小麦种子、
-         * 成品箱＝小麦（收成的作物）、补水点＝水桶、岩浆箱＝岩浆桶、龙息箱＝龙息。
+         * 点位卡图标（与原版语义一一对应，未绑定也显示、不留空洞）。
+         *
+         * <p>「哪一类点位画什么物品」只在 {@link StardewPointType#iconItemId()} 里写一次
+         * （用户 2026-09-22 要求世界字牌也带图标，两处必须同源）；本页与洒水器列表行都读
+         * {@link StardewPointType#icon()}。</p>
          */
         private ItemStack pointIcon(StardewPointType type) {
-            return switch (type) {
-                case SEED_BOX -> new ItemStack(Items.WHEAT_SEEDS);
-                case OUTPUT_BOX -> new ItemStack(Items.WHEAT);
-                case WATER_SOURCE -> new ItemStack(Items.WATER_BUCKET);
-                case LAVA_BOX -> new ItemStack(Items.LAVA_BUCKET);
-                case BREATH_BOX -> new ItemStack(Items.DRAGON_BREATH);
-                case SPRINKLER -> new ItemStack(Items.SPLASH_POTION);
-            };
+            return type.icon();
         }
 
         private PointCard sprinklerCard() {
@@ -247,10 +250,10 @@ public final class StardewPointPage {
                 .icon(() -> new ItemStack(Items.FARMLAND));
         }
 
-        /** 清空全部区域：与「清空全部点位」同款二次确认 */
+        /** 清空全部区域：与「清空全部点位」同款二次确认（原地版，确认后留在控制台） */
         private void confirmClearRegions() {
             if (owner.client() == null) return;
-            owner.client().setScreen(new ConfirmPanelScreen("清空全部种植区域",
+            owner.client().setScreen(ConfirmPanelScreen.inPlace("清空全部种植区域",
                 List.of("§f将删除当前服务器已划分的全部种植区域",
                     "§7地里的作物不会被挖掉，只是这些地不再被管理",
                     "",

@@ -1,6 +1,9 @@
 package com.yiyiaddon.ui.render;
 
 import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
+import io.github.humbleui.skija.Canvas;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -17,6 +20,14 @@ import net.minecraft.network.chat.Component;
 public abstract class SkiaScreen extends Screen {
 
     protected final Screen parent;
+
+    /**
+     * 面板玻璃矩形四周的外扩量（GUI 逻辑像素）：容下模糊半径与开合动画期间面板一帧的位移。
+     *
+     * <p>玻璃背景取的是「世界帧」（GUI 通道之前的画面，见 {@code SkiaBlurRenderer#requestWorldFrame}），
+     * 而截取发生在抽帧之后、界面绘制之前，因此这里登记时多留一圈，动画期间也不会采到面板之外。</p>
+     */
+    protected static final float GLASS_MARGIN = 48f;
 
     private boolean framePending;
     private int frameMouseX;
@@ -42,7 +53,46 @@ public abstract class SkiaScreen extends Screen {
         if (canCaptureIcons()) {
             ItemIconCache.getInstance().renderPending(graphics);
         }
+        // 登记本帧面板玻璃要采样的世界帧区域：抽帧早于「世界画完、GUI 未画」那个截取点，
+        // 所以第一帧画面板也有干净背景可采（否则那一帧会退回现场采样，闪一下自反馈的蓝雾）。
+        if (AddonConfig.panelBlur) {
+            float[] glass = glassRegion();
+            if (glass != null) {
+                SkiaBlurRenderer.getInstance().requestWorldFrame(glass[0], glass[1], glass[2], glass[3]);
+            }
+        }
         // 局部玻璃在帧末只采样面板区域；这里不再模糊整屏，否则折射边缘与主体失去差异。
+    }
+
+    /**
+     * 本帧面板玻璃要采样的矩形（GUI 逻辑坐标，{@link #GLASS_MARGIN} 外扩请用
+     * {@link #glassRegionOf}）；返回 {@code null} 表示本帧不取世界帧。
+     *
+     * <p>画面板的界面覆写它；不覆写时玻璃退回现场采样（会形成自反馈，浅色面板下是那团蓝雾）。</p>
+     */
+    protected float[] glassRegion() {
+        return null;
+    }
+
+    /** 把面板矩形按 {@link #GLASS_MARGIN} 外扩成登记用的玻璃区域。 */
+    protected static float[] glassRegionOf(float x, float y, float width, float height) {
+        return new float[]{x - GLASS_MARGIN, y - GLASS_MARGIN,
+                width + GLASS_MARGIN * 2f, height + GLASS_MARGIN * 2f};
+    }
+
+    /**
+     * 环境压暗：把世界压暗一档（黑主题 0.16 / 浅色 0.10），让玻璃与场景拉开景深。
+     *
+     * <p><b>必须画在玻璃之前</b>，帧内顺序是「写回隐藏格子备份 → 环境压暗 → 玻璃 → 面板底 / 内容」。
+     * 玻璃是不透明的，落在面板区域的那部分压暗会被它整个盖住，面板深浅只由玻璃的主题色蒙版与面板底
+     * 决定（两者都不随帧累积）。反过来画在玻璃之后就麻烦：压暗压在面板上，并且会跟「唯一没被压暗的
+     * 那块」——隐藏格子矩形——显出对比，用户 2026-09-20「屏幕正中一块纯黑」、2026-09-21「现在有白块」
+     * 都是它。</p>
+     */
+    protected static void ambientDim(Canvas canvas, int width, int height, ClickGuiThemeColors tc, float alpha) {
+        float dim = alpha * (tc.dark ? 0.16f : 0.10f);
+        if (dim <= 0.01f) return;
+        GlassPanel.fill(canvas, 0f, 0f, width, height, 0f, tc.shadow, dim);
     }
 
     /** 挂上输入法锚点：只进 renderables、不进 children —— 它不接收事件，只参与焦点体系。 */
@@ -75,21 +125,16 @@ public abstract class SkiaScreen extends Screen {
             // 这一帧不画面板，但隐藏格子可能已经落地：本帧抽帧时还轮得到本界面（画了格子），
             // 帧末却已经换了界面 —— 两边都不收尾，屏幕中央那两行放大的原版图标会裸露一帧
             // （用户 2026-09-19：「点开选择器之后会闪出来原版贴图的放大版，闪了一下，偶尔发生」）。
-            ItemIconCache.getInstance().flushBackdrop();
+            // 这一帧不会再画面板，写回后直接释放备份，免得旧备份贴到后续帧上。
+            ItemIconCache.getInstance().finishBackdropFrame();
             return;
         }
         framePending = false;
         // 先截取图标，再画面板：截取要求隐藏格子仍是主 Framebuffer 的最上层内容。
         ItemIconCache.getInstance().capturePending();
-        // 截完立刻把画面备份写回，不依赖「面板绘制那条路径顺手写回」。
-        //
-        // 写回是一次性动作（画回后备份即销毁），而主帧缓冲上不止界面一条 Skija 路径：ESP 叠加层
-        // （WorldOverlay#renderOverlay）跑在 GuiRenderer.render 的 HEAD —— 那是 GUI 通道还没开始画的
-        // 时刻，它一取画布就会把备份消费掉；随后 GUI 通道照常把隐藏格子画上去，等帧末轮到面板时
-        // 备份早已不在，格子裸露。面板透明处看见那两行放大图标就是它（用户 2026-09-20：关闭面板模糊
-        // 是一条放大的物品图标横带、两端露着格子底色的黑方块，开着模糊则是同一块被玻璃采样后的白糊）。
-        // 放在这里是无条件的一步：本方法的调用点（帧末 Mixin）必然在格子落地之后、面板绘制之前，
-        // 既保证格子被盖住，也保证面板玻璃采样到的是干净画面（flushBackdrop 内部会 flush 落地）。
+        // 兜底写回一次（幂等）：主路径是接下来的 drawFrame → SkiaGlBackend#beginScreenFrame
+        // （界面自己的后端 + 同表面 + flush），这里先用共享后端补一次，覆盖「界面这一帧取不到画布」
+        // 等异常情形。格子裸露的观感见 ItemIconCache#paintBackdrop 注释。
         ItemIconCache.getInstance().flushBackdrop();
         drawFrame(this.width, this.height, frameMouseX, frameMouseY, frameDelta);
         // 这里<b>不能</b>再补一次写回：实测把写回挪到 drawFrame 之后，它会把上一帧备份（=面板自己的像素，
