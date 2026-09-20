@@ -127,6 +127,14 @@ public final class ItemIconCache {
     private static final float MODEL_MIN_BLOCKS = 0.5f;
     /** 实体拍照时的抬升量：与 {@code InventoryScreen} 一致（1/16 格），让模型在格子里居中。 */
     private static final float MODEL_Y_OFFSET = 0.0625f;
+    /**
+     * 画面备份矩形的四周外扩量（逻辑像素）。
+     *
+     * <p>格子落地与放大图标的边缘会有取整误差与轻微溢出，备份矩形正好贴合就会在边缘留一条没被盖住的
+     * 底色（用户 2026-09-20 看到的「小黑条」）。外扩一圈把它包住；多盖的一圈取自同一张备份
+     * （读取发生在格子落地之前的干净画面），视觉上无痕。</p>
+     */
+    private static final float BACKDROP_PAD = 8f;
 
     /**
      * 已缓存的图标。用 {@link LinkedHashMap} 而不是 HashMap：淘汰要按「入库先后」取最旧的一批，
@@ -179,6 +187,8 @@ public final class ItemIconCache {
     public void renderPending(GuiGraphicsExtractor graphics) {
         rendered.clear();
         if (graphics == null || (pending.isEmpty() && pendingModels.isEmpty())) {
+            // 本帧没有格子要落地：上一帧的备份完成使命（写回是「可重放」的，不能被它拖到下一帧）
+            releaseBackdrop();
             return;
         }
         Minecraft client = Minecraft.getInstance();
@@ -869,6 +879,18 @@ public final class ItemIconCache {
      *         放弃本帧画格子，否则格子落地后没有任何东西能盖回去，屏幕上会闪出一片黑块。
      */
     private boolean saveBackdrop(Minecraft client, int slots) {
+        // <b>不再回读、不再备份</b>：隐藏格子整体落在面板玻璃与面板底之下（格子总宽 428 逻辑像素、
+        // 居中，面板在任意 GUI Scale 下都比它宽），面板自己就能把格子盖干净，没有需要「盖回去」的东西。
+        //
+        // 而「读回上一帧末画面 → 帧末写回格子矩形」这套动作本身，是把上一帧的合成结果重新贴到画面上：
+        // 它与周围本帧画面的差异就是用户 2026-09-20 ~ 21 报的那一串怪象（正中横带 / 白糊 / 一块纯黑 /
+        // 一条更亮的带子），并且写回内容会参与下一轮的叠加而逐帧累积。去掉它，这些问题一并消失。
+        // 保留方法签名与调用点：将来若真出现「格子露在面板之外」的界面，把下面 legacy 实现接回来即可。
+        releaseBackdrop();
+        return true;
+    }
+
+    private boolean saveBackdropLegacy(Minecraft client, int slots) {
         releaseBackdrop();
         int[] box = backdropBox(client, slots);
         if (box[2] <= 2 || box[3] <= 2) return false;
@@ -900,16 +922,18 @@ public final class ItemIconCache {
     /**
      * 把备份的画面画回格子矩形。
      *
-     * <p>由 {@code SkiaScreen#renderSkiaFrame} 在截取图标之后立刻调用（见 {@link #flushBackdrop}）：
-     * 那个时机在格子落地之后、面板绘制之前，写回之后面板玻璃采样到的就是干净画面；
-     * 写回到 MSAA 主帧缓冲只能靠绘制（{@code glBlitFramebuffer} 不允许「单采样 → 多采样」），
+     * <p><b>可重放</b>：画完<b>不</b>释放备份，同一帧里谁来调都能再画一次（内容相同，重复画也幂等）。
+     * 主路径是 {@code SkiaGlBackend#beginScreenFrame}（界面自己后端 + 同表面 + flush），
+     * {@link #flushBackdrop} 是共享后端那条兜底 —— 两条都允许画。
+     * 释放统一交给「本帧没有格子」的 {@link #renderPending} 早退分支、{@link #finishBackdropFrame}、
+     * 下一次 {@link #saveBackdrop} 与 {@link #clear()}。</p>
+     *
+     * <p>画回到 MSAA 主帧缓冲只能靠绘制（{@code glBlitFramebuffer} 不允许「单采样 → 多采样」），
      * 所以这里走 Skija 而不是 GL blit。</p>
      */
     public void paintBackdrop(Canvas canvas) {
         Image image = backdropImage;
         float[] box = backdropGuiBox;
-        backdropImage = null;
-        backdropGuiBox = null;
         if (image == null) return;
         try {
             if (canvas == null || box == null) return;
@@ -917,24 +941,21 @@ public final class ItemIconCache {
                     Rect.makeXYWH(0f, 0f, image.getWidth(), image.getHeight()),
                     Rect.makeXYWH(box[0], box[1], box[2], box[3]),
                     SamplingMode.DEFAULT, null, true);
-        } finally {
-            image.close();
+        } catch (RuntimeException ignored) {
+            // 画布/贴图异常（surface 重建等）：留给下一帧重新备份，不让它把帧末流程带崩
         }
     }
 
     /**
-     * 立刻把滞留的格子备份画回主帧缓冲，不依赖面板绘制路径。
+     * 兜底写回：用共享后端把格子备份画回主帧缓冲（换屏 / 关屏那种「面板这一帧不画」的收尾）。
      *
-     * <p><b>为什么需要它</b>（用户 2026-09-19：「点开选择器之后 会闪出来原版贴图的放大版 然后闪了
-     * 一下 偶尔发生」）：格子是<b>抽帧阶段</b>落地的，而写回是一次性动作。只要有任何一条路径抢在
-     * 面板之前把备份用掉（典型是 ESP 叠加层 {@code WorldOverlay#renderOverlay}，它跑在
-     * {@code GuiRenderer.render} 的 HEAD，那时 GUI 通道还没开始画），帧末轮到面板时就已无备份可取 ——
-     * 屏幕正中那两行放大到 32 像素的物品图标裸露出来（用户 2026-09-20 截图：一条横贯面板的光带，
-     * 两端露着格子底色的黑方块）。</p>
+     * <p><b>它不是主路径。</b>主路径是界面自己的后端：{@code SkiaGlBackend#beginScreenFrame}
+     * 在画面板之前写回并 flush —— 那条路径与面板玻璃同在后端、同一个 Skija 表面，行为由面板绘制本身
+     * 背书。本方法走的是常驻共享后端，历史上曾出现「画了但没落到呈现上」，所以只用来兜住
+     * 「帧末没有界面绘制」的那两种切屏（{@code MinecraftFramePresentMixin} 与
+     * {@code SkiaScreen#renderSkiaFrame} 的跳过分支）。</p>
      *
-     * <p>因此写回现在是<b>无条件的一步</b>：{@code SkiaScreen#renderSkiaFrame} 在
-     * {@link #capturePending()} 之后立刻调用本方法（那个时机必定在格子落地之后、面板绘制之前），
-     * 换屏/关屏那两种收尾则由该方法的跳过分支与 {@code RenderTargetMixin} 调用本方法兜住。</p>
+     * <p>与 {@link #paintBackdrop} 一样是幂等的：同一帧里主路径画过之后这里再画一次也无副作用。</p>
      */
     public void flushBackdrop() {
         if (backdropImage == null) return;
@@ -951,6 +972,17 @@ public final class ItemIconCache {
         }
     }
 
+    /**
+     * 收尾：本帧确定不会再画面板（换屏 / 关屏）时调用 —— 先把备份写回，再释放它。
+     *
+     * <p>写回是幂等的（见 {@link #paintBackdrop}），这里额外释放是为了不让陈旧备份被后续帧反复画到
+     * 屏幕上：那些帧已经没有格子要盖，旧备份留在手里就会变成一块贴在画面上的「上一帧切片」。</p>
+     */
+    public void finishBackdropFrame() {
+        flushBackdrop();
+        releaseBackdrop();
+    }
+
     /** 释放尚未写回的备份。 */
     private void releaseBackdrop() {
         if (backdropImage != null) {
@@ -960,7 +992,14 @@ public final class ItemIconCache {
         backdropGuiBox = null;
     }
 
-    /** 隐藏格子整体的 Framebuffer 像素区域：{@code [x, y（自下往上）, 宽, 高]}。 */
+    /**
+     * 隐藏格子整体的 Framebuffer 像素区域：{@code [x, y（自下往上）, 宽, 高]}。
+     *
+     * <p><b>为什么四周要外扩 {@link #BACKDROP_PAD}</b>（用户 2026-09-20：大横带修掉后「还有个小黑条」）：
+     * 备份与写回用的是同一个矩形，矩形只要比格子的实际落点小一点点（或放大后的图标比 32 逻辑像素
+     * 多溢出一点），边缘就会留一条没被盖住的底色 —— 用户看到的就是那条小黑条。外扩后写回多盖的那一圈
+     * 是格子周边的干净画面（备份读取发生在格子落地之前），内容几乎相同，视觉上无痕。</p>
+     */
     private int[] backdropBox(Minecraft client, int slots) {
         double scale = client.getWindow().getGuiScale();
         int windowW = client.getWindow().getWidth();
@@ -972,10 +1011,10 @@ public final class ItemIconCache {
         float total = Math.max(1, slots) * (ICON_SIZE + SLOT_GAP) - SLOT_GAP;
         float blockHeight = ROWS * ICON_SIZE + ROW_GAP;
 
-        int x0 = Math.max(0, (int) Math.round(left * scale));
-        int y0 = Math.max(0, (int) Math.round(top * scale));
-        int x1 = Math.min(windowW, (int) Math.round((left + total) * scale));
-        int y1 = Math.min(windowH, (int) Math.round((top + blockHeight) * scale));
+        int x0 = Math.max(0, (int) Math.floor((left - BACKDROP_PAD) * scale));
+        int y0 = Math.max(0, (int) Math.floor((top - BACKDROP_PAD) * scale));
+        int x1 = Math.min(windowW, (int) Math.ceil((left + total + BACKDROP_PAD) * scale));
+        int y1 = Math.min(windowH, (int) Math.ceil((top + blockHeight + BACKDROP_PAD) * scale));
         return new int[]{x0, Math.max(0, windowH - y1), Math.max(1, x1 - x0), Math.max(1, y1 - y0)};
     }
 

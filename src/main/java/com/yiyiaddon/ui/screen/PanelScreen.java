@@ -15,6 +15,7 @@ import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
 import com.yiyiaddon.ui.render.FontRenderer;
 import com.yiyiaddon.ui.render.ImeBridge;
+import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.render.SkiaGlBackend;
 import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.SkiaScreen;
@@ -290,10 +291,20 @@ public abstract class PanelScreen extends SkiaScreen {
         return frame.animationAlpha() >= 1f;
     }
 
+    /** 面板玻璃矩形：与 {@code drawPanel} 里那次玻璃绘制同一算式（含上浮位移），再按 {@link #GLASS_MARGIN} 外扩。 */
+    @Override
+    protected float[] glassRegion() {
+        float rise = (1f - frame.animationAlpha()) * ENTER_RISE;
+        return glassRegionOf(frame.toScreenX(frame.cardX(), width),
+                frame.toScreenY(frame.cardY() + rise, height),
+                frame.toScreenLength(frame.cardWidth()),
+                frame.toScreenLength(frame.cardHeight()));
+    }
+
     @Override
     protected void drawFrame(int width, int height, int mouseX, int mouseY, float delta) {
         if (minecraft == null) return;
-        Canvas canvas = glBackend.begin(SkiaGlBackend.mainFramebufferId());
+        Canvas canvas = glBackend.beginScreenFrame(SkiaGlBackend.mainFramebufferId());
         if (canvas == null) return;
         try {
             drawPanel(canvas, width, height, mouseX, mouseY);
@@ -377,12 +388,21 @@ public abstract class PanelScreen extends SkiaScreen {
                     AddonConfig.blurTintColor(), AddonConfig.blurStrength);
         }
 
+        // 环境压暗保持在玻璃之后：面板吃这一档暗度，深浅与既有主题一致（不改配色）。
+        // 隐藏格子区域在玻璃与面板底之下，任何累积都被它们盖住，不会在面板上显形。
+        ambientDim(canvas, width, height, tc, alpha);
+
         canvas.save();
         frame.applyTransform(canvas, width, height);
         // 面板自下方略微上浮归位；关闭时反向下沉
         canvas.translate(0f, (1f - alpha) * ENTER_RISE);
         try {
             GlassPanel.shadow(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.shadow, alpha, 1.15f);
+            // 面板底：一层半透明窗面色（参数与模块页、主界面同档，配色口径三处一致）。
+            // 没有它的话，面板区域透出来的是「上一帧的面板」（主帧缓冲在该区域保留着上一帧末的合成结果），
+            // 新旧两份文字错位叠在一起 —— 用户 2026-09-21「怎么字都糊掉了」。
+            GlassPanel.frost(canvas, cardX, cardY, cardW, cardH, cardRadius, tc.window,
+                    AddonConfig.panelBlur ? 0.62f : 0.94f, alpha);
 
             canvas.save();
             canvas.clipRRect(RRect.makeXYWH(cardX, cardY, cardW, cardH, cardRadius), true);

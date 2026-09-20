@@ -48,7 +48,8 @@ public abstract class MinecraftFramePresentMixin {
         } else {
             // 本帧换成了原版界面（或界面已关闭）而我们之前画过隐藏格子：备份必须收尾，
             // 否则那两行放大的原版图标会裸露到下一帧（与 SkiaScreen#renderSkiaFrame 的跳过分支同源）。
-            ItemIconCache.getInstance().flushBackdrop();
+            // 这一帧不会再画面板，写回后直接释放备份。
+            ItemIconCache.getInstance().finishBackdropFrame();
         }
     }
 }

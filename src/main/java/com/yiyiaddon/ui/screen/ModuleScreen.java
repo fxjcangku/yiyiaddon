@@ -123,12 +123,19 @@ public final class ModuleScreen extends SkiaScreen {
         return frame.animationAlpha() >= 1f;
     }
 
+    /** 面板玻璃矩形：与 {@code drawPanel} 里那次玻璃绘制同一算式，再按 {@link #GLASS_MARGIN} 外扩。 */
+    @Override
+    protected float[] glassRegion() {
+        return glassRegionOf(frame.toScreenX(frame.cardX(), width), frame.toScreenY(frame.cardY(), height),
+                frame.toScreenLength(frame.cardWidth()), frame.toScreenLength(frame.cardHeight()));
+    }
+
     // —— 绘制 ——
 
     @Override
     protected void drawFrame(int width, int height, int mouseX, int mouseY, float delta) {
         if (minecraft == null) return;
-        Canvas canvas = glBackend.begin(SkiaGlBackend.mainFramebufferId());
+        Canvas canvas = glBackend.beginScreenFrame(SkiaGlBackend.mainFramebufferId());
         if (canvas == null) return;
         try {
             drawPanel(canvas, width, height, mouseX, mouseY);
@@ -178,9 +185,8 @@ public final class ModuleScreen extends SkiaScreen {
                     AddonConfig.blurTintColor(), AddonConfig.blurStrength);
         }
 
-        // 轻微环境压暗提升玻璃与游戏场景的景深差异，不影响面板内文字对比度。
-        GlassPanel.fill(canvas, 0f, 0f, width, height, 0f, tc.shadow,
-                alpha * (tc.dark ? 0.16f : 0.10f));
+        // 环境压暗保持在玻璃之后：面板吃这一档暗度，深浅与既有主题一致（不改配色）。
+        ambientDim(canvas, width, height, tc, alpha);
 
         // 面板变换、窗口裁剪、内容裁剪三层 save 与 finally 中的三次 restore 严格配对
         canvas.save();
