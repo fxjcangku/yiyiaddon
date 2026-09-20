@@ -376,8 +376,12 @@ public final class MiningStateMachine {
     private int sellPhase = 0;
     /** 出售中：已完成的「点矿石 → 点全部 → 点确认出售」轮数 */
     private int sellRounds = 0;
-    /** 出售中：上一轮结算时背包里的矿石数量（-1 = 本轮还没结算过） */
-    private int sellLastOreCount = -1;
+    /** 出售中：点「确认出售」之前的背包读数（这一轮的基线；一掉就说明这一轮真卖掉了） */
+    private int sellPreConfirmCount = 0;
+    /** 点「全部」之前「确认出售」格的指纹：变了 = 插件的选量已生效，可以立刻点确认，不必盲等 */
+    private String sellConfirmFingerprint = "";
+    /** 本轮起点（毫秒）：只是把每轮实际耗时写进日志，方便盯「还能再快哪一段」 */
+    private long sellRoundStartMs = 0;
     /** 出售中：连续「点了却一颗没少」的轮数（攒到上限说明菜单没在收，停机而不是死循环） */
     private int sellNoProgressRounds = 0;
     /** 出售中：上一次点击后的菜单状态号，用来等「服务端已处理完这一次点击」 */
@@ -400,20 +404,66 @@ public final class MiningStateMachine {
     private static final int SELL_TARGET_REFRESH_TICKS = 20;
     /** SELL_TRADE：距上次戳 NPC 的刻数（每 {@link #SELL_INTERACT_INTERVAL} 刻重试一次） */
     private int sellInteractTicks = 0;
+    /** SELL_TRADE 阶段 0：已等商品列表刷出来的刻数（每次重开菜单 / 换屏归零） */
+    private int sellListingWait = 0;
+    /** SELL_TRADE：上一次看到的商店容器号（商店卖完一轮会当场重开一屏，换屏要记日志 + 重新等列表） */
+    private int sellLastContainerId = -1;
     /** 出售轮数上限：一轮最多卖 64 个，20 组最坏 20 轮，64 轮足够且不会死循环 */
     private static final int SELL_MAX_ROUNDS = 64;
     /** 连续无进展轮数上限：两轮点下去一颗没少，说明菜单根本没在收 */
     private static final int SELL_NO_PROGRESS_LIMIT = 2;
     /** 单步重试上限（设置值再按它封顶，防手滑填大数字后无限重试） */
     private static final int SELL_RETRY_HARD_LIMIT = 10;
-    /** 交互 NPC 的重试间隔（刻）：一次没打开菜单，1.5 秒后再戳一次 */
-    private static final int SELL_INTERACT_INTERVAL = 30;
+    /** 交互 NPC 的重试间隔（刻）：一次没打开菜单，1 秒后再戳一次 */
+    private static final int SELL_INTERACT_INTERVAL = 20;
     /** 落地稳定刻数：位置跳变后再等这么多刻（跨服传送后有位置修正 / 客户端世界重建） */
-    private static final int SELL_LAND_SETTLE_TICKS = 20;
+    private static final int SELL_LAND_SETTLE_TICKS = 10;
     /** 一轮出售的结算等待刻数：确认出售后等这么久再看背包（原版菜单同步一拍 32 刻以内） */
     private static final int SELL_ROUND_SETTLE_TICKS = 20;
-    /** 到收购 NPC 的「算到了」距离平方（原版实体交互距离约 3 格，留一格余量） */
-    private static final double NPC_ARRIVE_DISTANCE_SQR = 16.0;
+    /**
+     * 等商店把商品列表异步刷出来的上限刻数（3 秒；列表格带出价格说明行即视为就绪）。
+     *
+     * <p>用户 2026-09-22：「npc 打开菜单的时候确实会等一下才会刷新出来」—— 商店先开一张空表格，
+     * 商品格子是随后异步填进去的，且<b>只有背包里真有该商品时才可点</b>。上限给到 3 秒是因为
+     * 这一等每屏只发生一次，等多久都不亏；反过来在列表没到时往下走，能点到的只有自己背包，
+     * 一点就把矿石抓到手心（读数当场变 0 → 误报卖完）。</p>
+     */
+    private static final int SELL_LISTING_GRACE_TICKS = 60;
+    /**
+     * 点完「全部」后停的刻数再点「确认出售」（0.5 秒）。
+     *
+     * <p>用户 2026-09-22：「要先点全部 才能点 全部出售」。两次点击挨在同一刻发出时，插件把
+     * 「已选数量」落进自己会话多半还没轮到下一拍，确认那一下会读到「还没选数量」→ 卖 0；实测
+     * 日志里 {@code #22 全部} 与 {@code #15 确认出售} 同刻发出、之后一颗没少。隔半秒再点，
+     * 代价可忽略（一轮就一次）。</p>
+     */
+    private static final int SELL_CONFIRM_DELAY_TICKS = 10;
+    /**
+     * 点完「全部」后最少要过几刻才允许点「确认出售」（两拍）。
+     *
+     * <p>留着这一拍是因为两次点击必须分两个 tick 发出去；超过它之后就看 {@code sellConfirmFingerprint}
+     * 有没有变（插件把已选数量落进会话会改写「确认出售」那一格），变了就立刻点，不再等满
+     * {@link #SELL_CONFIRM_DELAY_TICKS}。</p>
+     */
+    private static final int SELL_CONFIRM_MIN_TICKS = 2;
+    /**
+     * 真正「站到收购 NPC 身旁」的距离平方（眼睛到实体中心 ≤ 2.5 格）。
+     *
+     * <p>用户 2026-09-22 复现「都没走到npc身边 隔着好远」：老值是 16.0（4 格），恰好压在原版
+     * 交互判据的边界上 —— 服务端 {@code ServerGamePacketListenerImpl#handleInteract} 用的是
+     * 「实体 AABB 外扩 3.0」({@code isWithinEntityInteractionRange})，人在 3.5~4 格时右键照样通得过、
+     * 收购菜单也确实开出来了，但商店插件在<i>点商品格</i>那一步按更近的距离校验，于是连着十几次点击
+     * 全被当成无效点击丢掉（实测菜单状态号只跟着商店每 10 秒的定时刷新在涨、内容一直是商品列表）。
+     * 收紧到 2.5 格后 Baritone 会继续走到 GoalNear(1) 收尾，人才真的贴到 NPC 跟前再动手。</p>
+     */
+    private static final double NPC_ARRIVE_DISTANCE_SQR = 6.25;
+    /**
+     * 交易中「人还站在 NPC 身旁」的上限距离平方（3.5 格）：超出就回 {@code SELL_PATH} 重新走位。
+     *
+     * <p>比到达阈值宽一格是刻意留的回差：到位后实体挤一下、脚下一滑不至于立刻被踢回寻路态来回抖，
+     * 但真被人挤开 / 传送偏了又会老老实实走回来再点。</p>
+     */
+    private static final double NPC_TALK_DISTANCE_SQR = 12.25;
 
     // ── 背包读数可信窗口（防止把「客户端背包还没同步完」误判成「真的没有镐子」） ──
     // 用户 2026-09-17 实机证据（chatlog + latest.log）：自检通过（同一背包里镐子、食物都在）→
@@ -764,7 +814,7 @@ public final class MiningStateMachine {
         sellStepRetries = 0;
         sellPhase = 0;
         sellRounds = 0;
-        sellLastOreCount = -1;
+        sellPreConfirmCount = 0;
         sellNoProgressRounds = 0;
         sellLastMenuState = -1;
         sellPathIssued = false;
@@ -2860,6 +2910,9 @@ public final class MiningStateMachine {
      */
     private SellStep sellStepOutcome(String actionName) {
         if (sellStepTicks < personalSell.stepTimeoutTicks()) return SellStep.CONTINUE;
+        // 把卡住那一刻的菜单原样写进日志（哪一格叫什么、lore 写了什么）：只有它能说明
+        // 「是按钮名字与配置对不上，还是这一屏压根不是流程以为的那一屏」
+        MINING_LOG.info("[卖矿流程] {} 未响应，当前菜单：{}", actionName, personalSell.menuDump());
         int limit = Math.min(personalSell.stepRetries(), SELL_RETRY_HARD_LIMIT);
         if (sellStepRetries < limit) {
             sellStepRetries++;
@@ -2885,21 +2938,46 @@ public final class MiningStateMachine {
         return menu == null ? -1 : menu.getStateId();
     }
 
+    /** 当前商店菜单的容器号（没开菜单给 {@code -1}）；用来发现「商店卖完一轮换了新一屏」 */
+    private int sellMenuContainerId() {
+        var menu = personalSell.menu();
+        return menu == null ? -1 : menu.containerId;
+    }
+
     /** 重发「寻路到收购 NPC 前面那一格」（GoalNear 1：站在它前面一格或紧邻格，都在交互距离内） */
     private void repathNpc(BlockPos pos) {
         var baritone = module.getBaritone().getBaritoneInstance();
         if (baritone != null) baritone.getCustomGoalProcess().setGoalAndPath(new GoalNear(pos, 1));
     }
 
-    /** 是否已在收购 NPC 的交互距离内（按眼睛到实体中心判；实体没扫到时退回配置坐标） */
-    private boolean nearNpc() {
-        if (mc.player == null) return false;
+    /**
+     * 玩家到收购 NPC 实体的距离平方；实体没扫到时返回 {@code -1}。
+     *
+     * <p>距离只算这一处：既判「到了没有 / 要不要走回去」，也写进日志 —— 下次再出现「隔着好远」时
+     * 照着日志里的数字看即可，不用再猜。</p>
+     */
+    private double npcDistanceSqr() {
+        if (mc.player == null) return -1;
         var npc = personalSell.findNpc();
-        Vec3 center = npc != null
-            ? npc.position()
-            : new Vec3(personalSell.npcPos().getX() + 0.5,
-                personalSell.npcPos().getY() + 0.5, personalSell.npcPos().getZ() + 0.5);
-        return mc.player.getEyePosition().distanceToSqr(center) <= NPC_ARRIVE_DISTANCE_SQR;
+        if (npc == null) return -1;
+        return mc.player.getEyePosition().distanceToSqr(npc.position());
+    }
+
+    /** 距离平方的日志文本（保留一位小数；扫不到实体给 {@code ?}） */
+    private static String distanceText(double distSqr) {
+        return distSqr < 0 ? "?" : String.valueOf(Math.round(Math.sqrt(distSqr) * 10.0) / 10.0);
+    }
+
+    /**
+     * 是否真的站到了收购 NPC 身旁（能右键到它，且商店插件认这个距离）。
+     *
+     * <p>{@code findNpc()} 扫不到实体时<b>不再退回配置坐标</b>：那种情况就是「NPC 还没同步出来」，
+     * 按坐标判「到了」会让流程站在一个没有 NPC 的地方开始点菜单（用户 2026-09-22「都没走到npc身边
+     * 隔着好远」）。实体没扫到就继续寻路 —— 人真走到跟前，实体必然在客户端追踪范围内。</p>
+     */
+    private boolean nearNpc() {
+        double distSqr = npcDistanceSqr();
+        return distSqr >= 0 && distSqr <= NPC_ARRIVE_DISTANCE_SQR;
     }
 
     /**
@@ -2969,8 +3047,11 @@ public final class MiningStateMachine {
      * 阶段：SELL_PATH（从主城落点寻路到收购 NPC <b>前面那一格</b>）。
      *
      * <p>目标格来自 {@link MiningPersonalSell#npcStandPos()}（NPC 正面朝向前方一格；实体没扫到时退回
-     * 配置坐标），到 NPC 的交互距离内即转 {@code SELL_TRADE} 发包；走不到就重发目标，连续两轮无接近
-     * 直接停机（城里地形复杂，硬绕只会越走越远）。</p>
+     * 配置坐标）。<b>到位判据是「人真的贴到 NPC 身旁」</b>（{@link #NPC_ARRIVE_DISTANCE_SQR}，2.5 格内），
+     * 不是「进了原版右键距离」—— 原版右键判据是实体 AABB 外扩 3.0，站在 3.5 格开外照样能戳开菜单，
+     * 但商店插件点商品格时按更近的距离校验，于是整条链卡在「点商品 → 点全部」（用户 2026-09-22
+     * 「都没走到npc身边 隔着好远」）。走不到就重发目标，连续两轮无接近直接停机（城里地形复杂，
+     * 硬绕只会越走越远）。</p>
      */
     private void tickSellPath() {
         if (stateTick == 1) {
@@ -2986,6 +3067,10 @@ public final class MiningStateMachine {
 
         if (nearNpc()) {
             module.getBaritone().stop();
+            var npc = personalSell.findNpc();
+            MINING_LOG.info("[卖矿流程] 已走到收购 NPC 身旁：玩家 {} 距 {} {} 格（目标格 {}，配置坐标 {}）",
+                mc.player.blockPosition(), npc == null ? "?" : npc.getName().getString(),
+                distanceText(npcDistanceSqr()), sellTargetPos, personalSell.npcPos());
             transitionTo(MinerState.SELL_TRADE);
             return;
         }
@@ -3042,9 +3127,16 @@ public final class MiningStateMachine {
     /**
      * 阶段：SELL_TRADE（交互收购 NPC → 循环出售到背包清零）。
      *
-     * <p>一轮 = 点矿石 → 点「全部」→ 点「确认出售」→ 等结算。每一步都先等「服务端已处理完上一次
-     * 点击」（菜单状态号变化）再点下一个槽：市场菜单一屏里这些槽是同时存在的，不等刷新连点会点到
-     * 上一屏的按钮（数量还没选上就点确认 → 一颗都卖不出去）。</p>
+     * <p>一轮 = 点矿石 → 点「全部」→ 点「确认出售」→ 等结算。<b>每一步的「能往下走了」判据是
+     * 「下一屏的格子出现了」，不是「菜单状态号变了」</b>：本服商店每 10 秒定时全量刷新一次，
+     * 状态号自己就会往前走，拿它当凭据会把「点商品格根本没开选量菜单」误判成刷新成功，
+     * 然后一直去点一个不存在的「全部」（用户 2026-09-22：连点十几次「点击「全部」未响应」）。
+     * 而且先等新一屏到齐再点，也天然避开了「一屏里这些槽同时存在、不等刷新会点到上一屏按钮」
+     * （数量还没选上就点确认 → 一颗都卖不出去）。</p>
+     *
+     * <p>每次戳 NPC 之前先确认<b>人真的站在它身旁</b>（{@link #NPC_TALK_DISTANCE_SQR}）；
+     * 被挤开 / 传送偏了就回 {@code SELL_PATH} 走回来再点 —— 站在原版右键距离的边缘（AABB 外扩 3.0）
+     * 是能戳开菜单的，但商店插件点商品格时会按更近的距离把这些点击全丢掉。</p>
      *
      * <p>卖多轮是必须的：一次「全部」只提交一屏的上限（实测 64 个），20 组要跑多轮，所以整段做成
      * 「点一轮 → 看背包少没少 → 没卖完继续」的循环，直到背包清零；连续两轮一颗没少就停机
@@ -3056,10 +3148,12 @@ public final class MiningStateMachine {
             sellStepTicks = 0;
             sellStepRetries = 0;
             sellRounds = 0;
-            sellLastOreCount = -1;
+            sellPreConfirmCount = 0;
             sellNoProgressRounds = 0;
             sellLastMenuState = -1;
             sellInteractTicks = 0;
+            sellListingWait = 0;
+            sellLastContainerId = -1;
             module.getBaritone().stop();
             personalSell.beginFlow();
         }
@@ -3076,103 +3170,189 @@ public final class MiningStateMachine {
             transitionTo(MinerState.SELL_RETURN);
             return;
         }
-        // 菜单被服务端关掉（卖完自动关 / 掉线重开）：回到「戳 NPC 开菜单」，但别把轮数清零
+        // 菜单被服务端关掉：卖完一轮后商店自己关（背包已空 → 整条就是卖完了，直接收工）/ 掉线重开
+        // （背包还有 → 回「戳 NPC 开菜单」，但别把轮数清零）。实测 2026-09-22 20:41:51 卖完关菜单后，
+        // 这里没做判断就回阶段 0 重新戳 NPC 开菜单，白花 1~2 秒才发现背包已经空了。
         if (sellPhase != 0 && !personalSell.hasMenu()) {
+            if (personalSell.countTargetInBag() == 0) {
+                transitionTo(MinerState.SELL_RETURN);
+                return;
+            }
             sellPhase = 0;
             sellStepTicks = 0;
             sellInteractTicks = 0;
+            sellListingWait = 0;
+            sellLastContainerId = -1;
             return;
+        }
+        // 商店每卖完一轮会当场重开一屏（实测 2026-09-22：点完「确认出售」后立刻换成容器 #3）：
+        // 换屏这件事写进日志，新一屏的内容也 dump 出来，免得下一轮在没见过的屏上瞎点
+        if (sellPhase != 0 && sellMenuContainerId() != sellLastContainerId) {
+            sellLastContainerId = sellMenuContainerId();
+            sellListingWait = 0;
+            MINING_LOG.info("[卖矿流程] 商店换屏：{}", personalSell.menuDump());
         }
 
         sellStepTicks++;
         switch (sellPhase) {
             case 0 -> {
                 if (personalSell.hasMenu()) {
+                    // 商店是「先开一张空表格、隔一会儿再异步刷出商品列表」，而且商品格<b>只有背包里真有
+                    // 该商品时才可点</b>（用户 2026-09-22 实测）。列表没到就往下点，能点到的只有自己背包
+                    // 那 36 格（菜单 = 54 格容器 + 36 格自己背包）：点下去等于把手里的矿石抓到光标上，
+                    // 那一格预测性变空 → 读数变 0 → 误报「卖完了」→ 用户 2026-09-22「根本没卖出去
+                    // 一直说我出售成功」。等列表带出价格说明行再进下一相，上限 SELL_LISTING_GRACE_TICKS。
+                    if (!personalSell.hasListedTarget() && sellListingWait < SELL_LISTING_GRACE_TICKS) {
+                        sellListingWait++;
+                        return;
+                    }
+                    MINING_LOG.info("[卖矿流程] 收购菜单已开：{}", personalSell.menuDump());
+                    sellLastContainerId = sellMenuContainerId();
                     sellPhase = 1;
                     sellStepTicks = 0;
                     sellStepRetries = 0;
+                    sellListingWait = 0;
                     return;
                 }
-                sellInteractTicks++;
-                if (sellInteractTicks % SELL_INTERACT_INTERVAL == 0) {
+                // 后自增：进本态的第一刻就戳一次（原来第一次要等满 20 刻，光站着白等 1 秒 ——
+                // 实测 2026-09-22 20:41:49 进 SELL_TRADE、20:41:50 才看到第一次右键），之后每 20 刻补一次
+                if (sellInteractTicks++ % SELL_INTERACT_INTERVAL == 0) {
                     var npc = personalSell.findNpc();
+                    double distSqr = npcDistanceSqr();
                     if (npc == null) {
                         module.warning("§e⚠ 附近找不到「" + module.settings().personalSellNpcName + "」§8▸ 按坐标再找一次");
                         // 名字对不上时把附近实体的真实名字写进日志（头顶看到的字可能来自队伍装饰或全息实体）
                         MINING_LOG.info("[卖矿流程] 关键词「{}」扫不到收购 NPC，附近实体：{}",
                             module.settings().personalSellNpcName, personalSell.nearbyEntityDump());
+                    } else if (distSqr > NPC_TALK_DISTANCE_SQR) {
+                        // 人没站到 NPC 身旁就别戳、别点：服务端右键判据（AABB 外扩 3.0）会放行、菜单也能开，
+                        // 但商店插件在点商品格那一步按更近的距离校验，站远了连点十几次全被丢掉
+                        // （用户 2026-09-22「都没走到npc身边 隔着好远」）。这一档唯一正确的动作是走回去。
+                        module.warning("§e⚠ 还没站到收购 NPC 身旁 §8▸ 回去接着走 §8(§7距 "
+                            + distanceText(distSqr) + " 格§8)");
+                        MINING_LOG.info("[卖矿流程] 距收购 NPC {} 格，超出交易距离，回 SELL_PATH 重新走位（玩家 {}，NPC {}，配置坐标 {}）",
+                            distanceText(distSqr), mc.player.blockPosition(), npc.blockPosition(),
+                            personalSell.npcPos());
+                        transitionTo(MinerState.SELL_PATH);
+                        return;
                     } else {
                         personalSell.interactNpc(npc);
-                        MINING_LOG.info("[卖矿流程] 已右键收购 NPC：name={} display={} 类型={}",
-                            npc.getName().getString(), npc.getDisplayName().getString(), npc.getType().toString());
+                        MINING_LOG.info("[卖矿流程] 已右键收购 NPC：name={} display={} 类型={} 距玩家 {} 格",
+                            npc.getName().getString(), npc.getDisplayName().getString(), npc.getType().toString(),
+                            distanceText(distSqr));
                     }
                 }
                 if (sellStepOutcome("打开收购菜单") == SellStep.RETRY) sellInteractTicks = 0;
             }
             case 1 -> {
+                if (sellStepTicks == 1) sellRoundStartMs = System.currentTimeMillis();
                 if (personalSell.countTargetInBag() == 0) {
                     transitionTo(MinerState.SELL_RETURN);
+                    return;
+                }
+                // 商店卖完一轮会重开一屏，新屏的商品列表同样是异步刷出来的：列表还没到就点，命中的
+                // 只有带名字的镜像格或自己背包（点自己背包 = 把东西抓到手心，读数当场变 0，
+                // 用户 2026-09-22「根本没卖出去 一直说我出售成功」）。等商品列表带出说明行再点。
+                if (!personalSell.hasListedTarget() && sellListingWait < SELL_LISTING_GRACE_TICKS) {
+                    sellListingWait++;
                     return;
                 }
                 if (!personalSell.clickTarget()) {
                     if (sellStepOutcome("点击要卖的矿物") == SellStep.RETRY) sellPhase = 0;
                     return;
                 }
-                sellLastMenuState = sellMenuStateId();
                 sellPhase = 2;
                 sellStepTicks = 0;
             }
             case 2 -> {
-                if (!menuRefreshed()) return;
+                // 等选量菜单：判据是「「全部」那一格出现了没有」，不是「菜单状态号变没变」——
+                // 商店每 10 秒定时全量刷新一次，状态号自己就会往前走，拿它当「上一步生效」的凭据
+                // 会把「点商品格根本没开选量菜单」误判成刷新成功，然后一直去点一个不存在的「全部」
+                // （用户 2026-09-22：连点十几次「点击「全部」未响应」）。
                 String keyword = module.settings().personalSellPickKeyword;
+                if (!personalSell.menuHasKeyword(keyword)) {
+                    if (sellStepOutcome("点了商品格，但菜单里没出现「" + keyword + "」") == SellStep.RETRY) sellPhase = 1;
+                    return;
+                }
+                sellStepRetries = 0;
+                // 点「全部」之前先记下「确认出售」那一格的指纹：选量一生效插件就会改写它
+                // （实测量: 灰染料+「请先选择至少1个物品」→ 绿宝石块+「数量:64个」），
+                // 下一相靠这个变化判断「不必再等」，一轮省掉大半秒
+                sellConfirmFingerprint = personalSell.keywordSlotFingerprint(module.settings().personalSellConfirmKeyword);
                 if (!personalSell.clickKeyword(keyword)) {
                     if (sellStepOutcome("点击「" + keyword + "」") == SellStep.RETRY) sellPhase = 1;
                     return;
                 }
-                sellLastMenuState = sellMenuStateId();
                 sellPhase = 3;
                 sellStepTicks = 0;
             }
             case 3 -> {
-                if (!menuRefreshed()) return;
+                // 同理：等「确认出售」那一格出现（有的服这两格在同一屏，那就往下走）
                 String keyword = module.settings().personalSellConfirmKeyword;
+                if (!personalSell.menuHasKeyword(keyword)) {
+                    if (sellStepOutcome("点了「" + module.settings().personalSellPickKeyword
+                        + "」，但菜单里没出现「" + keyword + "」") == SellStep.RETRY) sellPhase = 2;
+                    return;
+                }
+                sellStepRetries = 0;
+                // 「先点全部、再点全部出售」之间要留一拍：同刻连点两下时插件还没把已选数量落进会话，
+                // 确认那一下等于「数量 0 确认」，一颗都卖不出去（用户 2026-09-22 实测）。
+                // 但不必盲等满：选量一生效插件就会改写「确认出售」那一格（见 sellConfirmFingerprint），
+                // 指纹一变就可以立刻点；插件不写这一格时退回等满 SELL_CONFIRM_DELAY_TICKS，行为不变。
+                if (sellStepTicks < SELL_CONFIRM_MIN_TICKS) return;
+                if (sellStepTicks < SELL_CONFIRM_DELAY_TICKS
+                    && personalSell.keywordSlotFingerprint(keyword).equals(sellConfirmFingerprint)) {
+                    return;
+                }
+                // 记下「确认前」的背包读数当这一轮的基线：下一相只要读数掉下来就算这轮成了，
+                // 不必死等满额结算（一轮省半秒到一秒，20 组就是十几秒）
+                sellPreConfirmCount = personalSell.countTargetInBag();
                 if (!personalSell.clickKeyword(keyword)) {
                     if (sellStepOutcome("点击「" + keyword + "」") == SellStep.RETRY) sellPhase = 2;
                     return;
                 }
-                sellLastMenuState = sellMenuStateId();
                 sellPhase = 4;
                 sellStepTicks = 0;
             }
             case 4 -> {
-                // 等结算：这一屏的矿石从背包扣掉需要服务端几拍（原版 32 刻一轮同步）
-                if (sellStepTicks < SELL_ROUND_SETTLE_TICKS) return;
+                // 等结算：这一屏的矿石从背包扣掉要服务端几拍（原版一轮同步 32 刻以内）。
+                // 一到就往下走 —— 读数比「确认前」少 = 这一轮真卖出去了；读数没掉才继续等，
+                // 等到 SELL_ROUND_SETTLE_TICKS 还没掉就是「这轮一颗没少」。
                 int now = personalSell.countTargetInBag();
                 if (now == 0) {
                     transitionTo(MinerState.SELL_RETURN);
                     return;
                 }
-                if (sellLastOreCount < 0 || now < sellLastOreCount) {
-                    // 这一轮确实卖掉了（或第一次结算）：记进度，继续下一轮
-                    sellLastOreCount = now;
+                boolean sold = now < sellPreConfirmCount;
+                if (!sold && sellStepTicks < SELL_ROUND_SETTLE_TICKS) return;
+                if (sold) {
                     sellNoProgressRounds = 0;
                 } else {
                     sellNoProgressRounds++;
                 }
                 sellRounds++;
+                MINING_LOG.info("[卖矿流程] 第 {} 轮：{} → {}（耗时 {} ms）",
+                    sellRounds, sellPreConfirmCount, now, System.currentTimeMillis() - sellRoundStartMs);
                 if (sellRounds >= SELL_MAX_ROUNDS) {
                     sellAbort("出售（连续 " + sellRounds + " 轮仍未卖完）");
                     return;
                 }
                 if (sellNoProgressRounds >= SELL_NO_PROGRESS_LIMIT) {
-                    // 纠错：一颗未少只可能是收购菜单里根本没有这件商品（服主改名了，或这个目标本服不收）
-                    sellAbort("出售（连续 " + sellNoProgressRounds + " 轮一颗未少：收购菜单里没找到「"
-                        + sellItemName(module.sellItemFilter()) + "」这件商品，可能是服主改名了或这个目标本服不收）");
+                    // 一颗未少 = 「点商品 → 点数量 → 点确认」这条链有一环没真正生效。
+                    // 不猜原因（用户 2026-09-22：「就叫钻石啊我选的也没错」—— 之前那句「菜单里没找到」
+                    // 是流程自己下的结论，实际卡在后面的按钮上），只给出链路上有问题的三步 +
+                    // 当屏菜单已进日志，照着日志里的槽位名改「出售数量 / 确认出售关键词」即可。
+                    sellAbort("出售（连续 " + sellNoProgressRounds + " 轮一颗未少：「"
+                        + sellItemName(module.sellItemFilter()) + "」没卖出去 —— 「点商品 → 点「"
+                        + module.settings().personalSellPickKeyword + "」→ 点「"
+                        + module.settings().personalSellConfirmKeyword
+                        + "」」有一环没生效，当屏菜单已写进 logs/latest.log）");
                     return;
                 }
                 sellPhase = 1;
                 sellStepTicks = 0;
                 sellStepRetries = 0;
+                sellListingWait = 0;
             }
             default -> sellAbort("出售");
         }

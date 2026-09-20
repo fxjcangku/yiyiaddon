@@ -25,11 +25,7 @@ import static org.lwjgl.opengl.GL45.*;
 public final class SkiaBlurRenderer {
     private static final SkiaBlurRenderer INSTANCE = new SkiaBlurRenderer();
     private static final float MIN_CAPTURE_MARGIN = 18f;
-    /** 冰霜层压暗叠加（6% 黑）：让被模糊的内容沉下去。属材质合成参数，与主题配色无关。 */
-    private static final int FROST_DARKEN = 0x10000000;
     private final Paint blurPaint = new Paint().setAntiAlias(true);
-    private final Paint frostPaint = new Paint().setAntiAlias(true);
-    private final Paint tintPaint = new Paint().setAntiAlias(true);
     /** 折射仅绘制窄边带，不对每个控件重复捕获或模糊场景。 */
     private final Paint refractionPaint = new Paint().setAntiAlias(true);
     private final SkiaGlBackend framebufferBackend = new SkiaGlBackend();
@@ -138,11 +134,6 @@ public final class SkiaBlurRenderer {
                     true);
 
             drawRefraction(canvas, capture, x, y, width, height, radius);
-            frostPaint.setColor(ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window, 0.035f));
-            canvas.drawRRect(RRect.makeXYWH(x, y, width, height, radius), frostPaint);
-
-            tintPaint.setColor(glassTint(tintColor));
-            canvas.drawRRect(RRect.makeXYWH(x, y, width, height, radius), tintPaint);
             return true;
         } finally {
             blurPaint.setImageFilter(null);
@@ -164,8 +155,6 @@ public final class SkiaBlurRenderer {
         canvas.save();
         try {
             blurPaint.setImageFilter(blurEnabled ? encodeFilter : null);
-            frostPaint.setColor(ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window, 0.035f));
-            tintPaint.setColor(glassTint(tintColor));
             Rect source = Rect.makeXYWH(0f, 0f, capture.width, capture.height);
             Rect destination = Rect.makeXYWH(capture.dstX, capture.dstY, capture.dstW, capture.dstH);
             for (Region region : regions) {
@@ -174,8 +163,6 @@ public final class SkiaBlurRenderer {
                 canvas.clipRRect(shape, true);
                 canvas.drawImageRect(capture.image, source, destination, SamplingMode.LINEAR, blurPaint, true);
                 drawRefraction(canvas, capture, region.x(), region.y(), region.width(), region.height(), region.radius());
-                canvas.drawRRect(shape, frostPaint);
-                canvas.drawRRect(shape, tintPaint);
                 canvas.restore();
             }
             return true;
@@ -184,12 +171,6 @@ public final class SkiaBlurRenderer {
             canvas.restore();
             capture.image.close();
         }
-    }
-
-    /** 色调取自当前主题，保留透明度设置的控制作用，浅色主题不再被固定黑色污染。 */
-    private static int glassTint(int requested) {
-        return ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window,
-                ((requested >>> 24) / 255f) * 0.45f);
     }
 
     /**

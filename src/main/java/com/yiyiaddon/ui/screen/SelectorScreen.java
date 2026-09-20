@@ -187,11 +187,19 @@ public final class SelectorScreen extends PanelScreen {
     /**
      * 开窗时预热的图标条数上限（见 {@link #prefetchIcons}）。
      *
-     * <p>与 {@link #MAX_ROWS} 同量级：分组型选择器（附魔、村民交易、装备…）整表都在这个范围内，
-     * 展开任何一个分组都不会再触发首次加载；物块 / 物品注册表这种上千项的表只热前两百条 ——
-     * 全热会把图标缓存（容量 1024）挤到清理阈值，把刚缓存的图标丢掉，反而更糟。</p>
+     * <p>取值 4096 = 实际意义上的「整表预热心」（物块 / 物品注册表最大也就一千多项）。</p>
+     *
+     * <p><b>为什么从 200 放开到整表</b>（用户 2026-09-22：「点击目标选择器分组的时候 选东西的时候
+     * 会闪…就目标选择器会这样」）：只热前两百条时，<b>排在第 200 条之后的分组</b>（自定义物品 / 自定义
+     * 方块，以及搜索命中的靠后条目）展开那一刻才第一次请求图标，而图标要排队一两帧才入库 ——
+     * 行里先是空图标位、随后补上，就是那个「一闪而过」。分组型选择器（附魔、村民交易、装备…）整表
+     * 都在两百条内，所以只有上千项的目标选择器看得见。</p>
+     *
+     * <p>早先不敢全热的顾虑是「会把图标缓存挤到清理阈值、把刚缓存的图标丢掉」——那条已经被改掉：
+     * 现在撞上上限只淘汰最旧的一批，不再整张清空（见 {@code ItemIconCache#evictOldest}）。
+     * 代价是开窗后约 6 秒的后台截取（12 张/帧），期间界面照常可用。</p>
      */
-    private static final int PREFETCH_LIMIT = 200;
+    private static final int PREFETCH_LIMIT = 4096;
 
     /** Material Symbols：add / remove。 */
     private static final String GLYPH_ADD = "\uE145";
@@ -345,7 +353,7 @@ public final class SelectorScreen extends PanelScreen {
     /**
      * 预热候选 / 已选的图标（见 {@link Entry#iconStack()}）。
      *
-     * <p>为什么预热、上限为什么是两百条：见 {@link #PREFETCH_LIMIT} 与 {@code Entry#iconStack()} 的说明。
+     * <p>为什么预热：见 {@link #PREFETCH_LIMIT} 与 {@code Entry#iconStack()} 的说明。
      * 每次 {@link #rebuild()} 都调一次 —— {@code prefetch} 幂等，已缓存 / 已在途的键直接跳过，
      * 这里只剩一次遍历的开销。</p>
      */

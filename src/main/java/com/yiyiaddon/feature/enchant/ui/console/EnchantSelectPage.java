@@ -68,11 +68,20 @@ public final class EnchantSelectPage {
         this.stateKeyPrefix = stateKeyPrefix;
     }
 
-    /** 装配本页内容：一组一个折叠块，块内一行「点击选择 + 计数 + ↻」。 */
+    /**
+     * 折叠状态键：{@code <页前缀>:<组名>}。
+     *
+     * <p>本页装配与窗口侧的「默认全部收起」预置共用这一处，键格式不写两遍。</p>
+     */
+    public static String foldKey(String stateKeyPrefix, String groupTitle) {
+        return stateKeyPrefix + ":" + groupTitle;
+    }
+
+    /** 装配本页内容：一组一个折叠块，块内一行「点击选择 + 计数 + ↻」。默认收起，点标题展开 */
     public void build(CompactStack stack) {
         for (EnchantSettings.EnchantGroup group : groups) {
             FoldSection section = new FoldSection("§7§l" + group.title() + " §8(点标题可收起)",
-                stateKeyPrefix + ":" + group.title(), owner.collapsedSections());
+                foldKey(stateKeyPrefix, group.title()), owner.collapsedSections());
             section.content().add(row(group));
             stack.add(section);
         }

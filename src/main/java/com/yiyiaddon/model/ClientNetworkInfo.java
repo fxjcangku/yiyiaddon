@@ -5,7 +5,8 @@ package com.yiyiaddon.model;
  *
  * @param ip          客户端公网 IP
  * @param countryCode ISO 3166-1 两位国家码
- * @param region      一级行政区名（英文原名，如 Guangdong / Oregon；探测源未给出时为 null）
+ * @param region      一级行政区名（英文原名，如 Guangdong / Oregon；探测源未给出时为 null；
+ *                    界面按 RegionNames 译成中文，未收录时只显示国名，不显示英文原名）
  * @param isp         运营商名
  * @param asOrg       自治系统组织名
  * @param asn         自治系统号，未知为 -1

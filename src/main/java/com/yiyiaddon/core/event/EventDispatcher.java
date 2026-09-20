@@ -14,8 +14,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
+import net.minecraft.network.protocol.game.ClientboundLoginPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveVehiclePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
@@ -78,6 +80,43 @@ public final class EventDispatcher {
     private static final ConcurrentLinkedQueue<QueuedPacket> PACKET_QUEUE = new ConcurrentLinkedQueue<>();
     private static final AtomicInteger DROPPED_PACKETS = new AtomicInteger();
 
+    /**
+     * 换世界静默窗口的截止时刻（毫秒，0 表示不在静默；收包线程写、收包线程读，故为 volatile）。
+     *
+     * <p>收到「进入新世界的入口包」即进入静默，静默期内到达的位置包一律标记
+     * {@link ServerPositionEvent#worldChange()}。入口包有两个：</p>
+     * <ul>
+     *     <li>{@code ClientboundLoginPacket}：进服、以及<b>代理服切换子服</b>（
+     *         {@code StartConfiguration} 重新配置后再次登录）——实测反馈的跨世界 {@code /home}
+     *         与切换子服走的就是这条路径，不会发重生包；</li>
+     *     <li>{@code ClientboundRespawnPacket}：单服内的跨维度传送与死亡重生。</li>
+     * </ul>
+     *
+     * <p><b>为什么入口包之后必然跟着位置包：</b>{@code CommonPlayerSpawnInfo}（登录 / 重生包共用的
+     * 落点信息）只带维度、种子、游戏模式，<b>不带坐标</b>；玩家在新世界的坐标只能由随后的
+     * {@code ClientboundPlayerPositionPacket} 落地。这个位置包就是被误判成拉回的那一个——
+     * 它的换算发生在收包瞬间（网络线程，早于主线程应用入口包），此时客户端玩家实体还在旧世界，
+     * 距离是两个坐标系相减的无意义数值。</p>
+     *
+     * <p><b>为什么是「窗口」而不是「只认入口包之后的那一个位置包」：</b>入口包与落地位置包之外，
+     * 服务端还可能补发别的位置包（例如按旧坐标把玩家摆回出生点的那一个），一次性认领会被它先吃掉，
+     * 真正跨坐标系的位置包反而漏标（第 144 条修复失效的原因之一）。</p>
+     *
+     * <p><b>为什么不做「维度变了就提前收尾」：</b>代理服的各子服常共用同名世界
+     * （都是 {@code minecraft:overworld}），维度键根本不变，判据失效；同世界维度还会被误判成
+     * 「入口包已应用」而提前放开，正是要避免的误报。故只按时间兜底收尾。</p>
+     */
+    private static volatile long worldChangeSilenceUntilMs;
+
+    /**
+     * 静默窗口时长。
+     *
+     * <p>窗口只需覆盖「入口包 → 落地位置包」这一段，该间隔在网络层是毫秒级（同一批 flush），
+     * 5 秒是极端冗余，只在服务端严重卡顿时才有意义。代价是「重生 / 换服后 5 秒内的真拉回不登记」，
+     * 而那一小段时间位置基准本来就不可信，不登记反而是对的。</p>
+     */
+    private static final long WORLD_CHANGE_SILENCE_MS = 5000L;
+
     /** 已注册关闭监听的界面（按引用判重，界面重建后重新注册） */
     private static final Set<Screen> TRACKED_SCREENS =
             Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
@@ -108,6 +147,8 @@ public final class EventDispatcher {
         TickRateMonitor.clear();
         SendDelayService.clear();
         BlockWatchService.clearAll();
+        // 换世界窗口同样属于连接内状态：残留会让新会话的第一次真拉回被放过
+        endWorldChangeSilence();
     }
 
     // ── 主线程派发 ──
@@ -314,6 +355,11 @@ public final class EventDispatcher {
             DROPPED_PACKETS.incrementAndGet();
             return;
         }
+        // 进入新世界的入口包（登录 / 重生）：开启静默窗口，窗口内的位置包一律标记为换世界
+        if (inbound && (packet instanceof ClientboundLoginPacket
+            || packet instanceof ClientboundRespawnPacket)) {
+            beginWorldChangeSilence();
+        }
         PACKET_QUEUE.add(new QueuedPacket(inbound, packet.getClass().getName(), packet,
             inbound ? extractServerPosition(packet) : null,
             inbound ? BlockWatchService.match(packet) : null,
@@ -353,13 +399,45 @@ public final class EventDispatcher {
         if (packet instanceof ClientboundPlayerPositionPacket p) {
             Vec3 absolute = PositionMoveRotation.calculateAbsolute(
                 PositionMoveRotation.of(client.player), p.change(), p.relatives()).position();
-            return new ServerPositionEvent(absolute, false, client.player.position().distanceTo(absolute));
+            // 静默窗口内的位置包：此刻玩家实体可能还在旧世界，算出的距离跨了坐标系，
+            // 只作参考、不参与拉回判定（判定层见 worldChange 直接放行）
+            double distance = client.player.position().distanceTo(absolute);
+            boolean worldChange = inWorldChangeSilence();
+            return new ServerPositionEvent(absolute, false, distance, worldChange);
         }
         if (packet instanceof ClientboundMoveVehiclePacket v) {
             // 载具包不参与拉回判定（旧实现只处理玩家位置包），因此不算距离
-            return new ServerPositionEvent(v.position(), true, 0.0);
+            return new ServerPositionEvent(v.position(), true, 0.0, false);
         }
         return null;
+    }
+
+    // ── 换世界静默窗口（收包线程内自洽，不跨线程外传） ──
+
+    /** 进入换世界静默：世界入口包（登录 / 重生）到达时调用（网络线程） */
+    private static void beginWorldChangeSilence() {
+        worldChangeSilenceUntilMs = System.currentTimeMillis() + WORLD_CHANGE_SILENCE_MS;
+    }
+
+    /** 结束静默：断线清缓存与窗口到期共用同一套清理 */
+    private static void endWorldChangeSilence() {
+        worldChangeSilenceUntilMs = 0L;
+    }
+
+    /**
+     * 当前到达的位置包是否落在换世界静默窗口内（网络线程）；窗口到期即自行收尾。
+     *
+     * <p>窗口内一律标记为换世界，代价是「重生 / 换服后 5 秒内的真拉回不登记」——而那一小段时间
+     * 位置基准本来就不可信（客户端玩家实体还在旧世界），不登记反而是对的。</p>
+     */
+    private static boolean inWorldChangeSilence() {
+        long until = worldChangeSilenceUntilMs;
+        if (until == 0L) return false;
+        if (System.currentTimeMillis() > until) {
+            endWorldChangeSilence();
+            return false;
+        }
+        return true;
     }
 
     // ── 诊断 ──

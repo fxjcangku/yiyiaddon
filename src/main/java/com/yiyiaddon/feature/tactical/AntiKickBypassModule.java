@@ -14,6 +14,7 @@ import com.yiyiaddon.core.net.SendView;
 import com.yiyiaddon.feature.tactical.config.AntiKickBypassSettings;
 import com.yiyiaddon.feature.tactical.core.TacticalCoordinator;
 import com.yiyiaddon.feature.tactical.ui.AntiKickBypassPage;
+import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.ui.page.ModulePage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -77,8 +78,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *     <li><b>协调器通知</b>：旧总线 {@code RubberBandDetectedEvent} / {@code AntiCheatDetectedEvent}
  *         → {@link TacticalCoordinator.Listener#onRubberBand()} / {@link TacticalCoordinator.Listener#onAntiCheat(String)}
  *         （启用时注册、关闭时注销；协调器保证在主线程回调，可直接读玩家状态）。</li>
- *     <li><b>单人世界自动关闭</b>：旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}
- *         → {@link ModuleManager#setEnabledSilently(String, boolean)}（静默关，播报由本模块给出）。</li>
+ *     <li><b>单人世界不可开启</b>：旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}
+ *         只写在 {@code onActivate} 里，本项目本模块默认开启、装配期（主菜单）就恢复启用，
+ *         那道闸门拦不住 → 改为 {@link Module#environmentRefusal()} 交给框架，启用与进世界两个时机都拦。</li>
  *     <li><b>播报</b>：旧基类 {@code notify / warning / notifyError} 与
  *         {@code highlightText / highlightNumber} 的颜色码包装在本类内逐字保留，正文经
  *         {@link ClientChat#send} 输出。</li>
@@ -91,9 +93,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *         收紧会丢」，直到下一次反作弊结论变化才恢复；</li>
  *     <li>载具移动包未进 {@code shouldDelay} 的豁免名单（旧 {@code shouldDelay:795-801} 只豁免
  *         KeepAlive / AcceptTeleportation / MovePlayer / PlayerAction），因此开启网络延迟时载具包
- *         同样被随机延迟；</li>
- *     <li>单人世界自动关闭走 {@code toggle()} 的重入路径（旧 {@code onActivate:381-390}）——
- *         本项目由 {@link ModuleManager} 显式处理该重入，行为与旧一致（静默关 + 单条播报）。</li>
+ *         同样被随机延迟。</li>
  * </ol>
  *
  * <p><b>已知能力缺口（既有框架件缺能力，本批未改既有文件）</b>：{@link SendView} 对自定义负载只给
@@ -308,16 +308,22 @@ public final class AntiKickBypassModule extends Module implements TacticalCoordi
 
     // ── 生命周期 ──
 
-    /** 旧 {@code onActivate}：单人世界自动关闭 → 清会话状态 → 读协调器现态 → 注册发包闸门 */
+    /**
+     * 单人世界闸门：旧 {@code onActivate} 的第一段（原因文案照旧）。
+     *
+     * <p>旧实现只拦「在单人世界里点开启」——旧项目本模块默认关闭，玩家只能在世界里开启，所以拦得住。
+     * 本项目「发包防踢」默认开启（见 {@link #enabledByDefault()}），装配期在主菜单就恢复启用，
+     * 那时没有世界、这道判据必然通过，模块就这样开着进了单人世界。因此改由框架在两个时机统一执行，
+     * 见 {@link Module#environmentRefusal()}。</p>
+     */
+    @Override
+    public String environmentRefusal() {
+        return GameProbe.isSingleplayer() ? "§c单人世界无需防踢" : null;
+    }
+
+    /** 旧 {@code onActivate}：清会话状态 → 读协调器现态 → 注册发包闸门（单人世界闸门已交给框架） */
     @Override
     protected void onEnable() {
-        // 单人世界自动关闭（静默关，播报单独给出；旧实现靠 chatFeedback 抑制框架播报）
-        if (mc.hasSingleplayerServer()) {
-            ModuleManager.setEnabledSilently(MODULE_ID, false);
-            warning("§c单人世界无需防踢");
-            return;
-        }
-
         resetSessionState();
 
         // 模块可能在检测完成后才开启，启动时必须立即读取协调器现态，不能只等一次性事件。

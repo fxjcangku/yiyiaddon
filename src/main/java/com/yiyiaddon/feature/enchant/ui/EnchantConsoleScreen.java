@@ -108,6 +108,10 @@ public final class EnchantConsoleScreen extends PanelScreen implements ConsoleHo
     private List<Tab> tabs = List.of();
     /** 当前页签 */
     private Tab tab = Tab.OVERVIEW;
+    /** 多选词条页的折叠状态键前缀（两页各一套，避免同名分组互相串；只在这里定义一次） */
+    private static final String PREFIX_BOOK = "book";
+    private static final String PREFIX_CUSTOM = "custom";
+
     /** 自动刷新计数 */
     private int autoRefreshTicks;
     /** 顶部状态条的只读快照：每秒刷新一次（其余页不重建正文，只换它） */
@@ -117,7 +121,8 @@ public final class EnchantConsoleScreen extends PanelScreen implements ConsoleHo
      * 折叠块的收起键集合（本窗口生命周期内有效）。
      *
      * <p>13 个多选组与「目标附魔」列表都靠它记住收起状态：整页重建（刷新 / 切页签 / 切模式）
-     * 会丢弃全部控件实例，不存这里每次重建都会回到默认展开。</p>
+     * 会丢弃全部控件实例，不存这里每次重建都会回到默认展开。窗口构造时由
+     * {@link #seedCollapsedSelectGroups()} 把两页多选组预置为收起。</p>
      */
     private final Set<String> collapsedSections = new HashSet<>();
 
@@ -133,10 +138,28 @@ public final class EnchantConsoleScreen extends PanelScreen implements ConsoleHo
         this.module = module;
         // 标题下的模块说明：与模块页标题下那行同源（用户 2026-09-17 口径：控制台里也要有说明）
         setSubtitle(module::description);
+        // 多选词条页的分组默认全部收起（用户 2026-09-20：一点开 13 个分组全展开，页面太长）
+        seedCollapsedSelectGroups();
         // 先同步页签再建正文：第一次打开时页签还不存在，不同步就会画出一排空页签
         syncTabs();
         content().add(body);
         reload();
+    }
+
+    /**
+     * 预置两个多选词条页（原版附魔分类 / 自动附魔分类）全部折叠块的「已收起」键。
+     *
+     * <p>{@link com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection} 的默认是展开，未被记录的键
+     * 展开——所以这里在窗口构造时把它们一次性记为收起；玩家在本次窗口里手动展开 / 收起照旧写回
+     * {@link #collapsedSections}，不会被这里覆盖（本方法只在构造时跑一次）。</p>
+     */
+    private void seedCollapsedSelectGroups() {
+        for (EnchantSettings.EnchantGroup group : EnchantSettings.BOOK_GROUPS) {
+            collapsedSections.add(EnchantSelectPage.foldKey(PREFIX_BOOK, group.title()));
+        }
+        for (EnchantSettings.EnchantGroup group : EnchantSettings.CUSTOM_GROUPS) {
+            collapsedSections.add(EnchantSelectPage.foldKey(PREFIX_CUSTOM, group.title()));
+        }
     }
 
     // ── 生命周期 ──
@@ -287,8 +310,8 @@ public final class EnchantConsoleScreen extends PanelScreen implements ConsoleHo
             case POINTS -> new EnchantPointPage(this, module).build(stack);
             case BASIC -> new EnchantBasicPage(this, module).build(stack);
             case GEAR -> new EnchantGearPage(this, module).build(stack);
-            case VANILLA -> new EnchantSelectPage(this, module, EnchantSettings.BOOK_GROUPS, "book").build(stack);
-            case CUSTOM_GROUPS -> new EnchantSelectPage(this, module, EnchantSettings.CUSTOM_GROUPS, "custom").build(stack);
+            case VANILLA -> new EnchantSelectPage(this, module, EnchantSettings.BOOK_GROUPS, PREFIX_BOOK).build(stack);
+            case CUSTOM_GROUPS -> new EnchantSelectPage(this, module, EnchantSettings.CUSTOM_GROUPS, PREFIX_CUSTOM).build(stack);
             case CUSTOM_TARGETS -> new EnchantCustomPage(this, module).build(stack);
         }
 

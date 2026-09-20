@@ -499,7 +499,10 @@ public final class EnchantStateMachine {
 
         if (remainingAttempts <= 0) {
             remainingAttempts = module.settings().singleRoundDraws;
-            setState(EnchantState.WALK_TO_FARM);
+            // 经验已够本轮用（≥ 本轮目标等级）就别白跑一趟挂机点：旧实现无条件去挂机点，
+            // FARMING 当刻又满足条件立刻折返，表现为「附魔台 ↔ 挂机位」来回走
+            // （用户 2026-09-20 单机把等级调到 2999999 复现）
+            setState(xpLevel >= roundTargetLevel() ? EnchantState.WALK_TO_ENCHANT : EnchantState.WALK_TO_FARM);
             return;
         }
         if (xpLevel >= 30) {
@@ -518,11 +521,16 @@ public final class EnchantStateMachine {
     }
 
     private void tickFarming() {
+        // 挂机中玩家手动走离挂机位：先停掉我们开的杀戮光环，再转回寻路态让 Baritone 把玩家拉回挂机点
+        // （用户 2026-09-20：挂机循环下手动走通挂机点后没被拉回，可以随意走动——旧项目缺这一判据）
+        if (!arrivedAtHangout()) {
+            stopKillAura();
+            setState(EnchantState.WALK_TO_FARM);
+            return;
+        }
         restoreHangoutView();
         startKillAura();
-        int targetLevel = module.settings().targetMode == EnchantTargetMode.GEAR
-            ? gearTargetXp
-            : 30 + 3 * (module.settings().singleRoundDraws - 1);
+        int targetLevel = roundTargetLevel();
         if (mc.player.experienceLevel >= targetLevel) {
             stopKillAura();
             remainingAttempts = module.settings().singleRoundDraws;
@@ -533,6 +541,17 @@ public final class EnchantStateMachine {
                 setState(EnchantState.WALK_TO_ENCHANT);
             }
         }
+    }
+
+    /**
+     * 挂机循环「本轮」的目标经验等级（唯一实现，{@link #tickFarming} 与
+     * {@link #tickIdle} 共用，避免同一判据留两份）：
+     * 附魔书 / 自定义模式按「30 级 + 每多一次抽取 3 级」估算，装备模式用当前任务记录的需求等级。
+     */
+    private int roundTargetLevel() {
+        return module.settings().targetMode == EnchantTargetMode.GEAR
+            ? gearTargetXp
+            : 30 + 3 * (module.settings().singleRoundDraws - 1);
     }
 
     private void tickWalkToEnchant() {
@@ -2184,24 +2203,34 @@ public final class EnchantStateMachine {
      * （该组在 {@code :545} 是真实存在的多选控件，箱子里能勾却被这里忽略，表现为「勾了不干活」）。
      * 本项目按用户裁定补上该组，位置与 CUSTOM 页的控件顺序一致（护甲之后、原版组之前），
      * 差异登记见 {@code 45-阶段11-...差异清单.md} 的 D10。</p>
+     *
+     * <p><b>用户 2026-09-20 裁定修正（词条来源按模式隔离）</b>：旧实现在两种模式下<b>都</b>把
+     * CUSTOM 的 5 组 + 自定义附魔目标并进任务列表，而控制台只在 {@code CUSTOM} 模式下才显示
+     * 这两处入口。于是「原版附魔书」模式里，页面上 8 组原版词条全是「已选择 0 项」，
+     * 模块却因为看不见的 CUSTOM 残留勾选 / 自定义目标照常启动并一直附魔
+     * （用户实机：{@code customEnchantTargets=["永生 2","永生 1"]}、{@code enchantSelection={}}）。
+     * 现按模式取源：{@code BOOK} 只用 {@link EnchantSettings#BOOK_GROUPS} 的 8 组，
+     * {@code CUSTOM} 只用 {@link EnchantSettings#CUSTOM_GROUPS} 的 5 组 + 自定义附魔目标。</p>
      */
     private void rebuildActiveTasks() {
         activeTasks.clear();
-        List<List<String>> enchantmentGroups = List.of(
-            EnchantSettings.SWORD_ENCHANTS,
-            EnchantSettings.AXE_ENCHANTS,
-            EnchantSettings.BOW_ENCHANTS,
-            EnchantSettings.ARMOR_ENCHANTS,
-            EnchantSettings.OTHER_ENCHANTS,
-            EnchantSettings.VANILLA_ARMOR_ENCHANTS,
-            EnchantSettings.VANILLA_MELEE_ENCHANTS,
-            EnchantSettings.VANILLA_TOOL_ENCHANTS,
-            EnchantSettings.VANILLA_BOW_ENCHANTS,
-            EnchantSettings.VANILLA_FISHING_ENCHANTS,
-            EnchantSettings.VANILLA_TRIDENT_ENCHANTS,
-            EnchantSettings.VANILLA_CROSSBOW_ENCHANTS,
-            EnchantSettings.VANILLA_COMMON_ENCHANTS
-        );
+        boolean customMode = module.settings().targetMode == EnchantTargetMode.CUSTOM;
+        List<List<String>> enchantmentGroups = customMode
+            ? List.of(
+                EnchantSettings.SWORD_ENCHANTS,
+                EnchantSettings.AXE_ENCHANTS,
+                EnchantSettings.BOW_ENCHANTS,
+                EnchantSettings.ARMOR_ENCHANTS,
+                EnchantSettings.OTHER_ENCHANTS)
+            : List.of(
+                EnchantSettings.VANILLA_ARMOR_ENCHANTS,
+                EnchantSettings.VANILLA_MELEE_ENCHANTS,
+                EnchantSettings.VANILLA_TOOL_ENCHANTS,
+                EnchantSettings.VANILLA_BOW_ENCHANTS,
+                EnchantSettings.VANILLA_FISHING_ENCHANTS,
+                EnchantSettings.VANILLA_TRIDENT_ENCHANTS,
+                EnchantSettings.VANILLA_CROSSBOW_ENCHANTS,
+                EnchantSettings.VANILLA_COMMON_ENCHANTS);
         for (List<String> group : enchantmentGroups) {
             for (String entry : group) {
                 if (module.settings().isSelected(entry) && !activeTasks.contains(entry)) {
@@ -2209,6 +2238,8 @@ public final class EnchantStateMachine {
                 }
             }
         }
+        // 自定义附魔目标（输入框手填的词条）只服务 CUSTOM 模式
+        if (!customMode) return;
         for (String task : module.settings().customEnchantTargets) {
             String normalized = normalizeEnchantmentText(task);
             if (!normalized.isEmpty() && !activeTasks.contains(normalized)) activeTasks.add(normalized);

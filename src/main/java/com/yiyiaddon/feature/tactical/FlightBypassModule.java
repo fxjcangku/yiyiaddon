@@ -5,12 +5,12 @@ import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.core.event.ClientEvent;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.module.Module;
-import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.feature.tactical.config.FlightBypassSettings;
 import com.yiyiaddon.feature.tactical.core.FlightPolicy;
 import com.yiyiaddon.feature.tactical.core.TacticalCoordinator;
 import com.yiyiaddon.feature.tactical.ui.FlightBypassPage;
+import com.yiyiaddon.platform.GameProbe;
 import com.yiyiaddon.platform.container.InventoryAccess;
 import com.yiyiaddon.ui.page.ModulePage;
 import net.minecraft.client.Minecraft;
@@ -44,8 +44,9 @@ import java.util.Set;
  * <p><b>框架适配（本项目没有、旧框架白送的能力）</b>：</p>
  * <ul>
  *     <li>播报：旧 {@code notify/warning} → {@link ClientChat#send(String, String)}；</li>
- *     <li>单人多世界自动关闭：旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}
- *         → {@link ModuleManager#setEnabledSilently(String, boolean)}（静默关，播报由本模块给出）；</li>
+ *     <li>单人世界不可开启：旧 {@code chatFeedback=false; toggle(); chatFeedback=true;}
+ *         只写在 {@code onActivate} 里 → 改为 {@link Module#environmentRefusal()} 交给框架，
+ *         启用与进世界两个时机都拦（旧写法对默认开启的模块拦不住）；</li>
  *     <li>会话重置：旧订阅 {@code SessionResetEvent} → 本项目订阅 {@link ClientEventType#JOIN_SERVER}
  *         与 {@link ClientEventType#DISCONNECT}（协调器同样订阅这两个，各清各的状态，顺序无关）；</li>
  *     <li>发包：旧直接构造包 → {@link ClientPacketSender} 的语义直发（走核心闸门的绕行通道）；</li>
@@ -177,14 +178,21 @@ public final class FlightBypassModule extends Module {
 
     // ── 生命周期 ──
 
-    /** 旧 {@code onActivate}：单人世界自动关闭（静默关，播报单独给出） */
+    /**
+     * 单人世界闸门：旧 {@code onActivate} 的第一段（原因文案照旧）。
+     *
+     * <p>旧实现只拦「在单人世界里点开启」。本模块虽非默认开启，但玩家在主菜单（或进服前的
+     * 任意时刻）开启后进单人世界同样绕得过去，因此与其它战术模块统一交给框架的
+     * {@link Module#environmentRefusal()}，两个时机都拦。</p>
+     */
+    @Override
+    public String environmentRefusal() {
+        return GameProbe.isSingleplayer() ? "§c单人世界无需飞行绕过" : null;
+    }
+
+    /** 旧 {@code onActivate}：复位本地状态（单人世界闸门已交给框架） */
     @Override
     protected void onEnable() {
-        if (mc.hasSingleplayerServer()) {
-            ModuleManager.setEnabledSilently(MODULE_ID, false);
-            ClientChat.send(MESSAGE_MODULE, "§c单人世界无需飞行绕过");
-            return;
-        }
         resetLocalState();
     }
 

@@ -4,6 +4,8 @@ import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.skija.ColorAlphaType;
 import io.github.humbleui.skija.ColorSpace;
 import io.github.humbleui.skija.ColorType;
+import io.github.humbleui.skija.Data;
+import io.github.humbleui.skija.EncodedImageFormat;
 import io.github.humbleui.skija.Image;
 import io.github.humbleui.skija.ImageInfo;
 import io.github.humbleui.skija.SamplingMode;
@@ -30,11 +32,16 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -79,8 +86,22 @@ public final class ItemIconCache {
     private static final float SLOT_GAP = 4f;
     /** 渲染放大倍数：原版物品图标为 16×16 逻辑像素，放大到 32。 */
     private static final float SCALE = 2f;
-    /** 缓存条目上限，超出后整体重建，避免贴图无限增长。 */
-    private static final int CAPACITY = 1024;
+    /**
+     * 缓存条目上限。撞上上限时<b>只淘汰最旧的一批</b>（见 {@link #evictOldest}），不再整张清空。
+     *
+     * <p><b>1024 → 4096、并且不再 {@code clear()} 的原因</b>（用户 2026-09-22：「点击目标选择器分组
+     * 的时候 选东西的时候 会闪，就是那些贴图还是物品图标的东西 一闪而过…就目标选择器会这样」）：
+     * 目标选择器列的是<b>全物品 / 全方块注册表</b>（26.1.2 上约 1500 + 1050 条），加上各类选择器翻一遍，
+     * 累计图标很容易越过 1024。旧写法一到上限就 {@code clear()} —— 整张缓存连同在途请求一起没了，
+     * 屏幕上<b>所有</b>物品图标当场消失、再一张张慢慢补回来，看着就是「图标一闪而过」。
+     * 全项目只有目标选择器有这么大的表，所以只有它会这样。</p>
+     *
+     * <p>4096 张 32×32 位图约 16 MB，装得下两张注册表全量图标；真撞上上限时淘汰的是最早入库的那批
+     * （那些图标早滚出视野了），不会出现「整屏图标同时消失」。</p>
+     */
+    private static final int CAPACITY = 4096;
+    /** 撞上上限时一次淘汰的条数：按插入顺序取最旧的一批（约 1/8，够腾出余量又不至于反复淘汰） */
+    private static final int EVICT_BATCH = 512;
     /** 隐藏格子的行数：第 0 行铺纯黑底、第 1 行铺纯白底，两版相减反解真实 alpha。 */
     private static final int ROWS = 2;
     /** 两行之间留出的空隙，正好让开屏幕正中 15×15 的准星。 */
@@ -107,7 +128,11 @@ public final class ItemIconCache {
     /** 实体拍照时的抬升量：与 {@code InventoryScreen} 一致（1/16 格），让模型在格子里居中。 */
     private static final float MODEL_Y_OFFSET = 0.0625f;
 
-    private final Map<String, Image> icons = new HashMap<>();
+    /**
+     * 已缓存的图标。用 {@link LinkedHashMap} 而不是 HashMap：淘汰要按「入库先后」取最旧的一批，
+     * 插入顺序正好就是入库顺序（同一键重新入库会排到队尾，视作最新，符合预期）。
+     */
+    private final Map<String, Image> icons = new LinkedHashMap<>();
     private final Set<String> loading = new HashSet<>();
     private final ArrayDeque<Request> pending = new ArrayDeque<>();
     private final List<Request> rendered = new ArrayList<>();
@@ -153,7 +178,9 @@ public final class ItemIconCache {
      */
     public void renderPending(GuiGraphicsExtractor graphics) {
         rendered.clear();
-        if (graphics == null || (pending.isEmpty() && pendingModels.isEmpty())) return;
+        if (graphics == null || (pending.isEmpty() && pendingModels.isEmpty())) {
+            return;
+        }
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null) {
             pending.clear();
@@ -257,13 +284,33 @@ public final class ItemIconCache {
                 failModel(request);
                 continue;
             }
-            if (icons.size() >= CAPACITY) clear();
+            if (icons.size() >= CAPACITY) evictOldest();
             Image previous = icons.put(request.key, capture.image());
             if (previous != null) previous.close();
         }
         rendered.clear();
         // 备份的画面不在这里写回：写回需要一个 Skija 画布，统一交给 SkiaGlBackend#begin
         // 在开始画主帧缓冲时调用 paintBackdrop（那个时机正好在面板绘制之前）。
+    }
+
+    /**
+     * 淘汰最旧的一批图标（按入库先后），而不是清空整张缓存。
+     *
+     * <p>与 {@link #clear()} 的两点区别，都是「别把还看得见的东西一起删掉」：</p>
+     * <ul>
+     *   <li>只删最早入库的 {@link #EVICT_BATCH} 张 —— 它们要么早滚出视野、要么在别的界面里，
+     *       重新需要时按需再截一次即可，不会有「整屏图标同时消失」；</li>
+     *   <li>{@code modelUnsupported}（渲不出来的实体黑名单）与在途请求<b>保留</b>：它们跟容量无关，
+     *       清掉只会让那些实体被反复重试、排在队里的图标白等一帧。</li>
+     * </ul>
+     */
+    private void evictOldest() {
+        Iterator<Map.Entry<String, Image>> it = icons.entrySet().iterator();
+        for (int i = 0; i < EVICT_BATCH && it.hasNext(); i++) {
+            Map.Entry<String, Image> entry = it.next();
+            entry.getValue().close();
+            it.remove();
+        }
     }
 
     // ── 绘制 ──

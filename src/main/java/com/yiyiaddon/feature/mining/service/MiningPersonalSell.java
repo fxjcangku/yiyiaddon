@@ -1,11 +1,14 @@
 package com.yiyiaddon.feature.mining.service;
 
+import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.platform.container.ContainerAccess;
 import com.yiyiaddon.platform.container.SilentContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Display;
@@ -15,7 +18,10 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.phys.EntityHitResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,7 +37,8 @@ import java.util.List;
  * <p><b>全程静默</b>：所有菜单都只读 {@code player.containerMenu} 的槽位内容、发包点击，
  * 界面一个都不弹（服务端推来的换菜单界面由 {@link #isMenuFlowActive()} 交给
  * {@code AutoMinerModule#onOpenScreen} 压掉，否则会弹出来抢鼠标）。槽位匹配沿用 RTP 选单那套口径：
- * 悬停名剥掉颜色码与空格后做包含比对（{@code ServerCommandRunner#handleGuiAutoClick}）。</p>
+ * 悬停名剥掉颜色码与空格后做包含比对，名字全菜单都没有时再比一层附魔说明行（{@code lore}，
+ * 见 {@link #findKeywordSlot}）。</p>
  *
  * <p><b>物品判据</b>：卖的是 {@code AutoMinerModule#sellItemFilter()} —— <b>目标三选一在当前采集模式下的
  * 产物</b>（用户 2026-09-21：「同步选择器 我选什么就显示出售什么」），所以默认状态下与正在挖的矿天然
@@ -39,6 +46,9 @@ import java.util.List;
  * 仍能命中，改名前后的菜单都能点。</p>
  */
 public final class MiningPersonalSell {
+
+    /** 与状态机同一个日志名：出售链的所有行都落在 {@code latest.log} 的 {@code [卖矿流程]} 里 */
+    private static final Logger MINING_LOG = LoggerFactory.getLogger("yiyiaddon/mining");
 
     private final AutoMinerModule module;
     private final Minecraft mc = Minecraft.getInstance();
@@ -160,32 +170,167 @@ public final class MiningPersonalSell {
         return findTargetSlot() != null;
     }
 
+    /**
+     * 菜单里那件商品是否已经带上了价格说明行（= 商店的商品列表刷出来了）。
+     *
+     * <p>本服商店的菜单是<b>先开空表格、隔一两刻再异步刷出商品列表</b>：列表没刷出来之前，
+     * 唯一命中目标名的只有第 6 行 81..89 那排热键栏<b>快捷镜像格</b>，点它只算「选中」、
+     * 不开选量菜单 —— 那一屏找不到「全部」，白等一个单步超时。用它当「列表已就绪」的判据
+     * （列表格必带 {@code 上轮单价 / 仓库与背包可出售} 一类的说明行，镜像格没有）。</p>
+     */
+    public boolean hasListedTarget() {
+        AbstractContainerMenu menu = menu();
+        if (menu == null) return false;
+        for (Slot slot : menu.slots) {
+            ItemStack stack = slot.getItem();
+            if (matchesMenuTarget(stack) && !loreText(stack).isEmpty()) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 菜单里那个「出售物品」的槽位（挑最准的一格）。
+     *
+     * <p><b>带附魔说明行（lore）的列表格优先</b>：实测本服 90 格收购菜单里，商品列表在 0..44，每格带
+     * {@code 上轮单价 / 仓库与背包可出售 / 点击选择出售数量} 的 lore；第 6 行 81..89 是玩家背包的
+     * <b>快捷镜像</b>，只有名字、没有 lore。点镜像格只算「选中」，不开选量菜单 ——
+     * 用户 2026-09-22「半天才出售成功」就是列表还没刷出来时先点中了镜像格，白等一个单步超时，
+     * 重试才点中列表格。</p>
+     *
+     * <p><b>但光有 lore 还不够</b>：按名字包含匹配时「圆石」会先撞上同屏的「深板岩圆石」
+     * （2026-09-22 20:25 日志实锤点中的是 {@code #18 深板岩圆石 可出售:0个}），所以按
+     * 「登记 ID 完全相等 &gt; 悬停名完全相等 &gt; 带 lore 的列表格」打分取最高分那一格。</p>
+     */
     private Slot findTargetSlot() {
         AbstractContainerMenu menu = menu();
         if (menu == null) return null;
+        String filter = module.sellItemFilter();
+        String wanted = stripFormatting(module.getSellItemDisplayName());
+        Slot best = null;
+        int bestScore = 0;
         for (Slot slot : menu.slots) {
-            if (matchesMenuTarget(slot.getItem())) return slot;
+            if (isPlayerSlot(slot)) continue;
+            ItemStack stack = slot.getItem();
+            if (!matchesMenuTarget(stack)) continue;
+            // 打分挑「最准的那一格」而不是「第一格」：按名字包含匹配时「圆石」会先撞上「深板岩圆石」，
+            // 用户 2026-09-22 实测点中的就是 #18 深板岩圆石（可出售:0个，那一屏自然开不出选量菜单），
+            // 真目标 #19 圆石（可出售:64个）被跳过。登记 ID 完全相等 4 分、悬停名完全相等 2 分、
+            // 带 lore 的列表格 1 分（第 6 行是背包的快捷镜像格，点它只算选中、不开选量菜单）。
+            int score = isTargetId(stack, filter) ? 4 : 0;
+            String name = stripFormatting(stack.getHoverName().getString());
+            if (!wanted.isEmpty() && name.equals(wanted)) score += 2;
+            if (!loreText(stack).isEmpty()) score += 1;
+            if (score > bestScore) {
+                bestScore = score;
+                best = slot;
+            }
         }
-        return null;
+        return best;
     }
 
+    /**
+     * 找「悬停名或附魔说明行包含关键词」的槽位。
+     *
+     * <p><b>两轮扫描</b>：先全菜单比悬停名，都没命中再比附魔说明行（{@code lore}）。顺序不能反 ——
+     * 商店把商品自己的说明写进 lore（实测本服：{@code 点击选择出售数量} 就是一条 lore），
+     * 混在一轮里扫会让商品格抢在「全部 / 确认出售」按钮前面被点到。</p>
+     */
     private Slot findKeywordSlot(String keyword) {
         AbstractContainerMenu menu = menu();
         String wanted = stripFormatting(keyword);
         if (menu == null || wanted.isEmpty()) return null;
+        Slot loreHit = null;
         for (Slot slot : menu.slots) {
+            if (isPlayerSlot(slot)) continue;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
             if (stripFormatting(stack.getHoverName().getString()).contains(wanted)) return slot;
+            if (loreHit == null && loreText(stack).contains(wanted)) loreHit = slot;
         }
-        return null;
+        return loreHit;
     }
 
-    /** 发包点一次槽位（原版语义：左键拾取）。菜单 id 取自实况，静默模式下同样有效 */
+    /**
+     * 「关键词格」的指纹（登记 ID + 悬停名 + 附魔说明行）；没这一格给空串。
+     *
+     * <p>用途是判「插件已经把已选数量落进会话」：本服选量菜单里「确认出售」那一格在选量生效前是
+     * {@code gray_dye} + lore「请先选择至少1个物品」，点完「全部」之后才变成 {@code emerald_block}
+     * + 「数量:64个 …」（实测日志 2026-09-22 20:41:51）。点击前后各取一次指纹一比，变了就说明可以
+     * 立刻点确认 —— 比盲等固定时长快，而且换别的服（不写 lore）也只是退化成原来的固定等待。</p>
+     */
+    public String keywordSlotFingerprint(String keyword) {
+        Slot slot = findKeywordSlot(keyword);
+        if (slot == null) return "";
+        ItemStack stack = slot.getItem();
+        return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString() + '|'
+            + stripFormatting(stack.getHoverName().getString()) + '|' + loreText(stack);
+    }
+
+    /**
+     * 这一格是不是玩家自己背包里的格子（收购菜单 = 54 格容器 + 36 格背包，实测共 90 槽）。
+     *
+     * <p><b>背包那 36 格一律不点</b>：点自己的格子等于「把东西抓到手心」—— 客户端预测会立刻清空那一格
+     * （背包读数因此瞬间变 0），服务端却只当成一次没头没尾的拾取。用户 2026-09-22 实测的
+     * 「根本没卖出去 一直说我出售成功」就是这么来的：日志 {@code 点击槽位 #56（容器 #3 状态号 13）：圆石}，
+     * 槽 56 正是自己背包，点完背包读数变 0 → 状态机当场判「卖完了」→ 报出售完成，实际一颗没卖。</p>
+     */
+    private boolean isPlayerSlot(Slot slot) {
+        return mc.player != null && slot.container == mc.player.getInventory();
+    }
+
+    /** 附魔说明行（{@code lore}）剥掉颜色码与空白后拼成一串；没有 lore 返回空串 */
+    private static String loreText(ItemStack stack) {
+        ItemLore lore = stack.get(DataComponents.LORE);
+        if (lore == null) return "";
+        StringBuilder out = new StringBuilder();
+        for (Component line : lore.lines()) {
+            String text = stripFormatting(line.getString());
+            if (text.isEmpty()) continue;
+            if (out.length() > 0) out.append(' ');
+            out.append(text);
+        }
+        return out.toString();
+    }
+
+    /**
+     * 诊断文本：把当前菜单逐槽摊开（槽号 / 登记 ID / 悬停名 / 附魔说明行）。
+     *
+     * <p>用户 2026-09-22：「就叫钻石啊我选的也没错」—— 那句「收购菜单里没找到」是流程自己猜的，
+     * 真正卡住的是后面某一步点不到按钮。这行日志把「菜单里到底有哪些格、每格叫什么」原样写进
+     * {@code latest.log}，照着它把「出售数量 / 确认出售关键词」填对即可，不用再靠猜。</p>
+     */
+    public String menuDump() {
+        AbstractContainerMenu menu = menu();
+        if (menu == null) return "（当前没开菜单）";
+        StringBuilder out = new StringBuilder("菜单#").append(menu.containerId)
+            .append(" 状态号").append(menu.getStateId())
+            .append(" 共").append(menu.slots.size()).append("槽");
+        for (Slot slot : menu.slots) {
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty()) continue;
+            out.append(" | ").append(slot.index).append(':')
+                .append(BuiltInRegistries.ITEM.getKey(stack.getItem()))
+                .append(" '").append(stripFormatting(stack.getHoverName().getString())).append('\'');
+            String lore = loreText(stack);
+            if (!lore.isEmpty()) out.append(" [").append(lore).append(']');
+        }
+        return out.toString();
+    }
+
+    /** 发包点一次槽位（原版语义：左键拾取），并把「点了哪一格、那一格是什么」写进日志 */
     private void click(int slotIndex) {
         AbstractContainerMenu menu = menu();
         if (menu == null || mc.gameMode == null || mc.player == null) return;
+        MINING_LOG.info("[卖矿流程] 点击槽位 #{}（容器 #{} 状态号 {}）：{}", slotIndex, menu.containerId,
+            menu.getStateId(), clickTargetName(menu, slotIndex));
         mc.gameMode.handleContainerInput(menu.containerId, slotIndex, 0, ContainerInput.PICKUP, mc.player);
+    }
+
+    /** 槽位在日志里的名字（越界或空格子给 {@code 空}） */
+    private static String clickTargetName(AbstractContainerMenu menu, int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= menu.slots.size()) return "空";
+        ItemStack stack = menu.slots.get(slotIndex).getItem();
+        return stack.isEmpty() ? "空" : stripFormatting(stack.getHoverName().getString());
     }
 
     // ── 背包 ──
@@ -196,6 +341,12 @@ public final class MiningPersonalSell {
         for (int i = 0; i < 36; i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
             if (matchesBagTarget(stack)) total += stack.getCount();
+        }
+        // 手心里那一摞也要算：点自己背包的格子会把它挪到光标上（那格立刻变空、读数变 0），
+        // 只看格子的读数会被当成「一颗不剩、卖完了」（用户 2026-09-22「根本没卖出去 一直说我出售成功」）
+        if (mc.player.containerMenu != null) {
+            ItemStack carried = mc.player.containerMenu.getCarried();
+            if (matchesBagTarget(carried)) total += carried.getCount();
         }
         return total;
     }
@@ -257,8 +408,8 @@ public final class MiningPersonalSell {
      * </ol>
      *
      * <p>为什么必须兜底到坐标：插件 NPC 的真名是随机串（本服实测 {@code CIT-a011feed8824}），玩家不可能猜到，
-     * 而配置坐标是他站在 NPC 旁边采的（实测距 NPC 0.0 格），所以「就近」比「猜名字」可靠得多。第 3 层命中时
-     * 播报一次，说明名字没用上、换成了就近选。</p>
+     * 而配置坐标是他站在 NPC 旁边采的（实测距 NPC 0.0 格），所以「就近」比「猜名字」可靠得多。第 3 层是
+     * <b>正常路径</b>，只在日志里写一行记下用了哪个锚点，不往聊天里刷提示（用户 2026-09-22 要求去掉）。</p>
      *
      * <p><b>只认假玩家</b>：候选必须是玩家实体、且不在 Tab 玩家名单里（插件 NPC 不下发列表项），
      * 这样就近兜底不会右键到路人身上；传送神兽那种 {@code slime} 也不会被选中。</p>
@@ -309,8 +460,11 @@ public final class MiningPersonalSell {
         if (best == null || bestDist > NPC_NEAR_RANGE * NPC_NEAR_RANGE) return null;
         if (!npcFallbackAnnounced) {
             npcFallbackAnnounced = true;
-            module.info("§7「" + module.settings().personalSellNpcName + "」不是实体名 §8▸ §7已按坐标就近选中收购 NPC §f"
-                + best.getName().getString());
+            // 只写日志不刷聊天：插件 NPC 的真名是随机串（本服 CIT-a011feed8824），玩家填的必然是头顶那行
+            // 「黑市商人[收购]」，走坐标就近是正常路径而不是异常（用户 2026-09-22 要求去掉这条提示）
+            MINING_LOG.info("[卖矿流程] 「{}」不是实体名，已就近选中收购 NPC {}（锚点：{}）",
+                module.settings().personalSellNpcName, best.getName().getString(),
+                hologram != null ? "头顶全息 " + hologram.blockPosition() : "配置坐标 " + center);
         }
         return best;
     }
@@ -410,7 +564,16 @@ public final class MiningPersonalSell {
         return true;
     }
 
-    /** 把视角转向实体眼睛位置（只在交互发包瞬间调用，不持续覆盖玩家视角） */
+    /**
+     * 把视角转向实体眼睛位置，<b>并且当场把朝向包发出去</b>。
+     *
+     * <p>为什么必须显式补一个朝向包：原版把 {@code ServerboundMovePlayerPacket.Rot} 放在
+     * {@code LocalPlayer#tick} 的末尾（{@code sendPosition()}）才发，而交互包是本刻立即发出的 ——
+     * 服务端先收到交互包、后收到朝向包，处理交互时手上还是<b>上一刻的旧朝向</b>。商店插件按旧朝向
+     * 判定「人没看着 NPC」就把这次点击丢掉，于是表现为<b>人已经站在 NPC 旁边了还必须自己用鼠标
+     * 盯着 NPC 才给开菜单</b>（用户 2026-09-22「到 npc 旁边还要看着他」）。先把朝向包写进连接再发
+     * 交互包，同一条 TCP 上顺序天然成立，服务端处理交互时朝向已经是对的。</p>
+     */
     private void faceEntity(Entity entity) {
         if (mc.player == null) return;
         var eye = mc.player.getEyePosition();
@@ -419,8 +582,11 @@ public final class MiningPersonalSell {
         double dy = target.y - eye.y;
         double dz = target.z - eye.z;
         double horiz = Math.sqrt(dx * dx + dz * dz);
-        mc.player.setYRot((float) Math.toDegrees(Math.atan2(-dx, dz)));
-        mc.player.setXRot((float) Math.max(-90, Math.min(90, Math.toDegrees(-Math.atan2(dy, horiz)))));
+        float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        float pitch = (float) Math.max(-90, Math.min(90, Math.toDegrees(-Math.atan2(dy, horiz))));
+        mc.player.setYRot(yaw);
+        mc.player.setXRot(pitch);
+        ClientPacketSender.sendMoveRotation(yaw, pitch, mc.player.onGround(), mc.player.horizontalCollision);
     }
 
     // ── 文本 / 取值 ──
