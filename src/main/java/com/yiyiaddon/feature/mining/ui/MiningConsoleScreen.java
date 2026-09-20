@@ -363,7 +363,9 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
                 return MiningTargetPage.itemDisplayName(settings.netherOreTarget);
             }
             if (!settings.blockTarget.isBlank()) {
-                return MiningTargetPage.blockDisplayName(settings.blockTarget);
+                String name = MiningTargetPage.blockDisplayName(settings.blockTarget);
+                // 圆石、深板岩圆石这类几乎只在结构里出现：目标栏直接点一句，别等满地图跑才发现
+                return MiningTargetControls.isUnnaturalBlock(settings.blockTarget) ? name + " §c✗挖不到" : name;
             }
             return "§8未选择";
         }
