@@ -3,6 +3,9 @@ package com.yiyiaddon.ui.render;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Minecraft 颜色码文本工具：把带 {@code §} 的文本解析后绘制或测量。
  *
@@ -172,6 +175,53 @@ public final class MinecraftText {
             if (measure(candidate, size, false) <= maxWidth) return candidate;
         }
         return "…";
+    }
+
+    /**
+     * 按可见宽度折行：先按 {@code \n} 分段，再把每段折到 {@code maxWidth} 以内。
+     *
+     * <p><b>为什么按可见宽度算</b>：颜色码（{@code §x}）不占宽度，按字符数折行会让带色的长句提前断行；
+     * 这里整对带过颜色码，折行位置与 {@link #draw} 的排版结果一致。空段保留成空行。</p>
+     *
+     * <p><b>单一实现（第 169 条）</b>：原为 {@code TooltipLayer} 的私有折行，HUD 顶部横幅要用同一套
+     * 宽度口径，收敛到这里，两处不会再各写一份。</p>
+     *
+     * @param text     带颜色码的原文，{@code null} 按空处理
+     * @param size     字号（与绘制时一致）
+     * @param maxWidth 可见宽度上限；{@code <= 0} 时不折行，仅按 {@code \n} 分段
+     */
+    public static List<String> wrap(String text, float size, float maxWidth) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isEmpty()) return lines;
+        for (String paragraph : text.split("\n", -1)) {
+            if (maxWidth <= 0f || paragraph.isEmpty()) {
+                lines.add(paragraph);
+                continue;
+            }
+            StringBuilder line = new StringBuilder();
+            float width = 0f;
+            for (int i = 0; i < paragraph.length(); ) {
+                int codePoint = paragraph.codePointAt(i);
+                int charCount = Character.charCount(codePoint);
+                String chunk = paragraph.substring(i, i + charCount);
+                i += charCount;
+                // 颜色码整对带过，宽度由 measure 解析后为 0
+                if (codePoint == CODE_PREFIX && i < paragraph.length()) {
+                    chunk += paragraph.charAt(i);
+                    i++;
+                }
+                float chunkWidth = measure(chunk, size, false);
+                if (width + chunkWidth > maxWidth && line.length() > 0) {
+                    lines.add(line.toString());
+                    line.setLength(0);
+                    width = 0f;
+                }
+                line.append(chunk);
+                width += chunkWidth;
+            }
+            lines.add(line.toString());
+        }
+        return lines;
     }
 
     private static float flush(Canvas canvas, StringBuilder buffer, float cursor, float y, float size,

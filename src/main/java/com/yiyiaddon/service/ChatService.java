@@ -9,6 +9,7 @@ import com.yiyiaddon.core.HttpApi;
 import com.yiyiaddon.core.Json;
 import com.yiyiaddon.model.ChatMessage;
 import com.yiyiaddon.platform.ClientIdentity;
+import com.yiyiaddon.ui.render.HudBanner;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -26,6 +27,10 @@ public final class ChatService {
 
     /** 后端限制的单条消息最大长度。 */
     public static final int MESSAGE_LIMIT = 300;
+
+    /** 管理员消息横幅的标题与底部提示（提示逐字对应 {@link com.yiyiaddon.command.ReplyCommand} 的用法）。 */
+    private static final String ADMIN_TITLE = "管理员消息";
+    private static final String REPLY_HINT = "使用 .回复 <内容> 回复";
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final Duration SHORT_TIMEOUT = Duration.ofSeconds(5);
@@ -110,7 +115,15 @@ public final class ChatService {
         if (!response.ok() || root == null) return List.of();
 
         List<ChatMessage> messages = parse(root);
-        for (ChatMessage message : messages) ClientChat.raw(render(message));
+        for (ChatMessage message : messages) {
+            if (message.fromAdmin()) {
+                // 管理员消息走 HUD 顶部横幅（十秒），不进聊天栏：聊天栏那行会混在服务器刷屏里被冲走，
+                // 而这条消息是要玩家当场看见并回复的（用户 2026-09-21 的界面要求）。
+                HudBanner.show(ADMIN_TITLE, message.message(), REPLY_HINT);
+                continue;
+            }
+            ClientChat.raw(render(message));
+        }
         return messages;
     }
 
@@ -141,9 +154,6 @@ public final class ChatService {
     }
 
     private static String render(ChatMessage message) {
-        if (message.fromAdmin()) {
-            return "§b[管理员] §f" + message.message() + " §8(使用 .回复 <内容> 回复)";
-        }
         String account = message.premium() ? "§a[正版] " : "§7[离线] ";
         return "§d[聊天] " + account + "§e" + message.sender() + "§8：§f" + message.message();
     }
