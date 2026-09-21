@@ -1,6 +1,7 @@
 package com.yiyiaddon;
 
 import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.integration.baritone.BaritoneThreadPool;
 import com.yiyiaddon.integration.baritone.BaritoneTranslationToggle;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
@@ -20,6 +21,9 @@ public final class YiyiAddon implements ModInitializer {
     @Override
     public void onInitialize() {
         AddonConfig.load();
+        // 进世界前把 Baritone 共享线程池改成守护线程：否则退出游戏时 JVM 不退出，
+        // 会被 26.2 的关停看门狗写成一份「客户端崩溃」报告（详见该方法注释）
+        BaritoneThreadPool.daemonize();
         LOGGER.info("yiyiaddon initialised (baritone localisation: {})", BaritoneTranslationToggle.enabled() ? "on" : "off");
     }
 }
