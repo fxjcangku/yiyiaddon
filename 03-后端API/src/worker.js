@@ -7,7 +7,7 @@
  * 2. 登录成功后签发由密码派生的 token，后续管理接口统一用 Bearer token 鉴权
  * 3. 公开接口仅返回脱敏统计；含坐标/IP/血量的完整玩家数据只对管理员开放
  * 4. 注册接口过滤假玩家（Player+数字）与本地回环/局域网测试数据
- * 5. 在线状态仅以心跳为准：/api/heartbeat 每 3 秒上报一次，12 秒无心跳自动离线；断开或退出游戏时调用 /api/offline 立即离线
+ * 5. 在线状态仅以心跳为准：/api/heartbeat 每 3 秒上报一次（写库节流为 30 秒），心跳超时 90 秒判定离线；断开或退出游戏时调用 /api/offline 立即离线
  */
 
 import { ADMIN_HTML } from './admin-modern.js';
@@ -16,7 +16,7 @@ import { ADMIN_HTML } from './admin-modern.js';
 const SW_JS = `// Service Worker for yiyiaddon 后台管理系统
 // 提供离线缓存功能
 
-const CACHE_NAME = 'yiyiaddon-v6';
+const CACHE_NAME = 'yiyiaddon-v7';
 const urlsToCache = [
   '/',
   '/api/config',
@@ -662,6 +662,7 @@ export default {
       try {
         const { uuid } = await request.json();
         if (!uuid) return jsonResponse({ error: 'UUID required' }, 400);
+
         if (!isValidUuid(uuid)) return jsonResponse({ success: true, skipped: true, reason: 'invalid_uuid' });
 
         await env.DB.prepare('UPDATE users SET is_online = 0, last_heartbeat = NULL, server_latency = NULL, network_latency = NULL WHERE uuid = ?').bind(uuid).run();
@@ -982,7 +983,7 @@ export default {
       }
     }
 
-    // 发送消息给玩家（管理员，支持目标为空表示广播）
+    // 发送消息（管理员）：传 target_uuid 为私信（等对方上线投递），不传为广播（只投给发送时在线的玩家）
     if (path === '/api/messages/send' && request.method === 'POST') {
       const auth = await requireAuth(request, env);
       if (auth) return auth;
@@ -993,12 +994,36 @@ export default {
           return jsonResponse({ error: '消息内容不能为空' }, 400);
         }
 
+        await ensureMessagesTargets(env.DB);
         const now = Date.now();
-        await env.DB.prepare(
-          'INSERT INTO messages (target_uuid, target_name, message, sender, created_at, delivered, from_uuid, from_admin) VALUES (?, ?, ?, ?, ?, 0, NULL, 1)'
-        ).bind(target_uuid || null, target_name || '所有人', String(message), 'Admin', now).run();
+        const text = String(message);
 
-        return jsonResponse({ success: true, message: '消息已发送', target: target_name || '所有人' });
+        // 私信：单行、delivered = 0，等收件人下次轮询时投递（离线也留着，这是私信该有的样子）
+        if (target_uuid) {
+          await env.DB.prepare(
+            'INSERT INTO messages (target_uuid, target_name, message, sender, created_at, delivered, from_uuid, from_admin, target_uuids) VALUES (?, ?, ?, ?, ?, 0, NULL, 1, NULL)'
+          ).bind(target_uuid, target_name || '玩家', text, 'Admin', now).run();
+
+          return jsonResponse({ success: true, delivered: 1, message: '消息已发送', target: target_name || '玩家' });
+        }
+
+        // 广播：发送这一刻把在线玩家固化进 target_uuids，只投给名单上的人。
+        // 离线玩家不再补收——2026-09-21 定稿口径，避免老玩家进服时看到几小时前的广播。
+        // 在线口径与全局一致：last_heartbeat 在 HEARTBEAT_TIMEOUT 内即算在线（心跳写库有 30 秒节流）。
+        const online = await env.DB.prepare('SELECT uuid FROM users WHERE last_heartbeat >= ?')
+          .bind(now - HEARTBEAT_TIMEOUT).all();
+        const uuids = (online.results || []).map(u => u.uuid).filter(Boolean);
+
+        await env.DB.prepare(
+          'INSERT INTO messages (target_uuid, target_name, message, sender, created_at, delivered, from_uuid, from_admin, target_uuids) VALUES (NULL, ?, ?, ?, ?, 0, NULL, 1, ?)'
+        ).bind(target_name || '所有人', text, 'Admin', now, packTargetUuids(uuids)).run();
+
+        return jsonResponse({
+          success: true,
+          delivered: uuids.length,
+          message: uuids.length ? `已投递给 ${uuids.length} 名在线玩家` : '当前无人在线，消息未投递',
+          target: target_name || '所有人',
+        });
       } catch (error) {
         return jsonResponse({ error: error.message }, 500);
       }
@@ -1030,6 +1055,9 @@ export default {
         const { uuid } = await request.json();
         if (!uuid) return jsonResponse({ error: 'UUID required' }, 400);
 
+        // 广播名单列可能还没建（并发部署或迁移未跑），这里兜一次，避免查询因缺列 500
+        await ensureMessagesTargets(env.DB);
+
         // 个人定向消息
         const personal = await env.DB.prepare(
           `SELECT m.id, m.message, m.sender, m.from_admin, m.created_at, u.is_premium
@@ -1038,18 +1066,22 @@ export default {
         ).bind(uuid).all();
 
         // 广播消息：发给所有人且该玩家尚未读取（排除玩家回复管理员的消息）。
-        // 再加一道「不早于该玩家首次使用时间」的闸门：广播的已读是按玩家各记一条，若不加这道闸，
-        // 新玩家一进服就会把消息表里所有历史广播一次性收完（旧广播对他都是未读）。
-        // uuid 还不在 users 表里（注册尚未落库或注册失败）时按「此刻」算，即历史广播一律不投递，
-        // 等他注册落库之后，当天新发的广播照常送达。
+        // 两道闸门：
+        // 1) 管理员广播在发送时就把「当时在线的玩家」固化进 target_uuids，只投给名单上的人，
+        //    离线玩家不再补收（2026-09-21 定稿口径：老玩家进服不该看到几小时前的广播）；
+        //    target_uuids 为 NULL 的是玩家自己的跨服频道消息，仍按「聊天记录补收」处理。
+        // 2) 不早于该玩家首次使用时间：广播的已读是按玩家各记一条，若不加这道闸，
+        //    新玩家一进服就会把消息表里所有历史广播一次性收完（旧广播对他都是未读）。
+        //    uuid 还不在 users 表里（注册尚未落库或注册失败）时按「此刻」算，即历史广播一律不投递。
         const broadcast = await env.DB.prepare(
           `SELECT m.id, m.message, m.sender, m.from_admin, m.created_at, u.is_premium FROM messages m
            LEFT JOIN users u ON u.uuid = m.from_uuid
            WHERE m.target_uuid IS NULL AND (m.from_uuid IS NULL OR m.from_uuid != ?)
+           AND (m.target_uuids IS NULL OR INSTR(m.target_uuids, ',' || ? || ',') > 0)
            AND m.created_at >= COALESCE((SELECT first_seen FROM users WHERE uuid = ?), ?)
            AND m.id NOT IN (SELECT message_id FROM message_reads WHERE player_uuid = ?)
            ORDER BY m.created_at ASC`
-        ).bind(uuid, uuid, Date.now(), uuid).all();
+        ).bind(uuid, uuid, uuid, Date.now(), uuid).all();
 
         const all = [...personal.results, ...broadcast.results].sort((a, b) => a.created_at - b.created_at);
 
@@ -1202,6 +1234,27 @@ async function ensureCommandActivityTable(db) {
     db.prepare('CREATE INDEX IF NOT EXISTS idx_command_activities_created ON command_activities(created_at DESC)'),
     db.prepare('CREATE INDEX IF NOT EXISTS idx_command_activities_user_command ON command_activities(uuid, command_name, created_at DESC)'),
   ]);
+}
+
+let messagesTargetsReady = false;
+async function ensureMessagesTargets(db) {
+  // 兼容已部署但尚未执行迁移的库：新列在首次用到消息接口时自动补上。
+  if (messagesTargetsReady) return;
+  messagesTargetsReady = true;
+  try {
+    const cols = await db.prepare('PRAGMA table_info(messages)').all();
+    if (!(cols.results || []).some(c => c.name === 'target_uuids')) {
+      await db.prepare('ALTER TABLE messages ADD COLUMN target_uuids TEXT').run();
+    }
+  } catch (error) {
+    // 建列失败（并发建列或 PRAGMA 不可用）不阻断消息接口：线上已预先执行过同一条 ALTER。
+  }
+}
+
+// 广播投递名单：逗号分隔并带头尾逗号（如 ",u1,u2,"），便于用 INSTR 精确匹配、避免 uuid 前缀误撞。
+// 空名单返回空串（表示发送那一刻无人在线，这条广播谁都不投）；NULL 只留给玩家的跨服频道消息。
+function packTargetUuids(uuids) {
+  return uuids.length ? ',' + uuids.join(',') + ',' : '';
 }
 
 // 计算玩家排名：按首次出现时间升序，统计更早注册的人数再加一

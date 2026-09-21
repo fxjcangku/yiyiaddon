@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS messages (
     delivered INTEGER DEFAULT 0,            -- 是否已投递（定向消息）
     read_at INTEGER,                        -- 读取时间
     from_uuid TEXT,                         -- 来源玩家 UUID（玩家回复时）
-    from_admin INTEGER DEFAULT 0            -- 是否管理员发送
+    from_admin INTEGER DEFAULT 0,           -- 是否管理员发送
+    target_uuids TEXT                       -- 广播投递名单：发送时在线玩家的 uuid，逗号分隔带头尾逗号；NULL = 不限定（玩家的跨服频道消息，按聊天记录补收）
 );
 
 -- 广播消息已读记录：避免广播被单个玩家消费后其余玩家读不到

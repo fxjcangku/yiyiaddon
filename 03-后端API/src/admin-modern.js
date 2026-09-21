@@ -1685,6 +1685,8 @@ async function sendMsg(kind){
   const res=await api('/api/messages/send',{method:'POST',body});
   input.disabled=false;
   if(!res.success)return alert(res.error||'发送失败');
+  // 广播只投给发送那一刻在线的玩家；一个在线都没有时明确告知，避免以为消息已送达
+  if(kind==='channel'&&res.delivered===0)alert('当前无人在线，消息未投递');
 
   input.value='';
   const msgs=await api('/api/messages/history');
