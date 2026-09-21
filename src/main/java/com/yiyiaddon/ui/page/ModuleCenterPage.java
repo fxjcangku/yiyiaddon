@@ -7,6 +7,7 @@ import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.module.ModuleRegistry;
 import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.UiText;
+import com.yiyiaddon.ui.anim.Easing;
 import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.CardIcons;
 import com.yiyiaddon.ui.component.CardLayout;
@@ -19,6 +20,7 @@ import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
 import io.github.humbleui.skija.Canvas;
+import io.github.humbleui.types.Rect;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -71,6 +73,13 @@ import java.util.function.Consumer;
  * <p>展开状态存在 {@link #EXPANDED} 静态集合里（<b>默认全部收起</b>，用户 2026-09-18 起）：本页每次
  * 导航都会重建对象，状态不能随对象丢。此外：分类头在滚动时吸顶（本页 {@code draw} 覆写），收藏的模块
  * 排在最前的「常用」块（{@link #FAVORITES}）。</p>
+ *
+ * <p><b>展开 / 收起是「整块高度动画」</b>（2026-09-21，用户「ui分组展开 不流畅有卡顿」）：收起的分类也把
+ * 它的成员行留在清单里，只是这些行占的高度 = 展开度 × 内容高（{@link #groupReveal}），于是展开时整块
+ * 连续长出来、块下面的行跟着这一份高度同步移动，收起时反向缩回去。旧实现是「行直接插入 / 移除 + 新行抬
+ * 14 像素滑入」，同一件事被拆成两段（先占位、再滑动），而且插入行会打乱基类按下标保存的悬停 / 按下状态。
+ * 几何全部走 {@link #layoutSlots()}：一次排出「行顶边 + 窗口底边 + 行的展开度」，绘制、命中、滚动上限
+ * 都只读这一份结果（第 169 条同源口径）。</p>
  */
 public final class ModuleCenterPage extends CardPage {
 
@@ -213,15 +222,85 @@ public final class ModuleCenterPage extends CardPage {
     /**
      * 行位移动画：行标识 → 当前视觉偏移（相对静态槽位，弹簧目标恒为 0，到位即 0）。
      *
-     * <p>拖动换位、展开让位、新行插入都靠它：几何钩子（{@link #cardY} 与 {@link #indexAt}）
-     * 读同一份偏移，画面与命中框一起动。</p>
+     * <p>它只负责「换了个位次」的那一段位移（拖动分类换位、收藏后常用块增删行）：几何钩子
+     * （{@link #cardY} 与 {@link #indexAt}）读同一份偏移，画面与命中框一起动。展开 / 收起不走它 ——
+     * 那是折叠块的高度在变，见 {@link #groupReveal}。</p>
      */
     private final Map<String, Spring> rowShift = new HashMap<>();
 
+    /**
+     * 折叠块的展开度弹簧（分类 id / {@link #FAVORITES_ID} → 0~1）：块内容占的高度 = 展开度 × 内容高。
+     *
+     * <p><b>为什么是「整块高度动画」而不是「行插入 + 行滑动」</b>（用户 2026-09-21：
+     * 「ui分组展开 不流畅有卡顿」）：旧实现展开时把成员行直接插进清单 —— 块的高度<b>立刻</b>占满，
+     * 下面的行再滑过去让位，看起来就是「先跳一下、再滑一段」；插入还会改变行数，而基类的悬停 / 按下
+     * 动画状态是按<b>下标</b>存的（{@code CardPage#setCardCount} 原地保留同下标的状态），于是动画途中
+     * 总有几行突然亮起悬停底色或缩一下按下尺寸。现在成员行始终留在清单里、只按展开度取高度：
+     * 展开是一次连续的长高，行数恒定、动画状态不会串行。</p>
+     */
+    private final Map<String, Spring> groupReveal = new HashMap<>();
+
+    /** 每行所属的折叠块 id（取展开度、裁剪与命中都用它）；下标与 {@link #rows} 一一对应。 */
+    private final List<String> rowBlock = new ArrayList<>();
+
+    /**
+     * 每行的唯一标识（折叠块 id + 内容标识）：下标与 {@link #rows} 一一对应。
+     *
+     * <p>带块前缀是必需的：同一个模块可以同时在「常用」块与它自己的分类里（收藏像书签，不是搬家），
+     * 只按模块 id 取标识会让这两行共用一根位移动画弹簧 —— 一行动、另一行跟着动。</p>
+     */
+    private final List<String> rowKeys = new ArrayList<>();
+
+    /** 每个折叠块的行数（含块头）：块窗口高 = 展开度 ×（行数 − 1）× {@link #PITCH}。 */
+    private final Map<String, Integer> blockSizes = new HashMap<>();
+
+    /** 排版结果（下标同 {@link #rows}）：行顶边 / 裁剪下边界（所在块的窗口底边）/ 行自身的展开度。 */
+    private float[] slotTop = new float[0];
+    private float[] slotClipBottom = new float[0];
+    private float[] slotReveal = new float[0];
+
+    /**
+     * 收尾态的行顶边（下标同 {@link #rows}）：按展开度的<b>目标值</b>（0 或 1）排出来的静态位置。
+     *
+     * <p>与动画中的 {@link #slotTop} 分开记，是因为滚动上限与行位移动画的起算点都必须<b>无视动画中间态</b>：
+     * 动画每帧都在改 {@link #slotTop}，拿它当基准会得到两个后果（用户 2026-09-21：「模块分组展开越多
+     * 就上下抖动、滚动条一直在抖在挤压」）——
+     * ① 滚动条长度 = 可视高 / 内容高，内容高逐帧变，滑块就逐帧被挤压、抖动；
+     * ② 展开途中再点一下（或点星标）会重建清单，位移量按「上一帧的动画中间位置」算，整块行先跳回去再滑下来。</p>
+     */
+    private float[] slotSettled = new float[0];
+
+    /**
+     * 收尾态的清单内容总高（排版走到的底边扣掉末尾那一个行距）：<b>滚动上限与滑块长度只读它</b>，
+     * 于是展开动画全程滚动条稳如静止，动画结束也不必再修一次几何。
+     */
+    private float settledTotal;
+
+    /** 上一次装配时的收尾态顶边（行标识 → 顶边）：只给「因换位而改变位置」的行起位移弹簧。 */
+    private final Map<String, Float> lastTops = new HashMap<>();
+
     /** 行位移动画的稳定时间（秒）：够快跟手，又不至于跳。 */
     private static final float ROW_SLIDE_SETTLE = 0.22f;
-    /** 新出现的行从上方多少像素滑入（展开分类时新插入的模块行走这个）。 */
-    private static final float ROW_INSERT_LIFT = 14f;
+
+    /**
+     * 折叠块展开 / 收起的稳定时间（秒）：比行位移慢一档。
+     *
+     * <p>一整块最多 8 行（240 像素）要长出来，太快会看成「页面跳了一下」；用户 2026-09-21 报的
+     * 「ui分组展开 不流畅有卡顿」正是这一档手感。</p>
+     */
+    private static final float GROUP_REVEAL_SETTLE = 0.28f;
+
+    /** 一行的纵向节距（行高 + 行距）：块内各行、块窗口高度都按它推。 */
+    private static final float PITCH = ROW_HEIGHT + ROW_GAP;
+
+    /**
+     * 「指针不在这一行上」用的坐标：绘制半展开的行时传它。
+     *
+     * <p>半展开的行不参与命中（见 {@link #hittable}），但 {@code ModuleRow} 自己会按指针位置决定
+     * 悬停底色与浮层；传一个必然落在行外的坐标，浮层就不会在动画半路上闪出来（不用 {@code NaN}：
+     * 行内的比较全写成「小于 / 大于」，NaN 会让它们全部为假，反而进到画浮层的分支）。</p>
+     */
+    private static final float MOUSE_OFF_ROW = -1.0e6f;
 
     public ModuleCenterPage(PageRouter router, Consumer<ModuleEntry> moduleOpener) {
         super(0);
@@ -231,14 +310,19 @@ public final class ModuleCenterPage extends CardPage {
     }
 
     /**
-     * 按分类装配清单：分类头 + （未收起时）页面入口行 + 各模块行。
+     * 按分类装配清单：分类头 + 页面入口行 + 各模块行。
+     *
+     * <p><b>收起的分类也把内容行留在清单里</b>（展开度 0 让它不占高度、不画、点不到）：行数在展开 /
+     * 收起前后恒定，基类按下标保存的悬停 / 按下状态才不会串行 —— 这是本轮「展开不流畅」的一半原因，
+     * 详见 {@link #groupReveal}。</p>
      *
      * <p>末尾兜底一次：分类注册表里查不到的模块也追加进清单，避免模块在界面上凭空消失。</p>
      */
     private void rebuildRows() {
-        Map<String, Float> before = new HashMap<>();
-        for (int i = 0; i < rows.size(); i++) before.put(rowKey(rows.get(i)), i * (ROW_HEIGHT + ROW_GAP));
         rows.clear();
+        rowBlock.clear();
+        rowKeys.clear();
+        blockSizes.clear();
         categories.clear();
         loadFavorites();
         List<ModuleEntry> remaining = new ArrayList<>(ModuleRegistry.all());
@@ -252,56 +336,176 @@ public final class ModuleCenterPage extends CardPage {
             if (entries.isEmpty() && !pageEntry) continue;
 
             categories.add(category);
-            rows.add(new Row(category, null, false));
             remaining.removeAll(entries);
-            if (!EXPANDED.contains(category.id())) continue;
-            if (pageEntry) rows.add(new Row(category, null, true));
-            for (ModuleEntry entry : entries) rows.add(new Row(category, entry, false));
+            // 一个分类 = 一个折叠块：块头（分类头）+ 块内容（页面入口行与模块行）。
+            // 收起的分类也把内容行留在清单里，靠展开度把高度收成 0（见 groupReveal 的注释）
+            blockSizes.put(category.id(), entries.size() + (pageEntry ? 1 : 0) + 1);
+            addRow(new Row(category, null, false), category.id());
+            if (pageEntry) addRow(new Row(category, null, true), category.id());
+            for (ModuleEntry entry : entries) addRow(new Row(category, entry, false), category.id());
         }
-        for (ModuleEntry entry : remaining) rows.add(new Row(null, entry, false));
+        // 末尾兜底：分类注册表里查不到的模块也进清单，各自成块（单行块，没有内容行）
+        for (ModuleEntry entry : remaining) {
+            String block = "orphan:" + entry.id();
+            blockSizes.put(block, 1);
+            addRow(new Row(null, entry, false), block);
+        }
         setCardCount(rows.size());
-        seedRowShift(before);
+        ensureReveals();
+        layoutSlots();
+        seedRowShift();
+        rememberTops();
+    }
+
+    /**
+     * 往清单末尾追加一行，并记下它所属的折叠块与唯一标识。
+     *
+     * <p>同一个块的各行必须<b>连续</b>排布（{@link #layoutSlots} 按「块头 + 内容行数」整块跳过），
+     * 因此本方法只允许在同一块的块头之后依次调用。</p>
+     */
+    private void addRow(Row row, String block) {
+        rows.add(row);
+        rowBlock.add(block);
+        rowKeys.add(block + '/' + rowKey(row));
+    }
+
+    /**
+     * 保证每个折叠块都有一根展开度弹簧，并落定它首次出现时的取值。
+     *
+     * <p>首次出现（进页面、新增分类）直接落到目标值：已经是展开态的分类不该在进页面时再播一次
+     * 展开动画（与 {@code CollapsibleSection#expanded} 同一口径）。</p>
+     *
+     * <p>顺带把所有弹簧的目标同步成 {@link #EXPANDED} 的当前状态：展开 / 收起<b>不再重建清单</b>
+     * （见 {@link #onCardActivated}），目标必须在这里就位，否则本帧的收尾态几何会拿着上一次的目标
+     * 算，位移动画与滚动上限都会晚一拍。</p>
+     */
+    private void ensureReveals() {
+        for (String block : blockSizes.keySet()) {
+            groupReveal.computeIfAbsent(block, id -> {
+                Spring spring = Spring.critical(GROUP_REVEAL_SETTLE);
+                spring.set(EXPANDED.contains(id) ? 1f : 0f);
+                return spring;
+            });
+        }
+        // 分类被移除 / 收藏清空后不再有状态，避免弹簧表无限长
+        groupReveal.keySet().retainAll(blockSizes.keySet());
+        for (Map.Entry<String, Spring> block : groupReveal.entrySet()) {
+            block.getValue().setTarget(EXPANDED.contains(block.getKey()) ? 1f : 0f);
+        }
+    }
+
+    /**
+     * 排版：块头永远占满一整行，块内容排在块头下方的窗口里，窗口高 = 展开度 × 内容行数 × {@link #PITCH}。
+     *
+     * <p>行顶边与窗口底边一次算出来存进三份数组（下标同 {@link #rows}）：绘制、命中与内容总高都只读
+     * 这一份结果，因此「块长到一半」时画面与命中框仍然严格一致（第 169 条同源口径）。</p>
+     *
+     * <p>块内各行按<b>自然节距</b>排列、由窗口底边裁掉：展开时看到的是「一行行从窗口里露出来」，
+     * 而不是整块被拉扁。</p>
+     *
+     * <p>同一趟顺带按<b>目标展开度</b>排出收尾态顶边与收尾态总高（{@link #slotSettled} /
+     * {@link #settledTotal}）：它们不含动画中间态，专供滚动上限与行位移动画（见字段注释）。</p>
+     */
+    private void layoutSlots() {
+        int count = rows.size();
+        if (slotTop.length != count) {
+            slotTop = new float[count];
+            slotClipBottom = new float[count];
+            slotReveal = new float[count];
+            slotSettled = new float[count];
+        }
+        if (count == 0) {
+            settledTotal = 0f;
+            return;
+        }
+        float y = 0f;
+        float settledY = 0f;
+        for (int i = 0; i < count; ) {
+            String block = rowBlock.get(i);
+            int content = Math.max(0, blockSizes.getOrDefault(block, 1) - 1);
+            float reveal = revealOf(block);
+            float target = settledRevealOf(block);
+            slotTop[i] = y;                                 // 块头：不缩进、不随展开度变化
+            slotClipBottom[i] = y + ROW_HEIGHT;
+            slotReveal[i] = 1f;
+            slotSettled[i] = settledY;                      // 块头同样不随展开度变化
+            float contentTop = y + PITCH;
+            float window = reveal * content * PITCH;
+            for (int k = 0; k < content; k++) {
+                int index = i + 1 + k;
+                slotTop[index] = contentTop + k * PITCH;
+                slotClipBottom[index] = contentTop + window;
+                slotReveal[index] = reveal;
+                slotSettled[index] = settledY + PITCH + k * PITCH;
+            }
+            y = contentTop + window;
+            settledY += PITCH + target * content * PITCH;
+            i += content + 1;                               // 块内各行连续，排完直接跳过
+        }
+        settledTotal = Math.max(0f, settledY - ROW_GAP);
+    }
+
+    /** 折叠块当前的展开度（0~1）；没有弹簧的块（独立行）恒为 1。 */
+    private float revealOf(String block) {
+        Spring spring = groupReveal.get(block);
+        return spring == null ? 1f : Easing.clamp01(spring.value());
+    }
+
+    /**
+     * 折叠块展开度的<b>目标值</b>（0 或 1）：动画要到达的收尾态，与动画进度无关。
+     *
+     * <p>滚动上限与行位移动画读它，动画途中再点几下也不会被中间态带偏（见 {@link #slotSettled}）。</p>
+     */
+    private float settledRevealOf(String block) {
+        Spring spring = groupReveal.get(block);
+        return spring == null ? 1f : Easing.clamp01(spring.target());
     }
 
     // ── 行位移动画（用户 2026-09-21：「动画有吗？」） ──
 
-    /** 行的稳定标识：模块行用模块 id、页面入口行与分类头用分类 id —— 换位 / 展开后仍认得出是同一行。 */
+    /** 行的稳定内容标识：模块行用模块 id、页面入口行与分类头用分类 id —— 换位后仍认得出是同一行。 */
     private static String rowKey(Row row) {
         if (row.module() != null) return "m:" + row.module().id();
         return (row.pageEntry() ? "p:" : "c:") + row.category().id();
     }
 
     /**
-     * 每次重建清单后给位移动画铺场：老行从「它原来的槽位」滑向新槽位，新出现的行从上方滑入。
+     * 给位移动画铺场：换过位次的行从「它原来的位置」滑向新位置。
      *
-     * <p>偏移存成「相对静态槽位的差值」，弹簧目标恒为 0，于是每帧只要 {@code update(dt)}，
-     * 不必再记「谁动过」。静态位置没变的行<b>不重置弹簧</b>——拖动时清单会反复重建，
-     * 重置会把正在滑动的行动画打断成跳变。</p>
+     * <p>位移量 = 上一次的<b>收尾态</b>顶边 − 这一次的收尾态顶边（{@link #lastTops} / {@link #slotSettled}）。
+     * 两个都是收尾态，因此：展开 / 收起带来的高度变化（动画自己在动）不会误判成位移，来回点几下也不会
+     * 让整块行「先跳回去再滑下来」——用户 2026-09-21 报的抖动就是拿动画中间态当基准算出来的。</p>
+     *
+     * <p>逐行比较顶边而不是按「下标 × 节距」推：折叠块高度不一样，按下标推出来的位置根本不对。</p>
+     *
+     * <p>新出现的行不铺位移：它由折叠块的展开动画带出来，再叠一层位移就成了两次动作。
+     * 收尾态位置没变的行<b>不重置弹簧</b>：拖动时清单反复装配，重置会把正在滑动的行打断成跳变。</p>
      */
-    private void seedRowShift(Map<String, Float> before) {
-        Set<String> alive = new HashSet<>();
+    private void seedRowShift() {
+        Set<String> alive = new HashSet<>(rowKeys);
         for (int i = 0; i < rows.size(); i++) {
-            String key = rowKey(rows.get(i));
-            alive.add(key);
+            String key = rowKeys.get(i);
             Spring spring = rowShift.computeIfAbsent(key, k -> Spring.critical(ROW_SLIDE_SETTLE));
-            Float old = before.get(key);
-            if (old == null) {
-                // 全新的一行：从上方一点滑进来（展开分类时新出现的模块行）
-                startRowShift(spring, -ROW_INSERT_LIFT);
-                continue;
-            }
-            float moved = old - i * (ROW_HEIGHT + ROW_GAP);
+            Float old = lastTops.get(key);
+            if (old == null) continue;
+            float moved = old - slotSettled[i];
             if (Math.abs(moved) > 0.5f) startRowShift(spring, moved);
         }
         // 收起 / 筛选掉的行不再有动画状态，避免弹簧表无限长
-        rowShift.keySet().removeIf(key -> !alive.contains(key));
+        rowShift.keySet().retainAll(alive);
+    }
+
+    /** 记下这一次的收尾态顶边，供下一次装配算位移（见 {@link #seedRowShift}）。 */
+    private void rememberTops() {
+        lastTops.clear();
+        for (int i = 0; i < rows.size(); i++) lastTops.put(rowKeys.get(i), slotSettled[i]);
     }
 
     /**
      * 从「偏移 offset 处」起步，目标恒为 0（= 回到自己的静态槽位）。
      *
      * <p>必须两步走：{@link Spring#set} 是「直接落到某个值」，它把目标也一起设成那个值，
-     * 只调它会让行永远停在偏移上（本轮实测踩过：所有行卡在 -14 不走）。</p>
+     * 只调它会让行永远停在偏移上（166 号复盘里实测踩过：所有行卡在起始偏移不走）。</p>
      */
     private static void startRowShift(Spring spring, float offset) {
         spring.set(offset);
@@ -310,14 +514,24 @@ public final class ModuleCenterPage extends CardPage {
 
     /** 第 index 行当前的视觉偏移（已到位就是 0）；绘制与命中都加它。 */
     private float rowShiftOf(int index) {
-        Spring spring = rowShift.get(rowKey(rows.get(index)));
+        Spring spring = rowShift.get(rowKeys.get(index));
         return spring == null ? 0f : spring.value();
     }
 
     @Override
     public void update(float dt) {
-        super.update(dt);
+        // 折叠块按 EXPANDED 推进展开度，行位移按各自的弹簧收敛
+        for (Map.Entry<String, Spring> block : groupReveal.entrySet()) {
+            block.getValue().setTarget(EXPANDED.contains(block.getKey()) ? 1f : 0f);
+            block.getValue().update(dt);
+        }
         for (Spring spring : rowShift.values()) spring.update(dt);
+        // 先按推进后的展开度重排槽位，再交给基类做悬停命中：同一帧的画面与命中读的是同一份几何
+        layoutSlots();
+        // 收尾态顶边逐帧留档：展开 / 收起不再重建清单（见 onCardActivated），只有每帧记一次，
+        // 下一次「换位」（拖动、收藏增删行）才有正确的起算点
+        rememberTops();
+        super.update(dt);
     }
 
     // ── 分类顺序（用户 2026-09-21：分类顺序自己调） ──
@@ -418,9 +632,10 @@ public final class ModuleCenterPage extends CardPage {
             if (entry != null) favorites.add(entry);
         }
         if (favorites.isEmpty()) return;
-        rows.add(new Row(FAVORITES_CATEGORY, null, false));
-        if (!EXPANDED.contains(FAVORITES_ID)) return;
-        for (ModuleEntry entry : favorites) rows.add(new Row(FAVORITES_CATEGORY, entry, false));
+        // 与分类同样是一「块」：块头 + 收藏的模块行（收起时行还在清单里，高度由展开度收成 0）
+        blockSizes.put(FAVORITES_ID, favorites.size() + 1);
+        addRow(new Row(FAVORITES_CATEGORY, null, false), FAVORITES_ID);
+        for (ModuleEntry entry : favorites) addRow(new Row(FAVORITES_CATEGORY, entry, false), FAVORITES_ID);
     }
 
     /** 首次访问时从 {@link AddonConfig} 读收藏（{@code ;} 分隔）；失败或为空都保持空集合。 */
@@ -503,26 +718,29 @@ public final class ModuleCenterPage extends CardPage {
 
     @Override
     protected float cardY(float originY, float contentW, int index) {
-        return topOf(originY, index) + rowShiftOf(index);
+        return originY + slotTop[index] + rowShiftOf(index);
     }
 
-    /** 第 index 行的顶边界：一行一格，直接按行高与行距推。 */
-    private static float topOf(float originY, int index) {
-        return originY + index * (ROW_HEIGHT + ROW_GAP);
-    }
-
-    /** 滚动总高度：行数 × 行高 + 行间距，再扣掉末尾多算的一个行距。 */
+    /**
+     * 滚动总高度：<b>收尾态</b>排版走到的底边扣掉末尾那一个行距（末行之后不需要再留缝）。
+     *
+     * <p>取收尾态而不是动画中的高度，是为了让滚动上限与滚动条长度在展开动画全程保持不变：拿动画高度算，
+     * 滑块会随每一帧的内容高被挤压、抖动，滚到底时页面还会被边界钳着来回弹（用户 2026-09-21 报的
+     * 「滚动条一直在抖、在挤压」）。展开时视口下方短暂留白，动画走完正好填满。</p>
+     *
+     * <p>直接在 {@link #layoutSlots} 里算好：本页的行高不是一个常数（折叠块按展开度取高度），
+     * 再按「行数 × 行高」推就会与画面脱节。</p>
+     */
     @Override
     protected float contentHeight(float contentW) {
-        int count = rows.size();
-        return count <= 0 ? 0f : count * ROW_HEIGHT + (count - 1) * ROW_GAP;
+        return settledTotal;
     }
 
     @Override
     protected int indexAt(float mx, float my, float originX, float originY, float contentW) {
         // 吸顶条先命中：它画在视口顶部，与它下面滚过的卡片位置重叠，判定必须与绘制同源（见 stickyIndex）
         int sticky = stickyIndex(originY);
-        if (sticky >= 0) {
+        if (sticky >= 0 && hittable(sticky)) {
             float top = originY - CardLayout.TOP_INSET;
             float left = cardX(originX, contentW, sticky);
             if (my >= top && my <= top + ROW_HEIGHT
@@ -531,12 +749,24 @@ public final class ModuleCenterPage extends CardPage {
             }
         }
         for (int i = 0; i < rows.size(); i++) {
+            if (!hittable(i)) continue;
             float left = cardX(originX, contentW, i);
             if (mx < left || mx > left + cardWidth(contentW, i)) continue;
-            float top = topOf(originY, i) + rowShiftOf(i);
+            float top = originY + slotTop[i] + rowShiftOf(i);
             if (my >= top && my <= top + ROW_HEIGHT) return i;
         }
         return -1;
+    }
+
+    /**
+     * 该行现在能不能点：折叠块的内容行在展开 / 收起途中不参与命中。
+     *
+     * <p>半露的行（或还排在窗口下面的行）看着就不是一个完整的行，点它等于让玩家点一个正在动的东西；
+     * 块头的展开度恒为 1，因此收起的分类照样点得开（与 {@code CollapsibleSection} 的命中口径一致：
+     * 只能点到看得见的部分）。</p>
+     */
+    private boolean hittable(int index) {
+        return slotReveal[index] >= 1f;
     }
 
     /**
@@ -552,7 +782,7 @@ public final class ModuleCenterPage extends CardPage {
         for (int i = 0; i < rows.size(); i++) {
             Row row = rows.get(i);
             if (row.category() == null || row.module() != null || row.pageEntry()) continue;
-            if (topOf(originY, i) < viewTop + 0.5f) sticky = i;
+            if (originY + slotTop[i] < viewTop + 0.5f) sticky = i;
         }
         return sticky;
     }
@@ -588,13 +818,41 @@ public final class ModuleCenterPage extends CardPage {
         return mx >= x && mx <= x + w && my >= y && my <= y + ROW_HEIGHT ? 1f : 0f;
     }
 
+    /**
+     * 一行的绘制入口：先按折叠块的展开度决定画不画、裁到哪里。
+     *
+     * <p>展开度 0（收起）：整行在窗口外，直接跳过；展开度 &lt; 1（正在展开 / 收起）：把这一行压到块窗口
+     * 里、并按展开度淡化 —— 与折叠区 {@code CollapsibleSection} 的「内容只在动画高度内绘制」同一口径，
+     * 因此半展开时既不会画出窗口外的一段，也不会有「看不见却能点到」的行（命中见 {@link #hittable}）。</p>
+     */
     @Override
     protected void drawCard(Canvas canvas, int index, float x, float y, float w, float alpha, float hover,
                             ClickGuiThemeColors tc) {
+        float reveal = slotReveal[index];
+        if (reveal <= 0.01f) return;
+        // 这一行能露出的高度 = 块窗口底边 − 行顶边（两者都在同一套「相对内容原点」的坐标里，
+        // 而 y 是画布坐标，绝不可与 slot* 直接比大小：踩过这一脚，整页行全被判成窗口外、全不画）
+        float visible = slotClipBottom[index] - slotTop[index];
+        if (visible <= 0.01f) return;
+        boolean clipped = visible < ROW_HEIGHT - 0.01f;
+        // 半展开的行不参与悬停：指针坐标传一个必然落在行外的值，浮层不会在动画半路上闪出来
+        float mouseX = reveal >= 1f ? frameMouseX() : MOUSE_OFF_ROW;
+        float mouseY = reveal >= 1f ? frameMouseY() : MOUSE_OFF_ROW;
+        if (clipped) {
+            canvas.save();
+            canvas.clipRect(Rect.makeXYWH(x, y, w, visible));
+        }
+        drawRowContent(canvas, index, x, y, w, alpha * reveal, hover, mouseX, mouseY, tc);
+        if (clipped) canvas.restore();
+    }
+
+    /** 单个行的内容（按类型分派）；块窗口裁剪与展开度淡化由 {@link #drawCard} 统一负责。 */
+    private void drawRowContent(Canvas canvas, int index, float x, float y, float w, float alpha, float hover,
+                                float mouseX, float mouseY, ClickGuiThemeColors tc) {
         Row row = rows.get(index);
         if (row.module() != null) {
             // 整行一条：图标 + 名称 + 描述 + 星标 + 状态 + 箭头（星标是可点的收藏键）
-            ModuleRow.drawRow(canvas, row.module(), x, y, w, frameMouseX(), frameMouseY(), alpha, hover,
+            ModuleRow.drawRow(canvas, row.module(), x, y, w, mouseX, mouseY, alpha, hover,
                     FAVORITES.contains(row.module().id()), tc);
             return;
         }
@@ -620,10 +878,12 @@ public final class ModuleCenterPage extends CardPage {
             router.open(category.page().get(), UiNavigationMemory.token(UiNavigationMemory.TOKEN_PAGE, category.id()));
             return;
         }
-        // 分类头：展开 / 收起
+        // 分类头：展开 / 收起。
+        // 这里<b>不</b>重建清单：收起的块也把成员行留在清单里（只按展开度取高度），行数与内容都没变，
+        // 重建反而会把「行位移动画」的起算点按动画中间态重记一遍 —— 展开途中再点一下，整块行先跳回去再滑下来。
+        // 展开度目标由 ensureReveals / update 按 EXPANDED 同步，动画照常播。
         String id = row.category().id();
         if (!EXPANDED.remove(id)) EXPANDED.add(id);
-        rebuildRows();
     }
 
     /**
@@ -647,7 +907,8 @@ public final class ModuleCenterPage extends CardPage {
 
         Row row = rows.get(index);
         float rowX = cardX(contentX, contentW, index);
-        float rowY = topOf(originY, index);
+        // 行顶边与绘制的同一份几何（静态槽位 + 位移动画）：星标命中框跟着画面一起动
+        float rowY = originY + slotTop[index] + rowShiftOf(index);
         float rowW = cardWidth(contentW, index);
 
         // 吸顶条上不画 ▲▼（见 draw 的注释）：命中到吸顶条时只做展开 / 收起，
@@ -739,8 +1000,8 @@ public final class ModuleCenterPage extends CardPage {
             rebuildRows();
             return;
         }
+        // 没拖动过 = 点了一下分类头：展开 / 收起。同样不重建清单（理由见 onCardActivated）
         if (!EXPANDED.remove(pressed)) EXPANDED.add(pressed);
-        rebuildRows();
     }
 
     /** 手势被取消（按下期间界面被关掉等）：还原按下前的顺序，半途的顺序不进配置、也不留在内存。 */

@@ -56,6 +56,17 @@ public final class ClickGuiThemeManager {
         return currentTheme == null ? FALLBACK.id() : currentTheme.id();
     }
 
+    /**
+     * 选回出厂默认主题（<b>深色</b>）并落盘：配置缺失 / 指向已下线主题 / 玩家点「重置界面设置」都落到它。
+     *
+     * <p>「默认」只能有这一个来源。曾经「重置界面设置」取的是 {@code themes().iterator().next()}
+     * （注册顺序里的第一个＝浅色），点一次重置就把面板从深色刷成浅色，与出厂默认自相矛盾
+     * （用户 2026-09-21 实机发现）。</p>
+     */
+    public static boolean selectDefault() {
+        return selectAndSave(FALLBACK.id());
+    }
+
     /** 根据 {@link AddonConfig#uiTheme} 应用已保存的主题选择。 */
     public static void applyConfig() {
         String id = AddonConfig.uiTheme;
