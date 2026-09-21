@@ -8,6 +8,7 @@ import com.yiyiaddon.platform.ClientIdentity;
 import com.yiyiaddon.service.update.UpdateService;
 import com.yiyiaddon.ui.component.VersionHeader;
 import com.yiyiaddon.ui.UiText;
+import com.yiyiaddon.ui.anim.FrameClock;
 import com.yiyiaddon.ui.anim.PressState;
 import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.BackButton;
@@ -78,11 +79,10 @@ public class ClickGuiScreen extends SkiaScreen {
     private static final float SIDEBAR_W = 190f;
     /** 侧栏品牌卡、搜索框与导航项共用的左右内缩。 */
     private static final float SIDEBAR_PAD_X = 12f;
-    /** 品牌信息卡的几何；文字在卡内再缩进，形成完整的左侧视觉锚点。 */
+    /** 品牌信息卡的几何；卡片在侧栏内左右对称，卡内三行文字按卡片中线居中。 */
     private static final float BRAND_TOP = 10f;
     private static final float BRAND_H = 76f;
     private static final float BRAND_RADIUS = 12f;
-    private static final float BRAND_TEXT_PAD_X = 14f;
     /**
      * 内容区顶部相对面板的距离，以及页头基线相对所在列顶部的偏移。
      *
@@ -169,6 +169,8 @@ public class ClickGuiScreen extends SkiaScreen {
     private float searchBoxW;
     private float searchBoxH;
     private long lastRenderMs = 0;
+    /** 动画步长时钟：帧长由世界渲染决定，动画直接吃真实 dt 会一步大一步小（见 {@link FrameClock}）。 */
+    private final FrameClock clock = new FrameClock();
 
     // —— 动画状态：滚动缓动、导航指示块弹簧、按压 ——
     private final Spring indicatorSpring = Spring.critical(0.22f);
@@ -374,8 +376,10 @@ public class ClickGuiScreen extends SkiaScreen {
 
     private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY) {
         long now = System.currentTimeMillis();
-        float dt = lastRenderMs == 0L ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
+        float rawDt = lastRenderMs == 0L ? 1f / 60f : (now - lastRenderMs) / 1000f;
         lastRenderMs = now;
+        // 动画步长走平滑时钟：本机帧长由世界渲染决定（同一秒里 4ms 与 20ms 都有），直接用真实 dt 会一步大一步小
+        float dt = clock.tick(rawDt);
 
         // 帧首清空悬停浮层登记：控件（设置项等）在绘制时登记，帧末统一绘制。
         // 本屏托管的是各功能页，没有这一步页面里的说明浮层永远画不出来（与 ModuleScreen 同一套）。
@@ -483,13 +487,21 @@ public class ClickGuiScreen extends SkiaScreen {
                         tc.module, 0.48f, alpha);
                 GlassPanel.rim(canvas, brandX, brandY, brandW, BRAND_H, BRAND_RADIUS,
                         tc.rim, alpha, 0.08f);
-                float brandTextX = brandX + BRAND_TEXT_PAD_X;
-                FontRenderer.drawTextBold(canvas, "yiyiaddon", brandTextX, headerTitleY, 21f,
-                        withAlpha(tc.primaryText, alpha));
-                FontRenderer.drawText(canvas, versionLine(), brandTextX, headerSubtitleY, 11f,
-                        withAlpha(tc.accent, alpha));
-                FontRenderer.drawText(canvas, UiText.t("本扩展免费 为爱发电", "Free for all, made with love"),
-                        brandTextX, headerSloganY, 10f, withAlpha(tc.labelTertiary, alpha));
+                // 三行都按卡片中线居中：标题、版本、标语各自居中对齐，右缘不再参差；基线仍与右栏
+                // 页面标题落在同一条线上（见 CONTENT_TOP / HEADER_*_Y 的注释）
+                float brandCenterX = brandX + brandW / 2f;
+                String brandTitle = "yiyiaddon";
+                FontRenderer.drawTextBold(canvas, brandTitle,
+                        brandCenterX - FontRenderer.measureTextWidthBold(brandTitle, 21f) / 2f,
+                        headerTitleY, 21f, withAlpha(tc.primaryText, alpha));
+                String brandVersion = versionLine();
+                FontRenderer.drawText(canvas, brandVersion,
+                        brandCenterX - FontRenderer.measureTextWidth(brandVersion, 11f) / 2f,
+                        headerSubtitleY, 11f, withAlpha(tc.accent, alpha));
+                String brandSlogan = UiText.t("本扩展免费 为爱发电", "Free for all, made with love");
+                FontRenderer.drawText(canvas, brandSlogan,
+                        brandCenterX - FontRenderer.measureTextWidth(brandSlogan, 10f) / 2f,
+                        headerSloganY, 10f, withAlpha(tc.labelTertiary, alpha));
                 drawSearchBox(canvas, searchX, searchY, searchW, searchH, alpha, dt, tc);
 
                 // 选中指示块滑到当前导航项，项内文字随滑块位置在普通色与反色之间过渡
@@ -1111,7 +1123,8 @@ public class ClickGuiScreen extends SkiaScreen {
 
     /** 恢复界面设置的默认值。 */
     private void resetUiSettings() {
-        ClickGuiThemeManager.selectAndSave(ClickGuiThemeManager.themes().iterator().next().id());
+        // 出厂默认主题是深色：走 ThemeManager 的默认值，别再按注册顺序取第一个（那是浅色）
+        ClickGuiThemeManager.selectDefault();
         // 与 AddonConfig 的出厂默认保持一致：界面大小默认 75%（档位下标 0）
         AddonConfig.uiScale = 0;
         AddonConfig.panelBlur = true;

@@ -2,6 +2,7 @@ package com.yiyiaddon.ui.screen;
 
 import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.module.ModuleEntry;
+import com.yiyiaddon.ui.anim.FrameClock;
 import com.yiyiaddon.ui.component.BackButton;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
@@ -92,6 +93,8 @@ public final class ModuleScreen extends SkiaScreen {
     private boolean draggingInContent;
     private boolean draggingScrollbar;
     private long lastRenderMs;
+    /** 动画步长时钟：帧长由世界渲染决定，动画直接吃真实 dt 会一步大一步小（见 {@link FrameClock}）。 */
+    private final FrameClock clock = new FrameClock();
 
     public ModuleScreen(ModuleEntry entry, Screen parent) {
         super(Component.literal(entry.displayName()), parent);
@@ -147,8 +150,10 @@ public final class ModuleScreen extends SkiaScreen {
     private void drawPanel(Canvas canvas, int width, int height, int mouseX, int mouseY) {
         TooltipLayer.beginFrame();
         long now = System.currentTimeMillis();
-        float dt = lastRenderMs == 0L ? 0.016f : Math.min((now - lastRenderMs) / 1000f, 0.033f);
+        float rawDt = lastRenderMs == 0L ? 1f / 60f : (now - lastRenderMs) / 1000f;
         lastRenderMs = now;
+        // 动画步长走平滑时钟：本机帧长由世界渲染决定（同一秒里 4ms 与 20ms 都有），直接用真实 dt 会一步大一步小
+        float dt = clock.tick(rawDt);
 
         if (frame.update(minecraft, dt)) {
             // 关闭动画播完，交回上级界面

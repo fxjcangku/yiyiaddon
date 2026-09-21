@@ -261,6 +261,22 @@ public class FontRenderer {
         return total;
     }
 
+    /**
+     * 某个字形在该字号下的轮廓路径（{@code SkFont::getPath}：原点在基线、y 向下、已按字号缩放）。
+     *
+     * <p>给「只画图标不画文字」的场合用（见 {@link com.yiyiaddon.ui.component.CardIcons}）：
+     * 那条路走路径而不是 {@code drawString}，所以拿得到轮廓、可以自己决定填哪几条。</p>
+     *
+     * @param glyph 单个码点
+     * @return 轮廓路径；字体缺该字形时返回 {@code null}
+     */
+    public static io.github.humbleui.skija.Path glyphPath(String fontName, float size, String glyph) {
+        if (glyph == null || glyph.isEmpty()) return null;
+        Font font = makeFont(fontName, size);
+        short glyphId = font.getUTF32Glyph(glyph.codePointAt(0));
+        return glyphId == 0 ? null : font.getPath(glyphId);
+    }
+
     public static float getLineHeight(float size) {
         return getLineHeight(size, DEFAULT);
     }

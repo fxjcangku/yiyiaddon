@@ -86,7 +86,13 @@ public final class SkiaBlurRenderer {
      *
      * <p>由 {@code GuiRendererMixin} 在 {@code GuiRenderer#render} 的 HEAD 调用，紧接着才轮到 ESP
      * 叠加层与界面绘制。截取走 {@code glBlitFramebuffer} 到临时纹理 + Skija 收养，不回落 CPU，
-     * 每帧一次、区域为一个面板大小，开销可忽略。</p>
+     * 每帧一次、区域为一个面板大小。</p>
+     *
+     * <p><b>每帧都要重采，不能「区域没动就复用上一帧那张」</b>（用户 2026-09-21 实机：开着面板模糊时
+     * 面板背景一直在闪，关掉模糊就不闪）：复用让「这一帧到底采没采」变成逐帧交替的状态，而玻璃在
+     * 「刚采过」与「用旧帧」两种状态下画面有肉眼可见的差异，于是按复用周期闪。当初复用是为了省下每帧
+     * 面板大小的纹理分配 + blit（帧时抖），帧时那件事已由 {@code ModuleCenterPage} 的收尾态几何解决，
+     * 这里不再复用。</p>
      */
     public void captureWorldFrame() {
         float[] request = worldFrameRequest;

@@ -34,6 +34,8 @@ public abstract class CardPage extends BasePage {
     private static final float EMPTY_STATE_HEIGHT = 96f;
     /** 卡片区顶部留白：页面副标题与第一行卡片之间，避免卡片顶边（含投影）贴住标题区。 */
     private static final float TOP_INSET = CardLayout.TOP_INSET;
+    /** 视口外剔除的余量：卡片投影会向外糊开，正好压着上下边界的那一张仍要画，否则边界上会出现一条硬切。 */
+    private static final float CULL_MARGIN = 24f;
 
     private Spring[] hoverSpring;
     private PressState[] pressState;
@@ -42,6 +44,8 @@ public abstract class CardPage extends BasePage {
     private float lastOriginX;
     private float lastOriginY;
     private float lastContentW;
+    /** 本帧内容区可视高度；视口外剔除用（见 {@link #draw}）。 */
+    private float lastContentH;
     private float lastMouseX = Float.NaN;
     private float lastMouseY = Float.NaN;
 
@@ -191,6 +195,7 @@ public abstract class CardPage extends BasePage {
         lastOriginX = x;
         lastOriginY = y + TOP_INSET - scrollOffset;
         lastContentW = contentW;
+        lastContentH = contentH;
         lastMouseX = mouseX;
         lastMouseY = mouseY;
 
@@ -201,12 +206,18 @@ public abstract class CardPage extends BasePage {
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         float cardH = cardHeight();
+        // 视口外剔除：模块中心把多个分组全部展开后，清单长度会超过一屏，屏幕裁剪之外的行本来也看不见，
+        // 再把它们逐行布局、逐层画一遍只是白烧帧时（用户 2026-09-21：「特别是展开多个分组的时候 挤满了画面」；
+        // 这一帧的帧时会被拉长，正在跑的展开动画就顿一下）。命中不在这里判，因此剔除不影响可点性。
+        float viewTop = lastOriginY - TOP_INSET;
+        float viewBottom = viewTop + lastContentH;
         for (int i = 0; i < cardCount; i++) {
             float hover = hoverSpring[i].value();
             // 宽度逐张问：分类头独占一行、模块按网格并排的页面，一行里每张卡的宽度并不相同
             float cardW = cardWidth(contentW, i);
             float cx = cardX(x, contentW, i);
             float cy = cardY(lastOriginY, contentW, i) - hover * HOVER_LIFT;
+            if (cy + cardH + CULL_MARGIN < viewTop || cy - CULL_MARGIN > viewBottom) continue;
             float pressScale = pressState[i].scale();
             boolean pressed = Math.abs(pressScale - 1f) > 0.0005f;
             if (pressed) {

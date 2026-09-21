@@ -91,10 +91,10 @@ public final class ModuleEntry {
     }
 
     /**
-     * 模块行右侧状态标记的覆写文案；{@code null} = 按 {@link #enabled()} 显示「已启用 / 未启用」。
+     * 模块行右侧状态标记的覆写文案；{@code null} = 按 {@link #enabled()} 显示「已启用 / 未启动」。
      *
-     * <p>「只剪了入口、功能还没写」的模块（星露谷钓鱼）返回「无法使用」，免得玩家把「未启用」
-     * 当成「点一下就能开」。来源见 {@code Module#statusBadgeText()}。</p>
+     * <p>覆写点是给「状态不是单纯的开 / 关」的模块留的（占位模块等），文案颜色仍走未启动那一档（红）。
+     * 来源见 {@code Module#statusBadgeText()}；目前没有模块覆写它。</p>
      */
     public String statusText() {
         return statusText;

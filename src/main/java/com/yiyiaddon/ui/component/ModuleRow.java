@@ -22,8 +22,11 @@ import io.github.humbleui.skija.Canvas;
  * 同一比例跟着收，但<b>模块名与描述的字号一个都没动</b>（12 / 9.5 是这类单行清单的可读性下限，
  * 压字号换来的紧凑得不偿失——用户要的正是「方便阅读」）。</p>
  *
- * <p>右侧的状态标记与箭头<b>一个数值都没改</b>：要求是「已启用 / 未启用 + 箭头仍然贴右对齐，
- * 与同一页的分类头、其它行同一条右基线」，动任何一个都会让模块行的右基线相对分类头漂移。</p>
+ * <p>右侧的状态标记与箭头<b>同一页所有行共用同一条基线</b>：箭头贴右（{@link #ARROW_INSET}），
+ * 状态标记紧贴星标左侧（{@link #stateX}），星标位置只由行宽决定（{@link #starCenterX}）。
+ * 2026-09-21 起状态标记从「按文字宽度右对齐」改成「固定左基线」：旧写法文案一变长
+ * （「未启用」3 字 → 「无法使用」4 字）整块就往左挪，两行的圆点既不同一条竖线，宽的那一档
+ * 还会顶到星标上（用户原话「星露谷钓鱼 跟星露谷农场这里没对齐」）。</p>
  *
  * <p>圆角走 {@link GlassPanel#rowRadius}：按行高收窄、以主题圆角为上限，矮行不会被圆角削成胶囊
  * （控制台、星露谷那些紧凑行也是同一口径）。</p>
@@ -84,13 +87,17 @@ public final class ModuleRow {
     private static final float STAR_BOX = 15f;
 
     /**
-     * 星标中心距行右边缘的距离：让出「状态徽章 + 进入箭头」那一块的宽度。
+     * 星标中心距行右边缘的距离：让出「状态标记 + 进入箭头」那一块的宽度。
      *
-     * <p><b>为什么是一个固定值而不是「徽章左边再退一格」</b>：命中判定与绘制各算一次几何，一旦
-     * 依赖徽章的文字宽度，两边只要有一处换文案就会错位（第 169 条：同源几何只留一份算式）。
+     * <p><b>为什么是一个固定值而不是「状态标记左边再退一格」</b>：命中判定与绘制各算一次几何，一旦
+     * 依赖状态文字宽度，两边只要有一处换文案就会错位（第 169 条：同源几何只留一份算式）。
      * 固定值下星标位置只跟行宽有关，两处都只读这一个常量。</p>
+     *
+     * <p><b>为什么是 112</b>（2026-09-21 状态标记改左对齐后重算）：星标要给最宽的一档状态文字让位 ——
+     * 星标右缘（右 − 104.5）+ 10 留白 = 状态文字左缘（右 − 94.5），再放最宽的「无法使用」（实测 56）
+     * 之后右缘停在右 − 38.5，刚好落在箭头（右 − 20.5 ~ 右 − 7.5）左边的留白里，任何一档文案都不压箭头。</p>
      */
-    private static final float STAR_RIGHT_INSET = 96f;
+    private static final float STAR_RIGHT_INSET = 112f;
 
     /**
      * 星标按钮的命中半径（正方形半边长）：比字形大一圈，好点。
@@ -157,6 +164,29 @@ public final class ModuleRow {
     }
 
     /**
+     * 状态标记的左边界：<b>紧贴星标右侧</b>，同一页所有行共用这一个横坐标。
+     *
+     * <p><b>为什么不按文字宽度从右往左排</b>（用户 2026-09-21：「星露谷钓鱼 跟星露谷农场这里没对齐」）：
+     * 旧写法是「箭头左边往回退一个文字宽」，文案一变长整块就往左挪一格 —— 两行的圆点不在同一条竖线上，
+     * 宽的那一档（「无法使用」）还会顶到星标上（截图上两个图形叠在一起）。现在这个位置只由星标决定，
+     * 而星标只由行宽决定，因此<b>行的状态文字左缘与圆点严格对齐，与文案长短无关</b>。</p>
+     *
+     * <p>宽度预算 = 箭头左边的留白 − 本位置 ≈ 64，「无法使用」实测 56；宽度不足时调用方不画这段文字
+     * （见 {@code drawRow} / {@code drawEntry} 的兜底），绝不会压到箭头。</p>
+     *
+     * @param x 行的最终左边界
+     * @param w 行的最终宽度
+     */
+    public static float stateX(float x, float w) {
+        return starCenterX(x, w) + STAR_BOX / 2f + BADGE_GAP;
+    }
+
+    /** 状态标记文字能用的最右边界：箭头字形左边再留一格，超出的文案一律不画（不压箭头）。 */
+    public static float stateRightLimit(float x, float w) {
+        return x + Math.max(0f, w) - ARROW_INSET - ARROW_GLYPH / 2f - BADGE_GAP;
+    }
+
+    /**
      * 通用入口行：自带设置页的分类入口（例如 Baritone设置）复用它，右侧状态传「点击进入」。
      *
      * <p>与 {@link #drawRow} 同一口径：{@code x、w} 就是这一行的最终矩形（左侧缩进由调用方的几何
@@ -180,12 +210,11 @@ public final class ModuleRow {
         float centerY = y + HEIGHT / 2f;
         float cursor = drawIcon(canvas, icon, rowX + PAD_X, centerY, alpha, tc);
 
-        // 右侧：状态标记 + 进入箭头（都右对齐，先算出状态标记的左边界，再定左边的文字区）
+        // 右侧：状态标记 + 进入箭头（状态标记与模块行共用同一条左基线，箭头贴右）
         float arrowX = rowX + rowW - ARROW_INSET;
-        float badgeRight = arrowX - ARROW_GLYPH - BADGE_GAP;
-        float badgeWidth = stateText == null ? 0f : StatusBadge.width(stateText);
-        float badgeX = stateText == null ? badgeRight : Math.max(cursor, badgeRight - badgeWidth);
-        if (stateText != null) {
+        float badgeX = Math.max(cursor, stateX(x, w));
+        if (stateText != null && !stateText.isEmpty()
+                && badgeX + StatusBadge.width(stateText) <= stateRightLimit(x, w)) {
             StatusBadge.draw(canvas, badgeX, centerY, stateText, stateColor, alpha);
         }
         CardIcons.drawCentered(canvas, ARROW, arrowX, centerY, ARROW_GLYPH,
@@ -232,7 +261,7 @@ public final class ModuleRow {
      *
      * @param mouseX 本帧指针横坐标（与 {@code x、y、w} 同一坐标系）：用于星标悬停反馈与浮层锚点
      * @param mouseY 本帧指针纵坐标
-     * @param favorite 是否已收藏（顶部「常用」区、首页「常用模块」）：是则描边换成强调色、星标点亮
+     * @param favorite 是否已收藏（顶部「常用」区）：是则描边换成强调色、星标填成实心
      */
     public static void drawRow(Canvas canvas, ModuleEntry entry, float x, float y, float w,
                                float mouseX, float mouseY, float alpha, float hover, boolean favorite,
@@ -256,10 +285,13 @@ public final class ModuleRow {
         CardIcons.drawCentered(canvas, ARROW, arrowX, centerY, ARROW_GLYPH,
                 GlassPanel.withAlpha(GlassPanel.mix(tc.labelTertiary, tc.accent, hover), alpha));
 
-        String stateText = entry.statusText() == null ? (enabled ? "已启用" : "未启用") : entry.statusText();
-        float badgeWidth = StatusBadge.width(stateText);
-        float badgeX = Math.max(cursor, arrowX - ARROW_GLYPH - BADGE_GAP - badgeWidth);
-        StatusBadge.draw(canvas, badgeX, centerY, stateText, enabled ? tc.stateOn : tc.stateOff, alpha);
+        // 状态标记贴着星标左对齐：两行的圆点因此落在同一条竖线上（见 stateX 的注释）。
+        // 文案口径「已启用 / 未启动」（用户 2026-09-21：「星露谷钓鱼 跟星露谷农场这里没对齐 统改成未启动」）
+        String stateText = entry.statusText() == null ? (enabled ? "已启用" : "未启动") : entry.statusText();
+        float badgeX = Math.max(cursor, stateX(x, w));
+        if (badgeX + StatusBadge.width(stateText) <= stateRightLimit(x, w)) {
+            StatusBadge.draw(canvas, badgeX, centerY, stateText, enabled ? tc.stateOn : tc.stateOff, alpha);
+        }
 
         float starX = starCenterX(x, w);
         drawStar(canvas, starX, centerY, favorite, mouseX, mouseY, alpha, tc);
@@ -293,10 +325,12 @@ public final class ModuleRow {
     }
 
     /**
-     * 星标：已收藏 = 强调色实心，未收藏 = 弱色；悬停时更亮并垫一层淡底，表明这一小块是可点的收藏键。
+     * 星标：<b>已收藏 = 实心</b>，未收藏 = 描边（悬停时描边转成强调色并垫一层淡底，表明这一小块是可点的收藏键）。
      *
-     * <p>收藏态用颜色表达而不是换成另一枚字形：项目里验真过的星形只有这一枚（第 140 条），
-     * 换成「空心星」需要再验一个字码，而颜色差异在 24 高的行上已经足够清楚。</p>
+     * <p><b>为什么是填色而不是换个颜色</b>（用户 2026-09-21：「点击收藏之后这个星星为什么没填满？
+     * 做区分 应该是实心的啊」）：24 高的行上，同一枚描边星只改颜色，「已收藏」和「未收藏」扫一眼分不出来。
+     * 现在收藏态由 {@link CardIcons#drawCenteredFilled} 把同一枚字形的外轮廓填满，形状本身就带状态，
+     * 而且填出来的星与描边星<b>外缘完全重合</b>，点击时是「这颗星被填满」而不是「换了一颗星」。</p>
      */
     private static void drawStar(Canvas canvas, float centerX, float centerY, boolean favorite,
                                  float mouseX, float mouseY, float alpha, ClickGuiThemeColors tc) {
@@ -305,7 +339,12 @@ public final class ModuleRow {
             GlassPanel.frost(canvas, centerX - STAR_HIT, centerY - STAR_HIT, STAR_HIT * 2f, STAR_HIT * 2f,
                     STAR_HIT, tc.field, 0.40f, alpha);
         }
-        int color = favorite ? tc.accent : GlassPanel.mix(tc.labelTertiary, tc.accent, hover ? 1f : 0f);
+        if (favorite) {
+            CardIcons.drawCenteredFilled(canvas, STAR, centerX, centerY, STAR_GLYPH,
+                    GlassPanel.withAlpha(tc.accent, alpha));
+            return;
+        }
+        int color = GlassPanel.mix(tc.labelTertiary, tc.accent, hover ? 1f : 0f);
         CardIcons.drawCentered(canvas, STAR, centerX, centerY, STAR_GLYPH,
                 GlassPanel.withAlpha(color, alpha));
     }
