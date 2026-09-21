@@ -11,8 +11,9 @@ import net.minecraft.client.gui.screens.Screen;
  * 物品识别结果窗口（旧项目 {@code IdResultScreen}）。
  *
  * <p>由「聊天复制/显示」识别模式弹出：完整展示一次识别产出的物品身份，并提供复制与保存操作。
- * 字段行、附魔行、五个按钮的文字与先后顺序全部沿用旧项目；每次操作的反馈走聊天栏，前缀为模块名
- * {@code ID识别}。</p>
+ * 字段行、附魔行、五个按钮的文字与先后顺序全部沿用旧项目；每次操作的反馈走
+ * {@code PanelScreen#feedback} → 面板内顶部弹窗（原版在界面激活期间会把整个 HUD 收起来，
+ * 发聊天栏等于点了没反应），前缀为模块名 {@code ID识别}。</p>
  *
  * <p>作物归属字段（所属作物 / cropKey / 类型）依赖星露谷资源索引，按既定口径不迁移，故本窗口
  * 不出现该组字段。</p>
@@ -68,7 +69,7 @@ public final class IdResultScreen extends PanelScreen {
         addButton("添加到 ID 配置", this::saveAndClose);
     }
 
-    // ── 操作（反馈走聊天栏，文案照旧项目） ──
+    // ── 操作（反馈走面板内弹窗，文案照旧项目） ──
 
     private void copyItemId() {
         copyToClipboard(identity.itemId());

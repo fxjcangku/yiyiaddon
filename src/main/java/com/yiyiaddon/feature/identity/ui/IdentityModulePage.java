@@ -60,7 +60,7 @@ public final class IdentityModulePage extends CompactModulePage implements Modul
                 + "§f.id 实体 §7识别准星实体"),
         new HelpPanelScreen.HelpSection("三种识别模式",
             "聊天复制/显示：识别后弹出结果窗口，不写盘。",
-            "自动保存：识别后直接写入 ID 配置，聊天栏播报保存结果。",
+            "自动保存：识别后直接写入 ID 配置，保存结果当场提示。",
             "准星方块识别：识别准星命中的方块并弹结果窗口（原版方块与自定义方块统一采集）。"),
         new HelpPanelScreen.HelpSection("注意事项",
             "未进入世界时不能启用（识别依赖主手物品、准星命中结果与世界数据）。",

@@ -26,6 +26,7 @@ import com.yiyiaddon.platform.resource.BlockStateModelResolver;
 import com.yiyiaddon.platform.storage.GamePaths;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.page.ModulePage;
+import com.yiyiaddon.ui.render.SkiaScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
@@ -197,23 +198,24 @@ public final class IdIdentifyModule extends Module {
     /**
      * 「聊天复制/显示」模式：识别手持物品并弹出识别结果窗口，识别本身不写盘。
      *
-     * <p>与旧项目一致：失败时聊天栏给出中文原因；成功后直接开窗，不在聊天栏重复罗列字段。</p>
+     * <p>与旧项目一致：失败时给出中文原因；成功后直接开窗，不重复罗列字段。
+     * 原因走 {@link #notifyClick} —— 从模块页点开关触发时面板开着，聊天栏看不见。</p>
      */
     private IdentitySummary openItemResultScreen() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l玩家未加载");
+            notifyClick("§6§l玩家未加载");
             return null;
         }
         ItemStack held = client.player.getItemInHand(InteractionHand.MAIN_HAND);
         if (held == null || held.isEmpty()) held = client.player.getItemInHand(InteractionHand.OFF_HAND);
         if (held == null || held.isEmpty()) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l没有可识别物品：主手和副手都是空的");
+            notifyClick("§6§l没有可识别物品：主手和副手都是空的");
             return null;
         }
         ItemIdentity identity = ItemIdentifier.identifyItem(held);
         if (identity == null) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l识别失败");
+            notifyClick("§6§l识别失败");
             return null;
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ITEM,
@@ -244,12 +246,12 @@ public final class IdIdentifyModule extends Module {
     private IdentitySummary openBlockResultScreen() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l玩家未加载");
+            notifyClick("§6§l玩家未加载");
             return null;
         }
         BlockIdentity identity = BlockIdentifier.identify();
         if (identity == null) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l自动识别失败：准星当前没有指向有效方块");
+            notifyClick("§6§l自动识别失败：准星当前没有指向有效方块");
             return null;
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.BLOCK,
@@ -264,16 +266,16 @@ public final class IdIdentifyModule extends Module {
     private IdentitySummary openEntityResultScreen() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l玩家未加载");
+            notifyClick("§6§l玩家未加载");
             return null;
         }
         if (client.crosshairPickEntity == null) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l当前准星未指向可识别实体");
+            notifyClick("§6§l当前准星未指向可识别实体");
             return null;
         }
         EntityIdentity identity = EntityIdentifier.identifyEntity(client.crosshairPickEntity);
         if (identity == null) {
-            ClientChat.send(MESSAGE_MODULE, "§6§l无法解析该实体的稳定身份");
+            notifyClick("§6§l无法解析该实体的稳定身份");
             return null;
         }
         IdentitySummary summary = IdentitySummary.ok(IdentitySummary.Kind.ENTITY,
@@ -333,15 +335,32 @@ public final class IdIdentifyModule extends Module {
      *
      * <p>成功沿用旧项目 {@code §a§l✓ 已识别物品 §8▸ <名>}；失败沿用旧项目 {@code notifyError}
      * 的橙色加粗单行；「已存在」分支沿用旧项目的稳定身份判定说明。</p>
+     *
+     * <p><b>两种通道（用户 2026-09-21「自动保存模式不弹窗提示吗」）</b>：识别既可能由指令
+     * {@code .id} 触发（玩家在世界里，结果要留在聊天记录），也可能由<b>模块页那颗开关</b>触发
+     * （面板正开着，聊天栏被原版整个藏起来）。因此界面开着时把下面 2~3 行<b>压成一条弹窗</b> ——
+     * 不能逐行转弹窗：弹窗只有一条，后一条会盖掉前一条，玩家只看得到最后一行。</p>
      */
     private void report(IdentitySummary summary) {
         IdentitySummary.Kind kind = summary.kind();
         if (!summary.success()) {
             String reason = summary.rows().isEmpty() ? "未知原因" : summary.rows().get(0).value();
-            ClientChat.send(MESSAGE_MODULE, "§6§l" + reason);
+            notifyClick("§6§l" + reason);
             return;
         }
-        ClientChat.send(MESSAGE_MODULE, "§a§l✓ 已识别" + kind.displayName() + " §8▸ §a§l" + summary.title());
+        String headline = "§a§l✓ 已识别" + kind.displayName() + " §8▸ §a§l" + summary.title();
+        // 落盘结果：写进去了报文件名，「稳定身份相同」报已在配置中（不谎报已保存）
+        String outcome = summary.saved()
+            ? "§f已保存 " + summary.fileName()
+            : alreadyText(kind);
+
+        if (SkiaScreen.isOpen()) {
+            ClientChat.ui(MESSAGE_MODULE, headline + " §8▸ " + outcome
+                + (summary.snapshotSaved() ? " §8▸ §7状态快照 §f" + summary.snapshotName() : ""));
+            return;
+        }
+
+        ClientChat.send(MESSAGE_MODULE, headline);
         if (summary.saved()) {
             ClientChat.send(MESSAGE_MODULE,
                     CommandMessageFormatter.line("保存文件", "§f" + summary.fileName()));
@@ -353,6 +372,16 @@ public final class IdIdentifyModule extends Module {
             ClientChat.send(MESSAGE_MODULE,
                     CommandMessageFormatter.line("状态快照", "§f" + summary.snapshotName()));
         }
+    }
+
+    /**
+     * 识别动作的即时回执：面板开着发面板内弹窗，否则发聊天栏。
+     *
+     * <p>识别一共两个触发口 —— 指令 {@code .id}（界面没开）与模块页那颗开关（界面开着）。
+     * 后者是本方法存在的理由，见 {@link #report(IdentitySummary)}。</p>
+     */
+    private static void notifyClick(String text) {
+        ClientChat.ui(MESSAGE_MODULE, text);
     }
 
     /** 静默关闭自身（旧项目 {@code closeQuietly}）：不播报开关状态，避免与识别结果重复刷屏 */

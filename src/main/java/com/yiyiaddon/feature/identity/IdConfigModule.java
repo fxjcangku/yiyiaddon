@@ -15,6 +15,7 @@ import com.yiyiaddon.platform.identity.ItemIdentifier;
 import com.yiyiaddon.platform.storage.GamePaths;
 import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.ui.page.ModulePage;
+import com.yiyiaddon.ui.render.SkiaScreen;
 import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import net.minecraft.client.Minecraft;
@@ -89,11 +90,17 @@ public final class IdConfigModule extends Module {
 
     // ── 供页面调用的功能入口 ──
 
-    /** 刷新：重新读取磁盘上的身份数据（旧项目面板按钮原文：刷新（重读磁盘）） */
+    /**
+     * 刷新：重新读取磁盘上的身份数据（旧项目面板按钮原文：刷新（重读磁盘））
+     *
+     * <p>本类所有回执都走 {@link ClientChat#ui}：它们全部由「ID 配置」面板上的按钮触发，
+     * 而面板开着时原版把整个 HUD 藏起来、聊天栏看不见（用户 2026-09-21「凡是 ui 点击都在 ui
+     * 里面弹窗」）。界面没开时（若有别的入口调到）它自动退回聊天栏。</p>
+     */
     public void reloadFromDisk() {
         IdentityService service = IdentityService.shared();
         service.reload();
-        ClientChat.send(MESSAGE_MODULE, "§a§l✓ 已刷新 ID 配置 §8▸ §f" + service.itemCount()
+        ClientChat.ui(MESSAGE_MODULE, "§a§l✓ 已刷新 ID 配置 §8▸ §f" + service.itemCount()
                 + " §a§l个物品，§f" + service.entityCount()
                 + " §a§l个实体，§f" + service.blockCount() + " §a§l个方块");
     }
@@ -107,18 +114,18 @@ public final class IdConfigModule extends Module {
     public void identifyItem() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
-            ClientChat.send(MESSAGE_MODULE, "§c§l✗ 玩家未加载");
+            ClientChat.ui(MESSAGE_MODULE, "§c§l✗ 玩家未加载");
             return;
         }
         ItemStack held = client.player.getItemInHand(InteractionHand.MAIN_HAND);
         if (held == null || held.isEmpty()) held = client.player.getItemInHand(InteractionHand.OFF_HAND);
         if (held == null || held.isEmpty()) {
-            ClientChat.send(MESSAGE_MODULE, "§c§l✗ 没有可识别物品：主手和副手都是空的");
+            ClientChat.ui(MESSAGE_MODULE, "§c§l✗ 没有可识别物品：主手和副手都是空的");
             return;
         }
         ItemIdentity identity = ItemIdentifier.identifyItem(held);
         if (identity == null) {
-            ClientChat.send(MESSAGE_MODULE, "§c§l✗ 识别失败");
+            ClientChat.ui(MESSAGE_MODULE, "§c§l✗ 识别失败");
             return;
         }
         // 与「ID识别」模块保持同一模式口径：非「自动保存」时只弹结果窗口，识别本身不写盘
@@ -127,9 +134,9 @@ public final class IdConfigModule extends Module {
             return;
         }
         if (IdentityService.shared().addItem(identity) != null) {
-            ClientChat.send(MESSAGE_MODULE, "§a§l✓ 已识别物品 §8▸ §a§l" + identity.displayName());
+            ClientChat.ui(MESSAGE_MODULE, "§a§l✓ 已识别物品 §8▸ §a§l" + identity.displayName());
         } else {
-            ClientChat.send(MESSAGE_MODULE, "§c§l✗ 该物品已在 ID 配置中");
+            ClientChat.ui(MESSAGE_MODULE, "§c§l✗ 该物品已在 ID 配置中");
         }
     }
 
@@ -142,12 +149,12 @@ public final class IdConfigModule extends Module {
     public void identifyBlock() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
-            ClientChat.send(MESSAGE_MODULE, "§c§l✗ 玩家未加载");
+            ClientChat.ui(MESSAGE_MODULE, "§c§l✗ 玩家未加载");
             return;
         }
         BlockIdentity identity = BlockIdentifier.identify();
         if (identity == null) {
-            ClientChat.send(MESSAGE_MODULE, "§c§l✗ 自动识别失败：准星当前没有指向有效方块");
+            ClientChat.ui(MESSAGE_MODULE, "§c§l✗ 自动识别失败：准星当前没有指向有效方块");
             return;
         }
         // 与「ID识别」模块保持同一模式口径：非「自动保存」时只弹结果窗口，识别本身不写盘
@@ -156,18 +163,21 @@ public final class IdConfigModule extends Module {
             return;
         }
         IdentityService service = IdentityService.shared();
-        if (service.addBlock(identity) != null) {
-            ClientChat.send(MESSAGE_MODULE, "§a§l✓ 已识别方块 §8▸ §a§l" + identity.displayName()
-                    + " §8▸ §f" + identity.blockId());
-        } else {
-            ClientChat.send(MESSAGE_MODULE, "§7该方块已在方块记录中（稳定身份相同）");
-        }
+        String recordText = service.addBlock(identity) != null
+            ? "§a§l✓ 已识别方块 §8▸ §a§l" + identity.displayName() + " §8▸ §f" + identity.blockId()
+            : "§7该方块已在方块记录中（稳定身份相同）";
         String snapshotName = service.addBlockSnapshot(identity, false);
-        if (snapshotName != null) {
-            ClientChat.send(MESSAGE_MODULE, "§a§l✓ 已保存方块状态快照 §8▸ §f" + snapshotName);
-        } else {
-            ClientChat.send(MESSAGE_MODULE, "§7该方块状态快照已存在，未重复保存");
+        String snapshotText = snapshotName != null
+            ? "§a§l✓ 已保存方块状态快照 §8▸ §f" + snapshotName
+            : "§7该方块状态快照已存在，未重复保存";
+
+        // 面板开着时把两条压成一条弹窗：弹窗只有一条，逐行发只会剩下最后一行（用户 2026-09-21）
+        if (SkiaScreen.isOpen()) {
+            ClientChat.ui(MESSAGE_MODULE, recordText + " §8▸ " + snapshotText);
+            return;
         }
+        ClientChat.send(MESSAGE_MODULE, recordText);
+        ClientChat.send(MESSAGE_MODULE, snapshotText);
     }
 
     /**
@@ -187,21 +197,21 @@ public final class IdConfigModule extends Module {
 
     public void removeItem(ItemIdentity identity) {
         boolean ok = IdentityService.shared().removeItem(identity);
-        ClientChat.send(MESSAGE_MODULE, ok
+        ClientChat.ui(MESSAGE_MODULE, ok
                 ? "§c§l✗ 已删除 ID §8▸ §c§l" + identity.displayName()
                 : "§c§l✗ 删除物品失败");
     }
 
     public void removeEntity(EntityIdentity identity) {
         boolean ok = IdentityService.shared().removeEntity(identity);
-        ClientChat.send(MESSAGE_MODULE, ok
+        ClientChat.ui(MESSAGE_MODULE, ok
                 ? "§c§l✗ 已删除实体 §8▸ §c§l" + identity.displayName()
                 : "§c§l✗ 删除实体失败");
     }
 
     public void removeBlock(BlockIdentity identity) {
         boolean ok = IdentityService.shared().removeBlock(identity);
-        ClientChat.send(MESSAGE_MODULE, ok
+        ClientChat.ui(MESSAGE_MODULE, ok
                 ? "§c§l✗ 已删除方块 §8▸ §c§l" + identity.displayName()
                 : "§c§l✗ 删除方块失败");
     }
@@ -250,7 +260,7 @@ public final class IdConfigModule extends Module {
             } catch (Exception e) {
                 Minecraft client = Minecraft.getInstance();
                 if (client != null) {
-                    client.execute(() -> ClientChat.send(MESSAGE_MODULE, "§c§l✗ 打开目录失败：" + e.getMessage()));
+                    client.execute(() -> ClientChat.ui(MESSAGE_MODULE, "§c§l✗ 打开目录失败：" + e.getMessage()));
                 }
             }
         }, "yiyiaddon-OpenDir");
@@ -375,28 +385,28 @@ public final class IdConfigModule extends Module {
 
     public void clearItems() {
         boolean ok = IdentityService.shared().clearItems();
-        ClientChat.send(MESSAGE_MODULE, ok
+        ClientChat.ui(MESSAGE_MODULE, ok
                 ? "§a§l✓ 已清空全部物品 ID（items/）"
                 : "§c§l✗ 清空全部物品 ID 失败：磁盘删除失败，已回滚内存");
     }
 
     public void clearEntities() {
         boolean ok = IdentityService.shared().clearEntities();
-        ClientChat.send(MESSAGE_MODULE, ok
+        ClientChat.ui(MESSAGE_MODULE, ok
                 ? "§a§l✓ 已清空全部实体 ID（entities/）"
                 : "§c§l✗ 清空全部实体 ID 失败：磁盘删除失败，已回滚内存");
     }
 
     public void clearBlocks() {
         boolean ok = IdentityService.shared().clearBlocks();
-        ClientChat.send(MESSAGE_MODULE, ok
+        ClientChat.ui(MESSAGE_MODULE, ok
                 ? "§a§l✓ 已清空方块稳定记录（blocks/）"
                 : "§c§l✗ 清空方块稳定记录失败：部分文件删除失败，请检查 blocks/ 目录");
     }
 
     public void clearSnapshots() {
         boolean ok = IdentityService.shared().clearBlockSnapshots();
-        ClientChat.send(MESSAGE_MODULE, ok
+        ClientChat.ui(MESSAGE_MODULE, ok
                 ? "§a§l✓ 已清空方块历史快照（block-snapshots/）"
                 : "§c§l✗ 清空方块历史快照失败：部分文件删除失败，请检查 block-snapshots/ 目录");
     }
@@ -405,7 +415,7 @@ public final class IdConfigModule extends Module {
         IdentityService service = IdentityService.shared();
         boolean okBlocks = service.clearBlocks();
         boolean okSnapshots = service.clearBlockSnapshots();
-        ClientChat.send(MESSAGE_MODULE, okBlocks && okSnapshots
+        ClientChat.ui(MESSAGE_MODULE, okBlocks && okSnapshots
                 ? "§a§l✓ 已清空全部方块数据（blocks/ + block-snapshots/）"
                 : "§c§l✗ 清空全部方块数据时部分文件删除失败");
     }
@@ -417,7 +427,7 @@ public final class IdConfigModule extends Module {
         boolean okEntities = service.clearEntities();
         boolean okBlocks = service.clearBlocks();
         boolean okSnapshots = service.clearBlockSnapshots();
-        ClientChat.send(MESSAGE_MODULE, okItems && okEntities && okBlocks && okSnapshots
+        ClientChat.ui(MESSAGE_MODULE, okItems && okEntities && okBlocks && okSnapshots
                 ? "§a§l✓ 已清空全部 ID 数据（物品 + 实体 + 方块稳定记录 + 历史快照）"
                 : "§c§l✗ 清空全部 ID 数据部分失败：请检查各目录磁盘状态");
     }
@@ -425,6 +435,7 @@ public final class IdConfigModule extends Module {
     /** 清理失效的识别目标 */
     public void pruneTargets() {
         int pruned = IdentityActions.pruneInvalidTargets();
-        ClientChat.send(MESSAGE_MODULE, pruned == 0 ? "§7没有失效的识别目标" : "§7已清理 " + pruned + " 项失效的识别目标");
+        ClientChat.ui(MESSAGE_MODULE,
+                pruned == 0 ? "§7没有失效的识别目标" : "§7已清理 " + pruned + " 项失效的识别目标");
     }
 }
