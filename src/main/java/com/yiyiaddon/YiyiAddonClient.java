@@ -16,6 +16,7 @@ import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.ui.keybind.FunctionKeybinds;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.render.world.BlockOutlineRenderer;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
@@ -43,6 +44,9 @@ public final class YiyiAddonClient implements ClientModInitializer {
         // 常驻功能键通道：模块的功能键（非开关绑定）在模块关闭时也必须可检测——
         // 旧项目靠常驻事件总线监听器实现，本项目挂在同一个 tick 上（不新增 Fabric 注册点）
         ClientTickEvents.END_CLIENT_TICK.register(FunctionKeybinds::tick);
+        // 顶部提示的兜底：弹窗只有自绘界面会画它，界面一走就没人渲染了 —— 每 tick 查一次，
+        // 发现「还活着但没界面在画」就把同一条文本补进聊天栏（见 TooltipLayer#tick）
+        ClientTickEvents.END_CLIENT_TICK.register(client -> TooltipLayer.tick());
 
         // 身份识别体系：选择配置 + 身份数据（一次性载入，失败不阻断启动）
         IdentityTargetConfig.load();

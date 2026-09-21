@@ -122,6 +122,34 @@ public final class TooltipLayer {
     }
 
     /**
+     * 每 tick 一次的兜底：弹窗<b>还活着、却已经没有界面在画它</b>时，把同一条文本补进聊天栏。
+     *
+     * <p><b>为什么 {@link #notify} 那层兜底还不够：</b>它只判了「写进去的那一刻界面在不在」，
+     * 而真实的点击流程常常是「在界面里点一下 → 紧接着关窗 / 切走」。弹窗只有 {@link #drawNotice}
+     * 会画、而它只由自绘界面在帧末调用，界面一走这条状态就再没人渲染、撑到 1.9 秒后自己过期 ——
+     * 从玩家视角看就是「弹了一下就没了」或干脆没看见。</p>
+     *
+     * <p>因此这里每 tick 问一次 {@code SkiaScreen#isOpen()}：有自绘界面就什么都不做
+     * （弹窗继续挂在界面上，这是主路径），一旦没有界面在画，就把文本转成聊天栏一行并熄灭弹窗。
+     * 结果只有两种，<b>不存在第三种</b>：要么在界面里显示过，要么落进聊天记录。
+     * 由 {@code YiyiAddonClient} 挂在 {@code END_CLIENT_TICK} 上驱动（每秒 20 次，实现只有一次空判）。</p>
+     */
+    public static void tick() {
+        if (noticeText == null) return;
+        if (SkiaScreen.isOpen()) return;
+        flushToChat();
+    }
+
+    /** 把当前弹窗原样转成聊天栏一行并熄灭它。 */
+    private static void flushToChat() {
+        String value = noticeText;
+        noticeText = null;
+        noticeEndMs = 0L;
+        noticeStartMs = 0L;
+        if (value != null) ClientChat.raw(value);
+    }
+
+    /**
      * 登记本帧要显示的浮层说明。
      *
      * @param text   说明文字，可含 {@code §} 颜色码与 {@code \n} 换行；空则忽略
