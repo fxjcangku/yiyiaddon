@@ -1,16 +1,17 @@
 package com.yiyiaddon.ui.theme;
 
 /**
- * iOS 暗色主题：苹果系统色 + 大圆角 + 强阴影。
+ * 深空灰主题：深灰底 + 苹果系统蓝强调，本项目唯一的暗色主题。
  *
  * <p>调色板取自 iOS 暗色模式公开系统色：卡片用 secondarySystemBackground，
  * 次级表面用 tertiarySystemBackground，强调色用暗色模式 systemBlue，
  * 边框用 systemGray4，文字为 label / secondaryLabel。</p>
  *
- * <p>窗口与侧栏底色压到接近纯黑，配合面板模糊后呈现毛玻璃底板；
- * 卡片本身不使用玻璃，靠明度差与高光描边分出层次。</p>
+ * <p>窗口与侧栏底色压到接近纯黑，配合面板模糊与 {@code SkiaBlurRenderer} 的主题色蒙版后
+ * 呈现「深空灰」的毛玻璃底板（蒙版强度见 {@code glassTint}：暗色主题给足，否则明亮场景
+ * 会把面板冲成浅灰）；卡片本身不使用玻璃，靠明度差与高光描边分出层次。</p>
  */
-public final class AppleDarkTheme implements ClickGuiTheme {
+public final class DeepGrayTheme implements ClickGuiTheme {
 
     private static final ClickGuiThemePalette PALETTE = new ClickGuiThemePalette(
             0xFF0C0C10,   // 窗口底座
@@ -28,12 +29,12 @@ public final class AppleDarkTheme implements ClickGuiTheme {
 
     @Override
     public String id() {
-        return "apple_dark";
+        return "deep_gray";
     }
 
     @Override
     public String displayName() {
-        return "极夜霜玻璃";
+        return "深色";
     }
 
     @Override

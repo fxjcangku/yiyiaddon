@@ -27,7 +27,7 @@ public final class AddonConfig {
     private static final String FILE_NAME = "yiyiaddon.json";
 
     // —— UI 外观 ——
-    public static String uiTheme = "apple_dark";
+    public static String uiTheme = "deep_gray";
     public static int uiScale = 1;
     public static boolean panelBlur = true;
     public static float blurStrength = 0.6f;

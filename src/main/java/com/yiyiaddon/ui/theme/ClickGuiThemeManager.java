@@ -9,14 +9,18 @@ import java.util.Optional;
 
 public final class ClickGuiThemeManager {
     private static final Map<String, ClickGuiTheme> THEMES = new LinkedHashMap<>();
-    private static final ClickGuiTheme FALLBACK = new AppleDarkTheme();
+    /**
+     * 只留两个主题（用户 2026-09-21：「浅色 深色 两个主题就行」）。
+     *
+     * <p>兜底固定为深空灰：配置里指向已下线主题 id（{@code apple_dark} / {@code dark} / {@code gray}）
+     * 时，{@link #applyConfig()} 会落到它并顺手把配置改写成新 id，不会出现「主题丢了」。</p>
+     */
+    private static final ClickGuiTheme FALLBACK = new DeepGrayTheme();
     private static ClickGuiTheme currentTheme;
 
     static {
-        register(FALLBACK);
         register(new WhiteTheme());
-        register(new DarkTheme());
-        register(new GrayTheme());
+        register(FALLBACK);
         currentTheme = FALLBACK;
     }
 
