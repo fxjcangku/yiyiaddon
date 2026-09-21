@@ -1,7 +1,7 @@
 // Service Worker for yiyiaddon 后台管理系统
 // 提供离线缓存功能
 
-const CACHE_NAME = 'yiyiaddon-v6';
+const CACHE_NAME = 'yiyiaddon-v7';
 const urlsToCache = [
   '/',
   '/api/config',

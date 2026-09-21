@@ -45,12 +45,12 @@ wrangler deploy
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/api/register` | 注册/更新用户，返回排名与正版判定 |
-| POST | `/api/heartbeat` | 心跳（客户端每 3 秒一次），12 秒无心跳判定离线 |
+| POST | `/api/heartbeat` | 心跳（客户端每 3 秒一次，写库节流为 30 秒），心跳超时 90 秒判定离线 |
 | POST | `/api/offline` | 断开连接时立即下线 |
 | POST | `/api/command-activity` | 上报功能使用（同名 30 秒去重） |
 | POST | `/api/crash/report` | 崩溃上报，按指纹聚合 |
 | POST | `/api/anomaly/report` | 异常行为上报，按指纹聚合 |
-| POST | `/api/messages/poll` | 拉取未读消息（定向 + 广播） |
+| POST | `/api/messages/poll` | 拉取未读消息（定向 + 广播；广播只投给发送时在线的玩家） |
 | POST | `/api/messages/reply` | 玩家回复管理员 |
 | POST | `/api/chat/send` | 发送频道消息或私聊（上限 300 字） |
 | GET | `/api/chat/online` | 在线玩家名单（仅玩家名） |
@@ -64,12 +64,20 @@ wrangler deploy
 `/api/admin/refresh-premium`、`/api/admin/toggle-premium`、`/api/admin/clean-old-data`、
 `/api/messages/send`、`/api/messages/history`。
 
+`/api/messages/send` 的两种口径（2026-09-21 定稿）：
+
+- **私信**（传了 `target_uuid`）：单行、`delivered = 0`，收件人下线也留着，等他下次上线轮询时投递。
+- **广播**（没传 `target_uuid`）：发送那一刻把在线玩家固化进该行的 `target_uuids`，**只投给名单上的人**；
+  离线玩家不补收（老玩家进服不该看到几小时前的广播）。发送时无人在线则名单为空，这条广播谁都不投递，
+  面板会提示「当前无人在线，消息未投递」。
+
 页面：`/` 与 `/admin` 返回后台管理页，`/sw.js` 返回 Service Worker。
 
 ## 四、数据表
 
 `users`（玩家主表，含身份、地理位置、活动、在线状态）、`daily_active`（每日活跃去重日志）、
-`messages` + `message_reads`（管理员消息与广播已读）、`crashes`、`anomalies`、
+`messages` + `message_reads`（管理员消息与广播已读；`messages.target_uuids` 存广播的投递名单，
+逗号分隔带头尾逗号，`NULL` 表示玩家的跨服频道消息、按聊天记录补收）、`crashes`、`anomalies`、
 `configs`（远程配置键值）、`command_activities`。
 
 清理口径：`/api/admin/clean-old-data` 是**全量清空**（`messages` + `message_reads` + `command_activities`），
