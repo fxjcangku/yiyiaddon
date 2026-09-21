@@ -24,7 +24,7 @@ public final class WhiteTheme implements ClickGuiTheme {
 
     @Override
     public String displayName() {
-        return "White";
+        return "浅色";
     }
 
     @Override

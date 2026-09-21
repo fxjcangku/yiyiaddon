@@ -285,12 +285,20 @@ public final class SkiaBlurRenderer {
     }
 
     /**
-     * 玻璃色调：取自当前主题的窗面色，透明度按设置里的玻璃色调 alpha 折半（保留透明度设置的控制作用，
-     * 浅色主题也不会被固定黑色污染）。面板的「深 / 浅」最终由它决定。
+     * 玻璃色调：取自当前主题的窗面色，透明度按设置里的玻璃色调 alpha 折算。
+     *
+     * <p><b>两个档位</b>（用户 2026-09-21：「颜色帮我调浅了好多 我想深空灰」）：设置里的
+     * {@code blurTint} 只当「档位」用，实际蒙版强度由主题深浅决定 —— 暗色主题（深空灰）
+     * 必须给足，否则 0.45 那档只留 14% 的自身窗面色，明亮场景一透过玻璃就把面板冲成浅灰
+     * （实测截图里那块亮度接近 #737373）；浅色主题保持原来的轻蒙版，白底不会被黑色污染。</p>
      */
+    private static final float TINT_SCALE_DARK = 2.2f;
+    private static final float TINT_SCALE_LIGHT = 0.45f;
+
     private static int glassTint(int requested) {
-        return ClickGuiThemeColors.withAlpha(ClickGuiThemeColors.current().window,
-                ((requested >>> 24) / 255f) * 0.45f);
+        ClickGuiThemeColors tc = ClickGuiThemeColors.current();
+        float strength = (requested >>> 24) / 255f;
+        return ClickGuiThemeColors.withAlpha(tc.window, strength * (tc.dark ? TINT_SCALE_DARK : TINT_SCALE_LIGHT));
     }
 
     /**
