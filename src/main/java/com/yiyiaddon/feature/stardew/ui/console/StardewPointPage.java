@@ -104,8 +104,10 @@ public final class StardewPointPage {
      */
     private void openClearConfirm() {
         if (owner.client() == null) return;
+        // 数量先摆出来：执行后的回执卡片在控制台里看不见，等于删之前无从判断范围
+        // （口径与 ID 配置的清空确认窗一致：第一行 §c§l「将删除 N 个」）
         owner.client().gui.setScreen(ConfirmPanelScreen.inPlace("清空全部点位",
-            List.of("§f将删除当前服务器已绑定的全部点位",
+            List.of("§c§l将删除本服已绑定的 " + module.boundPointCount() + " 个点位",
                 "§7种子箱 · 成品箱 · 补水点 · 洒水器（种植区域在「农田」卡片里单独清空）",
                 "",
                 "§c此操作不可恢复。"),
@@ -253,8 +255,9 @@ public final class StardewPointPage {
         /** 清空全部区域：与「清空全部点位」同款二次确认（原地版，确认后留在控制台） */
         private void confirmClearRegions() {
             if (owner.client() == null) return;
+            // 同「清空全部点位」：数量写在确认之前（本服各维度合计，与 clearRegions 清掉的完全一致）
             owner.client().gui.setScreen(ConfirmPanelScreen.inPlace("清空全部种植区域",
-                List.of("§f将删除当前服务器已划分的全部种植区域",
+                List.of("§c§l将删除本服已划分的 " + module.regions().size() + " 个种植区域",
                     "§7地里的作物不会被挖掉，只是这些地不再被管理",
                     "",
                     "§c此操作不可恢复。"),

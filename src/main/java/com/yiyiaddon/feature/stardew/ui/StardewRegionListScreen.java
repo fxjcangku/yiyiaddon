@@ -115,8 +115,11 @@ public final class StardewRegionListScreen extends PanelScreen {
         if (minecraft == null) return;
         // 原地版确认窗：确认后回控制台（它 init() 会重建正文），而不是把整个界面关掉回游戏
         // —— 用户 2026-09-22：「二次确认之后就直接关闭 ui 了，不应该到模块设置页面吗」
+        // 数量先摆出来（原来只有执行后的回执卡片在报，而卡片在面板里看不见）；口径同 ID 配置的清空确认窗
+        // —— 取本服全部区域（各维度合计），与 clearRegions 清掉的完全一致，而不是本页只列的本维度
+        int count = module.regions().size();
         minecraft.gui.setScreen(ConfirmPanelScreen.inPlace("清空全部种植区域",
-            List.of("§f将删除当前服务器已划分的全部种植区域",
+            List.of("§c§l将删除本服已划分的 " + count + " 个种植区域",
                 "§7地里的作物不会被挖掉，只是这些地不再被管理",
                 "",
                 "§c此操作不可恢复。"),
