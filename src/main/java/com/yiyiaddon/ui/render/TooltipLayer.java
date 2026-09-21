@@ -67,6 +67,13 @@ public final class TooltipLayer {
     private static final float NOTICE_PAD_X = 12f;
     private static final float NOTICE_PAD_Y = 8f;
     private static final float NOTICE_RADIUS = 8f;
+    /**
+     * 长文案自动缩字号的下限：再长也不缩到比它更小，宁可让框贴边。
+     *
+     * <p>9 是界面里还能看清的下限（{@code HomePage} 的自适应字号同样以 9 收底）。
+     * 视口是整屏设计宽（不是面板宽），正常单行文案远远用不到这个下限。</p>
+     */
+    private static final float NOTICE_MIN_SIZE = 9f;
     /** 进场时自上而下归位的距离与最小缩放、退场时额外上浮的距离：与面板「下沉 + 淡入」同一观感，幅度更轻 */
     private static final float NOTICE_RISE = 7f;
     private static final float NOTICE_EXIT_LIFT = 5f;
@@ -187,8 +194,9 @@ public final class TooltipLayer {
         if (shownAlpha <= 0.01f) return;
 
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
-        float boxWidth = MinecraftText.measure(value, NOTICE_SIZE, false) + NOTICE_PAD_X * 2f;
-        float boxHeight = NOTICE_SIZE + NOTICE_PAD_Y * 2f;
+        float size = noticeSizeFor(value, viewportWidth);
+        float boxWidth = MinecraftText.measure(value, size, false) + NOTICE_PAD_X * 2f;
+        float boxHeight = size + NOTICE_PAD_Y * 2f;
         float boxX = Math.max(NOTICE_PAD_X, (viewportWidth - boxWidth) / 2f);
         float boxY = NOTICE_TOP - (1f - enter) * NOTICE_RISE + (1f - leave) * NOTICE_EXIT_LIFT;
         float radius = NOTICE_RADIUS;
@@ -213,11 +221,33 @@ public final class TooltipLayer {
             } finally {
                 canvas.restore();
             }
-            MinecraftText.draw(canvas, value, boxX + NOTICE_PAD_X, boxY + NOTICE_PAD_Y + NOTICE_SIZE,
-                    NOTICE_SIZE, baseColor(tc), shownAlpha);
+            MinecraftText.draw(canvas, value, boxX + NOTICE_PAD_X, boxY + NOTICE_PAD_Y + size,
+                    size, baseColor(tc), shownAlpha);
         } finally {
             canvas.restore();
         }
+    }
+
+    /**
+     * 取「整句放得下、字号又尽量大」的提示字号。
+     *
+     * <p><b>为什么需要它</b>（用户 2026-09-21：「那么多文字 会不会刷屏啊 检测资源包按钮 ui 会不会被撑爆」）：
+     * 弹窗只画一行、不折行，文案一旦宽过视口就会横向撑出屏幕 —— 原先这里对宽度<b>没有任何上限</b>，
+     * 换成长文案（如「恢复默认失败：」后面跟着异常描述）就真的会破框。
+     * 这里从 {@link #NOTICE_SIZE} 起量，放不下就逐档缩，缩到 {@link #NOTICE_MIN_SIZE} 为止。</p>
+     *
+     * <p><b>缩字号而不是截断成省略号</b>：回执本身就是一句话，截一半等于没说清楚
+     * （用户对省略号的态度见第 166 号复盘「宁愿简洁一点也不出现 ...」）。整句连字号一起缩，
+     * 框会跟着变矮变小，但话是完整的。</p>
+     */
+    private static float noticeSizeFor(String text, float viewportWidth) {
+        float limit = Math.max(NOTICE_PAD_X * 2f, viewportWidth - NOTICE_PAD_X * 2f);
+        float size = NOTICE_SIZE;
+        while (size > NOTICE_MIN_SIZE
+            && MinecraftText.measure(text, size, false) + NOTICE_PAD_X * 2f > limit) {
+            size = Math.max(NOTICE_MIN_SIZE, size - 0.5f);
+        }
+        return size;
     }
 
     /**
