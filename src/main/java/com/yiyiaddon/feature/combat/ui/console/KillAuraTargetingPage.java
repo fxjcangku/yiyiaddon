@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.combat.config.KillAuraTexts;
 import com.yiyiaddon.feature.combat.target.AttackableEntityTypes;
 import com.yiyiaddon.feature.combat.target.SortPriority;
 import com.yiyiaddon.feature.combat.ui.KillAuraConsoleScreen;
+import com.yiyiaddon.platform.identity.EntityDisplayNames;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
@@ -321,11 +322,16 @@ public final class KillAuraTargetingPage {
         return entityCandidates().size();
     }
 
-    /** 实体显示名（登记 ID → {@code EntityType.getDescription()}；认不出的 ID 原样显示，不猜） */
+    /**
+     * 实体显示名（登记 ID → {@link EntityDisplayNames}；认不出的 ID 原样显示，不猜）。
+     *
+     * <p>名字不再直接取 {@code EntityType#getDescription()}：客户端若没带中文实体译名，那里给的是
+     * 英文原名（用户 2026-09-21 报的「没汉化」），随包中文表会兜住，见 {@link EntityDisplayNames}。</p>
+     */
     public static String entityDisplayName(String typeId) {
         Identifier id = Identifier.tryParse(typeId);
         EntityType<?> type = id == null ? null : BuiltInRegistries.ENTITY_TYPE.getValue(id);
-        return type == null ? typeId : type.getDescription().getString();
+        return type == null ? typeId : EntityDisplayNames.display(type);
     }
 
     /** 名单状态文字（逐字照星露谷 / 挖矿口径）：未选 → {@code 未选择（共 N 项）}；已选 → {@code 已选 N / M 项} */
@@ -403,7 +409,7 @@ public final class KillAuraTargetingPage {
 
         @Override
         public String title() {
-            return type.getDescription().getString();
+            return EntityDisplayNames.display(type);
         }
 
         /**
