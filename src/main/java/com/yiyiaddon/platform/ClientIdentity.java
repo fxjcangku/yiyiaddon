@@ -56,19 +56,60 @@ public final class ClientIdentity {
     /**
      * 本地正版判定：仅作为展示兜底，最终以后端返回的 {@code is_premium} 为准。
      *
-     * <p>两条判据：</p>
+     * <p>三条判据，命中任意一条即算正版：</p>
      * <ol>
      *   <li>{@code xuid} 非空 —— 原版正版会话一定会带 XUID 属性，离线会话恒为空；</li>
+     *   <li>{@link #hasSessionCredentials()} —— 会话 UUID 是 v4 且令牌有效。
+     *       <b>这条是 2026-09-21 补的</b>：用户反馈「我明明正版号给我判成离线了 好多个号都这样」，
+     *       查线上库发现这些号的 {@code xuid} 全是 NULL（第三方启动器/环境不给 XUID 属性），
+     *       单靠第 1 条等于把正版会话一律判成离线；</li>
      *   <li>开发环境加载了 DevAuth Neo —— 它接管会话时只提供 ACCESS_TOKEN / UUID / USERNAME
      *       （见其 {@code MicrosoftAuthProvider} 的令牌集合），<b>不会填 XUID</b>，
      *       所以开发端即使真的登录了正版，第 1 条也永远不成立。</li>
      * </ol>
      * <p>DevAuth 只在开发环境存在（{@code localRuntime} 依赖，不进发布产物），
-     * 且它只在真正完成微软登录后才接管会话，因此这条兜底不会把离线会话判成正版。</p>
+     * 且它只在真正完成微软登录后才接管会话，因此第 3 条不会把离线会话判成正版。</p>
      */
     public static boolean premium() {
         if (xuid() != null) return true;
+        if (hasSessionCredentials()) return true;
         return FabricLoader.getInstance().isModLoaded(DEV_AUTH_MOD_ID);
+    }
+
+    /**
+     * 会话凭据是否像一次真实登录：UUID 为 v4（正版随机分配）且 access token 有效。
+     *
+     * <p><b>为什么需要它</b>：很多启动器不把 XUID 塞进会话属性，而正版会话的 UUID 一定是随机分配的 v4；
+     * 离线模式由用户名 MD5 派生，固定是 v3（线上库里 {@code wosinima} 那条就是
+     * {@code 00000000-0000-3008-…}）。离线启动器还惯于把令牌填成 {@code 0} / {@code null} / 空串，
+     * 因此「v4 + 有效令牌」把两者分得很开。判据与 {@code AccountChecker} 的两条本地特征同源，
+     * 差别只在这里没有「无法确定」这一档：界面上只能显示正版或离线，因此按「像正版就算正版」收口，
+     * 目标是<strong>不再把正版误判成离线</strong> —— 单看 XUID 的旧口径在无 XUID 的启动器上必然误判。</p>
+     *
+     * <p>最终口径仍以后端为准：后端会按名字查 Mojang 官方档案（{@code resolvePremium}），
+     * 其结果经 {@code /api/register} 的 {@code is_premium} 回带，由 {@code HomeStats} 采纳。</p>
+     */
+    private static boolean hasSessionCredentials() {
+        UUID uuid = uuid();
+        if (uuid == null || uuid.version() != 4) return false;
+        return validToken(accessToken());
+    }
+
+    /** 会话访问令牌；读不到返回 {@code null}。 */
+    private static String accessToken() {
+        try {
+            User user = Minecraft.getInstance().getUser();
+            return user == null ? null : user.getAccessToken();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 令牌是否像真实凭据：离线启动器常填 {@code 0} / {@code null} / 空串，长度普遍也短。 */
+    private static boolean validToken(String token) {
+        if (token == null || token.isBlank()) return false;
+        if (token.equals("0") || token.equalsIgnoreCase("null")) return false;
+        return token.length() >= 16;
     }
 
     /** 本模组版本号，取 fabric.mod.json 中的 version。 */
