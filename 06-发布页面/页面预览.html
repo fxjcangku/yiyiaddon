@@ -10,47 +10,230 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style></head><body>
 <header class="top"><div class="top-inner"><span class="brand"><i></i>yiyiaddon</span><span class="label">方块世界 · 发布预览</span><div class="controls"><button id="home-button" aria-pressed="true">仓库首页</button><button id="release-button" aria-pressed="false">版本说明</button><button id="theme-button" aria-pressed="false">切换浅色</button></div></div></header>
-<div class="layout"><aside><div class="eyebrow">功能栏</div><nav><a href="#功能概览">功能概览</a><a href="#星露谷农场">星露谷农场</a><a href="#自动挖矿">自动挖矿</a><a href="#自动箱子">自动箱子</a><a href="#自动农场">自动农场</a><a href="#自动附魔与村民交易">自动附魔与村民交易</a><a href="#同一套操作方式">同一套操作方式</a><a href="#安装准备">安装准备</a><a href="#版本状态">版本状态</a><a href="#问题反馈">问题反馈</a></nav><div class="note">Minecraft 26.x<br>Beta 公开测试版<br><br>图形为功能概念示意<br>实际界面以游戏为准</div></aside><main><div class="filebar"><span id="filename">README.md</span><span>1.0-beta1 · 公开测试版</span></div><article class="markdown" id="home"><p align="center">
+<div class="layout"><aside><div class="eyebrow">功能栏</div><nav><a href="#这个模组做什么">这个模组做什么</a><a href="#星露谷农场">星露谷农场</a><a href="#自动挖矿">自动挖矿</a><a href="#ID 联动自动箱子">ID 联动自动箱子</a><a href="#全部功能概览">全部功能概览</a><a href="#安装准备">安装准备</a><a href="#这个模组的前身">这个模组的前身</a><a href="#版本状态">版本状态</a><a href="#反馈与社区">反馈与社区</a></nav><div class="note">Minecraft 26.x<br>Beta 公开测试版<br><br>图形为功能概念示意<br>实际界面以游戏为准</div></aside><main><div class="filebar"><span id="filename">README.md</span><span>1.0-beta1 · 公开测试版</span></div><article class="markdown" id="home"><p align="center">
   <img src="仓库首页/展示资源/方块世界封面.gif" width="1120" alt="yiyiaddon：Minecraft 方块农场与矿洞场景动态封面，1.0-beta1 公开测试版。此图为概念插画，非实机截图。">
 </p>
 
 <p align="center">
-  <strong>种植、采掘、后勤，都有安排。</strong><br>
+  <strong>种地、挖矿、取货，一条流程跑到底。</strong><br>
+  星露谷农场 · 自动挖矿 · ID 联动自动箱子<br>
   Minecraft 26.x · 独立 Fabric 客户端模组
 </p>
 
 <p align="center">
   <a href="#星露谷农场">星露谷农场</a> ·
   <a href="#自动挖矿">自动挖矿</a> ·
-  <a href="#功能概览">全部概览</a> ·
+  <a href="#id-联动自动箱子">ID 联动自动箱子</a> ·
+  <a href="#全部功能概览">全部概览</a> ·
   <a href="#安装准备">安装准备</a> ·
-  <a href="#版本状态">版本状态</a> ·
-  <a href="https://github.com/fxjcangku/yiyiaddon/issues">问题反馈</a>
+  <a href="#这个模组的前身">前身</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta1"><strong>下载 Beta 测试版</strong></a> ·
+  <a href="展示资源/方块世界封面.png">查看静态封面</a> ·
+  <a href="https://github.com/fxjcangku/yiyiaddon/issues">问题反馈</a> ·
+  <a href="https://discord.gg/vwrRCtET">Discord 社区</a>
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/vwrRCtET"><img src="https://img.shields.io/badge/Discord-%E5%8A%A0%E5%85%A5%E7%A4%BE%E5%8C%BA-7289da?style=for-the-badge&logo=discord&logoColor=white" alt="Discord 社区"></a>
 </p>
 
 <hr>
-<p align="center"><a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta1"><strong>下载 Beta 测试版</strong></a> · <a href="展示资源/方块世界封面.png">查看静态封面</a></p>
-
-<h3>从农田到矿洞</h3>
-<p>从模块中心找到功能，在独立页面中完成配置，通过控制台查看设置与运行状态。常用工具、自动化任务与世界标记，围绕同一套操作入口组织。</p>
+<h2 id="这个模组做什么">这个模组做什么</h2>
+<p>模块中心里选功能，独立页面里做配置，控制台里看设置和运行状态。三件事是当前版本的重点：</p>
 <div class="table-scroll"><table>
+<thead>
 <tr>
-<td width="33%" valign="top">
-<h3>种植</h3>
-<p>选择作物，圈定农田，设置配额。浇水、收获与种子补给按需安排。</p>
-</td>
-<td width="33%" valign="top">
-<h3>采掘</h3>
-<p>选择矿物，配置点位，管理工具与背包。采掘之外，也照顾卸货和补给。</p>
-</td>
-<td width="33%" valign="top">
-<h3>后勤</h3>
-<p>按数量取物，整理容器，准备附魔与交易。通过中文控制台查看和调整。</p>
-</td>
+<th align="left">重点</th>
+<th align="left">一句话</th>
 </tr>
-</table></div>
+</thead>
+<tbody><tr>
+<td align="left"><strong>星露谷农场</strong></td>
+<td align="left">跟当前服务器的资源与玩法自适应，种什么、用什么工具、什么时候收，都按那台服的真实数据来</td>
+</tr>
+<tr>
+<td align="left"><strong>自动挖矿</strong></td>
+<td align="left">从进矿、战斗、满载卸货到回城卖矿，串成一条能一直跑的流程</td>
+</tr>
+<tr>
+<td align="left"><strong>ID 联动自动箱子</strong></td>
+<td align="left">ID 识别定下目标物品，自动箱子按这份目标清单取货，逐物品定量</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="星露谷农场">星露谷农场</h2>
+<p><img src="仓库首页/展示资源/%E5%86%9C%E5%9C%BA%E5%8A%9F%E8%83%BD%E5%9B%BE.svg" alt="星露谷农场功能示意：分区种植、作物配额与后勤设施，非游戏截图"></p>
+<p><strong>服务器自适应：换一台星露谷玩法服务器，不用重新学一遍。</strong></p>
+<p>进服后点一次「检测 / 提取当前服务器资源」，模组会读取<strong>这台服务器自己</strong>的资源包，把真实存在的作物、种植盆、种子与工具取出来给自己用——不写死在某台服的数据上：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th align="left">自适应点</th>
+<th align="left">实际效果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">服务器资源识别</td>
+<td align="left">作物、种植盆、种子、工具按该服资源包列出来供你选，改版或换服重测即可</td>
+</tr>
+<tr>
+<td align="left">旧布局资源包兼容</td>
+<td align="left">老服沿用的旧资源布局同样能识别（基础物品 + 派发表两套口径）</td>
+</tr>
+<tr>
+<td align="left">洒水器覆盖范围</td>
+<td align="left">从实物与物品说明自学覆盖范围，不靠固定尺寸猜</td>
+</tr>
+<tr>
+<td align="left">成熟与季节</td>
+<td align="left">按可确认的状态与已有规则判定成熟，结合该服季节与种子信息安排播种</td>
+</tr>
+<tr>
+<td align="left">服务器数据隔离</td>
+<td align="left">农田点位、绑定箱、配额按服务器各存一份，换服自动读那一份</td>
+</tr>
+</tbody></table></div>
+<p><strong>一台功能齐全的农场，分成六个页签</strong></p>
+<p><code>概览</code> 当前任务与库存　 /　 <code>种植</code> 作物与工具　 /　 <code>运行</code> 作业参数<br>
+<code>后勤</code> 数量与补给　 /　 <code>点位</code> 农田与设施　 /　 <code>日志</code> 状态回看</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th align="left">能力</th>
+<th align="left">你可以怎样使用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">分区与混种</td>
+<td align="left">圈定单作物区域，或在混种区按已选作物与目标数量安排种植</td>
+</tr>
+<tr>
+<td align="left">作物配额</td>
+<td align="left">每种作物单独设目标，按个数或组数管理，不必所有作物同一个数</td>
+</tr>
+<tr>
+<td align="left">日常照料</td>
+<td align="left">浇水、施肥、药剂使用、洒水器维护，并处理枯死作物</td>
+</tr>
+<tr>
+<td align="left">补给与仓储</td>
+<td align="left">绑定种子箱、成品箱、补水点，管理补货、卸货与多余种子回收</td>
+</tr>
+<tr>
+<td align="left">范围与状态</td>
+<td align="left">查看种植范围、洒水器覆盖、配额与当前任务，日志可回看</td>
+</tr>
+</tbody></table></div>
+<details>
+<summary><strong>第一次使用：从资源准备到开始种植</strong></summary>
 
-<h2 id="功能概览">功能概览</h2>
+<ol>
+<li>进入对应服务器，在模块页点击「检测 / 提取当前服务器资源包」。</li>
+<li>打开控制台，在「种植」页选择目标作物及实际使用的工具。</li>
+<li>在「点位」页的「农田」卡片圈地，确定单作物区或混种区。</li>
+<li>按需求绑定种子箱、成品箱、补水点与洒水器。</li>
+<li>在「后勤」页设置各作物目标数量，检查运行参数后开启模块。</li>
+</ol>
+<p><strong>使用前提：</strong> 依赖对应服务器的资源与玩法配置，不承诺兼容所有自定义农业服务器。缺少可靠成熟信息时需要人工确认规则；特殊作物需要对应工具。建议先从小块农田验证。</p>
+</details>
+
+<hr>
+<h2 id="自动挖矿">自动挖矿</h2>
+<p><img src="仓库首页/展示资源/%E6%8C%96%E7%9F%BF%E5%8A%9F%E8%83%BD%E5%9B%BE.svg" alt="自动挖矿功能示意：采掘、卸货与补给，非游戏截图"></p>
+<p><strong>不只是挖，是把一整套班次跑完。</strong></p>
+<p>选好目标矿物与后勤点位后，由随包提供的 Baritone 负责寻路，模组按背包、饥饿、耐久与敌情切换任务：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th align="left">环节</th>
+<th align="left">功能说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">采掘目标</td>
+<td align="left">配置目标矿物与采掘参数，寻路进入矿区，连锁挖空矿脉并补挖残余</td>
+</tr>
+<tr>
+<td align="left">战斗与保命</td>
+<td align="left">遇敌优先处理战斗，苦力怕贴身先了断，坚守者预警时脱离</td>
+</tr>
+<tr>
+<td align="left">满载卸货</td>
+<td align="left">达到设定条件后走卸货流程，再返回采掘</td>
+</tr>
+<tr>
+<td align="left">食物补给</td>
+<td align="left">按饥饿与血量阈值进食、回血，口粮直补副手</td>
+</tr>
+<tr>
+<td align="left">工具维护</td>
+<td align="left">按耐久阈值换镐；满足经验修补条件时进入修复流程</td>
+</tr>
+<tr>
+<td align="left">边挖边走</td>
+<td align="left">需要时自行搭路、垫脚，水中脱困与卡住自愈都有人管</td>
+</tr>
+<tr>
+<td align="left">自用模式</td>
+<td align="left">挖够组数或背包满就静默回城卖矿，卖完回子服继续，形成循环</td>
+</tr>
+<tr>
+<td align="left">配置记录</td>
+<td align="left">设置与点位存成一份记录，按服务器查看、覆盖与复用</td>
+</tr>
+</tbody></table></div>
+<p><strong>典型流程</strong></p>
+<p><code>前往采掘区域</code> → <code>寻路挖矿</code> → <code>检查背包 / 食物 / 耐久 / 敌情</code> → <code>卸货或卖矿</code> → <code>回矿继续</code></p>
+<details>
+<summary><strong>第一次使用：三个点位与一个必查设置</strong></summary>
+
+<ol>
+<li>准备工具、食物，以及修复流程需要的装备与场地。</li>
+<li>在控制台「点位」页绑定矿物箱、食物箱、挂机修复点；自用模式再配好回城与子服入口。</li>
+<li>配置服务器实际可用的传送指令与等待时间。</li>
+<li>选目标矿物，检查满载、食物与耐久阈值。</li>
+<li><strong>检查「保留白名单」再启动。非保留物品会被自动丢弃。</strong></li>
+</ol>
+<p>传送与回城流程依赖服务器支持对应指令；普通无经验修补工具不能靠经验修复。运行时先停止模块再改点位。</p>
+</details>
+
+<hr>
+<h2 id="ID 联动自动箱子">ID 联动自动箱子</h2>
+<p><strong>ID 识别告诉它「要什么」，自动箱子替你「去拿」。</strong></p>
+<p>ID 识别负责认物品、把目标记进 ID 配置；自动箱子直接读这份目标列表，逐物品设置取货数量——不用在两个模块里各填一遍：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th align="left">联动点</th>
+<th align="left">说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">目标来自 ID</td>
+<td align="left">取物目标取自 ID 目标列表，识别到的物品可直接进清单</td>
+</tr>
+<tr>
+<td align="left">逐物品定量</td>
+<td align="left">每个目标单独设数量，也可以取空清单物品或全部合法物品</td>
+</tr>
+<tr>
+<td align="left">三种工作方式</td>
+<td align="left">玩家自行走位时随走位触发 / 自动寻路扫描 / 只处理已保存点位</td>
+</tr>
+<tr>
+<td align="left">边界可配</td>
+<td align="left">容器类型、多人保护、重试与临时冷却分别配置</td>
+</tr>
+<tr>
+<td align="left">状态可见</td>
+<td align="left">概览、点位、运行模式、容器、保护、取物与渲染共七个页签</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="全部功能概览">全部功能概览</h2>
 <p>以下是当前版本已接入的部分功能；具体可用范围以版本说明与实际测试结果为准。</p>
 <div class="table-scroll"><table>
 <thead>
@@ -63,12 +246,12 @@
 <tbody><tr>
 <td align="left">识别与整理</td>
 <td align="left">ID 识别、ID 配置、自动箱子</td>
-<td align="left">管理目标信息与容器物品</td>
+<td align="left">管理目标信息与容器取物</td>
 </tr>
 <tr>
 <td align="left">采集与种植</td>
 <td align="left">自动挖矿、自动农场、自动骨粉</td>
-<td align="left">配置采集和种植任务</td>
+<td align="left">配置采集与种植任务</td>
 </tr>
 <tr>
 <td align="left">装备与交易</td>
@@ -78,7 +261,7 @@
 <tr>
 <td align="left">农场管理</td>
 <td align="left">星露谷农场</td>
-<td align="left">配置对应玩法的点位与任务</td>
+<td align="left">星露谷玩法的种植与后勤</td>
 </tr>
 <tr>
 <td align="left">世界显示</td>
@@ -86,171 +269,8 @@
 <td align="left">配置世界标记与可视信息</td>
 </tr>
 </tbody></table></div>
-<h2 id="星露谷农场">星露谷农场</h2>
-<p><img src="仓库首页/展示资源/%E5%86%9C%E5%9C%BA%E5%8A%9F%E8%83%BD%E5%9B%BE.svg" alt="星露谷农场功能示意：分区种植、作物配额与后勤设施，非游戏截图"></p>
-<p><strong>从一块种植区，到有计划的农场管理。</strong></p>
-<p>面向 Minecraft 服务器中的星露谷类玩法，把作物选择、分区种植、日常照料与仓储后勤放进同一个控制台。这里的“星露谷农场”是本模组的功能模块，并非独立游戏《星露谷物语》的插件。</p>
-<div class="table-scroll"><table>
-<thead>
-<tr>
-<th align="left">能力</th>
-<th align="left">你可以怎样使用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">服务器资源识别</td>
-<td align="left">手动检测、提取当前服务器资源，选择该服真实存在的作物、种植盆和工具</td>
-</tr>
-<tr>
-<td align="left">分区与混种</td>
-<td align="left">圈定单作物区域，或在混种区按已选作物和目标数量安排种植</td>
-</tr>
-<tr>
-<td align="left">作物配额</td>
-<td align="left">每种作物分别设置目标数量，按个数或组数管理，不用给所有作物同一个目标</td>
-</tr>
-<tr>
-<td align="left">日常照料</td>
-<td align="left">按设置执行浇水、施肥、药剂使用与洒水器维护，并处理枯死作物</td>
-</tr>
-<tr>
-<td align="left">成熟与季节</td>
-<td align="left">根据已有规则和可确认的状态识别成熟；结合服务器季节与种子信息安排播种，支持人工确认</td>
-</tr>
-<tr>
-<td align="left">补给与仓储</td>
-<td align="left">绑定种子箱、成品箱和补水点，管理补货、卸货与多余种子回收</td>
-</tr>
-<tr>
-<td align="left">范围与状态</td>
-<td align="left">查看种植范围、洒水器覆盖、作物配额和当前任务，并通过日志回看状态</td>
-</tr>
-</tbody></table></div>
-<p><strong>六个页签，各司其职</strong></p>
-<p><code>概览</code> 当前任务与库存　 /　 <code>种植</code> 作物与工具　 /　 <code>运行</code> 作业参数<br>
-<code>后勤</code> 数量与补给　 /　 <code>点位</code> 农田与设施　 /　 <code>日志</code> 状态回看</p>
-<details>
-<summary><strong>第一次使用：从资源准备到开始种植</strong></summary>
-
-<ol>
-<li>进入对应服务器，在模块页点击「检测 / 提取当前服务器资源包」。</li>
-<li>打开控制台，在「种植」页选择目标作物及实际使用的工具。</li>
-<li>在「点位」页的「农田」卡片圈地，确定单作物区或混种区。</li>
-<li>根据需求绑定种子箱、成品箱、补水点和洒水器。</li>
-<li>在「后勤」页设置各作物目标数量，检查运行参数后开启模块。</li>
-</ol>
-<p><strong>使用前提：</strong> 依赖对应服务器资源与玩法配置，不承诺兼容所有自定义农业服务器。缺少可靠成熟信息时需要确认规则；特殊作物也需要对应工具。首次使用建议从小块农田开始验证。</p>
-</details>
-
-<h2 id="自动挖矿">自动挖矿</h2>
-<p><img src="仓库首页/展示资源/%E6%8C%96%E7%9F%BF%E5%8A%9F%E8%83%BD%E5%9B%BE.svg" alt="自动挖矿功能示意：采掘、卸货与补给，非游戏截图"></p>
-<p><strong>让采掘、卸货与补给，接成连续的工作流程。</strong></p>
-<p>选择目标矿物并设置后勤点位后，通过 Baritone 执行寻路采掘，根据背包、饥饿与工具耐久条件切换任务。</p>
-<div class="table-scroll"><table>
-<thead>
-<tr>
-<th align="left">环节</th>
-<th align="left">功能说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">采掘目标</td>
-<td align="left">配置目标矿物与相关采掘参数，通过寻路到达目标</td>
-</tr>
-<tr>
-<td align="left">满载卸货</td>
-<td align="left">达到设定条件后执行卸货流程，再返回采掘任务</td>
-</tr>
-<tr>
-<td align="left">食物补给</td>
-<td align="left">结合食物阈值与食物箱点位安排补给</td>
-</tr>
-<tr>
-<td align="left">工具维护</td>
-<td align="left">工具满足经验修补条件时，按耐久阈值进入对应修复流程</td>
-</tr>
-<tr>
-<td align="left">物品保留</td>
-<td align="left">通过保留白名单保护需要留下的物品，并管理搭路材料</td>
-</tr>
-<tr>
-<td align="left">手动接管</td>
-<td align="left">检测到非模块自身的大幅传送时暂停采掘，避免在落点继续挖掘</td>
-</tr>
-<tr>
-<td align="left">配置记录</td>
-<td align="left">保存设置与点位组合，按服务器查看和管理记录</td>
-</tr>
-</tbody></table></div>
-<p><strong>典型流程</strong></p>
-<p><code>前往采掘区域</code> → <code>寻路挖矿</code> → <code>检查背包 / 食物 / 耐久</code> → <code>卸货或补给</code> → <code>继续采掘</code></p>
-<details>
-<summary><strong>第一次使用：三个点位与一个必查设置</strong></summary>
-
-<ol>
-<li>准备工具、食物及修复流程需要的装备和场地。</li>
-<li>在控制台「点位」页绑定矿物箱、食物箱、挂机修复点。</li>
-<li>配置服务器实际可用的传送指令与等待时间。</li>
-<li>选择目标矿物，检查满载、食物和耐久阈值。</li>
-<li><strong>检查「保留白名单」再启动。非保留物品会被自动丢弃。</strong></li>
-</ol>
-<p>传送流程需要服务器支持对应指令；普通无经验修补工具不能靠经验修复。运行时先停止模块再修改点位。本页不将尚未落地的种子预测挖矿、假矿检测作为可用功能宣传。</p>
-</details>
-
-<h2 id="自动箱子">自动箱子</h2>
-<p><strong>按目标取物，也按你的习惯工作。</strong></p>
-<p>支持玩家自行走位、自动寻路和保存点位三种工作方式。可以逐物品设置目标数量，也可以取空目标列表物品或全部合法物品。</p>
-<ul>
-<li><strong>目标更明确：</strong> 结合 ID 目标列表选择物品，分别配置取物数量。</li>
-<li><strong>路线可选择：</strong> 玩家控制模式随你的走位触发；寻路模式自动扫描；标点模式只处理保存点位。</li>
-<li><strong>操作有边界：</strong> 容器类型、多人保护、重试与临时冷却分别配置。</li>
-<li><strong>状态便于查看：</strong> 概览、点位、运行模式、容器、保护、取物和渲染分为七个页签。</li>
-</ul>
-<h2 id="自动农场">自动农场</h2>
-<p><strong>面向原版作物，管理收割、补种与物流。</strong></p>
-<p>与星露谷农场分开配置。通过两个角点确定农田范围，选择作物后安排收割、补种、拾取与箱子补给；每种启用作物可独立设置卸货与种子补货数量。</p>
-<div class="table-scroll"><table>
-<thead>
-<tr>
-<th align="left">类型</th>
-<th align="left">当前说明列出的作物</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">普通作物</td>
-<td align="left">小麦、胡萝卜、马铃薯、甜菜根、下界疣</td>
-</tr>
-<tr>
-<td align="left">柱状作物</td>
-<td align="left">竹子、甘蔗、仙人掌</td>
-</tr>
-<tr>
-<td align="left">果实</td>
-<td align="left">南瓜、西瓜</td>
-</tr>
-</tbody></table></div>
-<p>最多同时启用三种作物；支持单个与批量收割。海带和甜浆果当前不在支持范围内。</p>
-<h2 id="自动附魔与村民交易">自动附魔与村民交易</h2>
-<p><strong>从设定目标，到获得所需装备与物品。</strong></p>
-<div class="table-scroll"><table>
-<tr>
-<td width="50%" valign="top">
-<h3>自动附魔</h3>
-<p>区分原版装备、原版附魔书与自定义附魔模式，按目标词条组织配置。</p>
-<p>根据模式执行经验准备、附魔、结果筛选、砂轮洗练与成品存放。支持纯附魔与挂机循环；需要先配置相应工作站、容器和经验来源。</p>
-</td>
-<td width="50%" valign="top">
-<h3>自动村民交易</h3>
-<p>提供原地交易、寻路单点与多任务模式，选择职业、物品和价格上限。</p>
-<p>结合绿宝石箱与成品交易箱完成补给、交易和卸货。面向已准备好的固定交易所；相关村民需要先手动解锁到适用等级。</p>
-</td>
-</tr>
-</table></div>
-
-<p><strong>自动图书管理员</strong>则面向目标附魔书筛选：在符合要求的村民工位附近放置、拆除讲台以刷新交易，匹配目标后购买。使用前需准备讲台、书与绿宝石，并设置目标附魔及价格上限。</p>
-<h2 id="同一套操作方式">同一套操作方式</h2>
-<p><strong>模块中心 → 功能页面 → 控制台 → 配置与运行。</strong></p>
-<p>常用功能通过统一入口查找，复杂模块用分页控制台组织设置。点位、目标选择和运行状态按模块呈现；ID 识别与配置用于管理目标信息，世界标记帮助查看区域和设施。具体操作以各模块页面内的中文说明为准。</p>
+<p><strong>自动农场</strong>（与星露谷农场分开配置）面向原版作物：两种点圈出农田后安排收割、补种、拾取与箱子补给；支持小麦、胡萝卜、马铃薯、甜菜根、下界疣、竹子、甘蔗、仙人掌、南瓜、西瓜，最多同时启用三种。</p>
+<p><strong>自动附魔</strong>区分原版装备、原版附魔书与自定义附魔模式；<strong>自动村民交易</strong>提供原地交易、寻路单点与多任务模式；<strong>自动图书管理员</strong>在村民工位附近放拆讲台刷新交易，匹配目标附魔后购买。</p>
 <hr>
 <h2 id="安装准备">安装准备</h2>
 <div class="table-scroll"><table>
@@ -281,13 +301,19 @@
 <td align="left">当前包包含 Windows x64 / ARM64 原生组件；其他系统暂未提供适配包</td>
 </tr>
 </tbody></table></div>
-<p><strong>安装步骤：</strong></p>
+<p><strong>四步装好：</strong></p>
 <ol>
-<li>在启动器中创建对应游戏版本（<strong>26.1.2</strong> 或 <strong>26.2</strong>）的 Fabric 实例，选择 Java 25。</li>
-<li>下载与你游戏版本对应的包（文件名末尾带 MC 版本，如 <code>yiyiaddon-1.0-beta1-26.1.2.zip</code> / <code>yiyiaddon-1.0-beta1-26.2.zip</code>），解压后将其中的 JAR 和对应版本的 Fabric API 放入该实例的 <code>mods</code> 文件夹，不要直接放入 ZIP。</li>
+<li>在启动器里建一个对应游戏版本（<strong>26.1.2</strong> 或 <strong>26.2</strong>）的 Fabric 实例，Java 选 <strong>25</strong>。</li>
+<li>到 <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta1">Releases</a> 下载<strong>与游戏版本对应</strong>的包（文件名末尾带 MC 版本，如 <code>yiyiaddon-1.0-beta1-26.1.2.zip</code>）。</li>
+<li>把包<strong>解压</strong>，取出里面的 JAR，连同对应版本的 Fabric API 一起放进该实例的 <code>mods</code> 文件夹——<strong>别直接把 ZIP 丢进去</strong>。</li>
 <li>启动游戏。升级已有实例前，先备份存档与配置。</li>
 </ol>
-<p>Baritone 随包提供，无需另装。建议先在独立实例中测试。</p>
+<p>Baritone 已随包提供，不用另装。装错版本会起不来：26.1.2 的包不能丢进 26.2 实例。</p>
+<hr>
+<h2 id="这个模组的前身">这个模组的前身</h2>
+<p>yiyiaddon 的前身是 <strong>Meteor Client 的附属插件</strong>——功能、算法、状态机、配置项与文案都在那套体系里长出来的。现在整体重写为<strong>独立的 Fabric 客户端模组</strong>：不再依赖 Meteor 或任何第三方客户端框架，代码与运行方式都是自有的，只把操作界面重新做了一遍。</p>
+<p>因此老用户的习惯基本可以照搬：模块位置、开关与指令前缀的用法一脉相承，配置项按原有口径迁移；界面换成了模块中心 + 独立页面 + 中文控制台。</p>
+<hr>
 <h2 id="版本状态">版本状态</h2>
 <blockquote>
 <p><strong>1.0-beta1 · Beta 公开测试版</strong></p>
@@ -313,12 +339,13 @@
 <td align="left">待完成</td>
 </tr>
 </tbody></table></div>
-<p>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases"><strong>查看版本记录 →</strong></a>
-</p>
-
-<h2 id="问题反馈">问题反馈</h2>
-<p>请在 <a href="https://github.com/fxjcangku/yiyiaddon/issues">Issues</a> 中附上版本、复现步骤、预期结果和实际结果。遇到崩溃时，可提供相关日志或崩溃报告；发送前请移除账号、令牌等个人信息。</p>
+<hr>
+<h2 id="反馈与社区">反馈与社区</h2>
+<ul>
+<li><strong>问题反馈</strong>：<a href="https://github.com/fxjcangku/yiyiaddon/issues">Issues</a>，附上版本、复现步骤、预期结果与实际结果更便于定位。</li>
+<li><strong>Discord 社区</strong>：<a href="https://discord.gg/vwrRCtET">https://discord.gg/vwrRCtET</a></li>
+</ul>
+<p>遇到崩溃时，请提供相关日志或崩溃报告；发送前移除账号、令牌等个人信息。</p>
 <details>
 <summary><strong>反馈内容参考</strong></summary>
 
@@ -335,100 +362,30 @@ Java 版本与操作系统：
 
 <hr>
 <h3>作品与致谢</h3>
-<p>本仓库用于作品展示、版本说明与发布包分发。许可与第三方组件信息见 <a href="https://github.com/fxjcangku/yiyiaddon/blob/master/LICENSE">LICENSE</a> 和 <a href="https://github.com/fxjcangku/yiyiaddon/blob/master/CREDITS">CREDITS</a>，各组件遵循其原有许可。请尊重作者及第三方贡献者的成果。</p>
+<p>本仓库用于作品展示、版本说明与发布包分发。发布包内各第三方组件（含随包附带的许可文件）遵循其原有许可，请尊重作者及第三方贡献者的成果。</p>
 <p><sub>Minecraft 是 Mojang Synergies AB 的商标。本项目是非官方客户端模组，与 Mojang 或 Microsoft 无关联。</sub></p>
-</article><article class="markdown" id="release" hidden><p>独立 Fabric 客户端模组：把种植、采掘、交易、后勤这些重复劳动接成能一直跑的流程。</p>
-<h2 id="支持范围">支持范围</h2>
-<div class="table-scroll"><table>
-<thead>
-<tr>
-<th align="left">项目</th>
-<th align="left">要求</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">游戏</td>
-<td align="left">Minecraft <strong>26.x</strong>（当前支持 <strong>26.1.2</strong> 与 <strong>26.2</strong>；<strong>26.3 及以后暂不支持</strong>）</td>
-</tr>
-<tr>
-<td align="left">加载器</td>
-<td align="left">Fabric Loader <strong>0.19.5</strong> 或更新兼容版本</td>
-</tr>
-<tr>
-<td align="left">依赖</td>
-<td align="left">与游戏版本对应的 Fabric API：26.1.2 用 <code>0.155.2+26.1.2</code>，26.2 用 <code>0.161.0+26.2</code></td>
-</tr>
-<tr>
-<td align="left">Java</td>
-<td align="left"><strong>25</strong></td>
-</tr>
-</tbody></table></div>
-<h2 id="下载与安装">下载与安装</h2>
-<p><strong>按你的游戏版本下对应那个包，装错会无法启动。</strong></p>
+</article><article class="markdown" id="release" hidden><p><strong>首个测试版</strong> —— 独立开发的 Minecraft Fabric 客户端模组。</p>
 <div class="table-scroll"><table>
 <thead>
 <tr>
 <th align="left">游戏版本</th>
 <th align="left">下载</th>
+<th align="left">配套 Fabric API</th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="left">26.1.2</td>
 <td align="left"><code>yiyiaddon-1.0-beta1-26.1.2.zip</code></td>
+<td align="left"><code>0.155.2+26.1.2</code></td>
 </tr>
 <tr>
 <td align="left">26.2</td>
 <td align="left"><code>yiyiaddon-1.0-beta1-26.2.zip</code></td>
+<td align="left"><code>0.161.0+26.2</code></td>
 </tr>
 </tbody></table></div>
-<p>解压后，把里面的 JAR 和对应版本的 Fabric API 一起放进实例的 <code>mods</code> 文件夹，<strong>不要直接把 ZIP 丢进去</strong>。</p>
-<h2 id="本版内容">本版内容</h2>
-<p>首个测试版，已接入的部分功能（完整说明见仓库首页）：</p>
-<div class="table-scroll"><table>
-<thead>
-<tr>
-<th align="left">方向</th>
-<th align="left">模块</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">农场</td>
-<td align="left"><strong>星露谷农场</strong>：识别服务器资源、分区与混种、作物配额、日常照料、种子与成品仓储</td>
-</tr>
-<tr>
-<td align="left">采集</td>
-<td align="left"><strong>自动挖矿</strong>（寻路采掘、满载卸货、食物与工具补给）、<strong>自动农场</strong>、<strong>自动骨粉</strong></td>
-</tr>
-<tr>
-<td align="left">交易</td>
-<td align="left"><strong>自动附魔</strong>、<strong>自动村民交易</strong>、<strong>自动图书管理员</strong></td>
-</tr>
-<tr>
-<td align="left">整理</td>
-<td align="left"><strong>ID 识别 / ID 配置</strong>、<strong>自动箱子</strong>（多种工作方式与逐物品取物数量）</td>
-</tr>
-<tr>
-<td align="left">显示</td>
-<td align="left"><strong>透视</strong>、<strong>水源显示</strong>、<strong>ESP 全局设置</strong></td>
-</tr>
-</tbody></table></div>
-<h2 id="更新日志">更新日志</h2>
-<ul>
-<li><strong>新增</strong>：首个测试版，上面这些模块与统一的操作界面。</li>
-<li><strong>修复</strong>：首次发布，暂无。</li>
-<li><strong>变更</strong>：首次发布，暂无。</li>
-</ul>
-<blockquote>
-<p>之后的每个版本按 <strong>新增 / 修复 / 变更</strong> 三段写：修了什么 bug、加了什么功能、改了什么行为。没有的一段直接不写，不要写“无”。</p>
-</blockquote>
-<h2 id="已知问题">已知问题</h2>
-<ul>
-<li>完整游戏内功能与长期性能仍在测试中，建议先用独立实例，并备份存档与配置。</li>
-<li>星露谷农场、自动挖矿依赖对应服务器的资源包与传送指令配置，不承诺兼容所有自定义服务器。</li>
-<li><strong>26.3 及以后暂不支持。</strong></li>
-</ul>
-<h2 id="问题反馈">问题反馈</h2>
-<p>到 <a href="https://github.com/fxjcangku/yiyiaddon/issues">Issues</a> 反馈，写清模组版本、游戏版本、复现步骤和预期/实际结果；崩溃请附日志或崩溃报告。发送前请删掉账号、令牌等个人信息。</p>
+<p>Fabric Loader <code>0.19.5</code>+ / Java <code>25</code>。解压后放进 <code>mods</code>，别直接丢 ZIP；装错版本无法启动。</p>
+<p>建议先用独立实例并备份存档；<strong>26.3 及以后暂不支持</strong>；问题到 <a href="https://github.com/fxjcangku/yiyiaddon/issues">Issues</a> 反馈。</p>
 </article><div class="foot">正文来自发布草稿 · GitHub 实际排版以平台渲染为准</div></main></div>
 <script>
 // 切换仅改变本地预览，不执行上传、下载或任何发布操作。
