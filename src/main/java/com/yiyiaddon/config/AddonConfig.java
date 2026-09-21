@@ -28,7 +28,8 @@ public final class AddonConfig {
 
     // —— UI 外观 ——
     public static String uiTheme = "deep_gray";
-    public static int uiScale = 1;
+    /** 界面大小档位下标（0 = 75% / 1 = 100% / 2 = 125%，映射见 {@code PanelFrame#UI_SCALE_OPTIONS}）；默认 75%（用户 2026-09-21 要求）。 */
+    public static int uiScale = 0;
     public static boolean panelBlur = true;
     public static float blurStrength = 0.6f;
     public static int blurTint = 0x50101014;

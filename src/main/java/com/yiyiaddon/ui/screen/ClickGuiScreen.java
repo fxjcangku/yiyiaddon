@@ -1112,7 +1112,8 @@ public class ClickGuiScreen extends SkiaScreen {
     /** 恢复界面设置的默认值。 */
     private void resetUiSettings() {
         ClickGuiThemeManager.selectAndSave(ClickGuiThemeManager.themes().iterator().next().id());
-        AddonConfig.uiScale = 1;
+        // 与 AddonConfig 的出厂默认保持一致：界面大小默认 75%（档位下标 0）
+        AddonConfig.uiScale = 0;
         AddonConfig.panelBlur = true;
         AddonConfig.blurStrength = 0.6f;
         AddonConfig.blurTint = 0x50101014;
