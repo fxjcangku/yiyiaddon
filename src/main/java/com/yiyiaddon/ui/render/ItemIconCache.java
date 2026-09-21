@@ -21,6 +21,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -127,6 +128,15 @@ public final class ItemIconCache {
     private static final float MODEL_MIN_BLOCKS = 0.5f;
     /** 实体拍照时的抬升量：与 {@code InventoryScreen} 一致（1/16 格），让模型在格子里居中。 */
     private static final float MODEL_Y_OFFSET = 0.0625f;
+    /**
+     * 合成实体（不进世界、只用来拍照）的实体 id。
+     *
+     * <p><b>26.2 起必须显式给</b>：{@code Entity} 的 id 不再在构造时自动分配，未分配时 {@code getId()}
+     * 抛 {@code IllegalStateException}；而生物渲染状态抽取要经 {@code ItemModelResolver#updateForLiving}
+     * 读 id。取 1 而不是 0 是因为 <b>0 就是「未分配」的哨兵值</b>；这个值只当手持物动画的随机种子，
+     * 合成实体不在任何世界里，不会与任何真实实体撞号。</p>
+     */
+    private static final int SYNTHETIC_ENTITY_ID = 1;
     /**
      * 画面备份矩形的四周外扩量（逻辑像素）。
      *
@@ -541,8 +551,19 @@ public final class ItemIconCache {
      */
     private boolean renderModel(GuiGraphicsExtractor graphics, Request request, Minecraft client) {
         try {
-            Entity entity = request.type.create(client.level, EntitySpawnReason.COMMAND);
+            // 26.2 的 create(level, reason) 与 26.1.2 不同：它转成 EntitySpawnRequest(reason, false)，
+            // 于是会过一遍 canSpawn —— 和平难度下敌意生物（僵尸 / 苦力怕…）直接返回 null，
+            // 全部退化成刷怪蛋。这里只是合成一个「用来拍照」的实体、不进世界，所以显式忽略这套检查。
+            Entity entity = request.type.create(client.level,
+                    new EntitySpawnRequest(EntitySpawnReason.COMMAND, true));
             if (entity == null) return false;
+            // 26.2：Entity 的 id 不再在构造时自动分配（26.1.2 是字段初值 ENTITY_COUNTER 自增），
+            // 未分配时 getId() 直接抛 IllegalStateException。而生物渲染状态抽取会经
+            // ItemModelResolver#updateForLiving 读 id（手持物的动画种子），于是每个生物都在
+            // extractEntity 里被包成 ReportedException —— 用户 2026-09-21 报的「选择器里模型全变成蛋」
+            // 就是这么来的（整列退化到第 ② 级刷怪蛋）。合成实体不在任何世界里、永远拿不到世界分配的 id，
+            // 这里显式给一个正的固定值：它只当动画随机种子用，不参与任何世界内逻辑。
+            entity.setId(SYNTHETIC_ENTITY_ID);
             EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
             if (dispatcher == null || dispatcher.getRenderer(entity) == null) return false;
 
