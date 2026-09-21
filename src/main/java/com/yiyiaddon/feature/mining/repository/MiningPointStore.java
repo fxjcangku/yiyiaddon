@@ -9,7 +9,6 @@ import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.repository.JsonFileStore;
 import net.fabricmc.loader.api.FabricLoader;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.Map;
@@ -42,24 +41,19 @@ import java.util.Map;
  * </pre>
  * 读取时对数组写法做兼容（曾存在过的旧档：[第一项] 生效），不做任何写回迁移。</p>
  *
- * <p><b>兼容差异</b>：旧档（迁移过来的 {@code .wk} 文件）里 {@code dimension} 存的是
+ * <p><b>兼容差异</b>：早期档里 {@code dimension} 存的是
  * {@code mc.level.dimension().toString()}，即 {@code ResourceKey[minecraft:dimension/minecraft:overworld]}
  * 包装格式；本类读入时<b>剥壳归一</b>成 {@code minecraft:overworld}（{@link #normalizeDimension}），
- * 使旧点位立即可用，不要求玩家重新绑点。</p>
+ * 使早期点位立即可用，不要求玩家重新绑点。</p>
  *
- * <p>旧文件迁移照抄 {@code repository/autochest/ChestPointStore.migrateLegacyFile}：目标文件不存在
- * 时用 {@link WorldIdentity#legacyServerFileKey()} 找旧文件名（{@code ip} 净化后的
- * {@code {legacyKey}.json}）复制过来；单人返回 {@code null} 时不迁移，且只复制不移动。</p>
+ * <p>旧项目点位目录（{@code config/yiyiaddon/wk}）<b>不再读取</b>：新项目只认自己的
+ * {@code yiyiaddon/mining/points}，从旧版本升级需重新标点。</p>
  */
 public final class MiningPointStore {
 
-    /** 点位目录（旧项目 {@code config/yiyiaddon/wk}，本项目统一到 mining/points） */
+    /** 点位目录（旧项目为 {@code config/yiyiaddon/wk}，本项目统一到 mining/points） */
     private static final Path CONFIG_DIR =
         FabricLoader.getInstance().getConfigDir().resolve("yiyiaddon").resolve("mining").resolve("points");
-
-    /** 旧项目点位目录（{@code WKCommand.CONFIG_DIR = Paths.get("config", "yiyiaddon", "wk")}），仅迁移时读 */
-    private static final Path LEGACY_DIR =
-        FabricLoader.getInstance().getConfigDir().resolve("yiyiaddon").resolve("wk");
 
     /** 每类型一条（旧 {@code WKData.mineral / food / afk} 三个字段） */
     private final Map<MiningPointType, MiningPoint> points = new EnumMap<>(MiningPointType.class);
@@ -80,7 +74,6 @@ public final class MiningPointStore {
         points.clear();
         loadedServer = WorldIdentity.fileSafeServer();
         Path file = dataFile();
-        migrateLegacyFile(file);
         JsonObject root = JsonFileStore.readJson(file);
         if (root == null) return;
         for (MiningPointType type : MiningPointType.values()) {
@@ -223,22 +216,6 @@ public final class MiningPointStore {
             if (point != null) parsed.put(type, point);
         }
         return parsed;
-    }
-
-    /** 首次使用新隔离键时复制旧版点位；旧单人文件缺少存档身份，禁止跨存档认领 */
-    private void migrateLegacyFile(Path target) {
-        if (Files.exists(target)) return;
-        String legacyKey = WorldIdentity.legacyServerFileKey();
-        if (legacyKey == null) return;
-        Path legacy = LEGACY_DIR.resolve(legacyKey + ".json");
-        if (!Files.isRegularFile(legacy)) return;
-        try {
-            Files.createDirectories(target.getParent());
-            // 只复制不移动：旧文件是升级回滚依据，复制完成后仍允许旧版本读取。
-            Files.copy(legacy, target);
-        } catch (Exception ignored) {
-            // 迁移失败时保留旧文件，避免破坏现有数据
-        }
     }
 
     // ── 持久化（键名与字段名沿用旧项目 WKCommand.saveData / parseJson） ──
