@@ -4,6 +4,7 @@ import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -37,6 +38,21 @@ public abstract class SkiaScreen extends Screen {
     protected SkiaScreen(Component title, Screen parent) {
         super(title);
         this.parent = parent;
+    }
+
+    /**
+     * 当前是否停在扩展自己的界面上（各面板 / 模块页 / 壳层总界面都是本类子类）。
+     *
+     * <p><b>为什么要有这个判据</b>（用户 2026-09-21：「凡是 ui 点击都在 ui 里面弹窗」）：
+     * 原版在界面激活期间会把整个 HUD 收起来，聊天框与行动栏都看不见 —— 玩家在面板里点一下，
+     * 回执落进聊天栏等于没反馈。凡是「玩家点出来的」一句回执，都先问这里：界面开着就走面板内
+     * 顶部弹窗，没开（指令、快捷键、后台自动动作）才照旧走聊天栏。</p>
+     *
+     * <p>本类全部子类都会在帧末调 {@code TooltipLayer.beginFrame()} / {@code draw(...)}，
+     * 因此这里为真时弹窗必然画得出来。</p>
+     */
+    public static boolean isOpen() {
+        return Minecraft.getInstance().screen instanceof SkiaScreen;
     }
 
     @Override

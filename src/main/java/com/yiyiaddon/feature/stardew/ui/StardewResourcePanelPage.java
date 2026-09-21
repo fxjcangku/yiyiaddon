@@ -1,6 +1,6 @@
 package com.yiyiaddon.feature.stardew.ui;
 
-import com.yiyiaddon.core.CommandMessageFormatter;
+import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.platform.GameProbe;
@@ -279,24 +279,20 @@ public final class StardewResourcePanelPage extends CompactModulePage implements
      */
     private void openCachedPack() {
         if (!allowed()) {
-            CommandMessageFormatter.of(MODULE_NAME, "当前环境无法查看资源包")
-                .status(CommandMessageFormatter.Level.WARNING,
-                    WorldContextFormatter.environment() == WorldContextFormatter.Environment.SINGLEPLAYER
-                        ? "星露谷资源检测仅支持多人服务器" : "请先进入多人服务器")
-                .send();
+            ClientChat.ui(MODULE_NAME, "§6当前环境无法查看资源包 §8▸ §f"
+                + (WorldContextFormatter.environment() == WorldContextFormatter.Environment.SINGLEPLAYER
+                    ? "星露谷资源检测仅支持多人服务器" : "请先进入多人服务器"));
             return;
         }
 
         File zip = probeCachedZip();
         if (zip == null) {
-            CommandMessageFormatter.of(MODULE_NAME, "当前服务器尚未建立本地资源包缓存")
-                .status(CommandMessageFormatter.Level.WARNING, "请先检测 / 提取当前服务器资源")
-                .send();
+            ClientChat.ui(MODULE_NAME,
+                "§6当前服务器尚未建立本地资源包缓存 §8▸ §f请先检测 / 提取当前服务器资源");
             return;
         }
         reveal(zip, message -> mc.execute(() ->
-            CommandMessageFormatter.of(MODULE_NAME, "打开资源包失败")
-                .status(CommandMessageFormatter.Level.FAILURE, message).send()));
+            ClientChat.ui(MODULE_NAME, "§c打开资源包失败 §8▸ §f" + message)));
     }
 
     /**

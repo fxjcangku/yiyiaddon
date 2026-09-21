@@ -31,7 +31,8 @@ public final class ModuleEntries {
                 .icon(module.icon())
                 .order(module.order())
                 .version(module.version())
-                .state(module::isEnabled);
+                .state(module::isEnabled)
+                .statusText(module.statusBadgeText());
         if (module.page() != null) builder.page(module::page);
         return builder.build();
     }

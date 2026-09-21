@@ -56,9 +56,10 @@ import java.util.Set;
  * {@link LibrarianOrchestrator} 内，本类只做「事件订阅 + 运行参数装配 + 播报 + 自检」四件事
  * （与旧项目「模块只做外壳、编排器做行为」的分工一致）。</p>
  *
- * <p><b>用户交互资产（逐字，禁止改写）</b>：模块名 {@code 自动图书管理员}、描述
- * {@code 自动寻路失业村民、放置讲台刷新交易、命中目标附魔自动购买，未命中自动拆台循环。详细参考下面使用说明。}
- * （旧 {@code :72}）、启动报告 4 行（旧 {@code reportStartupInfo :226-251}）、自检 5 类缺项
+ * <p><b>用户交互资产</b>：模块名 {@code 自动图书管理员}、描述
+ * {@code 刷讲台交易，刷到目标就买}（原为旧 {@code :72} 的长句「自动寻路失业村民、放置讲台刷新交易、
+ * 命中目标附魔自动购买，未命中自动拆台循环。详细参考下面使用说明。」，2026-09-21 按
+ * 「一行放得下的中文短注」重写，理由见 166 号复盘第十一节）、启动报告 4 行（旧 {@code reportStartupInfo :226-251}）、自检 5 类缺项
  * （旧 {@code :183-209}）、7 条状态播报（旧 {@code ModuleLogger.broadcastProgress :353-369}）、
  * 强制结束提示 {@code §c§l已强制结束}（旧 {@code :278}）、目标附魔解析失败文案
  * {@code 无法解析目标附魔: }（旧 {@code :324}）。</p>
@@ -147,7 +148,7 @@ public final class AutoLibrarianModule extends Module {
 
     public AutoLibrarianModule() {
         super(MODULE_ID, MESSAGE_MODULE, "automation",
-            "自动寻路失业村民、放置讲台刷新交易、命中目标附魔自动购买，未命中自动拆台循环。详细参考下面使用说明。");
+            "刷讲台交易，刷到目标就买");
     }
 
     /** 英文名（模块中心检索用；旧项目模块只有中文名，这里取类名同形写法） */

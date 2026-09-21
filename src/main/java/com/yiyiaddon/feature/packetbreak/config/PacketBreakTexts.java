@@ -23,9 +23,9 @@ public final class PacketBreakTexts {
     /** 模块中文显示名（模块列表、播报前缀、控制台标题共用） */
     public static final String MODULE_NAME = "发包秒破";
 
-    /** 模块说明（模块页标题下与控制台标题下同一份，逐字照旧项目构造器实参） */
+    /** 模块说明（模块页标题下与控制台标题下同一份）；按「一行放得下的中文短注」写，清单行不截断 */
     public static final String DESCRIPTION =
-        "真正以 START/STOP 数据包完成破坏，不走原版持续挖掘动画，并按 26.1.2 服务端阈值最早停挖。点击按钮查看说明。";
+        "发数据包秒破方块，无视硬度";
 
     // ── 设置分组名（页签名 = 旧项目 4 个设置组名） ──
 

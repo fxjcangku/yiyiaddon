@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.autochest.ui.ItemQuantityPage;
 import com.yiyiaddon.model.autochest.WithdrawMode;
 import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.service.identity.IdentityService;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
@@ -82,8 +83,12 @@ public final class AutoChestWithdrawPage {
 
             stack.add(new ConsoleRow(owner, this::targetItemsCountText, null, null,
                 List.of(new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, () -> {
+                    // 清空前的真实条数：reset() 一执行集合就空了，之后再数只能得到 0
+                    int cleared = IdentityTargetConfig.selectedItemKeys().size();
                     IdentityTargetConfig.reset();
                     owner.reload();
+                    // 原来这行点下去毫无反馈；面板开着时 HUD 被藏起来，改成面板内顶部弹窗
+                    SelectionReceipt.cleared(cleared);
                 }), "清空本行已选目标物品"))));
         }
 
@@ -105,9 +110,12 @@ public final class AutoChestWithdrawPage {
 
             stack.add(new ConsoleRow(owner, this::quantityCountText, null, null,
                 List.of(new Ctl(new IconButton(ConsoleMetrics.GLYPH_RESET, () -> {
+                    // 同上：清空前的真实条数要先取，resetQuantities() 之后计数已归零
+                    int cleared = settings.configuredQuantityCount();
                     settings.resetQuantities();
                     module.persistSettings();
                     owner.reload();
+                    SelectionReceipt.cleared(cleared);
                 }), "清空全部数量配置"))));
         }
 

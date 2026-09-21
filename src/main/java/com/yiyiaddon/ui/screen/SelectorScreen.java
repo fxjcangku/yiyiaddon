@@ -1,6 +1,6 @@
 package com.yiyiaddon.ui.screen;
 
-import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.GlassPanel;
@@ -52,8 +52,10 @@ import java.util.function.Supplier;
  *
  * <p><b>交互与文字照旧项目：</b>顶部搜索框（旧项目该窗无标签无提示）打开即输入过滤，匹配显示名与技术 ID、
  * 忽略大小写；分组标题由调用方给出完整原文（含 {@code §} 颜色码与 {@code ▌} 前缀），本类不做任何拼接或
- * 配色，避免与旧项目原文产生差异。组内为空时显示 {@code §8无}。添加 / 移除后有聊天回执
- * （旧项目只有计数变化，用户 2026-09-15 拍板的增强）。</p>
+ * 配色，避免与旧项目原文产生差异。组内为空时显示 {@code §8无}。<b>添加 / 移除后有回执</b>
+ * （旧项目只有计数变化，用户 2026-09-15 拍板的增强；用户 2026-09-21 又拍板「全部做成弹窗的」
+ * —— 回执从聊天框改成面板内顶部弹窗，唯一出口见 {@link SelectionReceipt}：
+ * 单条是「已添加 / 已移除 &lt;名&gt;」，组头「全选 / 清空」只发一条汇总「已添加 N 项」）。</p>
  *
  * <p><b>分组标题可折叠、且默认收起</b>（用户 2026-09-16：「装备选择列表要按大类分组且可折叠」）：
  * 标题右侧常显该组条目数（收起状态也看得出有多少项），折叠状态记在会话级集合
@@ -600,9 +602,11 @@ public final class SelectorScreen extends PanelScreen {
         private void toggleAll() {
             boolean clear = selectedColumn || allSelected();
             String reject = null;
+            int changed = 0;
             for (Entry entry : items) {
                 if (clear) {
                     onRemove.accept(entry.key());
+                    changed++;
                     continue;
                 }
                 // 整组加入同样要过准入判定：被拒的跳过并留一句提示（如「食物白名单只能选一个」）
@@ -612,8 +616,15 @@ public final class SelectorScreen extends PanelScreen {
                     continue;
                 }
                 onAdd.accept(entry.key());
+                changed++;
             }
             if (reject != null) TooltipLayer.notify(reject);
+            // 整组只发一条汇总（逐条发会把弹窗刷成走马灯）；0 项时由回执自己说明原因
+            if (clear) {
+                SelectionReceipt.removedMany(changed);
+            } else {
+                SelectionReceipt.addedMany(changed);
+            }
             rebuild();
         }
 
@@ -713,10 +724,11 @@ public final class SelectorScreen extends PanelScreen {
                 .onActivate(() -> toggle(entry, selected));
     }
 
-    /** 加入 / 移除一条，并发出聊天回执；被准入判定拒绝时不改动名单，只弹顶部提示。 */
+    /** 加入 / 移除一条，并发出回执；被准入判定拒绝时不改动名单，只弹顶部提示。 */
     private void toggle(Entry entry, boolean selected) {
         if (selected) {
             onRemove.accept(entry.key());
+            SelectionReceipt.removed(entry.title());
         } else {
             String reject = addGuard == null ? null : addGuard.rejectReason(entry.key());
             if (reject != null) {
@@ -725,20 +737,9 @@ public final class SelectorScreen extends PanelScreen {
                 return;
             }
             onAdd.accept(entry.key());
+            SelectionReceipt.added(entry.title());
         }
-        notifyAction(!selected, entry);
         rebuild();
-    }
-
-    /**
-     * 添加 / 移除后的聊天回执。
-     *
-     * <p>用户 2026-09-15 拍板的增强：旧项目该窗口只有计数变化（{@code setting.refreshCount()}），
-     * 没有任何提示，此处补一条回执。</p>
-     */
-    private void notifyAction(boolean adding, Entry entry) {
-        String name = stripFormatting(entry.title()).trim();
-        ClientChat.send(windowTitle, (adding ? "§7已添加 §a" : "§7已移除 §c") + name);
     }
 
     private boolean matches(Entry entry) {

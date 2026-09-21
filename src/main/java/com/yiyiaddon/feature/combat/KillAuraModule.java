@@ -162,7 +162,7 @@ public final class KillAuraModule extends Module {
     private boolean pauseProcessRegistered;
 
     public KillAuraModule() {
-        super(MODULE_ID, "杀戮光环", "combat", "攻击周围的指定实体。");
+        super(MODULE_ID, "杀戮光环", "combat", "自动攻击周围的指定实体");
         registerPauseProcess();
     }
 

@@ -9,6 +9,7 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.render.MinecraftText;
 import com.yiyiaddon.ui.widget.Button;
@@ -76,7 +77,12 @@ public final class StardewPlantingPage {
             IconButton reset = new IconButton(StardewConsoleScreen.GLYPH_RESET, () -> {
                 List<String> keys = module.selection(def.category).selectedKeys();
                 if (keys.isEmpty()) return;
+                // 清空前先取真实条数：清空动作走的是另一份引用，事后拿不回这一批的数量
+                int cleared = keys.size();
                 clearSelection(def.category);
+                // 回执走顶部弹窗（第 169 条同源口径，唯一出口见 SelectionReceipt）：控制台开着时
+                // 聊天框被 MC 藏起来，往聊天里发等于看不见
+                SelectionReceipt.cleared(cleared);
                 module.selection(def.category).persist();
             }).disabledWhen(() -> selectionKeys(def.category).isEmpty());
             stack.add(new ConsoleRow(owner, () -> def.name, def.description, null, List.of(

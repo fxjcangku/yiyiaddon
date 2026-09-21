@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.autofarm.ui.console;
 import com.yiyiaddon.feature.autofarm.AutoFarmModule;
 import com.yiyiaddon.feature.autofarm.config.AutoFarmSettings;
 import com.yiyiaddon.feature.autofarm.model.CropProfile;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.console.ConsoleHost;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
@@ -143,6 +144,9 @@ public final class FarmCropConfigScreen extends PanelScreen implements ConsoleHo
                     module.persistSettings();
                     // 本窗数值每帧读 getter，写回即刷新；这里照控制台口径刷新宿主（顺带清掉文本框焦点）
                     host.reload();
+                    // ↺ 是单值复位（一行一个数），回执不带条数：复位走行尾按钮、不经过选择器，
+                    // 没有这条弹窗的话玩家只看到数字跳回去，说不清是复位了还是点歪了
+                    SelectionReceipt.reset();
                 }, label)));
     }
 }

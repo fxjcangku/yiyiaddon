@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.autologin.ui;
 import com.yiyiaddon.feature.autologin.config.AutoLoginSettings;
 import com.yiyiaddon.feature.autologin.config.AutoLoginTexts;
 import com.yiyiaddon.feature.mining.ui.MiningRegistry;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -17,7 +18,8 @@ import java.util.function.Consumer;
  *
  * <p><b>用的是既有通用选择器</b>（{@link SelectorScreen#pick}），本类不新造任何控件（第 126 / 130 / 153 条）：
  * 单选形态（点任一行即选中并关窗）对应旧项目的旧框架 {@code ItemSetting}——旧壳同样是「挑一个物品」，
- * 没有「已选名单」可加减，也没有「清空」动作。</p>
+ * 没有「已选名单」可加减，也没有「清空」动作；<b>但选中要回执</b>：点行即关窗，若不弹一句，
+ * 关窗后玩家只能靠行上的物品名变化判断挑没挑上（见 {@link #pick}）。</p>
  *
  * <p><b>框架适配</b>：旧项目由旧框架序列化 {@code Item} 对象，本项目落盘为物品登记 ID 字符串
  * （见 {@link AutoLoginSettings} 类注释第 1 条），判定处用 {@link AutoLoginSettings#itemOf} 还原成物品比较，
@@ -56,7 +58,13 @@ public final class AutoLoginSelectors {
         Minecraft client = Minecraft.getInstance();
         if (client == null || settingName == null) return;
         client.setScreen(SelectorScreen.pick(AutoLoginTexts.SELECT_TITLE_PREFIX + settingName, parent,
-            itemCandidates(), onPick));
+            itemCandidates(), id -> {
+                onPick.accept(id);
+                // 单选窗（SelectorScreen.pick）点行即关窗，那套「已添加 / 已移除」回执走的是
+                // 加减两栏，这里没有，因此单独补一条「已选择 <物品名>」：
+                // 关窗后回落到控制台窗口，弹窗正好在那儿显示，玩家能看到自己挑中了什么
+                SelectionReceipt.selected(MiningRegistry.itemDisplayName(id));
+            }));
     }
 
     /** 行状态文字：未选 → {@code 未选择}；已选 → 物品显示名（旧设置行同样显示该项名称） */

@@ -87,9 +87,9 @@ public final class EnchantModule extends Module {
     private final EnchantBindingService bindingService;
 
     public EnchantModule() {
-        // 描述逐字来自旧项目 AutoEnchantBook:539
+        // 描述按「一行放得下的中文短注」重写（原文逐字来自旧项目 AutoEnchantBook:539）：清单行不截断
         super(MODULE_ID, MESSAGE_MODULE, "automation",
-            "经验获取→定向附魔→极品剔除→洗练仓储全自动闭环。详细参考下面使用说明。");
+            "经验→附魔→洗练全自动闭环");
 
         this.pathing = new EnchantPathing();
         this.container = new EnchantContainer(this);

@@ -51,9 +51,11 @@ import java.util.function.Predicate;
 /**
  * 自动农场模块入口：熟一颗收一颗，自动补种拾取，四箱物流自动化。
  *
- * <p><b>用户交互资产（逐字）</b>：模块名 {@code 自动农场}、描述
- * {@code 熟一颗收一颗，自动补种拾取，单作物箱/种子补货箱/多作物箱与杂物箱物流自动化。点击按钮查看说明。}
- * （旧 {@code AutoFarmMatrix:133-134}）、启动报告全文（旧 {@code reportStartupInfo :348-412}）、
+ * <p><b>用户交互资产</b>：模块名 {@code 自动农场}、描述
+ * {@code 熟一颗收一颗，自动补种与补货}（原为旧 {@code AutoFarmMatrix:133-134} 的「熟一颗收一颗，
+ * 自动补种拾取，单作物箱/种子补货箱/多作物箱与杂物箱物流自动化。点击按钮查看说明。」，
+ * 2026-09-21 去掉「说明按钮」指引并按「一行放得下的中文短注」重写 —— 说明按钮已按第 210 条撤销、
+ * 正文内嵌模块页，见 166 号复盘第十一节）、启动报告全文（旧 {@code reportStartupInfo :348-412}）、
  * 8 个状态名与物流进度播报（旧 {@code broadcastState :466-476}）、收割模式切换提示
  * （旧 {@code onHarvestModeChanged :428-434}）、自检缺项文案（{@code FarmSelfCheck} 逐字）。</p>
  *
@@ -126,7 +128,7 @@ public final class AutoFarmModule extends Module {
 
     public AutoFarmModule() {
         super(MODULE_ID, MESSAGE_MODULE, "automation",
-            "熟一颗收一颗，自动补种拾取，单作物箱/种子补货箱/多作物箱与杂物箱物流自动化。点击按钮查看说明。");
+            "熟一颗收一颗，自动补种与补货");
 
         decision = new FarmDecision(scanner, resources, observer, verifier, broker,
             settings.poisonUnloadThreshold, settings.bpt, settings.reachDistance);

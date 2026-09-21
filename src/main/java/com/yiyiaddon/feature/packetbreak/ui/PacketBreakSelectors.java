@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.packetbreak.ui;
 import com.yiyiaddon.feature.mining.ui.MiningRegistry;
 import com.yiyiaddon.feature.packetbreak.PacketInstantBreakModule;
 import com.yiyiaddon.feature.packetbreak.config.PacketBreakTexts;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -45,9 +46,15 @@ public final class PacketBreakSelectors {
 
     /** 一键清空（名单为空时无动作，语义同透视 / 杀戮光环） */
     public static void clearBlockTargets(PacketInstantBreakModule module) {
-        if (module == null || module.settings().targetBlocks.isEmpty()) return;
-        module.settings().targetBlocks.clear();
-        module.persistSettings();
+        if (module == null) return;
+        List<String> targets = module.settings().targetBlocks;
+        // 条数取清空前的真实 size：面板内回执要写「已清空 N 项」，空名单交给回执自报「本来就是空的」
+        int count = targets.size();
+        if (count > 0) {
+            targets.clear();
+            module.persistSettings();
+        }
+        SelectionReceipt.cleared(count);
     }
 
     /** 名单状态：未选 → {@code 未选择（共 N 项）}；已选 → {@code 已选 N / M 项}（与其它选择器同一写法） */

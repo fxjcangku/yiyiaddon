@@ -137,7 +137,7 @@ public final class FlightBypassModule extends Module {
 
     public FlightBypassModule() {
         super(MODULE_ID, MESSAGE_MODULE, "combat",
-            "五种基于 26.1.2 官方机制的飞行模式，由战术协调器统一决策。");
+            "五种飞行模式，协调器统一决策");
     }
 
     /**

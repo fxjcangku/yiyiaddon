@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.combat.config.KillAuraSettings.RotationMode;
 import com.yiyiaddon.feature.combat.config.KillAuraSettings.ShieldMode;
 import com.yiyiaddon.feature.combat.config.KillAuraTexts;
 import com.yiyiaddon.feature.combat.ui.KillAuraConsoleScreen;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
@@ -290,11 +291,20 @@ public final class KillAuraGeneralPage {
             key -> changeWeapons(key, false)));
     }
 
-    /** 清空武器白名单（↻ 语义同星露谷：空则静默 return） */
+    /**
+     * 清空武器白名单（↻ 语义同星露谷：空则不动）。
+     *
+     * <p>回执走 {@link SelectionReceipt}：面板开着时聊天框被藏起来，清空结果只在面板内顶部弹窗看得见；
+     * 条数取清空前的真实 size（行尾 ↻ 在空名单上是禁用态，通常拿不到 0）。</p>
+     */
     private void clearWeapons() {
-        if (module.settings().weapons.isEmpty()) return;
-        module.settings().weapons.clear();
-        persist();
+        List<String> weapons = module.settings().weapons;
+        int count = weapons.size();
+        if (count > 0) {
+            weapons.clear();
+            persist();
+        }
+        SelectionReceipt.cleared(count);
     }
 
     /** 名单增删：有实际变化才落盘 */

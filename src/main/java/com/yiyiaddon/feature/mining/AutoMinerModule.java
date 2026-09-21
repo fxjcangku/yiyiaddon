@@ -220,7 +220,7 @@ public final class AutoMinerModule extends Module {
 
     public AutoMinerModule() {
         super(MODULE_ID, MESSAGE_MODULE, "automation",
-                "Baritone驱动全自动挖矿，物流循环，耐久修补，死亡自愈。点击按钮查看说明。");
+                "Baritone 全自动挖矿与物流");
 
         this.renderer = new MiningPointRenderer(this);
         this.breakRenderer = new MiningBreakProgressRenderer(this);

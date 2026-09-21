@@ -132,7 +132,7 @@ public final class AdminDetectorModule extends Module {
 
     public AdminDetectorModule() {
         super(MODULE_ID, MESSAGE_MODULE, "utility",
-            "监测附近玩家，识别旁观/创造/隐身/隐藏的管理员，命中即断线保命。点击按钮查看说明。");
+            "识别隐身/创造管理员并断线");
     }
 
     /** 设置载体（只读暴露给控制台页；模块内部行为不变） */

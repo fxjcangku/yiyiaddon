@@ -11,6 +11,7 @@ import com.yiyiaddon.feature.autologin.AutoLoginModule;
 import com.yiyiaddon.feature.bonemeal.AutoBoneMealModule;
 import com.yiyiaddon.feature.combat.KillAuraModule;
 import com.yiyiaddon.feature.enchant.EnchantModule;
+import com.yiyiaddon.feature.fishing.StardewFishingModule;
 import com.yiyiaddon.feature.identity.IdConfigModule;
 import com.yiyiaddon.feature.identity.IdIdentifyModule;
 import com.yiyiaddon.feature.librarian.AutoLibrarianModule;
@@ -78,6 +79,7 @@ public final class AddonModules {
                 new IdConfigModule(),
                 new AutoChestModule(),
                 new StardewFarmModule(IdentityService.shared()),
+                new StardewFishingModule(),
                 new AutoMinerModule(),
                 new EnchantModule(),
                 new KillAuraModule(),

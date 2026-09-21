@@ -1,11 +1,11 @@
 package com.yiyiaddon.ui.page;
 
 import com.yiyiaddon.config.AddonConfig;
-import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.module.CategoryRegistry;
 import com.yiyiaddon.module.ModuleCategory;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.module.ModuleRegistry;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.UiText;
 import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.CardIcons;
@@ -436,17 +436,20 @@ public final class ModuleCenterPage extends CardPage {
     }
 
     /**
-     * 切换某个模块的收藏状态并立即落盘，同时在聊天栏给一句反馈。
+     * 切换某个模块的收藏状态并立即落盘，同时给一句面板内回执。
      *
      * <p>落盘走 {@link AddonConfig}（UI 偏好与主题 / 缩放同一份配置），成功与否都重建清单：
      * 常用区与首页「常用模块」要立刻反映变化（第 214 条，判据与动作读同一份数据）。</p>
+     *
+     * <p>回执走 {@link SelectionReceipt}（面板内顶部弹窗）：面板开着时 MC 把整个 HUD 藏起来，
+     * 往聊天框发等于点了没反应。</p>
      */
     private static void toggleFavorite(ModuleEntry entry) {
         boolean added = FAVORITES.add(entry.id());
         if (!added) FAVORITES.remove(entry.id());
         AddonConfig.favoriteModules = String.join(";", FAVORITES);
         AddonConfig.save();
-        ClientChat.send("模块中心", (added ? "§a已收藏§r " : "§7已取消收藏§r ") + entry.displayName());
+        SelectionReceipt.favorited(added, entry.displayName());
     }
 
     @Override
@@ -841,8 +844,10 @@ public final class ModuleCenterPage extends CardPage {
                 - (withOrderButtons ? ORDER_BOX * 2f + ORDER_GAP + ORDER_LEAD : 0f);
         float titleX = x + HEADER_PAD_X + HEADER_ICON_BOX + HEADER_GAP;
         float titleMax = Math.max(0f, countRight - countWidth - HEADER_GAP - titleX);
-        return new HeaderLayout(CardLayout.ellipsize(category.displayName(), titleMax, HEADER_TITLE_SIZE),
-                titleX, upX, downX, countText, countRight);
+        // 名称放不下也不截断（同 ModuleRow：整页不出现省略号），分类名本就短，实际永远放得下
+        String title = FontRenderer.measureTextWidthBold(category.displayName(), HEADER_TITLE_SIZE) <= titleMax
+                ? category.displayName() : "";
+        return new HeaderLayout(title, titleX, upX, downX, countText, countRight);
     }
 
     /** 与 {@link #headerLayout} 配套的重载：常规分类头都画 ▲▼。 */

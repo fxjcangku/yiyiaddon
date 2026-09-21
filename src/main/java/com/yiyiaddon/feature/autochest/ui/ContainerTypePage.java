@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.autochest.AutoChestModule;
 import com.yiyiaddon.feature.autochest.config.AutoChestSettings;
 import com.yiyiaddon.model.autochest.ContainerType;
 import com.yiyiaddon.model.autochest.ContainerTypeRegistry;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.ButtonRow;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.screen.PanelScreen;
@@ -56,5 +57,8 @@ public final class ContainerTypePage extends PanelScreen {
         boolean enabled = settings.containerTypeIds.contains(type.id());
         settings.setContainerTypeEnabled(type.id(), !enabled);
         module.persistSettings();
+        // 本行原来点下去毫无反馈：面板开着时 MC 会把整个 HUD 藏起来，聊天回执也看不见，
+        // 因此走面板内顶部弹窗（唯一出口见 SelectionReceipt），回执报的是切换「之后」的状态
+        SelectionReceipt.toggled(!enabled, type.displayName());
     }
 }

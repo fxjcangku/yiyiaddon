@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.librarian.AutoLibrarianModule;
 import com.yiyiaddon.feature.librarian.config.LibrarianSettings;
 import com.yiyiaddon.feature.librarian.ui.console.LibrarianConsoleScreen;
 import com.yiyiaddon.feature.villager.data.VillagerProfessionRegistry;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
@@ -114,6 +115,8 @@ public final class LibrarianSelectors {
                     module.settings().setTargetEnchantments(new ArrayList<>(DEFAULTS.targetEnchantments()));
                     module.persistSettings();
                     host.reload();
+                    // 面板内回执：复位后剩下几条就报几条（真实 size），面板开着时聊天框看不见
+                    SelectionReceipt.reset(module.settings().targetEnchantments().size());
                 }, TARGET_LABEL)));
     }
 

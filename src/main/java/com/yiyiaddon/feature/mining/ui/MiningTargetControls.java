@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.mining.ui;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.config.MiningSettings;
 import com.yiyiaddon.feature.mining.model.LootMode;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import net.minecraft.client.Minecraft;
@@ -123,15 +124,25 @@ public final class MiningTargetControls {
 
     // ── 清空（↻ 语义同星露谷：空则静默 return） ──
 
+    /*
+     * 为什么清空要补一句回执：这六个 ↻ 走的是行尾按钮、不经过 SelectorScreen，拿不到那套
+     * 「已添加 / 已移除」的弹窗，点了只能看见行上状态文字变化。条数取清空前的真实 size，
+     * 单值设置（矿石 / 普通方块）清掉的必然只有一条，直接传 1。
+     * 空名单这一支不弹：行尾 ↻ 在空态本来就是禁用态（见 MiningTargetPage#selectorRow 的
+     * disabledWhen，点击根本不会落到这里），状态已经由变灰的按钮说明，不必再补一句。
+     */
+
     public void clearOreTarget(boolean nether) {
         String current = oreTarget(nether);
         if (current == null || current.isBlank()) return;
         setOreTarget(nether, "");
+        SelectionReceipt.cleared(1);
     }
 
     public void clearBlockTarget() {
         if (module.settings().blockTarget == null || module.settings().blockTarget.isBlank()) return;
         setBlockTarget("");
+        SelectionReceipt.cleared(1);
     }
 
     /** 清空名单；搭路方块清空同样要下发 Baritone */
@@ -149,9 +160,12 @@ public final class MiningTargetControls {
 
     private void clearList(List<String> target, boolean blocks) {
         if (target.isEmpty()) return;
+        // 先取真实条数：clear() 之后这份名单就空了，数量拿不回来
+        int cleared = target.size();
         target.clear();
         module.persistSettings();
         if (blocks) module.getBaritone().updatePlaceBlocks(MiningRegistry.blockList(target));
+        SelectionReceipt.cleared(cleared);
     }
 
     // ── 设置写回 ──

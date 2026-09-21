@@ -1,12 +1,13 @@
 package com.yiyiaddon.integration.baritone;
 
-import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.ButtonRow;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.ListRow;
 import com.yiyiaddon.ui.component.SearchRow;
 import com.yiyiaddon.ui.component.TextLine;
 import com.yiyiaddon.ui.render.ItemIconCache;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.screen.PanelScreen;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.widget.Button;
@@ -52,7 +53,6 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
     /** 选中键的徽标色（系统绿） */
     private static final int SELECTED_BADGE = 0x34C759;
 
-    private final String module;
     private final Map<Block, List<Block>> values = new LinkedHashMap<>();
     private final Consumer<Map<Block, List<Block>>> write;
 
@@ -64,7 +64,6 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
     public BaritoneBlockMapScreen(Screen parent, String title, Supplier<Map<Block, List<Block>>> read,
                                   Consumer<Map<Block, List<Block>>> write) {
         super(title, parent);
-        this.module = title;
         this.write = write;
         Map<Block, List<Block>> current = read.get();
         if (current != null) {
@@ -102,6 +101,8 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
                 if (key == selected) selected = values.keySet().stream().findFirst().orElse(null);
                 push();
                 rebuild();
+                // 原来减号删键毫无反馈；面板开着时 MC 会把 HUD 藏起来，聊天回执也看不见，改面板内顶部弹窗
+                SelectionReceipt.removed(key.getName().getString());
             });
             remove.danger();
             ListRow row = blockRow(key).onActivate(() -> {
@@ -132,6 +133,8 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
                 values.get(selected).remove(block);
                 push();
                 rebuild();
+                // 同上：移出一个替代方块原来没有回执，补一条面板内弹窗
+                SelectionReceipt.removed(block.getName().getString());
             });
             remove.danger();
             stack.add(blockRow(block).action(remove));
@@ -149,12 +152,15 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
                 selected = block;
                 push();
                 rebuild();
+                // 挑完方块原来没有回执，补一条（面板内弹窗，唯一出口见 SelectionReceipt）
+                SelectionReceipt.added(block.getName().getString());
             }));
     }
 
     private void pickSubstitute() {
         if (selected == null) {
-            ClientChat.send(module, "§e先在上面点一行，选中要编辑的映射键");
+            // 原来是聊天播报：本窗口开着时聊天框根本看不见，改成同一条顶部弹窗，文字逐字保留
+            TooltipLayer.notify("§e先在上面点一行，选中要编辑的映射键");
             return;
         }
         Block key = selected;
@@ -166,6 +172,7 @@ public final class BaritoneBlockMapScreen extends PanelScreen {
                 if (!list.contains(block)) list.add(block);
                 push();
                 rebuild();
+                SelectionReceipt.added(block.getName().getString());
             }));
     }
 

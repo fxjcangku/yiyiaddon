@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.combat.ui.console.KillAuraTargetingPage;
 import com.yiyiaddon.feature.mining.ui.MiningRegistry;
 import com.yiyiaddon.feature.vision.VisionModule;
 import com.yiyiaddon.feature.vision.config.VisionTexts;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -74,16 +75,32 @@ public final class VisionSelectors {
 
     // ── 一键清空（名单为空时无动作，语义同杀戮光环 / 星露谷） ──
 
+    /**
+     * 清空目标方块名单。
+     *
+     * <p>回执走 {@link SelectionReceipt}：名单行的「清空」按钮点下去就要在面板内看到结果，
+     * 而面板开着时聊天框被藏起来了；条数取清空前的真实 size，空名单由回执自己说明「本来就是空的」，
+     * 不在业务侧拼字符串（第 169 条同源口径）。</p>
+     */
     public static void clearBlockTargets(VisionModule module) {
-        if (module.settings().blockTargets.isEmpty()) return;
-        module.settings().blockTargets.clear();
-        module.persistSettings();
+        List<String> targets = module.settings().blockTargets;
+        int count = targets.size();
+        if (count > 0) {
+            targets.clear();
+            module.persistSettings();
+        }
+        SelectionReceipt.cleared(count);
     }
 
+    /** 清空目标实体名单，回执口径同 {@link #clearBlockTargets(VisionModule)} */
     public static void clearEntityTargets(VisionModule module) {
-        if (module.settings().entityTargets.isEmpty()) return;
-        module.settings().entityTargets.clear();
-        module.persistSettings();
+        List<String> targets = module.settings().entityTargets;
+        int count = targets.size();
+        if (count > 0) {
+            targets.clear();
+            module.persistSettings();
+        }
+        SelectionReceipt.cleared(count);
     }
 
     // ── 状态文字（写法逐字照杀戮光环的目标实体行） ──

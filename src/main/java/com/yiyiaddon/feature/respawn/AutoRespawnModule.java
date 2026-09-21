@@ -44,7 +44,7 @@ public final class AutoRespawnModule extends Module {
     private final Minecraft mc = Minecraft.getInstance();
 
     public AutoRespawnModule() {
-        super(MODULE_ID, "自动重生", "utility", "死亡后自动重生，无需手动点击复活按钮。");
+        super(MODULE_ID, "自动重生", "utility", "死亡后自动点复活");
     }
 
     @Override

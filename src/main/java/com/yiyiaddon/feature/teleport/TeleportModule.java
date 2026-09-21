@@ -79,7 +79,7 @@ public final class TeleportModule extends Module {
 
     public TeleportModule() {
         super(MODULE_ID, MESSAGE_MODULE, "utility",
-            "三模式安全传送：TP地面回地表 / TP穿墙过障碍 / TP坐标定点，带服务端回弹验证。");
+            "三种传送：回地表、穿墙、定点");
     }
 
     /**

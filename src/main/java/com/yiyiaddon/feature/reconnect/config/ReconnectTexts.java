@@ -21,9 +21,9 @@ public final class ReconnectTexts {
     /** 模块中文显示名（模块列表、播报前缀、控制台标题共用） */
     public static final String MODULE_NAME = "自动重连";
 
-    /** 模块说明（模块页标题下与控制台标题下同一份） */
+    /** 模块说明（模块页标题下与控制台标题下同一份）；按「一行放得下的中文短注」写，清单行不截断 */
     public static final String DESCRIPTION =
-        "断线后自动连回上一次进入的服务器；独立于自动登入，可在控制台一键断开测试。";
+        "掉线自动连回上次的服务器";
 
     // ── 页签 / 分组名 ──
 

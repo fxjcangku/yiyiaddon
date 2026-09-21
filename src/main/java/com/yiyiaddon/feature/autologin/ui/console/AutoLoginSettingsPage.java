@@ -7,12 +7,14 @@ import com.yiyiaddon.feature.autologin.model.LeyuanWelcomeEntryMode;
 import com.yiyiaddon.feature.autologin.model.ServerEntryMode;
 import com.yiyiaddon.feature.autologin.ui.AutoLoginConsoleScreen;
 import com.yiyiaddon.feature.autologin.ui.AutoLoginSelectors;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.FoldSection;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
@@ -580,7 +582,12 @@ public final class AutoLoginSettingsPage {
         return new ConsoleRow(host, () -> label, desc, null, List.of(new Ctl(box, desc)));
     }
 
-    /** 物品行：名称 + 当前物品 …… [选择] [↺]；行内左侧带物品图标（未选择时不占位） */
+    /**
+     * 物品行：名称 + 当前物品 …… [选择] [↺]；行内左侧带物品图标（未选择时不占位）。
+     *
+     * <p>「选择」的回执不在这里发：单选走 {@link AutoLoginSelectors} 的窗口，选中那一下由它统一弹
+     * （见 {@code AutoLoginSelectors#pick}），这里再发一条只会把同一句弹窗刷两遍。</p>
+     */
     private ConsoleRow itemRow(String label, String desc, Supplier<String> current, Runnable open,
                                Runnable restoreDefaults) {
         return new ConsoleRow(host,
@@ -590,6 +597,9 @@ public final class AutoLoginSettingsPage {
                     restoreDefaults.run();
                     persist();
                     host.reload();
+                    // 单值设置（这一项要么是某物品、要么是空），复位回执不带条数；
+                    // ↺ 走行尾按钮、不经过选择器，没有这条弹窗时窗口里毫无动静
+                    SelectionReceipt.reset();
                 }, label)))
             .icon(() -> AutoLoginSelectors.iconOf(current.get()));
     }
@@ -625,10 +635,19 @@ public final class AutoLoginSettingsPage {
     /** 添加一项：去空白后入名单（重复项跳过），落盘并重建本页让新行立刻出现 */
     private void addValue(String key, List<String> target) {
         String value = host.draft(key) == null ? "" : host.draft(key).strip();
-        if (value.isEmpty()) return;
-        if (!target.contains(value)) {
+        if (value.isEmpty()) {
+            // 正常点不到这一支（草稿为空时「添加」是禁用态），但仍保持「空输入必有回音」：
+            // 静默 return 会留下「点了没反应」的悬案（第 214 条），文案取 Baritone 名单逐字那句
+            TooltipLayer.notify("§e请先输入一项");
+            return;
+        }
+        if (target.contains(value)) {
+            // 重复项不改动名单：不谎报「已添加」，也不能点了没回音（与空输入同一句口径）
+            TooltipLayer.notify("§e已经在列表里 §8▸ §f" + value);
+        } else {
             target.add(value);
             persist();
+            SelectionReceipt.added(value);
         }
         host.draft(key, "");
         host.reload();
@@ -639,6 +658,8 @@ public final class AutoLoginSettingsPage {
         if (!target.remove(value)) return;
         persist();
         host.reload();
+        // 逐项移除走的是行内按钮、不经过选择器，补一条「已移除 <该项>」，报的正是名单里那一项
+        SelectionReceipt.removed(value);
     }
 
     /** 改设置即落盘（第 172-175 条） */

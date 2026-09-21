@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.autofarm.model.CropProfile;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.render.ItemIconCache;
 import com.yiyiaddon.ui.screen.SelectorScreen;
 import com.yiyiaddon.ui.widget.Button;
@@ -41,6 +42,10 @@ public final class FarmSelectors {
      *
      * <p>行尾 ↺ 把这一类作物选择恢复出厂值：出厂值就是空选择
      * （{@code AutoFarmSettings} 的四张表字段都初始化为空表），因此↺ 清空本行对应的那张表。</p>
+     *
+     * <p><b>为什么清空要发回执</b>：↺ 走的是行尾按钮、不经过 {@code SelectorScreen}，
+     * 因此拿不到那套「已添加 / 已移除」的弹窗，点了只看见行尾「已选 N」变成 0；
+     * 这里补一条「已清空 N 项」（N = 清掉前的真实条数），与选择器内加减同一出口同一口径。</p>
      */
     public static ConsoleRow row(AutoFarmConsoleScreen host, AutoFarmModule module,
                                  String label, String hint,
@@ -51,9 +56,13 @@ public final class FarmSelectors {
             List.of(new Ctl(new Button("§b配置", () -> open(host, module, label, filter, selection)),
                     "打开「" + label + "」选择器"),
                 ConsoleWidgets.resetCtl(() -> {
-                    selection.get().clear();
+                    // 先取真实条数：clear() 之后这张表就空了，数量拿不回来
+                    Map<String, Boolean> current = selection.get();
+                    int cleared = current.size();
+                    current.clear();
                     module.persistSettings();
                     host.reload();
+                    SelectionReceipt.cleared(cleared);
                 }, label)));
     }
 

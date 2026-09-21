@@ -9,6 +9,7 @@ import com.yiyiaddon.feature.combat.target.AttackableEntityTypes;
 import com.yiyiaddon.feature.combat.target.SortPriority;
 import com.yiyiaddon.feature.combat.ui.KillAuraConsoleScreen;
 import com.yiyiaddon.platform.identity.EntityDisplayNames;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
@@ -352,11 +353,20 @@ public final class KillAuraTargetingPage {
             key -> changeEntityTypes(key, false)));
     }
 
-    /** 清空目标实体名单（↻ 语义同星露谷：空则静默 return） */
+    /**
+     * 清空目标实体名单（↻ 语义同星露谷：空则不动）。
+     *
+     * <p>回执走 {@link SelectionReceipt}：面板开着时聊天框被藏起来，清空结果只在面板内顶部弹窗看得见；
+     * 条数取清空前的真实 size（行尾 ↻ 在空名单上是禁用态，通常拿不到 0）。</p>
+     */
     private void clearEntityTypes() {
-        if (module.settings().entityTypes.isEmpty()) return;
-        module.settings().entityTypes.clear();
-        persist();
+        List<String> types = module.settings().entityTypes;
+        int count = types.size();
+        if (count > 0) {
+            types.clear();
+            persist();
+        }
+        SelectionReceipt.cleared(count);
     }
 
     /** 名单增删：有实际变化才落盘 */

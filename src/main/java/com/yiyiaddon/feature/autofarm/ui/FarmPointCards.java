@@ -1,6 +1,6 @@
 package com.yiyiaddon.feature.autofarm.ui;
 
-import com.yiyiaddon.core.CommandMessageFormatter;
+import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.feature.autofarm.AutoFarmModule;
 import com.yiyiaddon.feature.autofarm.command.FarmCommand;
 import com.yiyiaddon.feature.autofarm.model.FarmSite;
@@ -74,7 +74,7 @@ public final class FarmPointCards {
             // 两个角一起重设：农场范围模式的「设置」进的是同一套点选，与点的是哪一角无关
             String failure = module.siteSelector().enter(SiteType.START);
             if (failure != null) {
-                CommandMessageFormatter.sendLine(AutoFarmModule.MESSAGE_MODULE, "§6" + failure);
+                ClientChat.ui(AutoFarmModule.MESSAGE_MODULE, "§6" + failure);
                 return;
             }
             Minecraft client = Minecraft.getInstance();
@@ -112,11 +112,12 @@ public final class FarmPointCards {
         // 设置按钮：已绑定时绿色（旧 :780 的颜色条件原样）；未绑定时灰色
         // 行为（有意差异，用户 2026-09-18 口径）：进入游戏内的点选模式 —— 手持任意物品，
         // 农田用「左键一角 + 右键对角」一次成区，箱子用「左键点容器」；旧项目是「准星对准方块 + 点按钮」。
-        // 失败原因仍走聊天栏播报并留在控制台，成功才关窗回游戏选点。
+        // 失败原因走界面内回执（用户在控制台里点「设置」，面板开着时聊天栏看不见）并留在控制台，
+        // 成功才关窗回游戏选点。
         Button setButton = new Button((isBound ? "§a" : "§8") + "设置", () -> {
             String failure = module.siteSelector().enter(type);
             if (failure != null) {
-                CommandMessageFormatter.sendLine(AutoFarmModule.MESSAGE_MODULE, "§6" + failure);
+                ClientChat.ui(AutoFarmModule.MESSAGE_MODULE, "§6" + failure);
                 return;
             }
             Minecraft client = Minecraft.getInstance();

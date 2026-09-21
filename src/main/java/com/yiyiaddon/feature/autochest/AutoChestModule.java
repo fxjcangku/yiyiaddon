@@ -48,8 +48,11 @@ import java.util.Set;
 /**
  * 自动箱子模块（旧项目 {@code autochest/AutoChestModule.java} 的移植）。
  *
- * <p><b>用户交互资产：</b>模块中文名 {@code 自动箱子}、分类 {@code 辅助}、description、全部播报文案、
- * 自检缺项文案、面板按钮与说明章节均沿用旧项目原文，禁止改写。</p>
+ * <p><b>用户交互资产：</b>模块中文名 {@code 自动箱子}、分类 {@code 自动化}、全部播报文案、
+ * 自检缺项文案、面板按钮与说明章节均沿用旧项目原文，禁止改写。<b>description 例外</b>：现为
+ * {@code 扫描附近容器，取走目标物品}，原为旧项目长句「扫描并自动处理附近容器，取走ID配置中的目标物品。
+ * 详细参考下面使用说明。」，2026-09-21 按「一行放得下的中文短注」重写（模块清单行不截断，
+ * 见 166 号复盘第十一节）。</p>
  *
  * <p>流程与旧项目一致：扫描合法容器 → 发现目标 → 判断是否已处理 → 锁定 → 移动/等待 → 开箱
  * → 读取真实 Slot → 精确识别 ItemStack → 按取物模式取物 → 关箱 → 保存记录 → ESP 变红 → 寻找下一个。
@@ -115,7 +118,7 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
 
     public AutoChestModule() {
         super(MODULE_ID, MESSAGE_MODULE, "automation",
-                "扫描并自动处理附近容器，取走ID配置中的目标物品。详细参考下面使用说明。");
+                "扫描附近容器，取走目标物品");
 
         this.scanner = new ContainerScanner(mc, settings::enabledTypes);
         this.recordStore = new ContainerRecordStore(mc);
