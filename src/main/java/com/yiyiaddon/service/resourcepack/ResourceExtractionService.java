@@ -326,26 +326,32 @@ public final class ResourceExtractionService {
     /**
      * 玩家主动触发：检测 / 提取当前服务器资源包。
      *
-     * <p>这是资源链路的唯一入口。进服不会自动调用它，任何模块开关也不会。</p>
+     * <p>这是资源链路的唯一入口。进服不会自动调用它，任何模块开关也不会。
+     * 全项目唯一调用点是星露谷资源页那颗「检测 / 更新资源」按钮。</p>
+     *
+     * <p><b>两条出口的分工</b>（用户 2026-09-21「凡是 ui 点击都在 ui 里面弹窗」）：
+     * 本方法里「按下去就被挡下」的四种情况走 {@link #noticeOnClick}（面板内弹窗，玩家当场看得见）；
+     * 接下来的提取**过程**是后台跑几十秒的流式播报，仍走 {@link #notice} → 聊天栏，
+     * 那份要留在聊天记录里翻看。</p>
      */
     public static void requestExtract() {
         if (!GameProbe.inWorld()) {
-            notice("§c仅多人服务器可检测服务器资源包");
+            noticeOnClick("§c仅多人服务器可检测服务器资源包");
             return;
         }
         if (isSingleplayer()) {
-            notice("§c星露谷资源检测仅支持多人服务器");
+            noticeOnClick("§c星露谷资源检测仅支持多人服务器");
             return;
         }
         if (isBusy()) {
-            notice("§e资源正在处理中（" + phase.label() + "），请稍候…");
+            noticeOnClick("§e资源正在处理中（" + phase.label() + "），请稍候…");
             return;
         }
 
         String key = currentKey();
         if (key == null) key = serverKey;
         if (key == null) {
-            notice("§c无法识别当前服务器地址，资源检测已取消。");
+            noticeOnClick("§c无法识别当前服务器地址，资源检测已取消。");
             return;
         }
         if (!key.equals(serverKey)) beginSession(key);
@@ -886,6 +892,16 @@ public final class ResourceExtractionService {
     /** 无条件提示（不去重）：用于玩家操作反馈 */
     private static void notice(String text) {
         notifyChat(MODULE, text);
+    }
+
+    /**
+     * 「按下去就被挡下」的即时回执：面板开着发面板内弹窗，否则发聊天栏。
+     *
+     * <p>与 {@link #notice} 的分工见 {@link #requestExtract()} 的说明 —— 这个是点按钮当场要看见的，
+     * 那个是后台过程的流式播报、要留在聊天记录里。</p>
+     */
+    private static void noticeOnClick(String text) {
+        ClientChat.ui(MODULE, text);
     }
 
     private static void notifyChat(String text) {
