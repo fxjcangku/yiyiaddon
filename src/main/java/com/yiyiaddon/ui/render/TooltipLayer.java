@@ -55,11 +55,18 @@ public final class TooltipLayer {
     private static final long NOTICE_FADE_OUT_MS = 300L;
     /** 顶部提示与视口顶边的距离（设计空间）。 */
     private static final float NOTICE_TOP = 22f;
-    /** 顶部提示的字号、内边距与圆角：与悬停浮层同一套度量，看起来是同一种框。 */
-    private static final float NOTICE_SIZE = 10f;
-    private static final float NOTICE_PAD_X = 10f;
-    private static final float NOTICE_PAD_Y = 7f;
-    private static final float NOTICE_RADIUS = 7f;
+    /**
+     * 顶部提示的字号、内边距与圆角。
+     *
+     * <p>原本与悬停浮层同为 10（同一套度量，看起来是同一种框），用户 2026-09-21 实机反馈
+     * 「有点小看不清」，因此正文提到面板正文档的 {@code 12}（与 {@code ModuleRow} 的模块名、
+     * {@code TextLine} 的行位同级），内边距与圆角同步放宽一档。框的形状语言不变 —— 圆角比例、
+     * 投影与材质仍与悬停浮层那一套同参，只是整体大一号。</p>
+     */
+    private static final float NOTICE_SIZE = 12f;
+    private static final float NOTICE_PAD_X = 12f;
+    private static final float NOTICE_PAD_Y = 8f;
+    private static final float NOTICE_RADIUS = 8f;
     /** 进场时自上而下归位的距离与最小缩放、退场时额外上浮的距离：与面板「下沉 + 淡入」同一观感，幅度更轻 */
     private static final float NOTICE_RISE = 7f;
     private static final float NOTICE_EXIT_LIFT = 5f;
