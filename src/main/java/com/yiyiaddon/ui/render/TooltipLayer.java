@@ -1,6 +1,7 @@
 package com.yiyiaddon.ui.render;
 
 import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.core.ClientChat;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
@@ -94,9 +95,21 @@ public final class TooltipLayer {
      * 固定在视口顶部居中，并<b>跨帧存活</b> — 因此单独一份状态，{@link #beginFrame()} 只清悬停浮层。</p>
      *
      * <p>重复调用只刷新同一条：文案替换、计时重置，不会叠出多条。</p>
+     *
+     * <p><b>绝不静默丢弃</b>：这条状态只有 {@link #drawNotice} 会画，而它只由各 {@code SkiaScreen}
+     * 子类在帧末调用 —— 界面没开时弹窗根本没人渲染，写进去就是丢掉。因此这里先问
+     * {@code SkiaScreen#isOpen()}：界面没开就<b>退回聊天栏</b>发同一条文本。
+     * 于是三条通道（{@code ClientChat#send} / {@code ClientChat#ui} / 本方法）都不会吞消息。</p>
      */
     public static void notify(String text) {
         if (text == null || text.isBlank()) return;
+        // 兜底：弹窗只有「扩展自己的界面」在画帧时才会被渲染（见 drawNotice 的调用方），
+        // 界面没开就发这条等于把它直接吞掉 —— 宁可退回聊天栏，也绝不静默丢提示。
+        // （用户 2026-09-21 自查：「如果 ui 没打开不就没提示了吗」）
+        if (!SkiaScreen.isOpen()) {
+            ClientChat.raw(text);
+            return;
+        }
         long now = System.currentTimeMillis();
         noticeText = text;
         noticeStartMs = now;
