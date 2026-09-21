@@ -65,7 +65,8 @@ public final class TelemetryService {
 
     /** 上报一个崩溃。 */
     public static void reportCrash(Throwable throwable) {
-        if (throwable == null) return;
+        // 远程开关 crash_report_enabled：关掉后只跳过上传，崩溃处理链照旧。
+        if (throwable == null || !RemoteConfigService.flags().enabled(RemoteConfigService.CRASH_REPORT)) return;
         JsonObject body = new JsonObject();
         body.addProperty("message", throwable.getClass().getName() + ": " + throwable.getMessage());
         body.addProperty("stack_trace", stackTrace(throwable));
@@ -82,6 +83,8 @@ public final class TelemetryService {
      * @param severity low / medium / high
      */
     public static void reportAnomaly(String type, String severity, String message, String data) {
+        // 远程开关 anomaly_report_enabled：关掉后连节流表都不记，开关重新打开立即恢复上报。
+        if (!RemoteConfigService.flags().enabled(RemoteConfigService.ANOMALY_REPORT)) return;
         long now = System.currentTimeMillis();
         Long last = LAST_REPORT.get(type);
         if (last != null && now - last < THROTTLE_MILLIS) return;

@@ -82,6 +82,10 @@ public final class CommandManager {
 
         CommandRegistry.register(new HelpCommand());
         CommandRegistry.register(new ModuleCommand());
+        // 跨服聊天与管理员回复：旧项目是 commands/YiyiaddonChatCommand 与 commands/ReplyAdminCommand
+        // 两条独立指令，且不在模块树里，因此与 help / module 并列注册在内置指令区。
+        CommandRegistry.register(new ChatCommand());
+        CommandRegistry.register(new ReplyCommand());
 
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> !handle(message));
     }

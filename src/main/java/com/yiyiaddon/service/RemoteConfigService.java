@@ -18,10 +18,14 @@ public final class RemoteConfigService {
 
     /** 统计上报总开关。 */
     public static final String STATS_REPORT = "stats_report_enabled";
+    /** 在线心跳与模块活动上报开关。 */
+    public static final String HEARTBEAT_REPORT = "heartbeat_report_enabled";
+    /** 高速移动 / 瞬移等异常行为上报开关。 */
+    public static final String ANOMALY_REPORT = "anomaly_report_enabled";
+    /** 崩溃上报开关。 */
+    public static final String CRASH_REPORT = "crash_report_enabled";
     /** 消息轮询开关。 */
     public static final String MESSAGE_POLL = "message_poll_enabled";
-    /** 更新提示开关。 */
-    public static final String UPDATE_NOTICE = "update_notice_enabled";
 
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
     private static final long INTERVAL_SECONDS = 60L;

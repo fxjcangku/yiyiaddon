@@ -43,6 +43,7 @@ public final class HeartbeatService {
         String uuid = lastUuid;
         if (uuid == null) return;
         lastUuid = null;
+        if (!reportEnabled()) return;
 
         JsonObject body = new JsonObject();
         body.addProperty("uuid", uuid);
@@ -50,8 +51,20 @@ public final class HeartbeatService {
                 () -> HttpApi.post("/api/offline", body, Duration.ofSeconds(5)));
     }
 
+    /**
+     * 心跳链路是否允许上报。
+     *
+     * <p>两道远程开关是「与」关系：{@code stats_report_enabled} 是统计总闸（旧口径），
+     * {@code heartbeat_report_enabled} 是本通道单独的口子（后台面板「在线状态、延迟、模块和活动数据是否上报」）。
+     * 键未下发时默认开启，因此后台没有配过任何开关时行为与旧版一致。</p>
+     */
+    private static boolean reportEnabled() {
+        return RemoteConfigService.flags().enabled(RemoteConfigService.STATS_REPORT)
+                && RemoteConfigService.flags().enabled(RemoteConfigService.HEARTBEAT_REPORT);
+    }
+
     private static void tick() {
-        if (!RemoteConfigService.flags().enabled(RemoteConfigService.STATS_REPORT)) return;
+        if (!reportEnabled()) return;
         if (!GameProbe.inWorld()) return;
 
         String name = ClientIdentity.name();
