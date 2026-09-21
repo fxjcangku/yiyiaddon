@@ -62,7 +62,6 @@ wrangler deploy
 `/api/admin/analytics`、`/api/admin/crashes`、`/api/admin/anomalies`、
 `/api/admin/command-activities`、`/api/admin/config`（POST/DELETE）、
 `/api/admin/refresh-premium`、`/api/admin/toggle-premium`、`/api/admin/clean-old-data`、
-`/api/admin/broadcast-jobs`、`/api/admin/start-broadcast`、`/api/admin/stop-broadcast`、
 `/api/messages/send`、`/api/messages/history`。
 
 页面：`/` 与 `/admin` 返回后台管理页，`/sw.js` 返回 Service Worker。
@@ -71,7 +70,10 @@ wrangler deploy
 
 `users`（玩家主表，含身份、地理位置、活动、在线状态）、`daily_active`（每日活跃去重日志）、
 `messages` + `message_reads`（管理员消息与广播已读）、`crashes`、`anomalies`、
-`configs`（远程配置键值）、`command_activities`、`broadcast_jobs`。
+`configs`（远程配置键值）、`command_activities`。
+
+清理口径：`/api/admin/clean-old-data` 是**全量清空**（`messages` + `message_reads` + `command_activities`），
+没有定时任务，也没有「按保留天数删过期数据」的实现。
 
 ## 五、客户端对应实现
 
@@ -88,12 +90,28 @@ wrangler deploy
 | 传输层、延迟、后台调度 | `core/HttpApi`、`core/BackendLatency`、`core/BackgroundTasks` |
 | 身份、游戏状态、归属地探测 | `platform/ClientIdentity`、`platform/GameProbe`、`platform/PlayerSampler`、`platform/NetworkInfoProbe` |
 
-以下接入点需要在客户端侧接线（服务本身不自行注册）：
+以下接入点需要在客户端侧接线（服务本身不自行注册），**全部已落地在 `YiyiAddonClient#onInitializeClient`
+与 `command/CommandManager#bootstrap`**：
 
 - 客户端初始化：`RemoteConfigService.start()`、`HeartbeatService.start()`、`TelemetryService.start()`
 - 玩家进服：`RegisterService.register()`、`ChatService.start()`
 - 玩家断开：`HeartbeatService.reportOffline()`、`ChatService.stop()`、`RegisterService.reset()`
-- `ClientPacketListener.sendCommand(String)`：`CommandActivityService.onOutgoingCommand(...)`
+- 指令埋点：`EventDispatcher` 已把玩家发出的指令包（`ServerboundChatCommandPacket` /
+  `ServerboundChatCommandSignedPacket`）抽成 `ClientEventType.CLIENT_COMMAND`，客户端初始化时订阅该事件
+  转给 `CommandActivityService.onOutgoingCommand(...)`（事件载荷是不含前导斜杠的指令原文，与服务入参同口径）。
+  早先文档写的「注入 `ClientPacketListener#sendCommand`」由这条既有链路代劳，无需再新增 Mixin。
+- 玩家侧聊天入口：`command/ChatCommand`（`.聊天 在线|帮助|说|私聊|回复`）与 `command/ReplyCommand`（`.回复 <内容>`），
+  在 `CommandManager.bootstrap()` 里与 `help` / `module` 并列注册。
+
+远程开关实际生效的键（其余键下发后无客户端行为）：
+
+| 键 | 作用点 |
+| --- | --- |
+| `stats_report_enabled` | `RegisterService`、`HeartbeatService`（统计总闸） |
+| `heartbeat_report_enabled` | `HeartbeatService`（与总闸是「与」关系） |
+| `anomaly_report_enabled` | `TelemetryService#reportAnomaly` |
+| `crash_report_enabled` | `TelemetryService#reportCrash` |
+| `message_poll_enabled` | `ChatService#start` |
 
 ## 六、备注
 

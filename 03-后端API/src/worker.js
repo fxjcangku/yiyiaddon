@@ -16,7 +16,7 @@ import { ADMIN_HTML } from './admin-modern.js';
 const SW_JS = `// Service Worker for yiyiaddon 后台管理系统
 // 提供离线缓存功能
 
-const CACHE_NAME = 'yiyiaddon-v2';
+const CACHE_NAME = 'yiyiaddon-v6';
 const urlsToCache = [
   '/',
   '/api/config',
@@ -208,7 +208,11 @@ async function resolvePremium(uuid, name, xuid) {
 // 避免离线模式下每次心跳都请求 Mojang 触发限流，把正版账号误判为离线。
 const mojangCache = new Map();
 
-// 通过 Mojang 官方 API 按游戏名查询正版账号，返回真实 Mojang UUID（无连字符）、null（API失败）或 false（404不存在）
+// isolate 级标记：Mojang 官方档案接口对本 Worker 出口按 ASN 返回 403（实测恒拒）时置位，
+// 之后直接走镜像，省掉每次白打一次 403。新 isolate 自动重置，官方恢复后无需改动。
+let officialBlocked = false;
+
+// 通过正版档案接口按游戏名查询账号，返回真实 Mojang UUID（无连字符）、false（确认不存在）或 null（全部来源不可用）
 async function lookupMojangProfile(name) {
   if (!name) return false;
   const clean = String(name).trim();
@@ -216,26 +220,50 @@ async function lookupMojangProfile(name) {
   const cacheKey = clean.toLowerCase();
   const cached = mojangCache.get(cacheKey);
   if (cached && (Date.now() - cached.ts) < 3600000) {
-    return cached.id; // 1 小时内命中缓存直接返回，避免重复请求 Mojang
+    return cached.id; // 1 小时内命中缓存直接返回，避免重复请求上游
   }
+  let result = officialBlocked ? null : await queryOfficialProfile(clean);
+  if (result === null) result = await queryMirrorProfile(clean);
+  if (result === null) return null; // 两个来源都不可用，不缓存，下次重试
+  // 确认不存在（false）一并缓存，避免同一离线名反复请求；正版改名场景极罕见，1 小时后自动失效
+  mojangCache.set(cacheKey, { id: result, ts: Date.now() });
+  return result;
+}
+
+// 主源：Mojang 官方档案。200 → 档案 id；404 → 确认不存在（false）；其余（429/5xx/网络异常）→ null（不缓存，下次重试）
+async function queryOfficialProfile(name) {
   try {
-    const resp = await fetch('https://api.mojang.com/users/profiles/minecraft/' + encodeURIComponent(clean), {
+    const resp = await fetch('https://api.mojang.com/users/profiles/minecraft/' + encodeURIComponent(name), {
       headers: { 'Accept': 'application/json' },
     });
     if (resp.status === 200) {
       const data = await resp.json();
-      const id = data && data.id ? String(data.id) : false;
-      mojangCache.set(cacheKey, { id, ts: Date.now() });
-      return id;
+      return data && data.id ? String(data.id) : false;
     }
-    if (resp.status === 404) {
-      // 404 同样缓存，避免同一离线名反复请求；正版改名场景极罕见，1 小时后自动失效
-      mojangCache.set(cacheKey, { id: false, ts: Date.now() });
-      return false;
-    }
-    return null; // 其他错误（限流、500等）不缓存，下次重试
+    if (resp.status === 404) return false;
+    // 403 = Mojang WAF 按 ASN 拒绝（Cloudflare Workers 出口 IP 恒被拒，见 officialBlocked）
+    if (resp.status === 403) officialBlocked = true;
+    return null;
   } catch (e) {
-    return null; // 网络错误/超时
+    return null;
+  }
+}
+
+// 备源：playerdb.co 镜像（与官方同数据源，Cloudflare 出口可达，实测返回的 UUID 与官方一致）。
+// 200 → 档案 id（去连字符）；400/404 → 确认不存在（false）；其余 → null
+async function queryMirrorProfile(name) {
+  try {
+    const resp = await fetch('https://playerdb.co/api/player/minecraft/' + encodeURIComponent(name), {
+      headers: { 'Accept': 'application/json' },
+    });
+    if (resp.status === 400 || resp.status === 404) return false;
+    if (resp.status !== 200) return null;
+    const data = await resp.json();
+    const player = data && data.data && data.data.player;
+    const id = player && (player.raw_id || player.id);
+    return id ? String(id).replace(/-/g, '') : false;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -884,7 +912,9 @@ export default {
 
       try {
         const rows = await env.DB.prepare('SELECT * FROM crashes ORDER BY last_seen DESC LIMIT 200').all();
-        return jsonResponse({ total: rows.results.length, crashes: rows.results });
+        // total 必须是真实总数：此前用分页长度充数，超过 200 条时面板会把总数显示成 200
+        const total = await env.DB.prepare('SELECT COUNT(*) AS n FROM crashes').first();
+        return jsonResponse({ total: (total && total.n) || 0, crashes: rows.results });
       } catch (error) {
         return jsonResponse({ error: error.message }, 500);
       }
@@ -897,7 +927,8 @@ export default {
 
       try {
         const rows = await env.DB.prepare('SELECT * FROM anomalies ORDER BY last_seen DESC LIMIT 200').all();
-        return jsonResponse({ total: rows.results.length, anomalies: rows.results });
+        const total = await env.DB.prepare('SELECT COUNT(*) AS n FROM anomalies').first();
+        return jsonResponse({ total: (total && total.n) || 0, anomalies: rows.results });
       } catch (error) {
         return jsonResponse({ error: error.message }, 500);
       }
@@ -979,22 +1010,15 @@ export default {
       if (auth) return auth;
 
       try {
+        // 目标玩家名一次 JOIN 取回：面板聊天页每 5 秒轮询一次，逐条回查 users 会放大成上百次查询
         const messages = await env.DB.prepare(
-          'SELECT id, target_uuid, target_name, from_uuid, sender, message, from_admin, created_at, delivered FROM messages ORDER BY created_at DESC LIMIT 120'
+          `SELECT m.id, m.target_uuid, COALESCE(m.target_name, tu.name) AS target_name, m.from_uuid,
+                  m.sender, m.message, m.from_admin, m.created_at, m.delivered
+           FROM messages m LEFT JOIN users tu ON tu.uuid = m.target_uuid
+           ORDER BY m.created_at DESC LIMIT 120`
         ).all();
 
-        // 关联目标玩家名，方便后台展示
-        const result = [];
-        for (const m of messages.results) {
-          let targetName = m.target_name || null;
-          if (!targetName && m.target_uuid) {
-            const u = await env.DB.prepare('SELECT name FROM users WHERE uuid = ?').bind(m.target_uuid).first();
-            if (u) targetName = u.name;
-          }
-          result.push({ ...m, target_name: targetName });
-        }
-
-        return jsonResponse(result);
+        return jsonResponse(messages.results);
       } catch (error) {
         return jsonResponse({ error: error.message }, 500);
       }
@@ -1013,14 +1037,19 @@ export default {
            WHERE m.target_uuid = ? AND m.delivered = 0 ORDER BY m.created_at ASC`
         ).bind(uuid).all();
 
-        // 广播消息：发给所有人且该玩家尚未读取（排除玩家回复管理员的消息）
+        // 广播消息：发给所有人且该玩家尚未读取（排除玩家回复管理员的消息）。
+        // 再加一道「不早于该玩家首次使用时间」的闸门：广播的已读是按玩家各记一条，若不加这道闸，
+        // 新玩家一进服就会把消息表里所有历史广播一次性收完（旧广播对他都是未读）。
+        // uuid 还不在 users 表里（注册尚未落库或注册失败）时按「此刻」算，即历史广播一律不投递，
+        // 等他注册落库之后，当天新发的广播照常送达。
         const broadcast = await env.DB.prepare(
           `SELECT m.id, m.message, m.sender, m.from_admin, m.created_at, u.is_premium FROM messages m
            LEFT JOIN users u ON u.uuid = m.from_uuid
            WHERE m.target_uuid IS NULL AND (m.from_uuid IS NULL OR m.from_uuid != ?)
+           AND m.created_at >= COALESCE((SELECT first_seen FROM users WHERE uuid = ?), ?)
            AND m.id NOT IN (SELECT message_id FROM message_reads WHERE player_uuid = ?)
            ORDER BY m.created_at ASC`
-        ).bind(uuid, uuid).all();
+        ).bind(uuid, uuid, Date.now(), uuid).all();
 
         const all = [...personal.results, ...broadcast.results].sort((a, b) => a.created_at - b.created_at);
 
@@ -1133,7 +1162,8 @@ export default {
         const activities = await env.DB.prepare(
           'SELECT id, name, command_name, category, created_at FROM command_activities ORDER BY created_at DESC LIMIT 120'
         ).all();
-        return jsonResponse({ activities: activities.results });
+        const total = await env.DB.prepare('SELECT COUNT(*) AS n FROM command_activities').first();
+        return jsonResponse({ total: (total && total.n) || 0, activities: activities.results });
       } catch (error) {
         return jsonResponse({ error: error.message }, 500);
       }
@@ -1161,61 +1191,6 @@ export default {
       }
     }
 
-    // 管理员：获取循环任务列表
-    if (path === '/api/admin/broadcast-jobs' && request.method === 'GET') {
-      const auth = await requireAuth(request, env);
-      if (auth) return auth;
-
-      try {
-        await ensureBroadcastTable(env.DB);
-        const jobs = await env.DB.prepare('SELECT * FROM broadcast_jobs WHERE active = 1 ORDER BY created_at DESC').all();
-        return jsonResponse({ jobs: jobs.results });
-      } catch (error) {
-        return jsonResponse({ error: error.message }, 500);
-      }
-    }
-
-    // 管理员：启动循环任务
-    if (path === '/api/admin/start-broadcast' && request.method === 'POST') {
-      const auth = await requireAuth(request, env);
-      if (auth) return auth;
-
-      try {
-        const { message, target_name, interval_minutes } = await request.json();
-        if (!message || !message.trim()) {
-          return jsonResponse({ error: '消息不能为空' }, 400);
-        }
-        
-        await ensureBroadcastTable(env.DB);
-        const now = Date.now();
-        await env.DB.prepare(
-          'INSERT INTO broadcast_jobs (message, target_name, interval_minutes, active, created_at, last_sent_at) VALUES (?, ?, ?, 1, ?, ?)'
-        ).bind(message.trim(), target_name || null, interval_minutes || 10, now, 0).run();
-        
-        return jsonResponse({ success: true });
-      } catch (error) {
-        return jsonResponse({ error: error.message }, 500);
-      }
-    }
-
-    // 管理员：停止循环任务
-    if (path === '/api/admin/stop-broadcast' && request.method === 'POST') {
-      const auth = await requireAuth(request, env);
-      if (auth) return auth;
-
-      try {
-        const { job_id } = await request.json();
-        if (!job_id) {
-          return jsonResponse({ error: '缺少 job_id' }, 400);
-        }
-        
-        await env.DB.prepare('UPDATE broadcast_jobs SET active = 0 WHERE id = ?').bind(job_id).run();
-        return jsonResponse({ success: true });
-      } catch (error) {
-        return jsonResponse({ error: error.message }, 500);
-      }
-    }
-
     return jsonResponse({ error: 'Not Found' }, 404);
   },
 };
@@ -1226,14 +1201,6 @@ async function ensureCommandActivityTable(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS command_activities (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT NOT NULL, name TEXT NOT NULL, command_name TEXT NOT NULL, category TEXT NOT NULL, created_at INTEGER NOT NULL)'),
     db.prepare('CREATE INDEX IF NOT EXISTS idx_command_activities_created ON command_activities(created_at DESC)'),
     db.prepare('CREATE INDEX IF NOT EXISTS idx_command_activities_user_command ON command_activities(uuid, command_name, created_at DESC)'),
-  ]);
-}
-
-// 确保循环任务表存在
-async function ensureBroadcastTable(db) {
-  await db.batch([
-    db.prepare('CREATE TABLE IF NOT EXISTS broadcast_jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT NOT NULL, target_name TEXT, interval_minutes INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, last_sent_at INTEGER NOT NULL DEFAULT 0)'),
-    db.prepare('CREATE INDEX IF NOT EXISTS idx_broadcast_jobs_active ON broadcast_jobs(active, last_sent_at)'),
   ]);
 }
 
