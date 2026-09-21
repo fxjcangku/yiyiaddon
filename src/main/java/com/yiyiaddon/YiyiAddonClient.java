@@ -19,6 +19,7 @@ import com.yiyiaddon.service.identity.IdentityService;
 import com.yiyiaddon.service.resourcepack.ResourceExtractionService;
 import com.yiyiaddon.ui.keybind.FunctionKeybinds;
 import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
+import com.yiyiaddon.ui.render.HudBanner;
 import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.render.world.BlockOutlineRenderer;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
@@ -85,9 +86,13 @@ public final class YiyiAddonClient implements ClientModInitializer {
 
         // 跨服聊天与管理员消息：进服开轮询，断线停（03-后端API/README.md 第五节列的接线契约，
         // 与统计链路并列成对调用）。轮询体是 ChatService#pollNow，每 3 秒一次打 /api/messages/poll，
-        // 拉到的管理员消息直接进聊天栏；这里漏接的表现就是「后台发得出、玩家永远收不到」。
+        // 拉到的管理员消息画成 HUD 顶部横幅、其余进聊天栏；这里漏接的表现就是「后台发得出、玩家永远收不到」。
         ClientEventBus.subscribe(CHAT_OWNER, ClientEventType.JOIN_SERVER, event -> ChatService.start());
-        ClientEventBus.subscribe(CHAT_OWNER, ClientEventType.DISCONNECT, event -> ChatService.stop());
+        ClientEventBus.subscribe(CHAT_OWNER, ClientEventType.DISCONNECT, event -> {
+            ChatService.stop();
+            // 未显示的横幅一起清掉：上一个服务器的消息不该在新服务器里冒出来
+            HudBanner.clear();
+        });
 
         // 星露谷季节识别：常驻挂载（不依赖模块开关），必须排在资源服务之后——
         // 它要订阅资源的就绪 / 失效事件，且模块启用前收到的服务器季节组件也不能丢

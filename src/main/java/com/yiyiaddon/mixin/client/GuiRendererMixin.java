@@ -1,6 +1,7 @@
 package com.yiyiaddon.mixin.client;
 
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.yiyiaddon.ui.render.HudBanner;
 import com.yiyiaddon.ui.render.SkiaBlurRenderer;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
 import net.minecraft.client.gui.render.GuiRenderer;
@@ -32,5 +33,8 @@ public abstract class GuiRendererMixin {
         // 顺序必须在叠加层之前 —— 否则截到的世界帧里会带上 ESP 字牌。
         SkiaBlurRenderer.getInstance().captureWorldFrame();
         WorldOverlay.renderOverlay();
+        // HUD 顶部横幅（管理员消息等）：与叠加层同一条画布路径，各取各的画布、互不影响。
+        // 顺序在世界叠加层之后，让横幅压住 ESP 字牌（字牌属于世界内容）。
+        HudBanner.render();
     }
 }

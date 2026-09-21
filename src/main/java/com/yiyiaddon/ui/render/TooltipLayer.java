@@ -7,7 +7,6 @@ import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import io.github.humbleui.types.RRect;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -291,42 +290,8 @@ public final class TooltipLayer {
         return size;
     }
 
-    /**
-     * 折行：先按 {@code \n} 分行，再把每行按最大宽度折到下一行。
-     *
-     * <p>宽度按可见宽度计算（{@code §} 颜色码整对带过、不占宽度），因此带颜色码的文案折行位置
-     * 与绘制结果一致。</p>
-     */
+    /** 折行：按可见宽度委托给 {@link MinecraftText#wrap}（单一实现），字号取浮层正文的 {@link #TIP_SIZE}。 */
     private static List<String> wrap(String text, float maxWidth) {
-        List<String> lines = new ArrayList<>();
-        for (String paragraph : text.split("\n", -1)) {
-            if (paragraph.isEmpty()) {
-                lines.add("");
-                continue;
-            }
-            StringBuilder line = new StringBuilder();
-            float width = 0f;
-            for (int i = 0; i < paragraph.length(); ) {
-                int codePoint = paragraph.codePointAt(i);
-                int charCount = Character.charCount(codePoint);
-                String chunk = paragraph.substring(i, i + charCount);
-                i += charCount;
-                // 颜色码整对带过，宽度由 MinecraftText 解析后为 0
-                if (codePoint == '\u00A7' && i < paragraph.length()) {
-                    chunk += paragraph.charAt(i);
-                    i++;
-                }
-                float chunkWidth = MinecraftText.measure(chunk, TIP_SIZE, false);
-                if (width + chunkWidth > maxWidth && line.length() > 0) {
-                    lines.add(line.toString());
-                    line.setLength(0);
-                    width = 0f;
-                }
-                line.append(chunk);
-                width += chunkWidth;
-            }
-            lines.add(line.toString());
-        }
-        return lines;
+        return MinecraftText.wrap(text, TIP_SIZE, maxWidth);
     }
 }
