@@ -24,6 +24,7 @@ public final class ModuleEntry {
     private final String version;
     private final BooleanSupplier state;
     private final Supplier<ModulePage> page;
+    private final String statusText;
 
     private ModuleEntry(Builder builder) {
         this.id = builder.id;
@@ -36,6 +37,7 @@ public final class ModuleEntry {
         this.version = builder.version;
         this.state = builder.state;
         this.page = builder.page;
+        this.statusText = builder.statusText;
     }
 
     public static Builder builder(String id) {
@@ -88,6 +90,16 @@ public final class ModuleEntry {
         return page;
     }
 
+    /**
+     * 模块行右侧状态标记的覆写文案；{@code null} = 按 {@link #enabled()} 显示「已启用 / 未启用」。
+     *
+     * <p>「只剪了入口、功能还没写」的模块（星露谷钓鱼）返回「无法使用」，免得玩家把「未启用」
+     * 当成「点一下就能开」。来源见 {@code Module#statusBadgeText()}。</p>
+     */
+    public String statusText() {
+        return statusText;
+    }
+
     public static final class Builder {
 
         private final String id;
@@ -100,6 +112,7 @@ public final class ModuleEntry {
         private String version = "";
         private BooleanSupplier state = () -> false;
         private Supplier<ModulePage> page;
+        private String statusText;
 
         private Builder(String id) {
             this.id = Objects.requireNonNull(id, "模块 ID 不能为空");
@@ -149,6 +162,12 @@ public final class ModuleEntry {
         /** 模块页面工厂；由功能模块提供。 */
         public Builder page(Supplier<ModulePage> value) {
             this.page = value;
+            return this;
+        }
+
+        /** 模块行状态标记的覆写文案；不提供则按启用状态显示。 */
+        public Builder statusText(String value) {
+            this.statusText = value;
             return this;
         }
 

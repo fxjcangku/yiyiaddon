@@ -246,7 +246,7 @@ public final class AntiKickBypassModule extends Module implements TacticalCoordi
 
     public AntiKickBypassModule() {
         super(MODULE_ID, MESSAGE_MODULE, "combat",
-            "6 合 1 防踢系统：伪装+排队+防挂机+限速+拉回分析+真人模拟。");
+            "防踢六合一：伪装排队防挂机");
     }
 
     /**

@@ -66,7 +66,7 @@ public final class IdIdentifyModule extends Module {
     private int pendingSelfCloseTicks;
 
     public IdIdentifyModule() {
-        super(MODULE_ID, MESSAGE_MODULE, "assist", "识别手持物品或准星方块并加入ID配置。点击开启即识别。");
+        super(MODULE_ID, MESSAGE_MODULE, "assist", "识别手持物或准星方块入库");
     }
 
     @Override

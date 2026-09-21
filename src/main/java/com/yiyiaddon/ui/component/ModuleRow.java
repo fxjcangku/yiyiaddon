@@ -193,24 +193,36 @@ public final class ModuleRow {
 
         float available = Math.max(0f, badgeX - BADGE_GAP - cursor);
         if (available <= 0f) return;
-        FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(title, available, TITLE_SIZE), cursor,
-                CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
-                GlassPanel.withAlpha(tc.primaryText, alpha));
+        float titleWidth = FontRenderer.measureTextWidthBold(title, TITLE_SIZE);
+        boolean titleFits = titleWidth <= available;
+        if (titleFits) {
+            FontRenderer.drawTextBold(canvas, title, cursor, CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
+                    GlassPanel.withAlpha(tc.primaryText, alpha));
+        }
 
-        float descX = cursor + Math.min(FontRenderer.measureTextWidthBold(title, TITLE_SIZE), available) + ICON_GAP;
+        float descX = cursor + (titleFits ? titleWidth : 0f) + ICON_GAP;
         float descMax = Math.max(0f, badgeX - BADGE_GAP - descX);
-        if (descMax < 16f) return;
-        FontRenderer.drawText(canvas, CardLayout.ellipsize(description, descMax, CAPTION_SIZE), descX,
-                CardLayout.baseline(centerY, CAPTION_SIZE), CAPTION_SIZE,
-                GlassPanel.withAlpha(tc.labelTertiary, alpha));
+        boolean descFits = titleFits && descMax >= DESC_MIN_WIDTH && description != null
+                && !description.isEmpty()
+                && FontRenderer.measureTextWidth(description, CAPTION_SIZE) <= descMax;
+        if (descFits) {
+            FontRenderer.drawText(canvas, description, descX, CardLayout.baseline(centerY, CAPTION_SIZE),
+                    CAPTION_SIZE, GlassPanel.withAlpha(tc.labelTertiary, alpha));
+        }
     }
 
     /**
      * 模块行：整行一条，从左到右依次是「图标 + 模块名 + 描述 + 星标 + 状态 + 进入箭头」。
      *
-     * <p><b>名字优先完整、描述放不下就不画</b>（用户 2026-09-21：「帮我设计一套好看能看清全部字没有....的」）：
-     * 名称先按可用宽度量一次，放得下就整段画出；剩下的宽度才轮到描述，描述放不下时整段交给悬停浮层。
-     * 于是既不会出现半截省略号，也不会出现「名字被描述挤掉」。</p>
+     * <p><b>名字优先完整、描述放不下就不画，两者都不截断</b>（用户 2026-09-21：
+     * 「帮我设计一套好看能看清全部字没有....的」；同日再次确认「记得不可以带.....，宁愿简洁一点中文话术
+     * 也不要出现省略号」）：名称先按可用宽度量一次，放得下才整段画出；剩下的宽度才轮到描述，
+     * 描述放不下时整段不画、交给悬停浮层。这里<b>不再调 {@code CardLayout#ellipsize}</b>——
+     * 宽度不够时宁可这一行只留名字，也不出现半截省略号。
+     *
+     * <p>因此各模块的 {@code description()} 按「一行放得下的中文短注」来写（见
+     * {@code Module} 构造参数与 {@code AddonModules} 的注册清单），放不下的长文留在模块页的
+     * 「使用说明」里，不靠截断来塞进清单行。</p>
      *
      * <p>行高、圆角（{@link GlassPanel#rowRadius}）、底色与描边强度、悬停淡反馈与 {@link #drawEntry}
      * 同源；整行可点（点进模块页），星标那一小块是收藏键（点击判定见 {@code ModuleCenterPage#onClick}）。</p>
@@ -244,7 +256,7 @@ public final class ModuleRow {
         CardIcons.drawCentered(canvas, ARROW, arrowX, centerY, ARROW_GLYPH,
                 GlassPanel.withAlpha(GlassPanel.mix(tc.labelTertiary, tc.accent, hover), alpha));
 
-        String stateText = enabled ? "已启用" : "未启用";
+        String stateText = entry.statusText() == null ? (enabled ? "已启用" : "未启用") : entry.statusText();
         float badgeWidth = StatusBadge.width(stateText);
         float badgeX = Math.max(cursor, arrowX - ARROW_GLYPH - BADGE_GAP - badgeWidth);
         StatusBadge.draw(canvas, badgeX, centerY, stateText, enabled ? tc.stateOn : tc.stateOff, alpha);
@@ -259,16 +271,16 @@ public final class ModuleRow {
         float available = Math.max(0f, textRight - cursor);
         float nameWidth = FontRenderer.measureTextWidthBold(name, TITLE_SIZE);
         boolean nameFits = nameWidth <= available;
-        float nameMax = nameFits ? nameWidth : available;
-        if (nameMax > 0f) {
-            FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(name, nameMax, TITLE_SIZE), cursor,
-                    CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
+        float nameMax = nameFits ? nameWidth : 0f;
+        if (nameFits) {
+            FontRenderer.drawTextBold(canvas, name, cursor, CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
                     GlassPanel.withAlpha(tc.primaryText, alpha));
         }
 
         float descX = cursor + nameMax + ICON_GAP;
         float descMax = Math.max(0f, textRight - descX);
-        boolean descFits = nameFits && descMax >= DESC_MIN_WIDTH
+        boolean descFits = nameFits && descMax >= DESC_MIN_WIDTH && description != null
+                && !description.isEmpty()
                 && FontRenderer.measureTextWidth(description, CAPTION_SIZE) <= descMax;
         if (descFits) {
             FontRenderer.drawText(canvas, description, descX, CardLayout.baseline(centerY, CAPTION_SIZE),

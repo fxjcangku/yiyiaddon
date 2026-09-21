@@ -10,6 +10,7 @@ import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.selector.StardewPreview;
 import com.yiyiaddon.feature.stardew.selector.StardewSelectorCategory;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
@@ -422,7 +423,13 @@ public final class StardewTargetSelectScreen extends PanelScreen {
         // 单选模式（区域换作物）：把点中的作物交回调用方即可，不碰模块的目标选择集合、也不自行关窗
         if (pickHandler != null) {
             CropDefinition picked = cropByKey(key);
-            if (picked != null) pickHandler.accept(picked);
+            if (picked != null) {
+                // 回执先发再写回：这里点一下就是「选中它」，玩家需要当场看到反馈（面板开着时聊天框
+                // 与行动栏都被 MC 藏起来，见 SelectionReceipt）；调用方若随后弹出「没换成」提示，
+                // 会覆盖这一条，不会出现两条互相矛盾的弹窗
+                SelectionReceipt.selected(receiptName(key));
+                pickHandler.accept(picked);
+            }
             return;
         }
         List<String> keys = selectedKeys();
@@ -431,11 +438,31 @@ public final class StardewTargetSelectScreen extends PanelScreen {
             // 任务里既要浇水又要倒岩浆。这里在选中新盆型时把别的盆型组踢掉，同组盆型不受影响。
             if (category == StardewSelectorCategory.POT) keys.removeIf(other -> !samePotGroup(other, key));
             if (!keys.contains(key)) keys.add(key);
+            SelectionReceipt.added(receiptName(key));
         } else {
             keys.remove(key);
+            SelectionReceipt.removed(receiptName(key));
         }
         persist();
         rebuild();
+    }
+
+    /**
+     * 回执里显示的名字：与行标题同源，保证弹窗里的字和玩家刚点的那一行长得一样。
+     *
+     * <p>作物沿用 {@link #cropNameWithGroup}（带盆型标签，玩家才知道自己加的是哪一档盆型的作物）；
+     * 名字里的 {@code §} 颜色码由 {@link SelectionReceipt} 统一剥掉，这里原样传。索引里查不到定义
+     * 时退回技术键——回执只做展示，不参与任何写回。</p>
+     */
+    private String receiptName(String key) {
+        if (category == StardewSelectorCategory.CROP) {
+            CropDefinition crop = cropByKey(key);
+            return crop == null ? key : cropNameWithGroup(crop);
+        }
+        for (StardewToolDefinition entry : module.index().entriesFor(category)) {
+            if (key.equals(entry.key())) return safe(entry.displayName());
+        }
+        return key;
     }
 
     /** 两个盆型键是否属于同一盆型组；索引里查不到定义时按普通盆处理（与识图层同一口径） */

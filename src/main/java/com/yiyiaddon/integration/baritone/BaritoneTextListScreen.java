@@ -1,11 +1,12 @@
 package com.yiyiaddon.integration.baritone;
 
-import com.yiyiaddon.core.ClientChat;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.ButtonRow;
 import com.yiyiaddon.ui.component.CompactRow;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.component.ListRow;
 import com.yiyiaddon.ui.component.TextLine;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.screen.PanelScreen;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
@@ -34,7 +35,6 @@ public final class BaritoneTextListScreen extends PanelScreen {
     private static final float SECTION_HEIGHT = 24f;
     private static final int INPUT_MAX_LENGTH = 64;
 
-    private final String module;
     private final List<String> values = new ArrayList<>();
     private final Consumer<List<String>> write;
     private String pending = "";
@@ -48,7 +48,6 @@ public final class BaritoneTextListScreen extends PanelScreen {
     public BaritoneTextListScreen(Screen parent, String title, Supplier<List<String>> read,
                                   Consumer<List<String>> write) {
         super(title, parent);
-        this.module = title;
         this.write = write;
         List<String> current = read.get();
         if (current != null) {
@@ -78,6 +77,8 @@ public final class BaritoneTextListScreen extends PanelScreen {
             values.remove(value);
             push();
             rebuild();
+            // 原来减号点下去毫无反馈；面板开着时 MC 会把 HUD 藏起来，聊天回执看不见，改面板内顶部弹窗
+            SelectionReceipt.removed(value);
         });
         remove.danger();
         return new ListRow(value).action(remove);
@@ -85,18 +86,21 @@ public final class BaritoneTextListScreen extends PanelScreen {
 
     private void add() {
         String value = pending == null ? "" : pending.strip();
+        // 两处校验提示原来是聊天播报：本窗口开着时聊天框根本看不见，改成同一条顶部弹窗，文字逐字保留
         if (value.isEmpty()) {
-            ClientChat.send(module, "§e请先输入一项");
+            TooltipLayer.notify("§e请先输入一项");
             return;
         }
         if (values.stream().anyMatch(existing -> existing.equalsIgnoreCase(value))) {
-            ClientChat.send(module, "§e已经在列表里 §8▸ §f" + value);
+            TooltipLayer.notify("§e已经在列表里 §8▸ §f" + value);
             return;
         }
         values.add(value);
         pending = "";
         push();
         rebuild();
+        // 成功加入原来没有回执，补一条（面板内弹窗，唯一出口见 SelectionReceipt）
+        SelectionReceipt.added(value);
     }
 
     private void setPending(String text) {

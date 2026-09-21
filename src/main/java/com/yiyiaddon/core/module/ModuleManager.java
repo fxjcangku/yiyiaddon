@@ -152,11 +152,11 @@ public final class ModuleManager {
             module.loadSettings(defaults.deepCopy());
         } catch (Throwable error) {
             LOGGER.error("模块 {} 恢复默认失败", module.id(), error);
-            ClientChat.send(module.displayName(), "§c恢复默认失败：" + describe(error));
+            ClientChat.ui(module.displayName(), "§c恢复默认失败：" + describe(error));
             return false;
         }
         boolean saved = saveSettings(module);
-        if (saved) ClientChat.send(module.displayName(), "§a已恢复默认设置");
+        if (saved) ClientChat.ui(module.displayName(), "§a已恢复默认设置");
         return saved;
     }
 
@@ -334,7 +334,7 @@ public final class ModuleManager {
         if (module.isEnabled()) return EnableResult.SUCCESS;
 
         if (BROKEN.contains(module.id())) {
-            if (announce) ClientChat.send(module.displayName(), "§c初始化失败，本次会话不可用");
+            if (announce) ClientChat.ui(module.displayName(), "§c初始化失败，本次会话不可用");
             return EnableResult.FAILED;
         }
 
@@ -342,7 +342,7 @@ public final class ModuleManager {
         // 走 BLOCKED（等待）而不是 FAILED：环境变回允许时由 enablePending 自动开回来
         String refusal = environmentRefusalOf(module);
         if (refusal != null) {
-            if (announce) ClientChat.send(module.displayName(), refusal);
+            if (announce) ClientChat.ui(module.displayName(), refusal);
             return EnableResult.BLOCKED;
         }
 
@@ -380,7 +380,7 @@ public final class ModuleManager {
             return EnableResult.SUCCESS;
         }
         persistEnabled(module, true);
-        if (announce && !module.suppressEnableAnnounce()) ClientChat.send(module.displayName(), "§a§l已开启");
+        if (announce && !module.suppressEnableAnnounce()) ClientChat.ui(module.displayName(), "§a§l已开启");
         ActivityLog.record(module.displayName() + " 已开启");
         return EnableResult.SUCCESS;
     }
@@ -388,7 +388,7 @@ public final class ModuleManager {
     private static boolean disable(Module module, boolean announce) {
         if (!module.isEnabled()) return true;
         forceDisable(module);
-        if (announce) ClientChat.send(module.displayName(), "§c§l已关闭");
+        if (announce) ClientChat.ui(module.displayName(), "§c§l已关闭");
         ActivityLog.record(module.displayName() + " 已关闭");
         return true;
     }

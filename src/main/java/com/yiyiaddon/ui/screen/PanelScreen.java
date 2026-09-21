@@ -221,9 +221,15 @@ public abstract class PanelScreen extends SkiaScreen {
 
     // ── 反馈与剪贴板 ──
 
-    /** 聊天栏反馈：前缀为模块名（第十七章第 110-113 条）。 */
+    /**
+     * 界面内一句操作回执：面板开着时发面板内顶部弹窗，没开时退回聊天栏。
+     *
+     * <p><b>为什么不再直接发聊天栏</b>（用户 2026-09-21「凡是 ui 点击都在 ui 里面弹窗」）：
+     * 面板激活期间原版把整个 HUD 收起来，聊天栏看不见 —— 复制 ID、保存快照、添加进配置这类
+     * 点一下就该有回音的动作用户一次也看不到。转发见 {@link ClientChat#ui}。</p>
+     */
     protected final void feedback(String moduleName, String message) {
-        ClientChat.send(moduleName, message);
+        ClientChat.ui(moduleName, message);
     }
 
     /** 复制到系统剪贴板。 */

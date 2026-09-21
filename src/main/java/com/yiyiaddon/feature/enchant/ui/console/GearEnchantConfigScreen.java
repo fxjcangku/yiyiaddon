@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.enchant.gear.GearEnchantConfig;
 import com.yiyiaddon.feature.enchant.gear.GearEnchantData;
 import com.yiyiaddon.feature.enchant.ui.EnchantConsoleScreen;
 import com.yiyiaddon.feature.enchant.vanilla.VanillaEnchantDatabase;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleHost;
@@ -136,6 +137,7 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
             module.persistSettings();
             console.reload();
             rebuild();
+            SelectionReceipt.reset();
         }, "极品方案"));
         stack.add(new ConsoleRow(this, () -> "极品方案", null, null, profileControls));
 
@@ -175,6 +177,9 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
             controls.add(new Ctl(new Button(excluded ? "§c已排除" : "§a启用", () -> {
                 config.setExcluded(target.id, !excluded);
                 module.persistSettings();
+                // 回执说的是「点完之后」的状态：本行原本被排除时，点下去就是重新启用（反之亦然），
+                // 因此取切换后的排除标志再取反交给回执，名称用本行原文（剥色由回执负责）
+                SelectionReceipt.toggled(!config.isExcluded(target.id), target.name);
                 // 名称配色随排除状态变化，整页重建后生效
                 rebuild();
             })));
@@ -188,6 +193,7 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
             config.setExcluded(target.id, false);
             module.persistSettings();
             rebuild();
+            SelectionReceipt.reset();
         }, target.name));
 
         return new ConsoleRow(this,
@@ -274,6 +280,10 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
         openScreen(SelectorScreen.pick("极品方案", currentScreen(), entries, profileId -> {
             new GearEnchantConfig(module.settings().gearEnchantConfig).applyProfile(profileId);
             module.persistSettings();
+            // 回执取「刚写进配置的那一个方案」（currentProfile 读的就是配置里的方案 ID），
+            // 用方案名而不是回调参数里的 ID：玩家看得懂的是名字
+            GearEnchantData.GearProfile picked = currentProfile(gear);
+            SelectionReceipt.selected(picked == null ? profileId : picked.name);
             console.reload();
             rebuild();
         }));
@@ -283,14 +293,22 @@ final class GearEnchantConfigScreen extends PanelScreen implements ConsoleHost {
     private void applyGear(String gearId) {
         new GearEnchantConfig(module.settings().gearEnchantConfig).applyGear(gearId);
         module.persistSettings();
+        // 回执用装备名（与列表行标题同一口径：静态库里查不到名字才回退 ID）
+        GearEnchantData.GearDefinition picked = GearEnchantData.get().gear(gearId == null ? "" : gearId);
+        SelectionReceipt.selected(picked == null || picked.name == null || picked.name.isBlank()
+            ? gearId : picked.name);
         console.reload();
         rebuild();
     }
 
     /** ↻：清空装备附魔配置（旧设置行的重置按钮语义：回到默认空列表） */
     private void resetConfig() {
+        // 回执的条数必须是清空前的真实值（清空后再读只会是 0），因此先读再清；
+        // 传的是配置列表长度（含装备 ID / 方案 ID 两行头），与状态判断读的是同一份数据
+        int count = module.settings().gearEnchantConfig.size();
         module.settings().gearEnchantConfig.clear();
         module.persistSettings();
+        SelectionReceipt.cleared(count);
         console.reload();
         rebuild();
     }

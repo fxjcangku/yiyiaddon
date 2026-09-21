@@ -185,7 +185,7 @@ public final class StardewFarmModule extends Module {
 
     public StardewFarmModule(IdentityService identityService) {
         super(MODULE_ID, MODULE_NAME, "stardew",
-            "全自动种植、浇水、收割星露谷作物，按服务器资源包动态识别。点击按钮查看说明。");
+            "自动种植、浇水、收割星露谷作物");
         this.identityService = identityService;
         this.index = new StardewResourceIndex(identityService);
         this.inventory = new StardewInventoryService(identityService);

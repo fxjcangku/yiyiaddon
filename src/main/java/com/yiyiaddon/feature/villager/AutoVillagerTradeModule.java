@@ -64,8 +64,10 @@ import java.util.Set;
  * 本类只做「事件订阅 + 运行配置同步 + 播报」三件事，真实交易行为全部在
  * {@link VillagerTradeFSM} 里，与旧项目「模块只做外壳、状态机做行为」的分工一致。</p>
  *
- * <p><b>用户交互资产（逐字，禁止改写）</b>：模块名 {@code 自动村民交易}、描述
- * {@code 自动与村民交易，支持原地和寻路模式。点击按钮查看说明。}（旧 {@code :311}）、
+ * <p><b>用户交互资产</b>：模块名 {@code 自动村民交易}、描述
+ * {@code 自动与村民交易，支持寻路}（原为旧 {@code :311} 的「自动与村民交易，支持原地和寻路模式。
+ * 点击按钮查看说明。」，2026-09-21 去掉「说明按钮」指引并按「一行放得下的中文短注」重写 ——
+ * 说明按钮已按第 210 条撤销、正文内嵌模块页，指针本身已是旧项目的事实，见 166 号复盘第十一节）、
  * 启动报告全文（旧 {@code announceStartup :386-428}）、自检 7 类缺项文案（旧 {@code :488-554}）、
  * 快速停止键提示 {@code §e检测到快速停止键，停止交易}（旧 {@code :463}）、
  * 启动失败文案 {@code 启动失败（状态机未就绪）}（旧 {@code :371}）、
@@ -167,7 +169,7 @@ public final class AutoVillagerTradeModule extends Module {
 
     public AutoVillagerTradeModule() {
         super(MODULE_ID, MESSAGE_MODULE, "automation",
-            "自动与村民交易，支持原地和寻路模式。点击按钮查看说明。");
+            "自动与村民交易，支持寻路");
 
         this.fsm = new VillagerTradeFSM();
         this.fsm.setLogger(this::info);

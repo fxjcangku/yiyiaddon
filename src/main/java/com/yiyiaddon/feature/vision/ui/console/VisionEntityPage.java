@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.vision.VisionModule;
 import com.yiyiaddon.feature.vision.config.VisionSettings;
 import com.yiyiaddon.feature.vision.config.VisionTexts;
 import com.yiyiaddon.feature.vision.ui.VisionSelectors;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactStack;
 
 /**
@@ -41,6 +42,7 @@ public final class VisionEntityPage {
                 settings.entityTargets.addAll(defaults.entityTargets);
                 module.persistSettings();
                 owner.reload();
+                SelectionReceipt.reset(settings.entityTargets.size());
             }));
 
         stack.add(owner.rangeRow(VisionTexts.NAME_ENTITY_RANGE, VisionTexts.DESC_ENTITY_RANGE,

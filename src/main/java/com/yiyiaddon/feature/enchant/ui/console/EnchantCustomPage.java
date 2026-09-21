@@ -3,11 +3,13 @@ package com.yiyiaddon.feature.enchant.ui.console;
 import com.yiyiaddon.feature.enchant.EnchantModule;
 import com.yiyiaddon.feature.enchant.config.EnchantSettings;
 import com.yiyiaddon.feature.enchant.ui.EnchantConsoleScreen;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.IconButton;
 import com.yiyiaddon.ui.widget.SettingTextBox;
@@ -58,10 +60,13 @@ public final class EnchantCustomPage {
             new Ctl(new Button("添加", this::add).disabledWhen(() -> owner.customDraft().isBlank())),
             // 出厂值 = 空列表；↺ 清掉本页已填的全部目标附魔
             ConsoleWidgets.resetCtl(() -> {
+                // 回执的条数必须是清空前的真实值（清空后再读只会是 0），因此先读再清
+                int count = targets.size();
                 targets.clear();
                 targets.addAll(DEFAULTS.customEnchantTargets);
                 module.persistSettings();
                 owner.reload();
+                SelectionReceipt.cleared(count);
             }, "自定义附魔目标"))));
 
         // 填写规则说明（用户 2026-09-20 要求：这一行下面要讲清「服务器里的自定义附魔怎么写」）。
@@ -82,11 +87,19 @@ public final class EnchantCustomPage {
     /** 添加一项：去空白后入列表（重复项跳过），落盘并重建本页让新行立刻出现 */
     private void add() {
         String value = owner.customDraft() == null ? "" : owner.customDraft().strip();
-        if (value.isEmpty()) return;
+        if (value.isEmpty()) {
+            // 空输入不再静默返回：与自动挖矿的自建文本列表页同一口径、逐字同一句提示
+            TooltipLayer.notify("§e请先输入一项");
+            return;
+        }
         List<String> targets = module.settings().customEnchantTargets;
-        if (!targets.contains(value)) {
+        if (targets.contains(value)) {
+            // 重复项不改动名单：不谎报「已添加」，也不能点了没回音（与空输入同一句口径）
+            TooltipLayer.notify("§e已经在列表里 §8▸ §f" + value);
+        } else {
             targets.add(value);
             module.persistSettings();
+            SelectionReceipt.added(value);
         }
         owner.customDraft("");
         owner.reload();
@@ -96,6 +109,7 @@ public final class EnchantCustomPage {
     private void remove(String target) {
         if (!module.settings().customEnchantTargets.remove(target)) return;
         module.persistSettings();
+        SelectionReceipt.removed(target);
         owner.reload();
     }
 }

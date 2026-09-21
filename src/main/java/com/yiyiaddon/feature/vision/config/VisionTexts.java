@@ -20,8 +20,8 @@ public final class VisionTexts {
     /** 模块中文名（同时作为播报前缀与模块列表显示名） */
     public static final String MODULE_NAME = "透视";
 
-    /** 模块说明（模块页标题下与控制台标题下同一份） */
-    public static final String DESCRIPTION = "透视方块与实体：目标自己选，框与射线可分别开关。";
+    /** 模块说明（模块页标题下与控制台标题下同一份）；按「一行放得下的中文短注」写，清单行不截断 */
+    public static final String DESCRIPTION = "透视方块与实体，目标自选";
 
     // ── 控制台页签 ──
 

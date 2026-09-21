@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.villager.AutoVillagerTradeModule;
 import com.yiyiaddon.feature.villager.config.VillagerTradeSettings;
 import com.yiyiaddon.feature.villager.data.VillagerProfessionRegistry;
 import com.yiyiaddon.feature.villager.ui.console.VillagerConsoleScreen;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
@@ -144,6 +145,8 @@ public final class VillagerSelectors {
                         new ArrayList<>(DEFAULTS.itemTargets(professionName)));
                     module.persistSettings();
                     host.reload();
+                    // 面板内回执：复位后剩下几条就报几条（真实 size），面板开着时聊天框看不见
+                    SelectionReceipt.reset(module.settings().itemTargets(professionName).size());
                 }, label)));
     }
 
@@ -164,6 +167,8 @@ public final class VillagerSelectors {
                         new ArrayList<>(DEFAULTS.librarianEnchantments()));
                     module.persistSettings();
                     host.reload();
+                    // 面板内回执：复位后剩下几条就报几条（真实 size），面板开着时聊天框看不见
+                    SelectionReceipt.reset(module.settings().librarianEnchantments().size());
                 }, ENCHANT_LABEL)));
     }
 

@@ -166,7 +166,7 @@ public final class ServerDetectorModule extends Module {
 
     public ServerDetectorModule() {
         super(MODULE_ID, MESSAGE_MODULE, "assist",
-            "多层指纹识别核心与反作弊，自动白嫖资源包。");
+            "识别服务器核心，自动取资源包");
     }
 
     /**

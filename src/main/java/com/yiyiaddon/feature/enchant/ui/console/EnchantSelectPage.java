@@ -3,6 +3,7 @@ package com.yiyiaddon.feature.enchant.ui.console;
 import com.yiyiaddon.feature.enchant.EnchantModule;
 import com.yiyiaddon.feature.enchant.config.EnchantSettings;
 import com.yiyiaddon.feature.enchant.ui.EnchantConsoleScreen;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
@@ -131,8 +132,12 @@ public final class EnchantSelectPage {
 
     /** ↻：清空本组已选（旧重置按钮语义：整组置 false），立即落盘 */
     private void reset(EnchantSettings.EnchantGroup group) {
+        // 回执的条数必须是清空前的真实值（清空后再从设置里读只会是 0），因此先读再清；
+        // 本页的加减由选择器自己发回执，只有这个行尾 ↻ 是选择器覆盖不到的
+        int count = module.settings().selectedCount(group.entries());
         module.settings().applySelection(group.entries(), List.of());
         module.persistSettings();
+        SelectionReceipt.cleared(count);
     }
 
     /**

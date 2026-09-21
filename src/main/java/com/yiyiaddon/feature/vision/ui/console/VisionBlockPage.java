@@ -4,6 +4,7 @@ import com.yiyiaddon.feature.vision.VisionModule;
 import com.yiyiaddon.feature.vision.config.VisionSettings;
 import com.yiyiaddon.feature.vision.config.VisionTexts;
 import com.yiyiaddon.feature.vision.ui.VisionSelectors;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactStack;
 
 /**
@@ -40,6 +41,7 @@ public final class VisionBlockPage {
                 settings.blockTargets.addAll(defaults.blockTargets);
                 module.persistSettings();
                 owner.reload();
+                SelectionReceipt.reset(settings.blockTargets.size());
             }));
 
         stack.add(owner.rangeRow(VisionTexts.NAME_BLOCK_RANGE, VisionTexts.DESC_BLOCK_RANGE,

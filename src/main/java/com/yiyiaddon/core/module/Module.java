@@ -97,6 +97,20 @@ public abstract class Module {
         return false;
     }
 
+    /**
+     * 模块行右侧状态标记的覆写文案：{@code null} = 按启用状态显示「已启用 / 未启用」。
+     *
+     * <p>给「只剪了入口、功能还没写」的模块（{@code StardewFishingModule}）用：默认的「未启用」
+     * 会让玩家以为点一下就能开，标成「无法使用」才不骗人 —— 颜色仍走未启用那一档（{@code stateOff}，红），
+     * 不额外引入新配色。</p>
+     *
+     * <p><b>只影响模块清单行</b>：模块页 / 控制台里的状态来自各自的实时状态源，不受这里影响。
+     * 默认 {@code null}，既有模块行为不变。</p>
+     */
+    public String statusBadgeText() {
+        return null;
+    }
+
     /** 快捷键键名 */
     public final String keybindId() {
         return ModuleKeybinds.BINDING_PREFIX + id;

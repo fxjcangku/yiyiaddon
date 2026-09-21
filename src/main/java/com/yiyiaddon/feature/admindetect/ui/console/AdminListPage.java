@@ -6,6 +6,7 @@ import com.yiyiaddon.feature.admindetect.config.AdminDetectorSettings;
 import com.yiyiaddon.feature.admindetect.config.AdminDetectorTexts;
 import com.yiyiaddon.feature.admindetect.service.PlayerListProbe;
 import com.yiyiaddon.feature.admindetect.ui.AdminDetectorConsoleScreen;
+import com.yiyiaddon.ui.SelectionReceipt;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
@@ -137,8 +138,12 @@ public final class AdminListPage {
     /** 清空名单（↻ 语义同其它控制台页：空则静默 return） */
     private void clear(List<String> names) {
         if (names.isEmpty()) return;
+        // 回执的条数必须是清空前的真实值（清空后再读只会是 0），因此先读再清；
+        // 本页的加减由选择器自己发回执，行尾 ↻ 是选择器覆盖不到的那一个
+        int count = names.size();
         names.clear();
         persist();
+        SelectionReceipt.cleared(count);
     }
 
     /** 名单增删：有实际变化才落盘 */

@@ -50,7 +50,7 @@ public final class IdConfigModule extends Module {
 
     public IdConfigModule() {
         super(MODULE_ID, MESSAGE_MODULE, "assist",
-                "管理已识别的物品/实体/方块ID：搜索、筛选、分页、删除、清空、打开目录。点击按钮查看说明。");
+                "管理已识别的 ID，可搜索删除");
     }
 
     @Override
