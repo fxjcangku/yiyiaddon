@@ -125,7 +125,7 @@ public final class AutoReconnectModule extends Module {
         return ICON;
     }
 
-    /** 分类内排序：工具分类第三位（管理员检测 → 服务器检测 → 自动重连 → 传送 → 水源显示） */
+    /** 分类内排序：工具分类第三位（管理员检测 → 自动重生 → 自动重连 → 传送 → 自动登入） */
     @Override
     public int order() {
         return 30;

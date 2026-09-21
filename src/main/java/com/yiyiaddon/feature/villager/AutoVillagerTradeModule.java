@@ -182,7 +182,7 @@ public final class AutoVillagerTradeModule extends Module {
         return "AutoVillagerTrade";
     }
 
-    /** 分类内排序：自动化分类第七位（… → 自动图书管理员 → 自动村民交易 → 自动登入） */
+    /** 分类内排序：自动化分类第七位（… → 自动图书管理员 → 自动村民交易） */
     @Override
     public int order() {
         return 70;

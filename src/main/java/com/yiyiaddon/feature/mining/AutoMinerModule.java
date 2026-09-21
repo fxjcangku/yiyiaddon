@@ -282,7 +282,7 @@ public final class AutoMinerModule extends Module {
         return ICON;
     }
 
-    /** 分类内排序：自动化分类第四位（自动重生 → 自动农场 → 自动骨粉 → 自动挖矿 → …） */
+    /** 分类内排序：自动化分类第四位（… → 自动骨粉 → 自动挖矿 → 自动附魔 → …） */
     @Override
     public int order() {
         return 40;

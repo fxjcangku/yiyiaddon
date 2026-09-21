@@ -7,6 +7,7 @@ import com.yiyiaddon.core.event.ClientEvent;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.core.event.ServerPositionEvent;
 import com.yiyiaddon.core.module.Module;
+import com.yiyiaddon.core.module.ModuleManager;
 import com.yiyiaddon.feature.teleport.command.TpCommand;
 import com.yiyiaddon.feature.teleport.config.TeleportSettings;
 import com.yiyiaddon.feature.teleport.core.TeleportCoordinator;
@@ -14,6 +15,7 @@ import com.yiyiaddon.feature.teleport.model.TeleportMode;
 import com.yiyiaddon.feature.teleport.model.TeleportRequest;
 import com.yiyiaddon.feature.teleport.render.TeleportRenderer;
 import com.yiyiaddon.feature.teleport.ui.TeleportPage;
+import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.ui.keybind.FunctionKeybinds;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspRenderer;
@@ -22,6 +24,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -68,6 +71,12 @@ public final class TeleportModule extends Module {
     /** 未开启提醒的节流时间戳（**全局单一**，不是按键各自节流，照旧实现） */
     private long lastRemindMs;
 
+    /**
+     * 最近一次装载设置时所处的隔离作用域（{@code WorldIdentity.fileSafeServer()}）；
+     * 装配期（主菜单）读到全局模板时为 {@code null}，换服判据见 {@link #refreshScopedSettings()}。
+     */
+    private String loadedSettingsScope;
+
     public TeleportModule() {
         super(MODULE_ID, MESSAGE_MODULE, "utility",
             "三模式安全传送：TP地面回地表 / TP穿墙过障碍 / TP坐标定点，带服务端回弹验证。");
@@ -86,7 +95,7 @@ public final class TeleportModule extends Module {
         return ICON;
     }
 
-    /** 分类内排序：工具分类第四位（管理员检测 → 服务器检测 → 自动重连 → 传送 → 水源显示） */
+    /** 分类内排序：工具分类第四位（管理员检测 → 自动重生 → 自动重连 → 传送 → 自动登入） */
     @Override
     public int order() {
         return 40;
@@ -107,11 +116,42 @@ public final class TeleportModule extends Module {
     @Override
     public void loadSettings(JsonObject json) {
         settings.load(json);
+        // 记下这一份是从哪个作用域读来的：换服判据用它比对（见 refreshScopedSettings）
+        loadedSettingsScope = settingsScope();
     }
 
     @Override
     public void saveSettings(JsonObject json) {
         settings.save(json);
+    }
+
+    /**
+     * 设置隔离键：进世界后取当前服务器 / 单人存档，未进世界返回 {@code null}（按全局模板处理）。
+     *
+     * <p><b>为什么需要隔离</b>（用户 2026-09-21 报的「换服把点位设置覆盖了」）：{@code 坐标 X/Y/Z}
+     * 是只对某一个世界有意义的绝对坐标，原本全局共用一份 —— 在 B 服改坐标，A 服那套跟着变。
+     * 现在一个服务器（单人则是一个存档）一套配置，切服自动切换，与自动挖矿、自动附魔点位同一口径。</p>
+     *
+     * <p><b>未进世界必须返回 null</b>：主菜单也能打开模块中心改设置，那时没有服务器身份，
+     * 随便造一个键会把编辑内容写到一个并不存在的世界上。返回 null 时读写都落在全局模板上，
+     * 而全局模板同时是「新服务器 / 新存档的初始值」（见 {@code ModuleStateConfig}）。</p>
+     */
+    @Override
+    public String settingsScope() {
+        if (mc.level == null || mc.player == null) return null;
+        return WorldIdentity.fileSafeServer();
+    }
+
+    /**
+     * 换服 / 首次进世界时按当前服务器重读设置。
+     *
+     * <p>调用点与自动挖矿一致：模块启用、打开配置页、{@code .tp} 指令入口；TP 三个功能键只在模块
+     * 开启状态生效（关闭时按旧文案只提醒），因此启用时的这一次重读就覆盖了按键路径。
+     * 读盘动作由运行时承担（{@link ModuleManager#reloadScopedSettings}），本方法只判「作用域变没变」。</p>
+     */
+    public void refreshScopedSettings() {
+        if (Objects.equals(settingsScope(), loadedSettingsScope)) return;
+        ModuleManager.reloadScopedSettings(this);
     }
 
     // ── 初始化与生命周期 ──
@@ -132,6 +172,8 @@ public final class TeleportModule extends Module {
     /** 旧 {@code onActivate}：注册世界渲染层（调试渲染由模块设置控制画不画） */
     @Override
     protected void onEnable() {
+        // 装载本服的设置（坐标与阈值都按服务器分开存，先换这一份再开渲染）
+        refreshScopedSettings();
         WorldOverlay.register(MODULE_ID, this::renderOverlay);
     }
 
@@ -147,12 +189,18 @@ public final class TeleportModule extends Module {
 
     @Override
     public Set<ClientEventType> subscribedEvents() {
-        return Set.of(ClientEventType.TICK, ClientEventType.SERVER_POSITION);
+        return Set.of(ClientEventType.TICK, ClientEventType.SERVER_POSITION, ClientEventType.JOIN_SERVER);
     }
 
     @Override
     public void onEvent(ClientEvent event) {
         if (event == null) return;
+        // 进入世界（含同一会话内「退出 A 服再进 B 服」）时换成本服的设置：
+        // 本模块启用状态会跨世界保留，换服时不会再走 onEnable，靠这一处补上（2026-09-21 服务器隔离）
+        if (event.type() == ClientEventType.JOIN_SERVER) {
+            refreshScopedSettings();
+            return;
+        }
         // 每刻流程统一走 onTick（ModuleManager 调度），此处只处理权威位置
         if (event.type() != ClientEventType.SERVER_POSITION) return;
 

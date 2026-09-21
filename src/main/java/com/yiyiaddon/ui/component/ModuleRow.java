@@ -9,8 +9,8 @@ import io.github.humbleui.skija.Canvas;
 /**
  * 模块中心清单里的紧凑模块行（{@link #HEIGHT} = 24）。
  *
- * <p>整行左侧缩进一格，表示它隶属于上一行的分类头；一行内放下「图标 + 模块名 + 描述 + 状态 +
- * 进入箭头」，整行可点，滚动时一屏能看十行以上。</p>
+ * <p>整行左侧缩进一格（由调用方的几何给出，见 {@link #INDENT}），表示它隶属于上一行的分类头；
+ * 一行内放下「图标 + 模块名 + 描述 + 星标 + 状态 + 进入箭头」，整行可点，滚动时一屏能看十行以上。</p>
  *
  * <p>行高刻意压到 24：模块中心要的是「一屏尽量多、滚动距离尽量短」，因此一行只放一行内容，
  * 不重复卡片那套多行基线排版。</p>
@@ -28,9 +28,10 @@ import io.github.humbleui.skija.Canvas;
  * <p>圆角走 {@link GlassPanel#rowRadius}：按行高收窄、以主题圆角为上限，矮行不会被圆角削成胶囊
  * （控制台、星露谷那些紧凑行也是同一口径）。</p>
  *
- * <p><b>网格单元</b>：模块中心把展开后的模块改成横向并排（用户 2026-09-16「模块展开之后 下面的
- * 模块能不能变成一排一排的」），一格一个模块用 {@link #drawCell}——行高、圆角、底色、描边、悬停
- * 反馈与 {@link #drawEntry} 同一套，只是内容按「一格里放得下什么」重排。见该方法。</p>
+ * <p><b>不再横向并排</b>（用户 2026-09-21 定稿）：曾经的网格单元把同一分类的模块并排放，
+ * 一格里只剩「图标 + 名称 + 状态」，最长名「自动图书管理员」只能截成「自动图书…」，
+ * 用户原话是「帮我设计一套好看能看清全部字没有....的」。现在每个模块独占一整行，
+ * 名称按可用宽度量过后整段画出，描述放不下就整段交给悬停浮层——整页不出现省略号。</p>
  */
 public final class ModuleRow {
 
@@ -75,6 +76,29 @@ public final class ModuleRow {
      * 分类头与分组标题都读它，改一处两处同时生效（同 {@link #HEIGHT} / {@link #ROW_GAP} 的做法）。</p>
      */
     public static final float HEADER_TITLE_SIZE = 11.5f;
+
+    /** 星标字形（Material Symbols 的 {@code star}，与首页「常用模块」同一枚，已按第 140 条核实字体覆盖）。 */
+    private static final String STAR = "\uE838";
+    /** 星标字形字号与盒子边长。 */
+    private static final float STAR_GLYPH = 13f;
+    private static final float STAR_BOX = 15f;
+
+    /**
+     * 星标中心距行右边缘的距离：让出「状态徽章 + 进入箭头」那一块的宽度。
+     *
+     * <p><b>为什么是一个固定值而不是「徽章左边再退一格」</b>：命中判定与绘制各算一次几何，一旦
+     * 依赖徽章的文字宽度，两边只要有一处换文案就会错位（第 169 条：同源几何只留一份算式）。
+     * 固定值下星标位置只跟行宽有关，两处都只读这一个常量。</p>
+     */
+    private static final float STAR_RIGHT_INSET = 96f;
+
+    /**
+     * 星标按钮的命中半径（正方形半边长）：比字形大一圈，好点。
+     *
+     * <p>绘制（悬停反馈）与页面点击判定共用它，避免「看着点到了、实际没点到」。</p>
+     */
+    public static final float STAR_HIT = 9f;
+
     /** 模块名与描述的字号：收窄行高时<b>不动</b>（用户要的是「方便阅读」，宁可该行留白紧一点也不压字号）。 */
     private static final float TITLE_SIZE = 12f;
     private static final float CAPTION_SIZE = 9.5f;
@@ -82,13 +106,10 @@ public final class ModuleRow {
     private static final float ARROW_GLYPH = 13f;
     private static final float ARROW_INSET = 14f;
     private static final float BADGE_GAP = 10f;
-    /** 模块名占「名称 + 描述」可用宽度的比例，其余留给描述；两栏固定比例，多行之间名称与描述对齐。 */
-    private static final float NAME_RATIO = 0.42f;
     /**
-     * 网格单元里画描述所需的最小宽度：再窄只能画一两个字，不如整段留给悬停浮层。
+     * 画描述所需的最小宽度：再窄只能画一两个字，不如整段留给悬停浮层。
      *
-     * <p>网格单元窄，描述基本都吃不到这个宽度（见 {@link #drawCell}），它是「窗口很宽、单元很宽时
-     * 顺手把描述也画出来」的下限，不是网格里的常态。</p>
+     * <p>描述<b>放不下就整段不画</b>（不画半截省略号），有它的宽度就整段画出来。</p>
      */
     private static final float DESC_MIN_WIDTH = 24f;
     private static final String ARROW = "\uE5CC";
@@ -117,39 +138,30 @@ public final class ModuleRow {
         return x + ICON_BOX + ICON_GAP;
     }
 
-    /** 模块行：图标 / 名称 / 描述 / 启用状态都取自模块注册表（状态色：启用绿、未启用红，第 141 条色槽） */
-    public static void draw(Canvas canvas, ModuleEntry entry, float x, float y, float w,
-                            float alpha, float hover, ClickGuiThemeColors tc) {
-        boolean enabled = entry.enabled();
-        drawEntry(canvas, entry.icon(), entry.displayName(), entry.description(),
-                enabled ? "已启用" : "未启用", enabled ? tc.stateOn : tc.stateOff,
-                x, y, w, alpha, hover, tc);
+    /**
+     * 星标按钮的中心横坐标（绘制与命中共用同一份算式）。
+     *
+     * @param x 行的最终左边界（缩进已由调用方的几何给出）
+     * @param w 行的最终宽度
+     */
+    public static float starCenterX(float x, float w) {
+        // 行极窄时贴着图标放，绝不越过图标与文字区；两处几何都走这一个方法，恒不错位
+        float rightAligned = x + w - STAR_RIGHT_INSET;
+        float afterIcon = x + PAD_X + ICON_BOX + STAR_BOX;
+        return Math.max(afterIcon, rightAligned);
     }
 
-    /**
-     * 模块名的绘制宽度（12 号加粗）。
-     *
-     * <p>模块中心的网格列宽按它反推（{@code ModuleCenterPage#minCellWidth}）：名字必须完整可读，
-     * 宁可少排一列，也不能出现「自动图书…」——用户 2026-09-18 反馈「一些字超出框了 根本看不见名字」。</p>
-     */
-    public static float nameWidth(String name) {
-        return name == null ? 0f : FontRenderer.measureTextWidthBold(name, TITLE_SIZE);
-    }
-
-    /**
-     * 网格单元里除名字之外的固定占用宽度：左内边距 + 图标底框 + 图标后间距 + 名称与状态之间的距离
-     * + 状态徽章 + 右内边距。
-     *
-     * <p>与 {@link #drawCell} 的排版逐项对应（那里也是这几个值），改一处必须同步这里——列宽就是按
-     * 「名字 + 这一份固定占用」算出来的，两处不一致会让名字重新贴到徽章上。</p>
-     */
-    public static float cellFixedWidth(String stateText) {
-        float badge = stateText == null ? 0f : StatusBadge.width(stateText);
-        return PAD_X + ICON_BOX + ICON_GAP + BADGE_GAP + badge + PAD_X;
+    /** 星标按钮的中心纵坐标（行垂直中心；命中判定与绘制同源）。 */
+    public static float starCenterY(float y) {
+        return y + HEIGHT / 2f;
     }
 
     /**
      * 通用入口行：自带设置页的分类入口（例如 Baritone设置）复用它，右侧状态传「点击进入」。
+     *
+     * <p>与 {@link #drawRow} 同一口径：{@code x、w} 就是这一行的最终矩形（左侧缩进由调用方的几何
+     * 给出，例如模块中心把「属于分类头」的那一行整体缩进 {@link #INDENT}），本方法不再自行缩进
+     * —— 否则绘制比命中框多缩一次，点左边会点空。</p>
      *
      * @param stateText 右侧状态文字；{@code null} 表示不画状态标记
      * @param stateColor 状态语义色（圆点与文字同色）
@@ -158,8 +170,8 @@ public final class ModuleRow {
                                  String stateText, int stateColor, float x, float y, float w,
                                  float alpha, float hover, ClickGuiThemeColors tc) {
         float radius = GlassPanel.rowRadius(HEIGHT);
-        float rowX = x + INDENT;
-        float rowW = Math.max(0f, w - INDENT);
+        float rowX = x;
+        float rowW = Math.max(0f, w);
         int background = GlassPanel.mix(tc.module, tc.surfaceHover, hover);
 
         GlassPanel.frost(canvas, rowX, y, rowW, HEIGHT, radius, background, 0.55f, alpha);
@@ -181,12 +193,11 @@ public final class ModuleRow {
 
         float available = Math.max(0f, badgeX - BADGE_GAP - cursor);
         if (available <= 0f) return;
-        float nameMax = available * NAME_RATIO;
-        FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(title, nameMax, TITLE_SIZE), cursor,
+        FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(title, available, TITLE_SIZE), cursor,
                 CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
                 GlassPanel.withAlpha(tc.primaryText, alpha));
 
-        float descX = cursor + nameMax + ICON_GAP;
+        float descX = cursor + Math.min(FontRenderer.measureTextWidthBold(title, TITLE_SIZE), available) + ICON_GAP;
         float descMax = Math.max(0f, badgeX - BADGE_GAP - descX);
         if (descMax < 16f) return;
         FontRenderer.drawText(canvas, CardLayout.ellipsize(description, descMax, CAPTION_SIZE), descX,
@@ -195,74 +206,99 @@ public final class ModuleRow {
     }
 
     /**
-     * 网格单元：同一分类的模块横向并排时的一格，绘制入口与 {@link #draw} 并列（两者互不影响）。
+     * 模块行：整行一条，从左到右依次是「图标 + 模块名 + 描述 + 星标 + 状态 + 进入箭头」。
      *
-     * <p><b>为什么另开一个入口</b>：一格里放不下「图标 + 名称 + 描述 + 状态 + 箭头」五件东西。
-     * 按模块中心的实际几何（面板 740、页面可用宽 501，减掉一格缩进 14 与两个 6 的间距，三列时每格
-     * 约 158），名称（12 号，四个汉字约 48）与状态（约 45）之后只剩十来个像素——再塞箭头或描述就
-     * 只能把模块名截成三个字。因此单元里只画「图标 + 名称 + 状态」，名称优先吃满可用宽度，
-     * 描述整段交给悬停浮层，箭头不再出现（整格可点、悬停有反馈，可点性由行本身表达）。</p>
+     * <p><b>名字优先完整、描述放不下就不画</b>（用户 2026-09-21：「帮我设计一套好看能看清全部字没有....的」）：
+     * 名称先按可用宽度量一次，放得下就整段画出；剩下的宽度才轮到描述，描述放不下时整段交给悬停浮层。
+     * 于是既不会出现半截省略号，也不会出现「名字被描述挤掉」。</p>
      *
-     * <p><b>省略号必须配全文</b>：用户要求「描述文字在网格里放不下时一律走悬停浮层」，
-     * 即被截掉的部分一律在 {@link TooltipLayer} 里给出全文，绝不出现「只剩省略号、看不到内容」。</p>
+     * <p>行高、圆角（{@link GlassPanel#rowRadius}）、底色与描边强度、悬停淡反馈与 {@link #drawEntry}
+     * 同源；整行可点（点进模块页），星标那一小块是收藏键（点击判定见 {@code ModuleCenterPage#onClick}）。</p>
      *
-     * <p>行高、圆角（{@link GlassPanel#rowRadius}）、底色与描边强度、悬停淡反馈都与 {@link #drawEntry}
-     * 同源，网格只是把同一行内容改成一排里的一个格子，不是另一套样式。</p>
+     * <p><b>{@code x、w} 就是这一行的最终矩形</b>：左侧缩进（{@link #INDENT}）由调用方的几何给出，
+     * 绘制与命中读同一份矩形，本方法不再自行缩进。</p>
      *
-     * @param mouseX 本帧指针横坐标（与 {@code x、y、w} 同一坐标系）：既用于判定本格是否被悬停，
-     *               也作为浮层锚点
+     * @param mouseX 本帧指针横坐标（与 {@code x、y、w} 同一坐标系）：用于星标悬停反馈与浮层锚点
      * @param mouseY 本帧指针纵坐标
-     * @param favorite 是否已收藏（顶部「常用」区）：是则描边换成强调色，在分类里也一眼可辨
+     * @param favorite 是否已收藏（顶部「常用」区、首页「常用模块」）：是则描边换成强调色、星标点亮
      */
-    public static void drawCell(Canvas canvas, ModuleEntry entry, float x, float y, float w,
-                                float mouseX, float mouseY, float alpha, float hover, boolean favorite,
-                                ClickGuiThemeColors tc) {
+    public static void drawRow(Canvas canvas, ModuleEntry entry, float x, float y, float w,
+                               float mouseX, float mouseY, float alpha, float hover, boolean favorite,
+                               ClickGuiThemeColors tc) {
         boolean enabled = entry.enabled();
         float radius = GlassPanel.rowRadius(HEIGHT);
-        int background = GlassPanel.mix(tc.module, tc.surfaceHover, hover);
+        float rowX = x;
+        float rowW = Math.max(0f, w);
 
-        GlassPanel.frost(canvas, x, y, w, HEIGHT, radius, background, 0.55f, alpha);
-        // 收藏的格子用强调色描边（不额外占宽度）：网格里放不下星标，描边是最省的可辨标记
-        GlassPanel.rim(canvas, x, y, w, HEIGHT, radius, favorite ? tc.accent : tc.rim, alpha,
+        GlassPanel.frost(canvas, rowX, y, rowW, HEIGHT, radius,
+                GlassPanel.mix(tc.module, tc.surfaceHover, hover), 0.55f, alpha);
+        // 收藏的行用强调色描边（不额外占宽度）：在分类里也一眼可辨哪些已经收藏
+        GlassPanel.rim(canvas, rowX, y, rowW, HEIGHT, radius, favorite ? tc.accent : tc.rim, alpha,
                 favorite ? 0.30f + 0.22f * hover : 0.06f + 0.14f * hover);
 
         float centerY = y + HEIGHT / 2f;
-        float cursor = drawIcon(canvas, entry.icon(), x + PAD_X, centerY, alpha, tc);
+        float cursor = drawIcon(canvas, entry.icon(), rowX + PAD_X, centerY, alpha, tc);
 
-        // 状态标记先贴右定下来，名称再吃剩下的：名称必须完整可读，宁可让描述整段去浮层
+        // 右侧三件从右往左定：进入箭头 → 状态标记 → 星标（星标位置只由行宽决定，见 starCenterX）
+        float arrowX = rowX + rowW - ARROW_INSET;
+        CardIcons.drawCentered(canvas, ARROW, arrowX, centerY, ARROW_GLYPH,
+                GlassPanel.withAlpha(GlassPanel.mix(tc.labelTertiary, tc.accent, hover), alpha));
+
         String stateText = enabled ? "已启用" : "未启用";
         float badgeWidth = StatusBadge.width(stateText);
-        float badgeX = Math.max(cursor, x + w - PAD_X - badgeWidth);
+        float badgeX = Math.max(cursor, arrowX - ARROW_GLYPH - BADGE_GAP - badgeWidth);
         StatusBadge.draw(canvas, badgeX, centerY, stateText, enabled ? tc.stateOn : tc.stateOff, alpha);
 
+        float starX = starCenterX(x, w);
+        drawStar(canvas, starX, centerY, favorite, mouseX, mouseY, alpha, tc);
+
+        // 星标左边才是文字区：名称必须完整可读，描述只吃名称之后的空隙
         String name = entry.displayName();
         String description = entry.description();
-        float available = Math.max(0f, badgeX - BADGE_GAP - cursor);
+        float textRight = starX - STAR_BOX / 2f - BADGE_GAP;
+        float available = Math.max(0f, textRight - cursor);
         float nameWidth = FontRenderer.measureTextWidthBold(name, TITLE_SIZE);
         boolean nameFits = nameWidth <= available;
-        float nameMax = Math.min(nameWidth, available);
+        float nameMax = nameFits ? nameWidth : available;
         if (nameMax > 0f) {
             FontRenderer.drawTextBold(canvas, CardLayout.ellipsize(name, nameMax, TITLE_SIZE), cursor,
                     CardLayout.baseline(centerY, TITLE_SIZE), TITLE_SIZE,
                     GlassPanel.withAlpha(tc.primaryText, alpha));
         }
 
-        // 描述只吃名称之后的空隙：宽到能整段放下才画，放不下整段交给浮层（不画半截省略号）
         float descX = cursor + nameMax + ICON_GAP;
-        float descMax = Math.max(0f, badgeX - BADGE_GAP - descX);
-        boolean descFits = descMax >= DESC_MIN_WIDTH
+        float descMax = Math.max(0f, textRight - descX);
+        boolean descFits = nameFits && descMax >= DESC_MIN_WIDTH
                 && FontRenderer.measureTextWidth(description, CAPTION_SIZE) <= descMax;
         if (descFits) {
             FontRenderer.drawText(canvas, description, descX, CardLayout.baseline(centerY, CAPTION_SIZE),
                     CAPTION_SIZE, GlassPanel.withAlpha(tc.labelTertiary, alpha));
         }
 
-        if (mouseX < x || mouseX > x + w || mouseY < y || mouseY > y + HEIGHT) return;
+        if (mouseX < rowX || mouseX > rowX + rowW || mouseY < y || mouseY > y + HEIGHT) return;
         String tip = tooltipText(name, description, nameFits, descFits);
         if (tip != null) TooltipLayer.show(tip, mouseX, mouseY);
     }
 
-    /** 悬停浮层文案：名称或描述被省略时给出全文；两者都完整时不登记（没有需要补的内容）。 */
+    /**
+     * 星标：已收藏 = 强调色实心，未收藏 = 弱色；悬停时更亮并垫一层淡底，表明这一小块是可点的收藏键。
+     *
+     * <p>收藏态用颜色表达而不是换成另一枚字形：项目里验真过的星形只有这一枚（第 140 条），
+     * 换成「空心星」需要再验一个字码，而颜色差异在 24 高的行上已经足够清楚。</p>
+     */
+    private static void drawStar(Canvas canvas, float centerX, float centerY, boolean favorite,
+                                 float mouseX, float mouseY, float alpha, ClickGuiThemeColors tc) {
+        boolean hover = Math.abs(mouseX - centerX) <= STAR_HIT && Math.abs(mouseY - centerY) <= STAR_HIT;
+        if (hover) {
+            GlassPanel.frost(canvas, centerX - STAR_HIT, centerY - STAR_HIT, STAR_HIT * 2f, STAR_HIT * 2f,
+                    STAR_HIT, tc.field, 0.40f, alpha);
+        }
+        int color = favorite ? tc.accent : GlassPanel.mix(tc.labelTertiary, tc.accent, hover ? 1f : 0f);
+        CardIcons.drawCentered(canvas, STAR, centerX, centerY, STAR_GLYPH,
+                GlassPanel.withAlpha(color, alpha));
+    }
+
+    /** 悬停浮层文案：名称或描述没画全时给出全文；两者都完整时不登记（没有需要补的内容）。 */
     private static String tooltipText(String name, String description, boolean nameFits, boolean descFits) {
         if (nameFits && descFits) return null;
         if (nameFits) return description;

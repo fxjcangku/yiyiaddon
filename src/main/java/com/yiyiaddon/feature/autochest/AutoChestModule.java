@@ -114,7 +114,7 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
     private String storeContext;
 
     public AutoChestModule() {
-        super(MODULE_ID, MESSAGE_MODULE, "assist",
+        super(MODULE_ID, MESSAGE_MODULE, "automation",
                 "扫描并自动处理附近容器，取走ID配置中的目标物品。详细参考下面使用说明。");
 
         this.scanner = new ContainerScanner(mc, settings::enabledTypes);
@@ -141,6 +141,7 @@ public final class AutoChestModule extends Module implements AutoChestStateMachi
         return ICON;
     }
 
+    /** 分类内排序：自动化分类第二位（自动农场 → 自动箱子 → 自动骨粉 → 自动挖矿 → …） */
     @Override
     public int order() {
         return 30;

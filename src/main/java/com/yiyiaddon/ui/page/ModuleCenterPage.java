@@ -7,6 +7,7 @@ import com.yiyiaddon.module.ModuleCategory;
 import com.yiyiaddon.module.ModuleEntry;
 import com.yiyiaddon.module.ModuleRegistry;
 import com.yiyiaddon.ui.UiText;
+import com.yiyiaddon.ui.anim.Spring;
 import com.yiyiaddon.ui.component.CardIcons;
 import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
@@ -14,6 +15,7 @@ import com.yiyiaddon.ui.component.ModuleRow;
 import com.yiyiaddon.ui.navigation.PageRouter;
 import com.yiyiaddon.ui.navigation.UiNavigationMemory;
 import com.yiyiaddon.ui.render.FontRenderer;
+import com.yiyiaddon.ui.render.TooltipLayer;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import com.yiyiaddon.ui.theme.ClickGuiThemeManager;
 import io.github.humbleui.skija.Canvas;
@@ -21,23 +23,25 @@ import io.github.humbleui.skija.Canvas;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
 /**
  * 模块中心：<b>按分类分组的模块清单</b>，每个分类头可点击收起 / 展开，整页纵向滚动。
  *
- * <p><b>为什么改成清单</b>：原先是一列到底的大卡（高 74、一张卡三行内容），模块一多就要长距离滚动、
+ * <p><b>为什么是清单</b>：原先是一列到底的大卡（高 74、一张卡三行内容），模块一多就要长距离滚动、
  * 也看不出归属。现在按分类分组：分类头一行（图标 + 分类名 + 模块数 + 展开箭头），
  * 其下是该分类的模块行（{@link ModuleRow} 高 24，缩进一格表示归属）。</p>
  *
- * <p><b>展开后为什么不按「一行一个」排</b>：一个分类常常只有两三个模块，一行一个就是两三行，
- * 纵向白白吃掉滚动距离。用户 2026-09-16 要求「模块展开之后 下面的模块能不能变成一排一排的 而
- * 不是三排」，于是展开后的模块改成一排多格的网格：列数按可用宽度算（见 {@link #gridColumns}），
- * 分类头仍独占一整行、状态与尺寸一个不动（用户已认可，不动它）。</p>
+ * <p><b>展开后一行一个模块</b>（用户 2026-09-21 定稿）：展开过的版本是横向并排的网格，
+ * 一格里只剩「图标 + 名称 + 状态」，最长名「自动图书管理员」被截成「自动图书…」，
+ * 用户原话「帮我设计一套好看能看清全部字没有....的」。现在模块行独占整行，
+ * 名称完整画出、描述放不下就整段走悬停浮层——整页不出现省略号。</p>
  *
  * <p>分类头与模块行<b>同高</b>：网格的命中、滚动与悬停几何只认一套高度，两行不同高会让鼠标命中
  * 与画面错位。因此每次收窄都是收这一套共用行高：用户 2026-09-16 先说「展开的分组之后下面的模块
@@ -45,9 +49,8 @@ import java.util.function.Consumer;
  * 再统一收一档——本轮分类头的外观参数（图标框、字形、字号、强调条、左右内边距）也跟着按同一比例
  * 收了一档，但颜色与左对齐口径不变，命中判定仍与画面严格同源。</p>
  *
- * <p><b>几何怎么算</b>：本页的行宽逐行不同（整行的分类头 / 半宽的网格单元），所以不再走
- * {@link CardLayout} 的整页等宽网格，而是覆写 {@link CardPage} 的逐张几何钩子，由 {@link #ensureLayout}
- * 按「可用宽度」算出每个下标所在网格行与列，绘制、悬停、点击、滚动总高度全部读同一份结果。</p>
+ * <p><b>几何怎么算</b>：分类头独占一整行、模块行缩进一格后也独占一整行，因此行宽只有两种取值，
+ * 由下面那组几何钩子给出（绘制、悬停、点击、滚动总高度全部读同一份结果）。</p>
  *
  * <p>自带设置页的分类（{@code category.page() != null}，例如 Baritone设置）仍排在自己分类的
  * 第一行，右侧写「点击进入」，点它直接进该分类自己的页面；它是带描述的入口行，仍独占一整行。</p>
@@ -55,9 +58,19 @@ import java.util.function.Consumer;
  * <p><b>分类头外观</b>：不铺底色、图标不带底框的「章节标签」形态，靠左侧强调条与悬停反馈辨识；
  * 模块行才是卡片。详见 {@link #drawGroupHeader}。</p>
  *
+ * <p><b>交互</b>（用户 2026-09-21 定稿）：</p>
+ * <ul>
+ *   <li><b>星标收藏</b>：每行右侧一枚星标，点它收藏 / 取消收藏，收藏的进顶部「常用」块与首页
+ *       「常用模块」（{@link AddonConfig#favoriteModules}）。原先的「右键模块收藏」已取消
+ *       ——星标看得见、点得准，右键没有提示也发现不了。</li>
+ *   <li><b>分类顺序自己调</b>：分类头上的 ▲ / ▼ 按钮把该分类上移 / 下移一位，顺序落
+ *       {@link AddonConfig#moduleCategoryOrder}，重启保留；也可以<b>按住分类头上下拖动</b>直接换位
+ *       （用户 2026-09-21：「可以拖拉排序吗？」），两套手势改的是同一份顺序。</li>
+ * </ul>
+ *
  * <p>展开状态存在 {@link #EXPANDED} 静态集合里（<b>默认全部收起</b>，用户 2026-09-18 起）：本页每次
  * 导航都会重建对象，状态不能随对象丢。此外：分类头在滚动时吸顶（本页 {@code draw} 覆写），收藏的模块
- * 排在最前的「常用」块（{@link #FAVORITES}，右键模块卡片切换，持久化在 {@code AddonConfig}）。</p>
+ * 排在最前的「常用」块（{@link #FAVORITES}）。</p>
  */
 public final class ModuleCenterPage extends CardPage {
 
@@ -76,29 +89,6 @@ public final class ModuleCenterPage extends CardPage {
      * 四个页面的行节奏必须是同一个数（各写一份早晚跑偏）。</p>
      */
     private static final float ROW_GAP = ModuleRow.ROW_GAP;
-
-    /**
-     * 网格单元的最小宽度<b>下限</b>：真正的取值为「本页最长模块名 + 图标 + 状态徽章 + 内边距」
-     * （见 {@link #minCellWidth}），这里只是防止名字都很短时格子窄到没法看。
-     *
-     * <p>旧的写死值 150 的依据是「模块名最长五个汉字约 60」，用 158 的三列格宽正好排「自动化」三格
-     * （用户 2026-09-16 要的「一排」）。用户 2026-09-18 反馈「一些字超出框了 根本看不见名字」：
-     * 本页最长名「自动图书管理员」（12 号加粗约 84）在那一档只剩 65 可用，名字被截成「自动图书…」。
-     * 现改为按最长名字反推，<b>名字完整性优先于列数</b>；名字短时下限仍然兜住，不会更窄。</p>
-     */
-    private static final float MIN_CELL_W = 150f;
-
-    /** 本页最长模块名反推出的最小格宽（含测量余量）；{@code -1} = 待重算（清单变或首次布局时作废）。 */
-    private float minCellW = -1f;
-
-    /**
-     * 兜底页面宽度：第一帧刷新滚动上限时还没绘制过，页面还不知道自己的可用宽度。
-     *
-     * <p>取面板基准尺寸算出来的实际页宽（740 面板 − 190 导航 − 1 分隔 − 14 页面左缩进 − 34
-     * 滚动条预留 = 501），于是兜底值与真实值一致，滚动范围从第一帧起就是对的；
-     * 窗口尺寸变了也只在下一帧生效一次，随后立刻按真值重算。</p>
-     */
-    private static final float FALLBACK_CONTENT_W = 501f;
 
     /**
      * 分类头度量：与模块行同一比例收一档（用户「整体都缩小一下 方便阅读」），字号仍压在模块名之下。
@@ -128,6 +118,27 @@ public final class ModuleCenterPage extends CardPage {
     /** 标题往强调色偏的比重：让分类名读起来是「章节标签」，不是又一个可点的模块名。 */
     private static final float HEADER_TITLE_ACCENT = 0.30f;
 
+    /**
+     * 分类头的「上移 / 下移」按钮：盒子边长、两键间距、字形字号与「模块数 → 按钮」的间距。
+     *
+     * <p>字形取自 Material Symbols 的 {@code arrow_drop_up} / {@code arrow_drop_down}，
+     * 已按开发习惯第 140 条核实字体覆盖（cmap 命中、项目内无占用）。盒子 18 是点击靶的下限：
+     * 再小在 24 高的行里就点不准了。</p>
+     */
+    private static final float ORDER_BOX = 18f;
+    private static final float ORDER_GAP = 2f;
+    private static final float ORDER_GLYPH = 12f;
+    private static final float ORDER_LEAD = 10f;
+    private static final String ORDER_UP = "\uE5C7";
+    private static final String ORDER_DOWN = "\uE5C5";
+
+    /**
+     * 拖动阈值（像素）：按下后纵向移动超过它才算「拖动换位」，否则松手按「点了一下」处理。
+     *
+     * <p>4 是「手不抖」的下限：再小会把正常点击判成拖动，再大则拖动起步发木。</p>
+     */
+    private static final float DRAG_THRESHOLD = 4f;
+
     /** 分类头的展开 / 收起箭头（Material 符号，均已验真存在于 MaterialSymbolsRounded.ttf）。 */
     private static final String ARROW_EXPANDED = "\uE5CF";
     private static final String ARROW_COLLAPSED = "\uE5CC";
@@ -155,7 +166,7 @@ public final class ModuleCenterPage extends CardPage {
      * 全部注册分类」的口径多出一个伪分类，其它页面按分类遍历时也会多出一项空分类。</p>
      */
     private static final ModuleCategory FAVORITES_CATEGORY =
-            new ModuleCategory(FAVORITES_ID, "常用", "收藏的模块；在模块上右键可收藏 / 取消", FAVORITES_ICON, -1);
+            new ModuleCategory(FAVORITES_ID, "常用", "收藏的模块；点模块行右侧的星标可收藏 / 取消", FAVORITES_ICON, -1);
 
     /** 收藏的模块 id（按收藏先后有序）；与 {@link AddonConfig#favoriteModules} 同源，改动即落盘。 */
     private static final Set<String> FAVORITES = new LinkedHashSet<>();
@@ -163,30 +174,54 @@ public final class ModuleCenterPage extends CardPage {
     /** 收藏是否已从配置读过（配置只在首次访问时读一次，之后以内存中的集合为准）。 */
     private static boolean favoritesLoaded;
 
+    /** 分类自定义顺序（分类 id，按显示先后）；与 {@link AddonConfig#moduleCategoryOrder} 同源。 */
+    private static final List<String> CATEGORY_ORDER = new ArrayList<>();
+
+    /** 分类顺序是否已从配置读过（同 {@link #favoritesLoaded} 的口径）。 */
+    private static boolean categoryOrderLoaded;
+
     /** 清单里的一行：分类头（{@code module == null && !pageEntry}）、页面入口（{@code pageEntry}）或模块行。 */
     private record Row(ModuleCategory category, ModuleEntry module, boolean pageEntry) {
+    }
+
+    /**
+     * 分类头一行的排版结果：标题（已按可用宽截断）、标题起点、▲ / ▼ 按钮左边界、模块数文案与右边界。
+     *
+     * <p><b>绘制与命中必须共用这一份</b>：按钮位置若两边各算一次，只要标题文案或字号有一处变化，
+     * 就会出现「看得到点不到」；模块数文案也随之一起给（空分类不显示「0 个模块」）。</p>
+     */
+    private record HeaderLayout(String title, float titleX, float upX, float downX,
+                                String countText, float countRight) {
     }
 
     private final PageRouter router;
     private final Consumer<ModuleEntry> moduleOpener;
     private final List<Row> rows = new ArrayList<>();
 
+    /** 本轮清单里的分类（按当前显示顺序）：▲ / ▼ 的「能不能移」与移动目标都读它。 */
+    private final List<ModuleCategory> categories = new ArrayList<>();
+
+    /** 指针按住的分类 id；{@code null} = 当前没有按住任何分类头。 */
+    private String pressedCategoryId;
+    /** 按下时的指针 y；与 {@link #dragMoved} 一起区分「点一下（展开 / 收起）」和「拖一下（换位）」。 */
+    private float pressedY;
+    /** 是否已越过拖动阈值（越过才算拖动），见 {@link #onDrag}。 */
+    private boolean dragMoved;
+    /** 按下前的分类顺序快照：手势被取消时用它还原，绝不把半途的顺序留在内存里。 */
+    private List<String> pressedOrder = List.of();
+
     /**
-     * 逐行的网格排布（与 {@link #rows} 同长、同下标）：所在网格行、行内列号、该行的列数。
+     * 行位移动画：行标识 → 当前视觉偏移（相对静态槽位，弹簧目标恒为 0，到位即 0）。
      *
-     * <p>{@code cols == 0} 表示「独占一整行」（分类头、页面入口、无分类的兜底模块），此时列号无意义；
-     * {@code cols >= 1} 表示模块网格里的一格。三个数组由 {@link #ensureLayout} 与 {@link #rows}
-     * 同步重建（展开 / 收起时长度会变，因此重建而不是复用）。</p>
+     * <p>拖动换位、展开让位、新行插入都靠它：几何钩子（{@link #cardY} 与 {@link #indexAt}）
+     * 读同一份偏移，画面与命中框一起动。</p>
      */
-    private int[] slotOf = new int[0];
-    private int[] colOf = new int[0];
-    private int[] colsOf = new int[0];
+    private final Map<String, Spring> rowShift = new HashMap<>();
 
-    /** 网格总行数：滚动总高度与它一一对应。 */
-    private int gridRows;
-
-    /** 上面三个数组是按哪个可用宽度算出来的；窗口宽度不变就不重算。 */
-    private float layoutWidth = -1f;
+    /** 行位移动画的稳定时间（秒）：够快跟手，又不至于跳。 */
+    private static final float ROW_SLIDE_SETTLE = 0.22f;
+    /** 新出现的行从上方多少像素滑入（展开分类时新插入的模块行走这个）。 */
+    private static final float ROW_INSERT_LIFT = 14f;
 
     public ModuleCenterPage(PageRouter router, Consumer<ModuleEntry> moduleOpener) {
         super(0);
@@ -201,11 +236,14 @@ public final class ModuleCenterPage extends CardPage {
      * <p>末尾兜底一次：分类注册表里查不到的模块也追加进清单，避免模块在界面上凭空消失。</p>
      */
     private void rebuildRows() {
+        Map<String, Float> before = new HashMap<>();
+        for (int i = 0; i < rows.size(); i++) before.put(rowKey(rows.get(i)), i * (ROW_HEIGHT + ROW_GAP));
         rows.clear();
+        categories.clear();
         loadFavorites();
         List<ModuleEntry> remaining = new ArrayList<>(ModuleRegistry.all());
         addFavoritesBlock();
-        for (ModuleCategory category : CategoryRegistry.all()) {
+        for (ModuleCategory category : orderedCategories()) {
             // 归到「设置」导航的分类不在模块中心出现（沿用原口径）
             if (category.settingsEntry()) continue;
             List<ModuleEntry> entries = new ArrayList<>(ModuleRegistry.byCategory(category.id()));
@@ -213,6 +251,7 @@ public final class ModuleCenterPage extends CardPage {
             boolean pageEntry = category.page() != null;
             if (entries.isEmpty() && !pageEntry) continue;
 
+            categories.add(category);
             rows.add(new Row(category, null, false));
             remaining.removeAll(entries);
             if (!EXPANDED.contains(category.id())) continue;
@@ -220,8 +259,150 @@ public final class ModuleCenterPage extends CardPage {
             for (ModuleEntry entry : entries) rows.add(new Row(category, entry, false));
         }
         for (ModuleEntry entry : remaining) rows.add(new Row(null, entry, false));
-        resetLayout();
         setCardCount(rows.size());
+        seedRowShift(before);
+    }
+
+    // ── 行位移动画（用户 2026-09-21：「动画有吗？」） ──
+
+    /** 行的稳定标识：模块行用模块 id、页面入口行与分类头用分类 id —— 换位 / 展开后仍认得出是同一行。 */
+    private static String rowKey(Row row) {
+        if (row.module() != null) return "m:" + row.module().id();
+        return (row.pageEntry() ? "p:" : "c:") + row.category().id();
+    }
+
+    /**
+     * 每次重建清单后给位移动画铺场：老行从「它原来的槽位」滑向新槽位，新出现的行从上方滑入。
+     *
+     * <p>偏移存成「相对静态槽位的差值」，弹簧目标恒为 0，于是每帧只要 {@code update(dt)}，
+     * 不必再记「谁动过」。静态位置没变的行<b>不重置弹簧</b>——拖动时清单会反复重建，
+     * 重置会把正在滑动的行动画打断成跳变。</p>
+     */
+    private void seedRowShift(Map<String, Float> before) {
+        Set<String> alive = new HashSet<>();
+        for (int i = 0; i < rows.size(); i++) {
+            String key = rowKey(rows.get(i));
+            alive.add(key);
+            Spring spring = rowShift.computeIfAbsent(key, k -> Spring.critical(ROW_SLIDE_SETTLE));
+            Float old = before.get(key);
+            if (old == null) {
+                // 全新的一行：从上方一点滑进来（展开分类时新出现的模块行）
+                startRowShift(spring, -ROW_INSERT_LIFT);
+                continue;
+            }
+            float moved = old - i * (ROW_HEIGHT + ROW_GAP);
+            if (Math.abs(moved) > 0.5f) startRowShift(spring, moved);
+        }
+        // 收起 / 筛选掉的行不再有动画状态，避免弹簧表无限长
+        rowShift.keySet().removeIf(key -> !alive.contains(key));
+    }
+
+    /**
+     * 从「偏移 offset 处」起步，目标恒为 0（= 回到自己的静态槽位）。
+     *
+     * <p>必须两步走：{@link Spring#set} 是「直接落到某个值」，它把目标也一起设成那个值，
+     * 只调它会让行永远停在偏移上（本轮实测踩过：所有行卡在 -14 不走）。</p>
+     */
+    private static void startRowShift(Spring spring, float offset) {
+        spring.set(offset);
+        spring.setTarget(0f);
+    }
+
+    /** 第 index 行当前的视觉偏移（已到位就是 0）；绘制与命中都加它。 */
+    private float rowShiftOf(int index) {
+        Spring spring = rowShift.get(rowKey(rows.get(index)));
+        return spring == null ? 0f : spring.value();
+    }
+
+    @Override
+    public void update(float dt) {
+        super.update(dt);
+        for (Spring spring : rowShift.values()) spring.update(dt);
+    }
+
+    // ── 分类顺序（用户 2026-09-21：分类顺序自己调） ──
+
+    /** 首次访问时从 {@link AddonConfig} 读分类顺序（{@code ;} 分隔）；失败或为空都按注册表权重。 */
+    private static void loadCategoryOrder() {
+        if (categoryOrderLoaded) return;
+        categoryOrderLoaded = true;
+        String raw = AddonConfig.moduleCategoryOrder;
+        if (raw == null || raw.isBlank()) return;
+        for (String id : raw.split(";")) {
+            String trimmed = id.trim();
+            if (!trimmed.isEmpty()) CATEGORY_ORDER.add(trimmed);
+        }
+    }
+
+    /**
+     * 分类显示顺序：先按玩家自定义的顺序取，注册表里新增的分类按原权重补在后面。
+     *
+     * <p>「补在后面」而不是「插进原位置」是有意的：玩家的调整要保住，版本更新新增的分类也不该
+     * 打乱已经排好的顺序（新增项出现在末尾，一眼看得到）。</p>
+     */
+    private static List<ModuleCategory> orderedCategories() {
+        loadCategoryOrder();
+        List<ModuleCategory> remaining = new ArrayList<>(CategoryRegistry.all());
+        List<ModuleCategory> ordered = new ArrayList<>();
+        for (String id : CATEGORY_ORDER) {
+            ModuleCategory category = CategoryRegistry.byId(id);
+            if (category != null && remaining.remove(category)) ordered.add(category);
+        }
+        ordered.addAll(remaining);
+        return ordered;
+    }
+
+    /** 该分类在本轮清单里的位次；不在清单里（如「常用」伪分类）返回 {@code -1}。 */
+    private int indexOfCategory(String id) {
+        for (int i = 0; i < categories.size(); i++) {
+            if (categories.get(i).id().equals(id)) return i;
+        }
+        return -1;
+    }
+
+    /** 该分类能否往 {@code delta} 方向移（首位不能再上移、末位不能再下移、伪分类不参与）。 */
+    private boolean canMoveCategory(ModuleCategory category, int delta) {
+        if (category == null) return false;
+        int index = indexOfCategory(category.id());
+        int target = index + delta;
+        return index >= 0 && target >= 0 && target < categories.size();
+    }
+
+    /**
+     * 分类上移 / 下移一位（▲▼ 按钮用）并立即落盘。
+     *
+     * <p>先把「当前显示顺序」整体固化成 id 列表再交换相邻两项：只动这一步，其余分类的相对顺序
+     * 一位不变（不会出现「调了两个分类、第三个跟着跳」）。</p>
+     */
+    private void moveCategory(ModuleCategory category, int delta) {
+        if (!canMoveCategory(category, delta)) return;
+        int from = indexOfCategory(category.id());
+        reorderCategory(from, from + delta, category.id());
+        persistCategoryOrder();
+        rebuildRows();
+    }
+
+    /** 当前显示顺序的 id 列表（拖动与 ▲▼ 都先把顺序固化成这一份再改）。 */
+    private List<String> currentOrderIds() {
+        List<String> order = new ArrayList<>();
+        for (ModuleCategory item : categories) order.add(item.id());
+        return order;
+    }
+
+    /** 把 {@code id} 从第 {@code from} 位搬到第 {@code to} 位（只改内存里的自定义顺序，不落盘、不重建）。 */
+    private void reorderCategory(int from, int to, String id) {
+        if (from < 0 || to < 0 || from == to || from >= categories.size() || to >= categories.size()) return;
+        List<String> order = currentOrderIds();
+        order.remove(from);
+        order.add(to, id);
+        CATEGORY_ORDER.clear();
+        CATEGORY_ORDER.addAll(order);
+    }
+
+    /** 把当前分类顺序写进 {@link AddonConfig}（拖动松手、▲▼ 点击后各调一次）。 */
+    private void persistCategoryOrder() {
+        AddonConfig.moduleCategoryOrder = String.join(";", CATEGORY_ORDER);
+        AddonConfig.save();
     }
 
     /**
@@ -258,7 +439,7 @@ public final class ModuleCenterPage extends CardPage {
      * 切换某个模块的收藏状态并立即落盘，同时在聊天栏给一句反馈。
      *
      * <p>落盘走 {@link AddonConfig}（UI 偏好与主题 / 缩放同一份配置），成功与否都重建清单：
-     * 常用区要立刻反映变化（第 214 条，判据与动作读同一份数据）。</p>
+     * 常用区与首页「常用模块」要立刻反映变化（第 214 条，判据与动作读同一份数据）。</p>
      */
     private static void toggleFavorite(ModuleEntry entry) {
         boolean added = FAVORITES.add(entry.id());
@@ -268,16 +449,6 @@ public final class ModuleCenterPage extends CardPage {
         ClientChat.send("模块中心", (added ? "§a已收藏§r " : "§7已取消收藏§r ") + entry.displayName());
     }
 
-    /** 清单变了：作废上一次的网格排布（长度也变了，直接重建三个数组），下一次几何调用按新宽度重算。 */
-    private void resetLayout() {
-        slotOf = new int[rows.size()];
-        colOf = new int[rows.size()];
-        colsOf = new int[rows.size()];
-        gridRows = 0;
-        layoutWidth = -1f;
-        minCellW = -1f;
-    }
-
     @Override
     public String getTitle() {
         return UiText.t("模块中心", "Modules");
@@ -285,13 +456,13 @@ public final class ModuleCenterPage extends CardPage {
 
     @Override
     public String getSubtitle() {
-        return UiText.t("点击进入设置 · 右键模块收藏到顶部「常用」",
-                "Click to open · Right-click to favorite");
+        return UiText.t("点击进入设置 · 点右侧星标收藏 · 分类头可上下调序",
+                "Click to open · Star to favorite · Reorder groups");
     }
 
     @Override
     protected int columns() {
-        // 兜底值：本页的列数逐行不同（分类头独占一行、模块按网格并排），实际几何由下面那组钩子给出
+        // 本页的行宽逐行不同（分类头与模块行各占一整行、模块行还要缩进一格），几何由下面那组钩子给出
         return 1;
     }
 
@@ -309,167 +480,57 @@ public final class ModuleCenterPage extends CardPage {
         return ROW_GAP;
     }
 
-    // ── 网格几何（绘制 / 悬停 / 点击 / 总高度共用） ──
+    // ── 几何（绘制 / 悬停 / 点击 / 总高度共用） ──
 
-    /**
-     * 按可用宽度重算逐行的网格排布；宽度没变就直接返回。
-     *
-     * <p><b>为什么按宽度缓存</b>：同一帧里绘制、悬停与命中会问很多次几何，逐次重排毫无意义；
-     * 而窗口宽度变了（面板是固定设计尺寸，正常不会变）必须立刻按新宽度重排，否则列数一改、
-     * 每一格的位置全变，上一步算出来的命中框就全错了。</p>
-     *
-     * <p>分块规则：连续的「同分类模块行」组成一个网格块，块内按 {@link #gridColumns} 的列数从左到右
-     * 铺开、铺满一行换下一行；分类头、页面入口行（带「点击进入」）与无分类的兜底模块各占一整行，
-     * 与改动前完全一致。每个块占的网格行数 = ⌈块内模块数 ÷ 列数⌉。</p>
-     */
-    private void ensureLayout(float contentW) {
-        float width = contentW > 0f ? contentW : FALLBACK_CONTENT_W;
-        if (Math.abs(width - layoutWidth) < 0.01f) return;
-        layoutWidth = width;
-
-        int count = rows.size();
-        int columns = gridColumns(width);
-        int slot = 0;
-        int i = 0;
-        while (i < count) {
-            if (!isGridModule(rows.get(i))) {
-                slotOf[i] = slot;
-                colOf[i] = 0;
-                colsOf[i] = 0;
-                slot++;
-                i++;
-                continue;
-            }
-            int end = i + 1;
-            while (end < count && sameCategory(rows.get(i), rows.get(end))) end++;
-            int size = end - i;
-            for (int k = 0; k < size; k++) {
-                slotOf[i + k] = slot + k / columns;
-                colOf[i + k] = k % columns;
-                colsOf[i + k] = columns;
-            }
-            slot += (size + columns - 1) / columns;
-            i = end;
-        }
-        gridRows = slot;
-    }
-
-    /** 该行是否是模块网格里的一格：有分类的普通模块行才算（分类头、页面入口行、兜底模块都不算）。 */
-    private static boolean isGridModule(Row row) {
-        return row.module() != null && !row.pageEntry() && row.category() != null;
-    }
-
-    /** 下一个模块行是否与块首属于同一分类（同分类才继续并排，跨分类就另起一块）。 */
-    private static boolean sameCategory(Row start, Row next) {
-        return next.module() != null && !next.pageEntry() && next.category() != null
-                && start.category().id().equals(next.category().id());
-    }
-
-    /**
-     * 模块网格的列数：按「最小格宽 + 固定间距」取最大的整数列数。
-     *
-     * <p>整数运算（先加一个间距再整除），不做浮点累加：浮点累加出来的列数在宽度临界点上会抖动，
-     * 同一宽度可能这一帧三列、下一帧两列，界面就会闪。</p>
-     *
-     * <p>最小格宽取「{@link #MIN_CELL_W} 下限」与「{@link #minCellWidth} 按最长名字算出的值」的较大者；
-     * 默认面板（页面可用宽 501）下最长名字是「自动图书管理员」，每格约需 189，于是自动降为两列——
-     * 名字完整可读优先于列数（用户 2026-09-18 口径）。窗口更宽则列数回升，更窄继续降，最少一列。</p>
-     */
-    private int gridColumns(float contentW) {
-        float gridW = Math.max(0f, contentW - ModuleRow.INDENT);
-        float cell = Math.max(MIN_CELL_W, minCellWidth());
-        return Math.max(1, (int) Math.floor((gridW + ROW_GAP) / (cell + ROW_GAP)));
-    }
-
-    /**
-     * 本页网格单元的最小宽度：最长模块名 + 单元固定占用（图标 / 状态徽章 / 内边距）。
-     *
-     * <p>名字必须完整显示，所以列宽由它反推，而不是写死一个数（{@link ModuleRow#nameWidth} /
-     * {@link ModuleRow#cellFixedWidth} 是与绘制同源的两个量）。加 1 像素余量抗测量误差，
-     * 避免正好卡在边界上又被 {@code ellipsize} 截掉最后一个字。结果缓存，清单变化时作废。</p>
-     */
-    private float minCellWidth() {
-        if (minCellW > 0f) return minCellW;
-        float widest = 0f;
-        for (Row row : rows) {
-            if (!isGridModule(row)) continue;
-            widest = Math.max(widest, ModuleRow.nameWidth(row.module().displayName()));
-        }
-        minCellW = widest + ModuleRow.cellFixedWidth("已启用") + 1f;
-        return minCellW;
-    }
-
-    /** 网格单元宽度：先扣掉单元之间的横向间距（与 {@link #ROW_GAP} 同值）再均分，同一行每格等宽。 */
-    private static float cellWidth(float contentW, int columns) {
-        float gridW = Math.max(0f, contentW - ModuleRow.INDENT);
-        return Math.max(0f, (gridW - ROW_GAP * (columns - 1)) / columns);
-    }
-
-    /** 第 index 行的宽度：独占一行的＝可用宽度，网格单元＝格宽。 */
-    private float widthOf(float contentW, int index) {
-        int columns = colsOf[index];
-        return columns <= 0 ? contentW : cellWidth(contentW, columns);
-    }
-
-    /**
-     * 第 index 行的左边界。
-     *
-     * <p>网格整体按 {@link ModuleRow#INDENT} 缩进一格表示「属于上面的分类头」；单元内部不再缩进
-     * （缩进由这一层统一给，单元里的图标与文字才排得开）。</p>
-     */
-    private float leftOf(float originX, float contentW, int index) {
-        int columns = colsOf[index];
-        if (columns <= 0) return originX;
-        return originX + ModuleRow.INDENT + colOf[index] * (cellWidth(contentW, columns) + ROW_GAP);
-    }
-
-    /** 第 index 行的顶边界：锚在它所在的网格行上。 */
-    private float topOf(float originY, int index) {
-        return originY + slotOf[index] * (ROW_HEIGHT + ROW_GAP);
+    /** 该行是否缩进一格：分类头不缩进，属于它的页面入口行与模块行都缩进（表示归属）。 */
+    private boolean indented(int index) {
+        Row row = rows.get(index);
+        return row.module() != null || row.pageEntry();
     }
 
     @Override
     protected float cardWidth(float contentW, int index) {
-        ensureLayout(contentW);
-        return widthOf(contentW, index);
+        return Math.max(0f, indented(index) ? contentW - ModuleRow.INDENT : contentW);
     }
 
     @Override
     protected float cardX(float originX, float contentW, int index) {
-        ensureLayout(contentW);
-        return leftOf(originX, contentW, index);
+        return indented(index) ? originX + ModuleRow.INDENT : originX;
     }
 
     @Override
     protected float cardY(float originY, float contentW, int index) {
-        ensureLayout(contentW);
-        return topOf(originY, index);
+        return topOf(originY, index) + rowShiftOf(index);
     }
 
-    /** 滚动总高度：网格行数 ×（行高 + 行距）再扣掉末尾多算的一个行距。 */
+    /** 第 index 行的顶边界：一行一格，直接按行高与行距推。 */
+    private static float topOf(float originY, int index) {
+        return originY + index * (ROW_HEIGHT + ROW_GAP);
+    }
+
+    /** 滚动总高度：行数 × 行高 + 行间距，再扣掉末尾多算的一个行距。 */
     @Override
     protected float contentHeight(float contentW) {
-        ensureLayout(contentW);
-        return gridRows <= 0 ? 0f : gridRows * ROW_HEIGHT + (gridRows - 1) * ROW_GAP;
+        int count = rows.size();
+        return count <= 0 ? 0f : count * ROW_HEIGHT + (count - 1) * ROW_GAP;
     }
 
     @Override
     protected int indexAt(float mx, float my, float originX, float originY, float contentW) {
         // 吸顶条先命中：它画在视口顶部，与它下面滚过的卡片位置重叠，判定必须与绘制同源（见 stickyIndex）
-        int sticky = stickyIndex(originY, contentW);
+        int sticky = stickyIndex(originY);
         if (sticky >= 0) {
             float top = originY - CardLayout.TOP_INSET;
-            float left = leftOf(originX, contentW, sticky);
+            float left = cardX(originX, contentW, sticky);
             if (my >= top && my <= top + ROW_HEIGHT
-                    && mx >= left && mx <= left + widthOf(contentW, sticky)) {
+                    && mx >= left && mx <= left + cardWidth(contentW, sticky)) {
                 return sticky;
             }
         }
-        ensureLayout(contentW);
         for (int i = 0; i < rows.size(); i++) {
-            float left = leftOf(originX, contentW, i);
-            if (mx < left || mx > left + widthOf(contentW, i)) continue;
-            float top = topOf(originY, i);
+            float left = cardX(originX, contentW, i);
+            if (mx < left || mx > left + cardWidth(contentW, i)) continue;
+            float top = topOf(originY, i) + rowShiftOf(i);
             if (my >= top && my <= top + ROW_HEIGHT) return i;
         }
         return -1;
@@ -482,8 +543,7 @@ public final class ModuleCenterPage extends CardPage {
      * 判据里的视口顶 = {@code originY - TOP_INSET}（{@code originY} 已扣掉滚动偏移），
      * 绘制（{@link #drawStickyHeader}）与命中（{@link #indexAt}）共用这一个方法，两处不会错位。</p>
      */
-    private int stickyIndex(float originY, float contentW) {
-        ensureLayout(contentW);
+    private int stickyIndex(float originY) {
         float viewTop = originY - CardLayout.TOP_INSET;
         int sticky = -1;
         for (int i = 0; i < rows.size(); i++) {
@@ -500,20 +560,22 @@ public final class ModuleCenterPage extends CardPage {
      *
      * <p>画在 {@code super.draw} <b>之后</b>：吸顶条要盖在滚过去的模块之上，否则两行内容叠在一起。
      * 位置与命中同源（都走 {@link #stickyIndex}），所以点吸顶条 = 点那个分类头（收起 / 展开）。</p>
+     *
+     * <p>吸顶条上不画 ▲ / ▼：它盖在内容之上，按钮位置会被滚动行挡出一层歧义，调序请点原位的分类头
+     * （吸顶条点一下就会把该分类展开，位置随即回到原位）。</p>
      */
     @Override
     public void draw(Canvas canvas, float x, float y, float contentW, float contentH, float alpha,
                      float scrollOffset, float mouseX, float mouseY) {
         super.draw(canvas, x, y, contentW, contentH, alpha, scrollOffset, mouseX, mouseY);
-        ensureLayout(contentW);
-        int sticky = stickyIndex(y + CardLayout.TOP_INSET - scrollOffset, contentW);
+        int sticky = stickyIndex(y + CardLayout.TOP_INSET - scrollOffset);
         if (sticky < 0) return;
-        float sx = leftOf(x, contentW, sticky);
-        float sw = widthOf(contentW, sticky);
+        float sx = cardX(x, contentW, sticky);
+        float sw = cardWidth(contentW, sticky);
         float hover = topHover(sx, y, sw);
         ClickGuiThemeColors tc = ClickGuiThemeColors.current();
         drawHeaderBackground(canvas, sx, y, sw, alpha, hover, tc, true);
-        drawHeaderContent(canvas, rows.get(sticky).category(), sx, y, sw, alpha, hover, tc);
+        drawHeaderContent(canvas, rows.get(sticky).category(), sx, y, sw, alpha, hover, tc, false);
     }
 
     /** 吸顶条是否被悬停：它就画在视口顶部那一行，与滚动偏移无关。 */
@@ -528,14 +590,9 @@ public final class ModuleCenterPage extends CardPage {
                             ClickGuiThemeColors tc) {
         Row row = rows.get(index);
         if (row.module() != null) {
-            // 同分类的模块行在网格里并排（见 ensureLayout），格子里的排版见 ModuleRow.drawCell
-            if (colsOf[index] > 0) {
-                ModuleRow.drawCell(canvas, row.module(), x, y, w, frameMouseX(), frameMouseY(), alpha, hover,
-                        FAVORITES.contains(row.module().id()), tc);
-            } else {
-                // 无分类的兜底模块没有并排的对象，仍按整行画（区别于网格单元的「图标 + 名称 + 状态」）
-                ModuleRow.draw(canvas, row.module(), x, y, w, alpha, hover, tc);
-            }
+            // 整行一条：图标 + 名称 + 描述 + 星标 + 状态 + 箭头（星标是可点的收藏键）
+            ModuleRow.drawRow(canvas, row.module(), x, y, w, frameMouseX(), frameMouseY(), alpha, hover,
+                    FAVORITES.contains(row.module().id()), tc);
             return;
         }
         if (row.pageEntry()) {
@@ -544,7 +601,8 @@ public final class ModuleCenterPage extends CardPage {
                     UiText.t("点击进入", "Open"), tc.labelTertiary, x, y, w, alpha, hover, tc);
             return;
         }
-        drawGroupHeader(canvas, row.category(), x, y, w, alpha, hover, tc);
+        drawGroupHeader(canvas, row.category(), x, y, w, alpha,
+                row.category().id().equals(pressedCategoryId) ? 1f : hover, tc);
     }
 
     @Override
@@ -566,25 +624,146 @@ public final class ModuleCenterPage extends CardPage {
     }
 
     /**
-     * 右键模块卡片 = 收藏 / 取消收藏（进入顶部「常用」区）；其余点击行为沿用基类。
+     * 左键两处特判，其余交给基类：
      *
-     * <p>为什么用右键而不是在卡片上加星标按钮：网格单元里「图标 + 名字 + 状态」已经把 158 宽吃满
-     * （见 {@link ModuleRow#drawCell} 的注释），再加一个按钮只能把名字挤成省略号；右键零占位，
-     * 且收藏是低频操作，不需要常驻入口。反馈由聊天栏播报 + 常驻描边 + 常用区三处给出。</p>
+     * <ul>
+     *   <li><b>模块行右侧的星标</b> → 收藏 / 取消收藏（命中框与绘制同源，见 {@code ModuleRow#starCenterX}）；</li>
+     *   <li><b>分类头上的 ▲ / ▼</b> → 该分类上移 / 下移一位（位置与绘制同源，见 {@link #headerLayout}）。</li>
+     * </ul>
+     *
+     * <p>原先是「右键模块收藏」：右键没有任何视觉提示，装完没人知道能这么用（用户 2026-09-21
+     * 「取消右键收藏，改成星标收藏」），故移除右键分支，右键在本页不再有任何行为。</p>
      */
     @Override
     public boolean onClick(float mx, float my, float contentX, float contentY, float contentW,
                            float scrollOffset, int button) {
-        if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-            int index = indexAt(mx, my, contentX, contentY + CardLayout.TOP_INSET - scrollOffset, contentW);
-            if (index < 0) return false;
-            Row row = rows.get(index);
-            if (row.module() == null) return false;
-            toggleFavorite(row.module());
-            rebuildRows();
-            return true;
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false;
+        float originY = contentY + CardLayout.TOP_INSET - scrollOffset;
+        int index = indexAt(mx, my, contentX, originY, contentW);
+        if (index < 0) return false;
+
+        Row row = rows.get(index);
+        float rowX = cardX(contentX, contentW, index);
+        float rowY = topOf(originY, index);
+        float rowW = cardWidth(contentW, index);
+
+        // 吸顶条上不画 ▲▼（见 draw 的注释）：命中到吸顶条时只做展开 / 收起，
+        // 否则会点到一个看不见的按钮——同一块地方画了什么，就只允许点什么（第 169 条）
+        if (index == stickyIndex(originY) && my <= originY - CardLayout.TOP_INSET + ROW_HEIGHT) {
+            return super.onClick(mx, my, contentX, contentY, contentW, scrollOffset, button);
+        }
+
+        if (row.module() != null) {
+            float starX = ModuleRow.starCenterX(rowX, rowW);
+            float starY = ModuleRow.starCenterY(rowY);
+            if (Math.abs(mx - starX) <= ModuleRow.STAR_HIT && Math.abs(my - starY) <= ModuleRow.STAR_HIT) {
+                toggleFavorite(row.module());
+                rebuildRows();
+                return true;
+            }
+            return super.onClick(mx, my, contentX, contentY, contentW, scrollOffset, button);
+        }
+
+        if (!row.pageEntry()) {
+            ModuleCategory category = row.category();
+            HeaderLayout layout = headerLayout(category, rowX, rowW);
+            if (canMoveCategory(category, -1) && orderButtonHit(mx, my, layout.upX(), rowY)) {
+                moveCategory(category, -1);
+                return true;
+            }
+            if (canMoveCategory(category, 1) && orderButtonHit(mx, my, layout.downX(), rowY)) {
+                moveCategory(category, 1);
+                return true;
+            }
+            // 分类头其余区域：先按住记状态，松手时按「拖过没有」决定 换位 / 展开、收起（见 releasePress）
+            if (indexOfCategory(category.id()) >= 0) {
+                pressedCategoryId = category.id();
+                pressedY = my;
+                dragMoved = false;
+                pressedOrder = currentOrderIds();
+                return true;
+            }
         }
         return super.onClick(mx, my, contentX, contentY, contentW, scrollOffset, button);
+    }
+
+    /**
+     * 拖动分类头 = 换位（用户 2026-09-21：「可以拖拉排序吗？」）。
+     *
+     * <p><b>越过阈值才算拖动</b>：按下后纵向移动不足 {@link #DRAG_THRESHOLD} 像素时什么都不做，松手仍走
+     * 「展开 / 收起」——否则手抖一下就会被判成调序（误触不许改配置）。</p>
+     *
+     * <p><b>实时换位</b>：拖动过程中就把被拖的分类插到指针所在分类的位次上并重建清单，于是那一行始终
+     * 跟在指针下，不必再画一层「拖影」；落盘只在松手时做一次，中途出事也不会留下半截顺序。</p>
+     */
+    @Override
+    public boolean onDrag(float mx, float my, float contentX, float contentY, float contentW,
+                          float scrollOffset) {
+        if (pressedCategoryId == null) return false;
+        if (!dragMoved && Math.abs(my - pressedY) < DRAG_THRESHOLD) return true;
+        dragMoved = true;
+
+        float originY = contentY + CardLayout.TOP_INSET - scrollOffset;
+        int index = indexAt(mx, my, contentX, originY, contentW);
+        if (index < 0) return true;
+        ModuleCategory target = rows.get(index).category();
+        if (target == null) return true;
+        int from = indexOfCategory(pressedCategoryId);
+        int to = indexOfCategory(target.id());
+        if (from < 0 || to < 0 || from == to) return true;
+        reorderCategory(from, to, pressedCategoryId);
+        rebuildRows();
+        return true;
+    }
+
+    /**
+     * 松手：拖动过 → 落盘（顺序已在拖动中实时换好）；没拖动过 → 当作「点了一下」= 展开 / 收起。
+     *
+     * <p>展开放在松手而不是按下，是为了让「按住拖动」与「点开合」共用同一段按下手势：按下即开合的话，
+     * 一动鼠标就会先把分类展开，看着像误触。</p>
+     */
+    @Override
+    public void releasePress() {
+        super.releasePress();
+        String pressed = pressedCategoryId;
+        boolean moved = dragMoved;
+        pressedCategoryId = null;
+        dragMoved = false;
+        pressedOrder = List.of();
+        if (pressed == null) return;
+        if (moved) {
+            persistCategoryOrder();
+            rebuildRows();
+            return;
+        }
+        if (!EXPANDED.remove(pressed)) EXPANDED.add(pressed);
+        rebuildRows();
+    }
+
+    /** 手势被取消（按下期间界面被关掉等）：还原按下前的顺序，半途的顺序不进配置、也不留在内存。 */
+    @Override
+    public void cancelPress() {
+        super.cancelPress();
+        boolean restore = dragMoved && !pressedOrder.isEmpty();
+        pressedCategoryId = null;
+        dragMoved = false;
+        if (restore) {
+            CATEGORY_ORDER.clear();
+            CATEGORY_ORDER.addAll(pressedOrder);
+            rebuildRows();
+        }
+        pressedOrder = List.of();
+    }
+
+    /** ▲ / ▼ 按钮的命中框（与 {@link #drawHeaderContent} 画的是同一块地方）。 */
+    private static boolean orderButtonHit(float mx, float my, float buttonX, float rowY) {
+        float top = orderButtonY(rowY);
+        return mx >= buttonX && mx <= buttonX + ORDER_BOX && my >= top && my <= top + ORDER_BOX;
+    }
+
+    /** ▲ / ▼ 按钮的顶边：在行内垂直居中。 */
+    private static float orderButtonY(float rowY) {
+        return rowY + (ROW_HEIGHT - ORDER_BOX) / 2f;
     }
 
     @Override
@@ -605,11 +784,14 @@ public final class ModuleCenterPage extends CardPage {
      * <p><b>图标为什么不带底框</b>：模块行的图标是「底框 + 字形」，分类头不给底框、字号略小、
      * 颜色偏弱，两者就不会长成同一个东西。文字起始位置仍按 {@link #HEADER_ICON_BOX} 推进，
      * 保证分类名与模块名左对齐。</p>
+     *
+     * <p><b>手势</b>：点一下 = 展开 / 收起（在松手时判定，见 {@link #releasePress}）；
+     * 按住纵向拖动 = 换位（见 {@link #onDrag}）；右侧 ▲ / ▼ = 上下移一位。</p>
      */
     private void drawGroupHeader(Canvas canvas, ModuleCategory category, float x, float y, float w,
                                  float alpha, float hover, ClickGuiThemeColors tc) {
         drawHeaderBackground(canvas, x, y, w, alpha, hover, tc, false);
-        drawHeaderContent(canvas, category, x, y, w, alpha, hover, tc);
+        drawHeaderContent(canvas, category, x, y, w, alpha, hover, tc, true);
     }
 
     /**
@@ -634,21 +816,17 @@ public final class ModuleCenterPage extends CardPage {
         }
     }
 
-    /** 分类头的内容：强调条 + 图标 + 名称 + 模块数 + 展开箭头。吸顶条与常规行共用这一份，两处不会画歪。 */
-    private void drawHeaderContent(Canvas canvas, ModuleCategory category, float x, float y, float w,
-                                   float alpha, float hover, ClickGuiThemeColors tc) {
-        // 左侧强调条：章节的起头标记，悬停时更亮
-        GlassPanel.fill(canvas, x + HEADER_BAR_INSET, y + HEADER_BAR_MARGIN,
-                HEADER_BAR_WIDTH, ROW_HEIGHT - HEADER_BAR_MARGIN * 2f,
-                HEADER_BAR_WIDTH / 2f, tc.accent, alpha * (0.55f + 0.45f * hover));
-
-        float centerY = y + ROW_HEIGHT / 2f;
-        float cursor = x + HEADER_PAD_X;
-        CardIcons.drawCentered(canvas, category.icon(), cursor + HEADER_ICON_BOX / 2f, centerY,
-                HEADER_ICON_GLYPH, GlassPanel.withAlpha(GlassPanel.mix(tc.accent, tc.primaryText, 0.25f), alpha));
-        cursor += HEADER_ICON_BOX + HEADER_GAP;
-
-        // 「常用」不算真分类（没注册进 CategoryRegistry），模块数直接读收藏集合
+    /**
+     * 分类头一行的排版：从右往左放「展开箭头 → ▲▼ → 模块数 →（标题）」。
+     *
+     * <p>按钮与模块数都从右边界反推，标题吃剩下的宽度；标题按最终可用宽截断后再被两边共用，
+     * 于是绘制与命中拿到的永远是同一串文本、同一组坐标。</p>
+     *
+     * @param withOrderButtons {@code false} 时不画 ▲▼（吸顶条上不画：见 {@code draw} 的注释），
+     *                         此时模块数直接贴到展开箭头左侧
+     */
+    private HeaderLayout headerLayout(ModuleCategory category, float x, float w, boolean withOrderButtons) {
+        float arrowX = x + w - HEADER_ARROW_INSET;
         int moduleCount = FAVORITES_ID.equals(category.id())
                 ? FAVORITES.size()
                 : ModuleRegistry.byCategory(category.id()).size();
@@ -656,28 +834,83 @@ public final class ModuleCenterPage extends CardPage {
                 ? ""
                 : UiText.t(moduleCount + " 个模块", moduleCount + " modules");
         float countWidth = countText.isEmpty() ? 0f : FontRenderer.measureTextWidth(countText, HEADER_COUNT_SIZE);
-        float arrowX = x + w - HEADER_ARROW_INSET;
-        if (!countText.isEmpty()) {
-            FontRenderer.drawText(canvas, countText,
-                    arrowX - HEADER_ARROW_GLYPH - HEADER_GAP - countWidth,
+
+        float downX = withOrderButtons ? arrowX - HEADER_ARROW_GLYPH / 2f - ORDER_LEAD - ORDER_BOX : arrowX;
+        float upX = withOrderButtons ? downX - ORDER_GAP - ORDER_BOX : arrowX;
+        float countRight = arrowX - HEADER_ARROW_GLYPH / 2f - ORDER_LEAD
+                - (withOrderButtons ? ORDER_BOX * 2f + ORDER_GAP + ORDER_LEAD : 0f);
+        float titleX = x + HEADER_PAD_X + HEADER_ICON_BOX + HEADER_GAP;
+        float titleMax = Math.max(0f, countRight - countWidth - HEADER_GAP - titleX);
+        return new HeaderLayout(CardLayout.ellipsize(category.displayName(), titleMax, HEADER_TITLE_SIZE),
+                titleX, upX, downX, countText, countRight);
+    }
+
+    /** 与 {@link #headerLayout} 配套的重载：常规分类头都画 ▲▼。 */
+    private HeaderLayout headerLayout(ModuleCategory category, float x, float w) {
+        return headerLayout(category, x, w, true);
+    }
+
+    /**
+     * 分类头的内容：强调条 + 图标 + 名称 + 模块数 + ▲▼ + 展开箭头。
+     * 吸顶条与常规行共用这一份，两处不会画歪。
+     *
+     * @param withOrderButtons 是否画 ▲▼（吸顶条传 {@code false}）
+     */
+    private void drawHeaderContent(Canvas canvas, ModuleCategory category, float x, float y, float w,
+                                   float alpha, float hover, ClickGuiThemeColors tc, boolean withOrderButtons) {
+        // 左侧强调条：章节的起头标记，悬停时更亮
+        GlassPanel.fill(canvas, x + HEADER_BAR_INSET, y + HEADER_BAR_MARGIN,
+                HEADER_BAR_WIDTH, ROW_HEIGHT - HEADER_BAR_MARGIN * 2f,
+                HEADER_BAR_WIDTH / 2f, tc.accent, alpha * (0.55f + 0.45f * hover));
+
+        float centerY = y + ROW_HEIGHT / 2f;
+        CardIcons.drawCentered(canvas, category.icon(), x + HEADER_PAD_X + HEADER_ICON_BOX / 2f, centerY,
+                HEADER_ICON_GLYPH, GlassPanel.withAlpha(GlassPanel.mix(tc.accent, tc.primaryText, 0.25f), alpha));
+
+        HeaderLayout layout = headerLayout(category, x, w, withOrderButtons);
+        FontRenderer.drawTextBold(canvas, layout.title(), layout.titleX(),
+                CardLayout.baseline(centerY, HEADER_TITLE_SIZE), HEADER_TITLE_SIZE,
+                GlassPanel.withAlpha(GlassPanel.mix(tc.primaryText, tc.accent, HEADER_TITLE_ACCENT), alpha));
+
+        // 模块数右对齐到按钮区左侧（与 ▲▼、展开箭头同一条右基线）；空分类不写「0 个模块」
+        if (!layout.countText().isEmpty()) {
+            FontRenderer.drawText(canvas, layout.countText(),
+                    layout.countRight() - FontRenderer.measureTextWidth(layout.countText(), HEADER_COUNT_SIZE),
                     CardLayout.baseline(centerY, HEADER_COUNT_SIZE), HEADER_COUNT_SIZE,
                     GlassPanel.withAlpha(tc.labelTertiary, alpha));
         }
 
-        float titleRight = arrowX - HEADER_ARROW_GLYPH - HEADER_GAP
-                - (countText.isEmpty() ? 0f : countWidth + HEADER_GAP);
-        float titleMax = Math.max(0f, titleRight - cursor);
-        FontRenderer.drawTextBold(canvas,
-                CardLayout.ellipsize(category.displayName(), titleMax, HEADER_TITLE_SIZE), cursor,
-                CardLayout.baseline(centerY, HEADER_TITLE_SIZE), HEADER_TITLE_SIZE,
-                GlassPanel.withAlpha(GlassPanel.mix(tc.primaryText, tc.accent, HEADER_TITLE_ACCENT), alpha));
-
-        // 箭头颜色随状态走：收起 = 强调色（招手让你点），展开 = 弱色（已经打开了）
+        float arrowX = x + w - HEADER_ARROW_INSET;
         boolean expanded = EXPANDED.contains(category.id());
         CardIcons.drawCentered(canvas, expanded ? ARROW_EXPANDED : ARROW_COLLAPSED, arrowX, centerY,
                 HEADER_ARROW_GLYPH,
                 GlassPanel.withAlpha(expanded
                         ? GlassPanel.mix(tc.labelTertiary, tc.accent, hover)
                         : GlassPanel.mix(tc.accent, tc.primaryText, hover * 0.6f), alpha));
+
+        if (!withOrderButtons) return;
+        drawOrderButton(canvas, ORDER_UP, layout.upX(), y, UiText.t("上移", "Move up"),
+                canMoveCategory(category, -1), alpha, tc);
+        drawOrderButton(canvas, ORDER_DOWN, layout.downX(), y, UiText.t("下移", "Move down"),
+                canMoveCategory(category, 1), alpha, tc);
+    }
+
+    /**
+     * 分类头上的 ▲ / ▼：把该分类上移 / 下移一位。
+     *
+     * <p>首位不画 ▲、末位不画 ▼（位置照旧占住，标题与模块数不会左右跳），因此不存在「点了没反应」的
+     * 死按钮；悬停时叠一层淡底并转强调色，表示可点。</p>
+     */
+    private void drawOrderButton(Canvas canvas, String glyph, float x, float y, String tip, boolean enabled,
+                                 float alpha, ClickGuiThemeColors tc) {
+        if (!enabled) return;
+        float top = orderButtonY(y);
+        boolean hover = orderButtonHit(frameMouseX(), frameMouseY(), x, y);
+        if (hover) {
+            GlassPanel.frost(canvas, x, top, ORDER_BOX, ORDER_BOX, ORDER_BOX / 2f, tc.field, 0.40f, alpha);
+        }
+        CardIcons.drawCentered(canvas, glyph, x + ORDER_BOX / 2f, y + ROW_HEIGHT / 2f, ORDER_GLYPH,
+                GlassPanel.withAlpha(GlassPanel.mix(tc.labelTertiary, tc.accent, hover ? 1f : 0.25f), alpha));
+        if (hover) TooltipLayer.show(tip, frameMouseX(), frameMouseY());
     }
 }

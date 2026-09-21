@@ -66,6 +66,11 @@ public final class FarmCommand extends ClientCommand {
 
     @Override
     public void execute(CommandContext context) {
+        // 指令没有「打开界面」这种天然重读时机：先按当前服务器装载锚点与设置，
+        // 否则换服后状态页显示上一服的锚点、覆盖保护也会拿着上一服的绑定拦人
+        AutoFarmModule current = module();
+        if (current != null) current.refreshScopedSettings();
+
         // 裸指令：打印绑定状态（旧 :48 executes → showStatus）
         if (context.isEmpty()) {
             showStatus();
