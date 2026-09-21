@@ -9,7 +9,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.fabricmc.loader.api.FabricLoader;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,9 +29,8 @@ import java.util.Map;
  * <ol>
  *   <li><b>服务器键</b>：旧项目文件名是 {@code ip} 直接净化（保留大小写、不补端口），新项目按第 45 条
  *       统一用 {@link WorldIdentity#fileSafeServer()}（小写 + 补默认端口），落在
- *       {@code config/yiyiaddon/villager/bindings/}；旧文件（{@code config/yiyiaddon/cunmin/<旧键>.json}）
- *       在目标文件不存在时按 {@link WorldIdentity#legacyServerFileKey()} 找到后<b>复制</b>过来
- *       （只复制不移动，旧版本仍可回滚读取），做法与 {@code MiningPointStore#migrateLegacyFile} 相同。</li>
+ *       {@code config/yiyiaddon/villager/bindings/}；旧项目目录（{@code config/yiyiaddon/cunmin}）
+ *       <b>不再读取</b>，从旧版本升级需重新绑定。</li>
  *   <li><b>读盘时机</b>：旧项目只在类加载时读一次当前服务器的文件，会话中切换服务器不会重读
  *       （旧实现的缺陷）；新项目改为「每次访问前核对当前服务器键，变了就重读」
  *       （{@link MiningPointStore} 的 {@code reload()} 口径）。</li>
@@ -51,10 +49,6 @@ public final class VillagerBindingStore {
     /** 新数据目录：{@code config/yiyiaddon/villager/bindings} */
     private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir()
         .resolve("yiyiaddon").resolve("villager").resolve("bindings");
-
-    /** 旧数据目录：{@code config/yiyiaddon/cunmin}，仅迁移时读取 */
-    private static final Path LEGACY_DIR = FabricLoader.getInstance().getConfigDir()
-        .resolve("yiyiaddon").resolve("cunmin");
 
     /** 当前服务器的绑定（键名 → 记录）；旧项目 DATA_STORE 的等价物 */
     private static final Map<String, VillagerBinding> BINDINGS = new LinkedHashMap<>();
@@ -83,7 +77,6 @@ public final class VillagerBindingStore {
         BINDINGS.clear();
         loadedServer = WorldIdentity.fileSafeServer();
         Path file = dataFile();
-        migrateLegacyFile(file);
         JsonObject json = JsonFileStore.readJson(file);
         if (json == null) return;
         readEntry(json, KEY_EMERALD_CHEST);
@@ -143,21 +136,6 @@ public final class VillagerBindingStore {
             json.add(key, entry);
         }
         return JsonFileStore.writeAtomic(dataFile(), json);
-    }
-
-    /** 旧文件迁移：目标不存在时，按旧键名找旧目录文件复制过来（只复制不移动）。 */
-    private static void migrateLegacyFile(Path target) {
-        if (Files.exists(target)) return;
-        String legacyKey = WorldIdentity.legacyServerFileKey();
-        if (legacyKey == null) return;
-        Path legacy = LEGACY_DIR.resolve(legacyKey + ".json");
-        if (!Files.isRegularFile(legacy)) return;
-        try {
-            Files.createDirectories(target.getParent());
-            Files.copy(legacy, target);
-        } catch (Exception ignored) {
-            // 迁移失败保留旧文件，不破坏现有数据
-        }
     }
 
     private static Path dataFile() {
