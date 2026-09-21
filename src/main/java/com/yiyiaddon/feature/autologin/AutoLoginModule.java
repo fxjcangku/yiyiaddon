@@ -25,6 +25,7 @@ import com.yiyiaddon.feature.autologin.service.ServerTextKit;
 import com.yiyiaddon.feature.autologin.service.SubserverRouteService;
 import com.yiyiaddon.feature.autologin.ui.AutoLoginPage;
 import com.yiyiaddon.platform.container.SilentContainer;
+import com.yiyiaddon.service.reconnect.ReconnectSuppression;
 import com.yiyiaddon.ui.page.ModulePage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
@@ -49,8 +50,10 @@ import java.util.Set;
  *   任意状态 →（断线）→ RECONNECT_WAIT → IDLE
  * </pre>
  *
- * <p><b>只允许在离线验证服务器使用</b>：正版验证服在登录握手阶段启用连接加密，检测到加密连接后
- * 立即关闭模块（旧口径：玩家账号是否正版不参与判定，正版账号进离线验证服仍可正常自动登录）。</p>
+ * <p><b>正版验证服可以开启</b>（2026-09-21 改口径）：正版服没有密码流程，检测到加密连接时
+ * 跳过注册 / 登录，直接按「认证已完成」收尾（进服指令与回服路线照常）；旧口径的「检测到
+ * 加密连接立即关闭模块」不再执行。玩家账号是否正版不参与判定，正版账号进离线验证服
+ * 仍走完整认证流程。</p>
  *
  * <p><b>分层</b>（第 48 条八类）：本类是<b>功能入口与流程控制</b>——
  * 主状态机 8 态、进服 / 断线 / 界面 / 文本四类事件分派、每刻编排、播报、界面接线；
@@ -799,6 +802,27 @@ public final class AutoLoginModule extends Module {
     private void handleDisconnect() {
         if (state == AutoLoginState.RECONNECT_WAIT && reconnectHandler.isScheduled()) return;
 
+        // 主动断线（管理员检测的「立即断线」）：保命动作不允许被重连撤销 —— 抑制窗口内既不调度
+        // 重连，也不走乐源路线异常恢复（恢复同样会把人连回去）。会话与两条路线照常清场
+        // （断线清场是任何断线都要做的，漏了会留过期会话状态）；下次手动进服从头走认证流程。
+        // 判据与独立「自动重连」模块的 {@code handleDisconnect} 同源（{@link ReconnectSuppression}）。
+        if (ReconnectSuppression.suppressed()) {
+            waitingForReconnectStability = false;
+            reconnectStableTicks = 0;
+            resetSessionFlags();
+            sessionNetworkHandler = null;
+            physicalServerAddress = null;
+            authFlowCompleted = false;
+            allowActiveAuthPrompt = true;
+            announcedSubserverHandler = null;
+            pendingSubserverScanTicks = 0;
+            leyuanRoute.stop();
+            subserverRoute.reset();
+            notify("本次断开是主动断线（管理员检测），不自动重连。");
+            transitionTo(AutoLoginState.IDLE);
+            return;
+        }
+
         boolean recoveringLeyuan = leyuanRoute.beginRecovery();
         if (!recoveringLeyuan) {
             // 自用路线已完成/空闲时被踢出（如 out_of_order_chat），重连回登入服后需重新从头回服
@@ -853,8 +877,16 @@ public final class AutoLoginModule extends Module {
         state = next;
     }
 
-    /** 旧 {@code beginPostLoadFlow}：免登录检测优先，其次认证流程，都没有就直接收尾 */
+    /** 旧 {@code beginPostLoadFlow}：正版服跳过认证，免登录检测优先，其次认证流程，都没有就直接收尾 */
     private void beginPostLoadFlow() {
+        // 正版验证服（2026-09-21 改口径：允许开启）：会话在握手阶段已由 Mojang 验证完毕，
+        // 没有注册 / 登录 / GUI 密码流程 —— 跳过认证监听，直接按「认证已完成」收尾；
+        // 进服指令、回服路线与断线重连照常工作。
+        if (isAuthenticatedServer()) {
+            notify("已识别正版验证服务器，跳过登录流程。");
+            proceedAfterAuth();
+            return;
+        }
         if (settings.noLoginDetection) {
             settings.autoLogin = false;
             persistSettings();
@@ -919,15 +951,18 @@ public final class AutoLoginModule extends Module {
     }
 
     /**
-     * 旧 {@code closeForUnsupportedEnvironment}：单人世界与正版验证服都不需要自动登录。
+     * 旧 {@code closeForUnsupportedEnvironment}：单人世界不需要自动登录。
+     *
+     * <p><b>正版验证服不再关闭模块</b>（2026-09-21 改口径）：正版服允许开启，只是没有密码流程 ——
+     * {@link #beginPostLoadFlow()} 检测到加密连接时直接按「认证已完成」收尾。</p>
      *
      * <p>返回 {@code true} 表示「应关闭」，由调用方执行关闭：{@link #onEnable()} 里延到下一帧
      * （避免状态机重入），事件与每刻路径里同步关闭。</p>
      */
     private boolean closeForUnsupportedEnvironment() {
         if (!isEnabled()) return false;
-        if (!mc.hasSingleplayerServer() && !isAuthenticatedServer()) return false;
-        notify("§c§l单人世界或正版验证服务器无需自动登录，模块已自动关闭。");
+        if (!mc.hasSingleplayerServer()) return false;
+        notify("§c§l单人世界无需自动登录，模块已自动关闭。");
         return true;
     }
 
@@ -936,6 +971,9 @@ public final class AutoLoginModule extends Module {
      *
      * <p>正版验证服在登录握手阶段启用连接加密，离线服不会启用。不能比较会话 UUID 与世界 UUID：
      * 代理转发 UUID 的离线服也可能保持两者一致（旧实现注释照旧）。</p>
+     *
+     * <p>旧口径用它关闭模块；现口径（2026-09-21）改为在 {@link #beginPostLoadFlow()} 里跳过
+     * 密码流程 —— 正版服的会话已由 Mojang 验证，无需本模块再登。</p>
      */
     private boolean isAuthenticatedServer() {
         if (mc.player == null || mc.level == null || mc.getConnection() == null) return false;
