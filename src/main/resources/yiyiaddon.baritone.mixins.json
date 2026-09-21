@@ -6,7 +6,6 @@
   "client": [
     "BaritoneCommandLongDescMixin",
     "BaritoneCommandNamesMixin",
-    "BaritoneExecutorDaemonMixin",
     "BaritoneHelpCommandMixin",
     "BaritoneHelperTranslationMixin",
     "BaritonePaginatorMixin",
