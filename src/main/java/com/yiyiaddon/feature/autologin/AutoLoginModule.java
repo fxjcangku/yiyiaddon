@@ -178,7 +178,7 @@ public final class AutoLoginModule extends Module {
     private boolean waitingForReconnectStability;
 
     public AutoLoginModule() {
-        super(MODULE_ID, MESSAGE_MODULE, "automation", AutoLoginTexts.DESCRIPTION);
+        super(MODULE_ID, MESSAGE_MODULE, "utility", AutoLoginTexts.DESCRIPTION);
 
         reconnectHandler = new ReconnectHandler(mc, settings, this::onReconnectStart);
         registerHandler = new RegisterHandler(mc, settings, this::onRegisterComplete);
@@ -235,7 +235,7 @@ public final class AutoLoginModule extends Module {
         return ICON;
     }
 
-    /** 分类内排序：自动化分类的最后一位（登录 / 会话类排在挂机功能之后） */
+    /** 分类内排序：工具分类最后一位（管理员检测 → 自动重生 → 自动重连 → 传送 → 自动登入） */
     @Override
     public int order() {
         return 80;

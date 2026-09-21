@@ -28,6 +28,9 @@ import net.minecraft.client.Minecraft;
  *       {@code EnchantPointType#node()}，其中并没有「装备箱」这个节点，照抄会让玩家照着打却报错。
  *       （正文里的「装备箱」「重设六个点位」等描述性措辞仍照抄原文 —— 前者的实现侧显示名同样是「装备箱」，
  *       后者指纯附魔模式的六个点位，均与实现一致。）</li>
+ *   <li>「首次配置」第 1 行与「换服、换维度与指令」整节：点位已改为<b>按服务器分文件</b>
+ *       （2026-09-21 用户定稿），旧原文「先执行 .fumo 清空 再重设六个点位」会教玩家做多余操作，
+ *       故改写为「换服直接设点、不必先清空」。</li>
  * </ol></p>
  */
 public final class EnchantPage extends CompactModulePage implements ModulePage {
@@ -40,7 +43,7 @@ public final class EnchantPage extends CompactModulePage implements ModulePage {
     /** 帮助页 8 个章节（旧 {@code buildHelpContent :773-847} 逐字；框线与 {@code [#]} 由 HelpPanelScreen 生成） */
     private static final HelpPanelScreen.HelpSection[] HELP_SECTIONS = {
         new HelpPanelScreen.HelpSection("首次配置",
-            "  §8├─ §f先在要使用的服务器和维度执行 §e.fumo 清空 §7(清空旧点位)",
+            "  §8├─ §f点位按服务器和维度分别记录，换服 / 换维度直接设点，不必先清空",
             "  §8├─ §f准星对准对应方块，到控制台「点位」页点卡片「设置」按钮依次绑定：",
             "  §8│    §7书 / 青晶石 / 成品箱 / 附魔台 / 砂轮",
             "  §8│    §7原版装备模式：装备箱 / 青晶石 / 附魔台 / 砂轮 / 铁砧 / 铁砧箱 / 成品箱",
@@ -94,10 +97,10 @@ public final class EnchantPage extends CompactModulePage implements ModulePage {
             "  §7· 不含经验修补、冰霜行者、灵魂疾行、迅捷潜行和诅咒"
         ),
         new HelpPanelScreen.HelpSection("换服、换维度与指令",
-            "  §d▸ §f一套点位只能用于设置它时所在的服务器和维度",
-            "  §d▸ §f去其他服务器/维度时旧点位不会运行，也不会乱跑",
-            "  §d▸ §f新地点使用：先 §e.fumo 清空§f，再重设六个点位",
-            "  §d▸ §f回原服务器/维度时旧点位可直接使用，不必重设"
+            "  §d▸ §f每个服务器 / 存档各存一套点位，互不覆盖",
+            "  §d▸ §f去其他服务器时旧点位不会运行，也不会乱跑，直接设新点位即可",
+            "  §d▸ §f同一套点位只用于设置它时所在的维度，换维度不生效，先切回该维度使用",
+            "  §d▸ §f回原服务器 / 维度时旧点位可直接使用，不必重设"
         ),
         new HelpPanelScreen.HelpSection("注意",
             "  §c⚠ §f单人世界与服务器均可使用",

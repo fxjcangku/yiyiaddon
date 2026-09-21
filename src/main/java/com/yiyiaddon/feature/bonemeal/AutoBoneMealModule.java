@@ -134,7 +134,7 @@ public final class AutoBoneMealModule extends Module implements TacticalCoordina
         return ICON;
     }
 
-    /** 分类内排序：自动化分类第三位（自动重生 → 自动农场 → 自动骨粉 → 自动挖矿 → …） */
+    /** 分类内排序：自动化分类第三位（自动农场 → 自动箱子 → 自动骨粉 → 自动挖矿 → …） */
     @Override
     public int order() {
         return 30;

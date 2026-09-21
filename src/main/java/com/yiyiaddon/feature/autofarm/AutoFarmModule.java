@@ -30,6 +30,7 @@ import com.yiyiaddon.feature.autofarm.task.HarvestTask;
 import com.yiyiaddon.feature.autofarm.task.PlantTask;
 import com.yiyiaddon.platform.container.SilentContainer;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
+import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.service.container.ContainerService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -43,6 +44,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -58,7 +60,8 @@ import java.util.function.Predicate;
  * <p><b>结构照旧项目</b>：状态只写不读，真实行为由 {@link FarmController} 的当前任务对象决定；
  * 本类只做事件订阅、运行配置同步与锚点管理（旧 {@code onTick :441-464} 顺序原样）。
  * 六条锚点沿用旧项目隐藏设置的键名（{@code _anchor_start} 等）直接持久化，
- * 不再落隐藏设置项（差异 D-13-02）。</p>
+ * 不再落隐藏设置项（差异 D-13-02）；锚点随设置一起<b>按服务器 / 单人存档隔离</b>
+ * （用户 2026-09-21：换服不再覆盖上一台服务器的农田范围，见 {@link #settingsScope()}）。</p>
  */
 public final class AutoFarmModule extends Module {
 
@@ -92,6 +95,12 @@ public final class AutoFarmModule extends Module {
 
     /** 六锚点原始串：键 = 旧隐藏设置键名，值 = {@code x,y,z,维度} 或空串（未绑定） */
     private final Map<SiteType, String> rawSites = new HashMap<>();
+
+    /**
+     * 最近一次装载设置时所处的隔离作用域（{@code WorldIdentity.fileSafeServer()}）；
+     * 装配期（主菜单）读到全局模板时为 {@code null}，换服判据见 {@link #refreshScopedSettings()}。
+     */
+    private String loadedSettingsScope;
 
     /** 物流状态播报去重锁（旧 {@code lastNotifiedState}） */
     private String lastNotifiedState = "";
@@ -141,7 +150,7 @@ public final class AutoFarmModule extends Module {
         return siteSelector;
     }
 
-    /** 分类内排序：自动化分类第二位（自动重生 → 自动农场 → 自动骨粉 → 自动挖矿 → …） */
+    /** 分类内排序：自动化分类第一位（自动农场 → 自动箱子 → 自动骨粉 → 自动挖矿 → …） */
     @Override
     public int order() {
         return 20;
@@ -184,6 +193,38 @@ public final class AutoFarmModule extends Module {
             JsonElement e = json.get(anchorKey(type));
             rawSites.put(type, e != null && e.isJsonPrimitive() ? e.getAsString() : FarmSite.UNBOUND);
         }
+        // 记下这一份是从哪个作用域读来的：换服判据用它比对（见 refreshScopedSettings）
+        loadedSettingsScope = settingsScope();
+    }
+
+    /**
+     * 设置隔离键：进世界后取当前服务器 / 单人存档，未进世界返回 {@code null}（按全局模板处理）。
+     *
+     * <p><b>为什么需要隔离</b>（用户 2026-09-21 报的「换服把锚点覆盖了」）：六个锚点与全部设置项原本
+     * 全局共用一份 —— 在 B 服重设农田范围，A 服绑好的锚点就跟着变（两服维度相同时旧的 A 服锚点还会被
+     * 当成有效锚点，发包打到另一服的坐标上）。现在一个服务器（单人则是一个存档）一套配置，切服自动切换，
+     * 与自动挖矿、自动附魔点位同一口径。</p>
+     *
+     * <p><b>未进世界必须返回 null</b>：主菜单也能打开模块中心改设置，那时没有服务器身份，
+     * 随便造一个键会把编辑内容写到一个并不存在的世界上。返回 null 时读写都落在全局模板上，
+     * 而全局模板同时是「新服务器 / 新存档的初始值」（见 {@code ModuleStateConfig}）。</p>
+     */
+    @Override
+    public String settingsScope() {
+        if (mc.level == null || mc.player == null) return null;
+        return WorldIdentity.fileSafeServer();
+    }
+
+    /**
+     * 换服 / 首次进世界时按当前服务器重读设置（锚点在设置里，跟着一起换）。
+     *
+     * <p>调用点与自动挖矿一致：启动自检、模块启用、打开配置页、{@code .farm} 指令入口；
+     * 读盘动作由运行时承担（{@link ModuleManager#reloadScopedSettings}），本方法只判「作用域变没变」，
+     * 没变就直接返回，可以放心挂在自检这类会反复调用的路径上。</p>
+     */
+    public void refreshScopedSettings() {
+        if (Objects.equals(settingsScope(), loadedSettingsScope)) return;
+        ModuleManager.reloadScopedSettings(this);
     }
 
     @Override
@@ -233,6 +274,8 @@ public final class AutoFarmModule extends Module {
     @Override
     public List<String> selfCheck() {
         if (mc.player == null || mc.level == null) return List.of();
+        // 自检读的锚点与作物都在设置里：换服 / 换存档后必须先换成这台服务器的那一套，否则拿旧服配置下结论
+        refreshScopedSettings();
         return selfChecker.check(getEnabledCrops(), getSitesMap());
     }
 
@@ -245,6 +288,9 @@ public final class AutoFarmModule extends Module {
             mc.execute(() -> ModuleManager.setEnabled(MODULE_ID, false));
             return;
         }
+
+        // 装载本服的锚点与设置（先于下面所有读设置的分支）
+        refreshScopedSettings();
 
         // 清理历史脏数据，确保四个作物选择器只保留本分类方块
         sanitizeCropSelectors();

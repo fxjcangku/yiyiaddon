@@ -76,6 +76,7 @@ public final class TeleportPage extends CompactModulePage implements ModulePage 
     public BasePage createPage(ModuleEntry entry) {
         if (!built) {
             built = true;
+            module.refreshScopedSettings();
             build();
         }
         return this;
@@ -108,6 +109,8 @@ public final class TeleportPage extends CompactModulePage implements ModulePage 
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
+        // 控制台显示的是本服的坐标与阈值：打开前按当前服务器重读一次（页面构建只走一次，这里每次都过）
+        module.refreshScopedSettings();
         client.setScreen(new TeleportConsoleScreen(client.screen, module));
     }
 }

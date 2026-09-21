@@ -72,7 +72,7 @@ public final class WaterESPModule extends Module {
     private final Minecraft mc = Minecraft.getInstance();
 
     public WaterESPModule() {
-        super(MODULE_ID, MESSAGE_MODULE, "utility",
+        super(MODULE_ID, MESSAGE_MODULE, "visuals",
             "已放水渲染蓝色 9×9 灌溉范围，在已有水源旁显示红色建议框提示可放水位置。");
     }
 
@@ -86,7 +86,7 @@ public final class WaterESPModule extends Module {
         return ICON;
     }
 
-    /** 分类内排序：工具分类最后一位（管理员检测 → 服务器检测 → 自动重连 → 传送 → 水源显示） */
+    /** 分类内排序：视觉分类第二位（透视 → 水源显示） */
     @Override
     public int order() {
         return 50;

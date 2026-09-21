@@ -60,6 +60,8 @@ public final class AutoFarmPage extends CompactModulePage implements ModulePage 
     public BasePage createPage(ModuleEntry entry) {
         if (!built) {
             built = true;
+            // 页面要显示磁盘上本服的锚点与设置：换服后先重读，再构建（与自动挖矿 reloadStore 同一时机）
+            module.refreshScopedSettings();
             build();
         }
         return this;
@@ -127,6 +129,8 @@ public final class AutoFarmPage extends CompactModulePage implements ModulePage 
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
+        // 控制台「点位」页读的是锚点，打开前按当前服务器重读一次（页面构建只走一次，这里每次都过）
+        module.refreshScopedSettings();
         client.setScreen(new AutoFarmConsoleScreen(client.screen, module));
     }
 }

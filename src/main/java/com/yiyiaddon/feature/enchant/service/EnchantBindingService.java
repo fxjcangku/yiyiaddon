@@ -57,6 +57,8 @@ public final class EnchantBindingService {
     public boolean bind(EnchantPointType type) {
         if (type == null) return false;
         EnchantPointStore store = module.pointStore();
+        // 点位按服务器分文件：先确保内存里装的是本服的（后面的模式门禁、覆盖保护、归属判定都读它）
+        store.ensureCurrentServer();
 
         // 模式门禁：当前目标模式不需要的点位禁止绑定，避免三模式点位混用（旧 :88-92）
         if (!EnchantPointType.requiredFor(module.settings().targetMode).contains(type)) {
@@ -120,6 +122,8 @@ public final class EnchantBindingService {
     public boolean remove(EnchantPointType type) {
         if (type == null) return false;
         EnchantPointStore store = module.pointStore();
+        // 同绑定：先按当前服务器装载，删的必须是本服的点位
+        store.ensureCurrentServer();
 
         EnchantPoint existing = store.get(type);
         store.unbind(type);
@@ -146,6 +150,8 @@ public final class EnchantBindingService {
      * {@code AutoEnchantBook.clearPoints:1701-1716} 清的就是这 14 项）。
      */
     public void clear() {
+        // 只清本服（点位按服务器分文件，换服后清空不会动到另一台服务器的点位）
+        module.pointStore().ensureCurrentServer();
         module.pointStore().clearAll();
         CommandMessageFormatter.of(MODULE_NAME, "已清空全部点位")
             .world()

@@ -165,7 +165,7 @@ public final class ServerDetectorModule extends Module {
     };
 
     public ServerDetectorModule() {
-        super(MODULE_ID, MESSAGE_MODULE, "utility",
+        super(MODULE_ID, MESSAGE_MODULE, "assist",
             "多层指纹识别核心与反作弊，自动白嫖资源包。");
     }
 
@@ -182,7 +182,7 @@ public final class ServerDetectorModule extends Module {
         return ICON;
     }
 
-    /** 分类内排序：工具分类第二位（管理员检测 → 服务器检测 → 自动重连 → 传送 → 水源显示） */
+    /** 分类内排序：辅助分类最后一位（ID识别 → ID配置 → 服务器检测） */
     @Override
     public int order() {
         return 20;

@@ -46,8 +46,16 @@ public final class AddonConfig {
     public static String commandPrefix = ".";
 
     // —— 模块中心 ——
-    /** 收藏（顶部「常用」区）的模块 id，以 {@code ;} 分隔；由模块中心的右键收藏读写。 */
+    /** 收藏（顶部「常用」区与首页「常用模块」）的模块 id，以 {@code ;} 分隔；由模块行的星标按钮读写。 */
     public static String favoriteModules = "";
+    /**
+     * 模块中心分类的自定义顺序：分类 id 以 {@code ;} 分隔；空 = 按注册表权重。
+     *
+     * <p>由分类头上的「上移 / 下移」按钮写入（用户 2026-09-21 要求分类顺序自己调）。
+     * 只影响<b>模块中心的显示顺序</b>：注册表权重仍是默认顺序，文件里没记到的分类按权重补在后面，
+     * 因此版本更新新增分类时不会丢、也不会打乱玩家已经排好的顺序。</p>
+     */
+    public static String moduleCategoryOrder = "";
 
     private static boolean loaded;
 
@@ -79,6 +87,7 @@ public final class AddonConfig {
             baritoneChinese = bool(json, "baritoneChinese", baritoneChinese);
             commandPrefix = string(json, "commandPrefix", commandPrefix);
             favoriteModules = string(json, "favoriteModules", favoriteModules);
+            moduleCategoryOrder = string(json, "moduleCategoryOrder", moduleCategoryOrder);
         } catch (Exception ignored) {
             // 配置文件损坏：保持默认值，不阻断启动。
         }
@@ -97,6 +106,7 @@ public final class AddonConfig {
         json.addProperty("baritoneChinese", baritoneChinese);
         json.addProperty("commandPrefix", commandPrefix);
         json.addProperty("favoriteModules", favoriteModules);
+        json.addProperty("moduleCategoryOrder", moduleCategoryOrder);
         try {
             Path file = path();
             Files.createDirectories(file.getParent());
