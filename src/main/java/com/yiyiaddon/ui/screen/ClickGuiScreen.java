@@ -583,12 +583,16 @@ public class ClickGuiScreen extends SkiaScreen {
                     scroll.drawScrollbar(canvas, contentX + contentW - TRACK_INSET, contentY + TRACK_TOP,
                             contentH - TRACK_TOP - TRACK_BOTTOM_PAD, alpha, tc);
                 }
-                // 浮层画在内容裁剪之外：说明文字不会被动滚动截断（视口按设计空间尺寸反推，与 PanelScreen 一致）
-                TooltipLayer.draw(canvas, frame.cardX() * 2f + frame.cardWidth(),
-                        frame.cardY() * 2f + frame.cardHeight(), alpha);
             } finally {
                 canvas.restore();
             }
+            // 浮层画在窗口裁剪之外、面板变换之内（视口按设计空间尺寸反推，与 PanelScreen / ModuleScreen 同源）。
+            //
+            // 这一句必须留在 clipRRect 的 finally 之后：顶部弹窗固定落在卡片矩形<b>上方</b>（NOTICE_TOP 是
+            // 视口顶边距离，卡片顶边在它下面一百多设计单位），留在裁剪里等于整条弹窗被裁光 ——
+            // 表现就是「主界面点什么都没提示，模块页里却正常」。用户 2026-09-21 实机截图定位到此。
+            TooltipLayer.draw(canvas, frame.cardX() * 2f + frame.cardWidth(),
+                    frame.cardY() * 2f + frame.cardHeight(), alpha);
         } finally {
             canvas.restore();
         }
