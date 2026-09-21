@@ -227,9 +227,10 @@ public final class HomePage extends BasePage {
         return ACCOUNT_H + GRID_TOP_GAP + 2f * CELL_ROW_H + CELL_GAP + CARD_PAD;
     }
 
-    /** 「常用模块」卡高度：标题 + 收藏行（至少一行，用于空态提示） */
+    /** 「常用模块」卡高度：标题 + 收藏行（至少一行，用于空态提示）+ 超出上限时的一行汇总 */
     private float favoriteCardH() {
         return CARD_HEADER_H + Math.max(1, Math.min(favorites.size(), FAVORITE_MAX)) * FAVORITE_ROW_H
+                + (favorites.size() > FAVORITE_MAX ? LINK_ROW_H : 0f)
                 + CARD_FOOT_PAD;
     }
 
@@ -632,6 +633,20 @@ public final class HomePage extends BasePage {
                 TooltipLayer.show(entry.displayName() + "\n§7" + entry.description(), mouseX, mouseY);
             }
         }
+
+        // 超出的收藏：补一行汇总指路。**不能静默截断** —— 首页只画前 FAVORITE_MAX 个，
+        // 第 7 个起原来既不显示也没有任何提示，而模块中心的「常用」分组是全部
+        // （用户 2026-09-21 自查：「我怕有一些提示丢失」）。行位置复用「需要处理」底部链接行那套算式。
+        if (favorites.size() > FAVORITE_MAX) {
+            int more = favorites.size() - FAVORITE_MAX;
+            float moreY = y + favoriteCardH() - CARD_FOOT_PAD - LINK_ROW_H;
+            boolean moreHover = hovered(mouseX, mouseY, x, moreY, w, LINK_ROW_H);
+            int moreC = GlassPanel.withAlpha(GlassPanel.mix(tc.accent, tc.primaryText, moreHover ? 1f : 0f), alpha);
+            FontRenderer.drawTextBold(canvas,
+                    UiText.t("还有 " + more + " 个收藏 · 打开模块中心",
+                            more + " more pinned · Open Module Center"),
+                    x + CARD_PAD, CardLayout.baseline(moreY + LINK_ROW_H / 2f, 11f), 11f, moreC);
+        }
     }
 
     /**
@@ -853,6 +868,12 @@ public final class HomePage extends BasePage {
                 SettingToggle toggle = toggles.get(favorites.get(i).id());
                 if (toggle == null) return false;
                 toggle.toggle();
+                return true;
+            }
+            // ④ 超出上限的汇总行：切到模块中心（那里「常用」分组列出全部收藏），与绘制用同一套算式
+            if (favorites.size() > FAVORITE_MAX
+                    && my >= favY + favoriteCardH() - CARD_FOOT_PAD - LINK_ROW_H) {
+                openModuleCenter();
                 return true;
             }
         }

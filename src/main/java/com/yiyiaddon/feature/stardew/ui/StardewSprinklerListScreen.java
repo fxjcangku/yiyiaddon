@@ -99,8 +99,12 @@ public final class StardewSprinklerListScreen extends PanelScreen {
         if (minecraft == null) return;
         // 原地版确认窗：确认后回控制台，而不是把整个界面关掉回游戏
         // —— 用户 2026-09-22：「二次确认之后就直接关闭 ui 了，不应该到模块设置页面吗」
+        // 数量先摆出来：原来是「执行后」才在回执卡片里报，而卡片在这个面板里根本看不见
+        // （用户 2026-09-21：「按确认之前不知道要删几个」）。口径同 ID 配置的清空确认窗
+        // —— 第一行就是 §c§l「将删除 N 个」，这里取的是本服全部洒水器，与 clearSprinklerPoints 清掉的完全一致
+        int bound = module.sprinklerPoints().size();
         minecraft.setScreen(ConfirmPanelScreen.inPlace("清空全部洒水器",
-            List.of("§f将删除当前服务器已绑定的全部洒水器点位",
+            List.of("§c§l将删除本服已绑定的 " + bound + " 个洒水器点位",
                 "§7种子箱 / 成品箱 / 补水点 / 种植区域不受影响",
                 "",
                 "§c此操作不可恢复。"),

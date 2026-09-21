@@ -828,6 +828,21 @@ public final class StardewFarmModule extends Module {
         return pointManager.getAll(StardewPointType.SPRINKLER);
     }
 
+    /**
+     * 当前服务器已绑定的点位总数（各类型、各维度合计）。
+     *
+     * <p><b>只给「清空全部点位」的二次确认窗用</b>：在那之前玩家看不到要删多少个，
+     * 数量只在执行后那张回执卡片里出现，而卡片在控制台里又看不见（用户 2026-09-21）。
+     * 口径与 {@code StardewPointActions#clearAllPoints} 的求和完全一致 —— 那方法内部也是
+     * 「逐类型 {@code count} 相加」，此处不另立第二份算式。</p>
+     */
+    public int boundPointCount() {
+        pointManager.load(StardewContext.serverKey());
+        int total = 0;
+        for (StardewPointType type : StardewPointType.values()) total += pointManager.count(type);
+        return total;
+    }
+
     /** 删除一个洒水器点位（列表逐条删除） */
     public boolean removeSprinklerPoint(StardewPointManager.StardewPoint point) {
         return pointActions.removeSprinklerPoint(point);

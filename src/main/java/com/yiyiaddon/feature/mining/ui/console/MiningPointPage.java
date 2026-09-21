@@ -199,8 +199,10 @@ public final class MiningPointPage {
     /** 清空全部点位：二次确认（确认动作与 {@code .wk 清空} 同源，正文按本模块当前模式的点位写） */
     private void openClearConfirm() {
         if (owner.client() == null) return;
+        // 数量先摆出来：执行后的回执在聊天栏，而这里点完留在控制台，等于删之前判断不了范围。
+        // 取 store.size()，与 clearAllBindings 内部的「无绑定时提前返回」同一个数
         owner.client().setScreen(new ConfirmPanelScreen("清空全部点位",
-            List.of("§f将删除当前服务器已绑定的全部点位",
+            List.of("§c§l将删除本服已绑定的 " + module.pointStore().size() + " 个点位",
                 module.isPersonalMode() ? "§7食物箱" : "§7矿物箱 · 食物箱 · 挂机修复点",
                 "",
                 "§c此操作不可恢复。"),
