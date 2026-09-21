@@ -34,8 +34,10 @@ public final class RegisterService {
                 HttpApi.Response response = HttpApi.post("/api/register", ReportPayload.register(), TIMEOUT);
                 JsonObject root = response.json();
                 if (!response.ok() || root == null) return;
+                // is_premium 是后端按 Mojang 档案核验的正版结论（后台面板同一口径）；拿不到（老后端）时为 -1，按未核验处理
                 HomeStats.acceptRegister(Json.integer(root, "rank", -1),
-                        Json.integer(root, "total_users", -1));
+                        Json.integer(root, "total_users", -1),
+                        Json.integer(root, "is_premium", -1) == 1);
             } catch (Exception ignored) {
                 // 注册失败只影响首页排名展示，不打扰玩家
             }

@@ -62,6 +62,21 @@ public final class HomeStats {
     private static volatile String proxyType;
     private static volatile boolean networkReachable;
 
+    /**
+     * 后端已确认<b>本会话是正版</b>（只升不降，断线后复位）。
+     *
+     * <p><b>为什么要听后端的</b>（用户 2026-09-21：「我明明正版号给我判成离线了 好多个号都这样」）：
+     * 客户端本地只能看会话特征，而线上库里这些号的 {@code xuid} 全是 NULL ——
+     * 只看 XUID 必然把正版判成离线。后端 {@code /api/register} 会用
+     * {@code resolvePremium} 按名字查 Mojang 官方档案（含镜像回退）并把结论放在 {@code is_premium}
+     * 里回带，这正是后台面板显示的口径，首页跟着它走，两处才不会一个说正版、一个说离线。</p>
+     *
+     * <p><b>只升不降</b>：后端在 Mojang 暂时不可达时也会保留既有结论、绝不把已确认正版降级
+     * （见 {@code worker.js} 的 {@code resolvePremium} 注释），这里同样只在为真时置位 ——
+     * 一次查询失败不该把界面上的「正版」打回「离线」。</p>
+     */
+    private static volatile boolean premiumVerified;
+
     private HomeStats() {
     }
 
@@ -71,10 +86,15 @@ public final class HomeStats {
         BackgroundTasks.schedule("yiyiaddon-home-stats", INTERVAL_SECONDS, TimeUnit.SECONDS, HomeStats::refresh);
     }
 
-    /** 注册结果回填：排名与累计用户数只有注册接口才下发。 */
-    public static void acceptRegister(int rankValue, int totalUsersValue) {
+    /**
+     * 注册结果回填：排名、累计用户数与后端核验的正版结论只有注册接口才下发。
+     *
+     * @param premiumVerifiedValue 后端 {@code is_premium == 1}；只有为真才置位（见 {@link #premiumVerified}）
+     */
+    public static void acceptRegister(int rankValue, int totalUsersValue, boolean premiumVerifiedValue) {
         if (rankValue > 0) rank = rankValue;
         if (totalUsersValue > 0) totalUsers = totalUsersValue;
+        if (premiumVerifiedValue) premiumVerified = true;
     }
 
     /**
@@ -96,6 +116,7 @@ public final class HomeStats {
     /** 本轮排名失效：断开连接后重新注册会拿到新排名。 */
     public static void resetRank() {
         rank = -1;
+        premiumVerified = false;
     }
 
     /** 最近一次同步成功的时间；从未成功过返回 0。 */
@@ -147,9 +168,9 @@ public final class HomeStats {
         return onlineUsers;
     }
 
-    /** 账户身份：正版 / 离线。 */
+    /** 账户身份：正版 / 离线。后端核验为真即正版，否则回落到本地会话特征（见 {@link ClientIdentity#premium()}）。 */
     public static boolean premium() {
-        return ClientIdentity.premium();
+        return premiumVerified || ClientIdentity.premium();
     }
 
     /** 心跳通道是否正在供数：最近 {@link #HEARTBEAT_FRESH_MILLIS} 内送回过统计。 */
