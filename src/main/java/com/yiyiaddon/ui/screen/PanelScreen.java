@@ -310,6 +310,19 @@ public abstract class PanelScreen extends SkiaScreen {
                 frame.toScreenLength(frame.cardHeight()));
     }
 
+    /**
+     * 隐藏格子只能落在面板玻璃盖得住的范围内（口径见 {@link SkiaScreen#coverRegion()}）。
+     *
+     * <p><b>为什么必须有</b>（用户 2026-09-22：「物品选择器两旁出现了大图标」）：格子原来固定一排
+     * 12 格（428 逻辑像素）居中铺开，与面板宽度无关；而面板宽度随「界面大小」（默认 75%）与 GUI 缩放
+     * 变化 —— 1440p + GUI 缩放 4 下面板只有约 277 逻辑像素，一排铺不下，左右各两格放大图标直接露在
+     * 面板外。给出这个矩形后由 {@code ItemIconCache} 自己按可盖面积排版。</p>
+     */
+    @Override
+    protected float[] coverRegion() {
+        return frame.opaqueScreenRect(width, height, (1f - frame.animationAlpha()) * ENTER_RISE);
+    }
+
     @Override
     protected void drawFrame(int width, int height, int mouseX, int mouseY, float delta) {
         if (minecraft == null) return;

@@ -7,6 +7,8 @@ import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.PotDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewHarvestRule;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestAction;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestRecipe;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
 import com.yiyiaddon.feature.stardew.recognition.CropState;
@@ -15,6 +17,7 @@ import com.yiyiaddon.feature.stardew.recognition.PotState;
 import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
+import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
 import com.yiyiaddon.feature.stardew.service.StardewShelterProbe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -91,6 +94,44 @@ final class StardewTaskPlanner {
     private boolean isStickyCell(StardewFarmScanner.Cell cell) {
         StardewRegionManager.Region region = owner.regionAt(cell.potPos());
         return region != null && !region.mixed() && region.index() == owner.stickyRegionIndex;
+    }
+
+    /**
+     * 当前作业地块缺种子时，先把这一块要的种子取回来，<b>别急着去别的区域种</b>。
+     *
+     * <p><b>为什么要单开这一步</b>（用户 2026-09-22：「没完成一个区域的事情就跑到别的区域干活了，
+     * 比如当前区域还有菜没种完」）：空盆的决策顺序是「季节 → 浇水 → 种子 → 施肥」，本区作物没种子时
+     * {@link #resolveEmptyPot} 只报一句缺种子就跳过这一格；而补货（{@link #tryStartRestock}）
+     * 排在<b>所有区域的格子任务之后</b>，于是只要别的区域还有种子可种，模块就先去种别的区域，
+     * 本区那些空盆一直空着 —— 玩家看到的就是「这一块还没种完就跑别的地块去了」。
+     * 补种子本来就是「把当前地块做完」的一部分，所以把它提到其它区域的格子任务之前。</p>
+     *
+     * <p><b>只管当前作业地块、只管真能种进去的空盆</b>：季节被拦、盆上没温室玻璃、需要先浇水、
+     * 盆型没选中的格子都由 {@link #hasRestockDemand} 与 {@link #potMatchesSelection} 挡在外面，
+     * 不会为了种不进去的格子白跑一趟。</p>
+     *
+     * <p><b>不会卡死</b>：种子箱没绑定 / 不在本维度 / 不可达 / 里面没有这一种时，
+     * {@code restockBlockedUntil} 会让 {@link #hasRestockDemand} 这条很快失效，
+     * 下一轮照常去别的区域干活。</p>
+     *
+     * @return 是否已经派发「去当前地块对应的种子箱取种」
+     */
+    boolean startStickyRegionRestock() {
+        if (owner.stickyRegionIndex <= 0 || owner.inventory == null || owner.index == null) return false;
+        if (owner.logisticsCooldown > 0) return false;
+        StardewPointManager.StardewPoint seedBox = owner.points.get(StardewPointType.SEED_BOX);
+        if (seedBox == null || !seedBox.inCurrentDimension()) return false;
+        Set<String> tried = new HashSet<>();
+        for (StardewFarmScanner.Cell cell : owner.pending) {
+            if (cell.crop().state() != CropState.EMPTY || !isStickyCell(cell) || !potMatchesSelection(cell)) continue;
+            CropDefinition crop = cropOf(cell.potPos());
+            // 同一块地只问一次每种作物：本区是单一作物区，正常只会取到一种
+            if (crop == null || !tried.add(crop.cropKey())) continue;
+            if (owner.inventory.countSeed(crop) > 0) continue;
+            if (!hasRestockDemand(crop) || owner.logistics.restockBackedOff(crop)) continue;
+            return startLogisticsTask(TaskType.RESTOCK, seedBox, crop);
+        }
+        return false;
     }
 
     /** 派发成功时记下这块地：下一轮先把它做干净（混种区 / 未分区不改口径） */
@@ -376,7 +417,7 @@ final class StardewTaskPlanner {
         if (isRegionMismatchCell(cell)) return 0;
         CropState s = cell.crop().state();
         return switch (s) {
-            case GROWING -> needsSupply(cell) ? 0 : (shouldProbeLearning(cell) ? 1 : 90);
+            case GROWING -> needsSupply(cell) ? 0 : (shouldProbeLearning(cell) ? probeOrder(cell) : 90);
             case MATURE, SPECIAL -> 1;
             case DEAD -> 2;
             case EMPTY -> 3;
@@ -386,7 +427,10 @@ final class StardewTaskPlanner {
     }
 
     TaskType resolveTask(StardewFarmScanner.Cell cell) {
-        if (!potMatchesSelection(cell)) return null;
+        // 特殊变种（金色 / 巨型 / 变种）是「摆在地上的大结构」，不长在已选盆里：
+        // 拿盆型过滤会把它们整片跳过（实机：故意放在地上的巨型菠萝被 ESP 标出来，模块却从不动手）。
+        boolean specialCrop = cell.crop().state() == CropState.SPECIAL;
+        if (!specialCrop && !potMatchesSelection(cell)) return null;
         // 下界盆只在下界、末地盆只在末地：维度不对的盆一律不碰（种下去也不会长），只提示一次。
         // 普通盆不受此限——它在任何维度都能种。
         PotGroup group = cell.potGroup();
@@ -396,8 +440,14 @@ final class StardewTaskPlanner {
         }
         // 未分区格子一律不管（不种 / 不收 / 不浇 / 不画），也不参与任何报错
         if (owner.regionAt(cell.potPos()) == null) return null;
+        // 单份账：这一格的「左键破坏」是否还在服务端不放行的退避期里（见 StardewCoordinator#markBreakRejected）
+        boolean breakBackedOff = owner.isBreakRejected(cell.potPos().above());
         // 单一作物区错位：这一格归「清理错位」管（自动清理关着时不走这条，由停机路径等玩家手动清）
-        if (isRegionMismatchCell(cell)) return TaskType.CLEAR_MISMATCH;
+        if (isRegionMismatchCell(cell)) {
+            // 清理错位也是左键破坏：它同样会把这一格的东西掉在地上，两条「满了」的闸一并管住它；
+            // 挖不动的格子退避期内也不再派发（否则就是每十几秒空砸一轮，见 196 续的实机日志）
+            return !storageFullHalts() && !breakBackedOff ? TaskType.CLEAR_MISMATCH : null;
+        }
         // 没选中的作物：不收 / 不清理 / 不播种 / 不施肥 / 不学习。
         // 单一作物区里种了别的作物交给错位处置；混种区域与未分区格子上面已经各自分流过了。
         //
@@ -409,15 +459,21 @@ final class StardewTaskPlanner {
         if (!deadInRegion && cell.crop().cropKey() != null && !cropIsManaged(cell.potPos(), cell.crop().cropKey())) {
             return null;
         }
-        return switch (state) {
+        // 背包一个空格都没有 / 产物箱没空间：一切「会把东西拿到手里」的动作都停手 —— 右键采收、
+        // 特殊变种收割、以及清枯苗 / 清错位 / 清杂物这些左键破坏（破坏同样会把掉落物掉在地上）。
+        // 只拦这些：浇水 / 播种 / 施肥不产出新物品，照常执行。
+        // 播报与实际动作必须一致（实机：聊天栏播报「已暂停收菜」之后，模块仍在砸方块）。
+        if (harvestsOrBreaks(state, cell) && storageFullHalts()) return null;
+        TaskType resolved = switch (state) {
             // 普通成熟作物执行右键采摘；特殊变种必须等独立工具规则确认后再处理。
             case MATURE -> needsHarvestLearning(cell.crop().cropKey())
                 ? (canProbeHarvestLearning(cell) ? TaskType.LEARN_HARVEST : null)
                 : TaskType.HARVEST;
-            // 特殊变种（金色 / 巨型 / 变种）：本服口径是「手持原版金锄头右键」，收完回退植株，
-            // 因此与普通作物共用同一套 HARVEST 流程，只是执行层换成持工具右键。
-            // 背包里没有金锄头时绝不空手乱点（空手点特殊阶段收不掉，只会白跑一轮）。
-            case SPECIAL -> owner.executor.hasSpecialHarvestTool()
+            // 特殊变种（金色 / 巨型 / 变种）：动作与手持都按本服学到 / 预置的口径来 ——
+            // 老服是「手持原版金锄头右键」，本服（巨型菠萝）是「左键破坏、工具不限（空手也能挖）」，
+            // 还有的服是「左键破坏但必须手持某件专用道具」（用户 2026-09-22）。
+            // 口径要求的那件工具不在背包时只跳过这一格并提示（不停机、不影响收其他作物）。
+            case SPECIAL -> owner.executor.hasSpecialHarvestToolFor(cell.crop())
                 ? TaskType.HARVEST
                 : skipSpecialWithoutTool(cell.crop());
             case DEAD -> TaskType.CLEAR_DEAD;
@@ -427,6 +483,44 @@ final class StardewTaskPlanner {
             // 静默执行、不报警（它不是「种错了作物」，报警只会误导）。
             case UNKNOWN -> isJunkCell(cell) ? TaskType.CLEAR_JUNK : null;
         };
+        // 这一格刚被服务端驳回（挖不动，不是慢）：退避期内不再派发它的破坏动作，避免每十几秒
+        // 重来一轮「4 次发包 + 4 轮按住」（实机：同一格空砸了两分钟，方块纹丝不动）
+        if (breakBackedOff && breaksThisCell(resolved, cell)) return null;
+        return resolved;
+    }
+
+    /**
+     * 这一格的任务是不是「会把东西拿到手里」（采收 / 学习探测 / 左键破坏）。
+     *
+     * <p>判据只认这三类状态：成熟与特殊变种（右键采收 / 破坏收割）、枯死株（清枯苗）、
+     * 认不成的杂物（清杂物，前提是它确实是盆上的杂物）。浇水 / 播种 / 施肥 / 补水这些不产出
+     * 新物品的动作不在此列，背包满时照常执行。</p>
+     */
+    private boolean harvestsOrBreaks(CropState state, StardewFarmScanner.Cell cell) {
+        return switch (state) {
+            case MATURE, SPECIAL, DEAD -> true;
+            case UNKNOWN -> isJunkCell(cell);
+            default -> false;
+        };
+    }
+
+    /**
+     * 背包一个空格都没有：这条「满了」的闸（播报与去重都在 {@link #bagFullBlocksHarvest()} 里）。
+     *
+     * <p><b>为什么只剩背包这一条</b>：产物箱没有空间时模块**直接被关掉**（见
+     * {@code StardewCoordinator#stopForOutputBoxFull}），根本不会走到决策层 ——
+     * 用户在实机里明确要的就是这个（2026-09-22：「我说了 直接停机了 关闭模块懂？」）。</p>
+     */
+    boolean storageFullHalts() {
+        return bagFullBlocksHarvest();
+    }
+
+    /** 这一步的动作是不是「左键破坏作物本体那一格」（清枯苗 / 清错位 / 清杂物，或学到的左键收割口径） */
+    private boolean breaksThisCell(TaskType resolved, StardewFarmScanner.Cell cell) {
+        if (resolved == null) return false;
+        if (resolved.breaksPlant()) return true;
+        return resolved == TaskType.HARVEST && cell.crop().state() == CropState.SPECIAL
+            && owner.specialHarvestRecipe(cell.crop()).action() == StardewSpecialHarvestAction.BREAK;
     }
 
     private TaskType resolveGrowing(StardewFarmScanner.Cell cell) {
@@ -434,7 +528,11 @@ final class StardewTaskPlanner {
             TaskType refill = resolveRefill(cell);
             if (refill != null) return refill;
         }
-        if (shouldProbeLearning(cell)) return TaskType.LEARN_HARVEST;
+        // 学习试探是「对作物空手右键一次」—— 判据是我们以为它还没熟，但服务端只认它自己那套：
+        // 本服上这一下会把能收的作物真的收掉。它走的是「生长中」分支，而两条「满了」的闸只按
+        // 「成熟 / 特殊 / 枯死 / 盆上杂物」判定，于是背包塞满时它照样一路右键收菜（实机反馈：
+        // 明明播报了「已暂停收菜」，模块还在收）。因此这里与成熟采收同口径停手。
+        if (shouldProbeLearning(cell)) return storageFullHalts() ? null : TaskType.LEARN_HARVEST;
         return null;
     }
 
@@ -559,17 +657,51 @@ final class StardewTaskPlanner {
     }
 
     /**
-     * 特殊变种缺少金锄头时只提示一次（同一个具体阶段只报一次，绝不每轮刷屏）。
+     * 成熟阶段未知时的试探顺序：**阶段号越大越先试**（返回 1~9，越小越优先）。
      *
-     * <p>拿到金锄头后下一轮扫描自动恢复自动收割——这里只是「没工具就先不动它」的安全闸，
-     * 绝不回退成空手右键：空手点特殊阶段收不掉，还会白跑一趟。</p>
+     * <p><b>为什么要排序：</b>没有成熟规则时，模块会对每个见到的阶段各做一次空手右键试探，
+     * 看世界是否变化。而成熟阶段几乎总是号最大的那个（customcrops 系是 {@code stage_1..stage_N}，
+     * N 即成熟）—— 升序试探会先拿三个生长阶段白试三次，玩家连续收到几条「收获学习未确认」，
+     * 看着像模块坏了（实机：番茄 stage_1 / stage_2 / stage_3 各播一条未确认，试到 stage_4 才确认）。
+     * 降序后一次命中，最多再补一次。</p>
+     *
+     * <p>取值都落在 1~9：排在「需要补种（0）」之后、「无需学习（90）」之前，只调整同批试探的先后。</p>
+     */
+    private static int probeOrder(StardewFarmScanner.Cell cell) {
+        int stage = trailingNumber(cell.crop().stageName());
+        if (stage <= 0) return 5;
+        return 1 + Math.max(0, 32 - Math.min(32, stage));
+    }
+
+    /** 阶段名尾部的数字（{@code stage_4} → 4）；没有数字返回 -1 */
+    private static int trailingNumber(String stageName) {
+        if (stageName == null) return -1;
+        int end = stageName.length();
+        int start = end;
+        while (start > 0 && Character.isDigit(stageName.charAt(start - 1))) start--;
+        if (start == end) return -1;
+        try {
+            return Integer.parseInt(stageName.substring(start, end));
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+    }
+
+    /**
+     * 特殊变种缺少专用工具时只提示一次（同一个具体阶段只报一次，绝不每轮刷屏）。
+     *
+     * <p>拿到那件工具后下一轮扫描自动恢复自动收割 —— 这里只是「没工具就先不动它」的安全闸，
+     * 绝不回退成随便拿一件别的：在要求专用工具的服上，拿错工具可能把作物砸坏（不可逆）。
+     * 也不停机、不影响收其他作物（用户 2026-09-22：「提示一下就好了，不影响收割其他的菜」）。</p>
      */
     private TaskType skipSpecialWithoutTool(CropRecognizer.CropRecognition crop) {
         String key = learningKey(String.valueOf(crop.cropKey()), String.valueOf(crop.stageName()));
         if (owner.reportedSpecialStages.add(key)) {
-            // 只是提示，不停机：这一格跳过，其余任务照常推进；放一把金锄头下一轮扫描就自动收。
-            owner.status.state("SPECIAL_TOOL:" + key, "发现特殊作物",
-                "背包里没有金锄头，已跳过这一格（放一把金锄头就会自动收）");
+            StardewSpecialHarvestRecipe recipe = owner.specialHarvestRecipe(crop);
+            // 只是提示，不停机：这一格跳过，其余任务照常推进；放上那件工具下一轮扫描就自动收。
+            owner.status.state("SPECIAL_TOOL:" + key, "特殊作物缺少专用工具",
+                owner.reporter.cropLabel(crop.cropKey()) + " ▸ 本服口径：" + recipe.displayName()
+                    + "，背包/副手里没有" + recipe.toolDisplayName() + "｜这一格先跳过，不影响收其他作物，拿到后自动继续");
         }
         return null;
     }
@@ -784,10 +916,29 @@ final class StardewTaskPlanner {
         return list.get(owner.sprinklerCursor).pos();
     }
 
+    /**
+     * 本维度<b>可维护</b>的洒水器点位。
+     *
+     * <p>「已确认不在了 / 绑定已失效」的点位在这里就被剔除（真机事故：洒水器被挖掉后，模块照常
+     * 走过去「维护」、算进「本轮 N 台」、ESP 方框照画）。剔除以点位校验的确定结论为准，
+     * 「区块还没加载」不算——那种情况正是要走过去把区块加载出来才能判。</p>
+     *
+     * <p>剔除的同时播报一次（同一台只提示一次，见 {@link StardewCoordinator#markSprinklerMissingReported}），
+     * 让玩家知道这台已经不在了、点位该清掉；它重新出现后标记解除。</p>
+     */
     List<StardewPointManager.StardewPoint> sprinklerPointsInDimension() {
         List<StardewPointManager.StardewPoint> result = new ArrayList<>();
         for (StardewPointManager.StardewPoint p : owner.points.getAll(StardewPointType.SPRINKLER)) {
-            if (p.inCurrentDimension()) result.add(p);
+            if (!p.inCurrentDimension()) continue;
+            String unusable = owner.points.sprinklerUnusableReason(p, owner.index);
+            if (unusable != null) {
+                if (owner.markSprinklerMissingReported(p.pos())) {
+                    owner.reporter.announceSprinklerMissing(p.pos(), unusable);
+                }
+                continue;
+            }
+            owner.clearSprinklerMissingReported(p.pos());
+            result.add(p);
         }
         return result;
     }
@@ -877,28 +1028,74 @@ final class StardewTaskPlanner {
         // 背包空格已经不多（≤ 6 格）且成品达标时插队卸货，保护掉落。
         // 注意：Inventory#getFreeSlot() 返回的是「第一个空槽的下标」而不是空格数量，
         // 用它判断剩余空间会把保护条件变成「前两格是否占用」，因此这里一律按真实空格计数。
-        if (playerFreeSlots() > PLAYER_LOW_FREE_SLOTS) return false;
+        int freeSlots = playerFreeSlots();
+        if (freeSlots > PLAYER_LOW_FREE_SLOTS) return false;
         StardewPointManager.StardewPoint outputBox = owner.points.get(StardewPointType.OUTPUT_BOX);
         if (outputBox == null || !outputBox.inCurrentDimension()) return false;
-        // 只按「已选作物的独立成品数」判断，未选作物一律不参与
+        // 背包一个空格都不剩时，该作物自己的「卸货阈值」不再决定资格：只要还有一件超出保留量的成品
+        // 就得先去卸。否则「背包被别的东西塞满、成品数没到阈值」会让插队永远不成立，模块继续收菜
+        // （实机：背包装满 36 格金锭，模块照收不误）。
+        boolean bagFull = freeSlots <= 0;
         for (CropDefinition crop : targetCrops()) {
-            if (owner.snapshot(crop).unloadNeeded() && !owner.logistics.logisticsBackedOff(owner.unloadBlockedUntil, crop.cropKey())) {
+            boolean need = bagFull
+                ? owner.inventory.countProduce(crop) > owner.logisticsOf(crop.cropKey()).unloadKeep()
+                : owner.snapshot(crop).unloadNeeded();
+            if (need && !owner.logistics.logisticsBackedOff(owner.unloadBlockedUntil, crop.cropKey())) {
                 return startLogisticsTask(TaskType.UNLOAD, outputBox, crop);
             }
         }
         return false;
     }
 
-    /** 玩家主背包（36 格）里真正为空的格数；不要用 {@code Inventory#getFreeSlot()} 代替。 */
-    private int playerFreeSlots() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return 0;
-        var playerInventory = mc.player.getInventory();
-        int free = 0;
-        for (int i = 0; i < playerInventory.getContainerSize(); i++) {
-            if (playerInventory.getItem(i).isEmpty()) free++;
+    /** 背包里还有「超出保留量的成品」可卸吗（用来区分「没得卸」与「卸不出去」） */
+    boolean hasUnloadableProduce() {
+        if (owner.inventory == null) return false;
+        for (CropDefinition crop : targetCrops()) {
+            if (owner.inventory.countProduce(crop) > owner.logisticsOf(crop.cropKey()).unloadKeep()) return true;
         }
-        return free;
+        return false;
+    }
+
+    /**
+     * 背包已满（主背包 36 格一个空格都没有）时是否停手。
+     *
+     * <p><b>为什么必须停</b>：收割 / 学习探测都会产出物品、拾取本身就是在装东西，而此刻一件都放不进去 ——
+     * 继续做只会把成品掉在地上（被别的玩家捡走或 5 分钟后消失）。停的时候必须报出来，
+     * 否则玩家只看到脚本站着不动。</p>
+     *
+     * <p><b>拦哪些动作：</b>一切「会把东西拿到手里」的 —— 右键采收、特殊变种收割、拾取，
+     * 以及清枯苗 / 清错位 / 清杂物这些左键破坏（破坏同样掉物品）。浇水 / 播种 / 施肥不产出新物品，
+     * 照常执行。</p>
+     */
+    boolean bagFullBlocksHarvest() {
+        if (!playerBagFull()) {
+            owner.forgetBagFullHalt();
+            return false;
+        }
+        owner.reportBagFullHalt(unloadBlockReason());
+        return true;
+    }
+
+    /** 背包一个空格都没有：收菜 / 拾取 / 学习探测 / 左键破坏的产出都没地方放 */
+    boolean playerBagFull() {
+        // 没玩家（断线 / 换世界途中）不按「满」处理：那时 playerFreeSlots() 返回 0，
+        // 直接用它会把「读不到背包」误报成「背包已满」。
+        if (Minecraft.getInstance().player == null) return false;
+        return playerFreeSlots() <= 0;
+    }
+
+    /** 背包满了却卸不出去的原因（用于告诉玩家到底卡在哪一步） */
+    private String unloadBlockReason() {
+        if (!hasUnloadableProduce()) return "36 格全被占满，而且里面没有可卸的成品（占格的是种子 / 工具 / 杂物）";
+        StardewPointManager.StardewPoint outputBox = owner.points.get(StardewPointType.OUTPUT_BOX);
+        if (outputBox == null) return "还没绑定产物箱，成品卸不出去";
+        if (!outputBox.inCurrentDimension()) return "产物箱不在当前维度，成品卸不出去";
+        return "产物箱没有空间，成品卸不出去";
+    }
+
+    /** 主背包空格数；口径只此一处（见 {@link StardewInventoryService#freeMainSlots()}） */
+    private int playerFreeSlots() {
+        return owner.inventory == null ? 0 : owner.inventory.freeMainSlots();
     }
 
     boolean tryStartLogistics() {
@@ -1001,8 +1198,12 @@ final class StardewTaskPlanner {
      * 跳过，会出现「播种植得下、却永远不去种子箱取种」的冬季死角（种子在箱子里的常态场景）。</p>
      */
     boolean hasRestockDemand(CropDefinition crop) {
+        // 触发门槛就是「背包里一颗种子都不剩」（countSeed > 0 即不补），开关是「种子补货触发」：
+        // 0 = 关掉这种作物的自动补货（也就不需要给它绑种子箱）。这里的关闭判据必须与
+        // 「是否需要种子箱」的自检口径一致（StardewFarmModule / StardewStartupCheck 都看 restockTrigger），
+        // 否则会出现「界面说关着、后台照样去补」这种对不上的状态（2026-09-22 统一）。
         if (crop == null || owner.inventory.countSeed(crop) > 0
-            || owner.logisticsOf(crop.cropKey()).restockTarget() <= 0) return false;
+            || owner.logisticsOf(crop.cropKey()).restockTrigger() <= 0) return false;
         if (mixedRegionWants(crop.cropKey())) return true;
         for (StardewFarmScanner.Cell cell : owner.pending) {
             if (cell.crop().state() != CropState.EMPTY || !potMatchesSelection(cell)

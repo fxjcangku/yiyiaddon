@@ -53,4 +53,16 @@ public enum TaskType {
     public String cn() {
         return cn;
     }
+
+    /**
+     * 这个任务的动作是不是「左键破坏作物本体那一格」（清枯苗 / 清错位 / 清杂物）。
+     *
+     * <p><b>为什么要单独一个判据：</b>破坏与右键采收共用同一条挖掘链路，因此两类闸门都要认它 ——
+     * ① 「背包满」时一起停手（破坏同样会把掉落物掉在地上，播报与实际动作必须一致）；
+     * ② 服务端不放行的格子一起退避（见 {@code StardewCoordinator#isBreakRejected}）。
+     * 原先这条判断在调度层与执行层各写了一份 {@code CLEAR_*} 三连，加第三类闸门时必然会漏掉一处。</p>
+     */
+    public boolean breaksPlant() {
+        return this == CLEAR_DEAD || this == CLEAR_MISMATCH || this == CLEAR_JUNK;
+    }
 }

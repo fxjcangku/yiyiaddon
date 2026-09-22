@@ -1,9 +1,12 @@
 package com.yiyiaddon.feature.stardew.task;
 
+import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.feature.stardew.navigation.ContainerApproachPlanner;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestAction;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestRecipe;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.profile.WateringCanDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
@@ -17,12 +20,22 @@ import com.yiyiaddon.platform.container.ContainerAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.enchantment.effects.EnchantmentAttributeEffect;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,8 +200,7 @@ final class StardewFarmExecutor {
     void sendBatchActions() {
         if (owner.batchActions <= 1) return;
         if (owner.targetPot == null || owner.activeCell == null) return;
-        boolean breaking = owner.taskType == TaskType.CLEAR_DEAD || owner.taskType == TaskType.CLEAR_MISMATCH
-            || owner.taskType == TaskType.CLEAR_JUNK;
+        boolean breaking = owner.taskType.breaksPlant();
         if (!breaking && owner.taskType != TaskType.HARVEST && owner.taskType != TaskType.WATER
             && owner.taskType != TaskType.PLANT && owner.taskType != TaskType.FERTILIZE) return;
         // 物料盆（下界 / 末地）不参与批量：一次右键就把手上那一桶岩浆 / 那一个龙息消耗掉了，
@@ -227,12 +239,34 @@ final class StardewFarmExecutor {
     }
 
     private boolean sendBatchOne(BlockPos interactPos, boolean breaking) {
-        if (breaking) return owner.adapter.breakBlock(interactPos, Direction.UP);
+        if (breaking) return breakInstantIfSafe(interactPos);
         if (owner.taskType == TaskType.HARVEST) {
             InteractionHand hand = prepareHarvestHand();
             return hand != null && owner.adapter.interactBlock(hand, interactPos, Direction.UP);
         }
         return owner.adapter.useOnBlock(activeHand, interactPos);
+    }
+
+    /**
+     * 批量里的破坏只打「零硬度载体」。
+     *
+     * <p>非零硬度的格子必须走完整的「START → 等够 tick → STOP」，同 tick 连发只会被服务端按 0.7
+     * 阈值驳回，还会因为本地置空气而看起来「假成功」。这里跳过它（返回 true = 不中止本次批量），
+     * 下一轮它会作为主目标重新派发，走完整破坏流程。</p>
+     */
+    private boolean breakInstantIfSafe(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return true;
+        // 有一格正在走完整挖掘会话：这一批绝不能再发 START —— 服务端只记一个 destroyPos，
+        // 秒破会把刚登记好的会话顶掉，那一格的 STOP 随即落空（实机：会话走满 4 轮、按住
+        // 120 tick 仍纹丝不动，而同批的零硬度格子每 tick 都在抢 destroyPos）。
+        // 返回 true = 不中止本次批量，等会话收尾后这些格子下一轮照常处理。
+        if (owner.breakDigPos != null) return true;
+        BlockState state = mc.level.getBlockState(pos);
+        if (state.isAir()) return true;
+        float delta = Math.max(state.getDestroyProgress(mc.player, mc.level, pos), 1.0E-4F);
+        if (requiredDigTicks(delta, SPECIAL_BREAK_THRESHOLD) != 0) return true;
+        return owner.adapter.breakBlock(pos, Direction.UP);
     }
 
     /**
@@ -286,19 +320,44 @@ final class StardewFarmExecutor {
     }
 
     /**
-     * 特殊变种（金色 / 巨型 / 变种）的收割工具：本服实测口径是「原版金锄头右键」，收完回退植株。
+     * 本服口径要求的特殊收割工具在不在背包（含副手）里。
      *
-     * <p>不写进 {@code StardewHarvestRule}：它就是一个原版物品，既没有 {@code item_model} 身份也没有
-     * ID 绑定，而且所有特殊阶段共用同一个动作（用户实机确认：「金锄头就是普通原版物品，其他特殊都是
-     * 右键一起做了」）。因此只按物品本体取手，不引入新的规则字段与服务端绑定。</p>
+     * <p>口径「工具不限」时永远为真：有工具就拿工具挖、没有就拿任何东西（含空手）破坏
+     * （用户 2026-09-22：「不用特殊工具破坏的服务器作物，有工具就拿工具挖，没有工具用任何东西破坏都可以」）。</p>
      */
-    private static Item specialHarvestTool() {
-        return Items.GOLDEN_HOE;
+    boolean hasSpecialHarvestToolFor(CropRecognizer.CropRecognition crop) {
+        StardewSpecialHarvestRecipe recipe = owner.specialHarvestRecipe(crop);
+        return recipe.toolUnlimited() || findToolSlot(recipe) >= 0;
     }
 
-    /** 背包 / 副手里有没有特殊变种收割工具；没有就绝不空手乱点（空手点特殊阶段收不掉，只会白跑一轮）。 */
-    boolean hasSpecialHarvestTool() {
-        return owner.inventory != null && owner.inventory.findSlotItem(specialHarvestTool(), false) >= 0;
+    /** 找口径要求的那件工具所在槽位（主背包 0~35 + 副手）；找不到返回 -1 */
+    private int findToolSlot(StardewSpecialHarvestRecipe recipe) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return -1;
+        for (int slot = 0; slot < StardewInventoryService.MAIN_SLOTS; slot++) {
+            if (recipe.matchesTool(mc.player.getInventory().getItem(slot))) return slot;
+        }
+        return recipe.matchesTool(mc.player.getOffhandItem()) ? StardewInventoryService.OFFHAND_SLOT : -1;
+    }
+
+    /** 把口径要求的那件工具换到手（与 {@link #holdItem} 同一套换手流程）；找不到返回 false */
+    private boolean holdTool(StardewSpecialHarvestRecipe recipe) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return false;
+        int slot = findToolSlot(recipe);
+        if (slot < 0) return false;
+        if (slot == StardewInventoryService.OFFHAND_SLOT) return holdOffhand();
+        if (slot < 9) {
+            saveHand();
+            activeHand = InteractionHand.MAIN_HAND;
+            owner.adapter.selectHotbar(slot);
+            return true;
+        }
+        saveHand();
+        activeHand = InteractionHand.MAIN_HAND;
+        owner.swappedInvSlot = slot;
+        owner.adapter.swapToHotbar(slot);
+        return true;
     }
 
     /** 当前这一格是不是特殊变种——取派发时的扫描快照，与验证层同源。 */
@@ -308,23 +367,501 @@ final class StardewFarmExecutor {
     }
 
     /**
-     * 特殊变种收割：手持金锄头对作物格右键。
+     * 特殊变种收割：按<b>本服学到的口径</b>分发 —— 动作（右键 / 左键破坏）× 手持（不限 / 指定那件）。
      *
-     * <p>它和普通作物是同一条 {@code HARVEST} 流程，这里只负责「换手 + 右键」——验证与后续扫描完全复用
+     * <p>它和普通作物是同一条 {@code HARVEST} 流程，这里只负责「换手 + 动作」——验证与后续扫描完全复用
      * 现成机制；手在任务结束（{@code replan}）或模块停机时由 {@link #restoreHandNow()} 复位。</p>
+     *
+     * <p><b>口径要求的那件工具不在背包时</b>：只播一条提示并跳过这一格 —— 不动别的格子、不停机、
+     * 也不拿别的工具硬试（拿错工具在别人服上可能把作物砸坏），拿到那件后下一轮扫描自动接着收
+     * （用户 2026-09-22：「如果背包没有破坏当前的巨型作物工具，提示一下就好了，不影响收割其他的菜」）。</p>
      */
     private boolean doSpecialHarvest() {
-        if (!holdItem(specialHarvestTool())) {
-            // 派发前已经确认背包里有金锄头，走到这里只可能是任务进行中被拿走：播一条、本轮放弃。
-            owner.status.state("NO_SPECIAL_TOOL", "特殊作物需要金锄头", "背包里找不到金锄头，已跳过");
+        if (owner.activeCell == null || owner.activeCell.crop() == null) return false;
+        String cropKey = owner.activeCell.crop().cropKey();
+        StardewSpecialHarvestRecipe recipe = owner.specialHarvestRecipe(owner.activeCell.crop());
+        if (!recipe.toolUnlimited() && !holdTool(recipe)) {
+            owner.status.state("NO_SPECIAL_TOOL", "特殊作物缺少专用工具",
+                owner.reporter.cropLabel(cropKey) + " ▸ 本服口径：" + recipe.displayName() + "，背包/副手里没有"
+                    + recipe.toolDisplayName() + "｜这一格先跳过，不影响收其他作物，拿到后自动继续");
             return false;
         }
+        if (recipe.action() == StardewSpecialHarvestAction.BREAK) {
+            // 口径指定了工具时：这一格破坏期间不许换手（服务端认「拿的就是那件」），
+            // 由 ensureDigTool 读到 specialToolHold 后放弃自动挑工具；工具不限则清空、照常挑最快的
+            owner.specialToolHold = recipe.toolUnlimited() ? null : recipe;
+            return owner.targetPot != null && breakAt(owner.targetPot.above());
+        }
+        owner.specialToolHold = null;
         boolean sent = owner.adapter.face(owner.targetPot.above())
             && owner.adapter.interactBlock(activeHand, owner.targetPot.above(), Direction.UP);
-        LOGGER.info("[星露谷] 特殊变种收割交互 手={} 工具={} 目标={} {} 发包={}",
-            activeHand == InteractionHand.OFF_HAND ? "副手" : "主手", specialHarvestTool(),
-            owner.targetPot.above(), cellSummary(owner.targetPot.above()), sent);
+        LOGGER.info("[星露谷] 特殊变种收割交互 手={} 口径={} 手持={} 目标={} {} 发包={}",
+            activeHand == InteractionHand.OFF_HAND ? "副手" : "主手", recipe.displayName(),
+            itemLabel(handItem(activeHand)), owner.targetPot.above(), cellSummary(owner.targetPot.above()), sent);
         return sent;
+    }
+
+    /**
+     * 服务端接受 STOP 所需的破坏进度阈值（原版 0.7）。
+     *
+     * <p>与开发习惯第 169 条「同源计算只留一份」的说明：秒破（{@code PacketInstantBreakModule}）
+     * 与自动挖矿的秒破控制器各自实现了同一份公式，本处按同一口径再实现一次，是为了不动那两个
+     * 模块的成熟链路；公式本身（{@code delta × (已挖 tick + 1) ≥ 阈值}）与它们逐字一致。</p>
+     */
+    private static final float SPECIAL_BREAK_THRESHOLD = 0.7F;
+
+    /**
+     * 对一格执行「破坏」：**一律走「START → 等够 tick → STOP」的完整会话，放不放行交给服务端**。
+     *
+     * <p><b>为什么不按客户端算出的硬度分两条路</b>（用户 2026-09-22 实机）：
+     * 以前「客户端算出零硬度」就走同 tick {@code START + STOP} 秒破，那条通道的前提是
+     * 「客户端认定的硬度 == 服务端认定的硬度」。这台服的死作物在客户端算是 0 硬度（绊线承载、
+     * 模型被资源包换掉），服务端却要按住若干刻才放行 —— 秒破被一律驳回、方块一直在，
+     * 于是每轮重扫又重新派发，聊天栏反复「发现枯死作物 · 正在清理」而田里纹丝不动。
+     * 现在真零硬度（绊线 / 农作物）与要按住的方块走<b>同一条</b>会话流程：
+     * 前者服务端收到 START 就销毁、客户端下一 tick 见到空气即成功（只多 1 tick），
+     * 后者按估算按住再 STOP，估算离谱时 {@link #holdTicksFor} 退回固定时长并逐轮翻倍。
+     * 一句话：<b>模块不猜服务端要多久，只负责按到底并读结果</b> —— 这样换服务器不必重新适配。</p>
+     *
+     * <p>破坏前一律先换手拿工具（`ensureDigTool`）：服务端是在 STOP（或 START 即判定）那一刻按
+     * **手上那件**算进度的，客户端算出的一包即毁与它无关 —— 这服的死作物空手要按住二十几刻、
+     * 拿效率工具服务端收到 START 就销毁（用户 2026-09-22：「可以挖了 但是没有用包里的效率」）。</p>
+     *
+     * <p>挖掘序列的推进<b>不依赖本方法被反复调用</b>：真正的推进在 {@link #tickBreakDig()}，
+     * 由协调器每客户端 tick 调用一次。这样即使中途换了任务 / 重扫农田 / 相位跳转，
+     * START 之后也一定会等到 STOP 或 ABORT，不会把一次 START 永远悬在服务端
+     * （实机事故：日志里只有「开始挖掘」，之后再无「结束挖掘」，方块永远挖不掉）。</p>
+     */
+    private boolean breakAt(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null || pos == null) return false;
+        // 有一格正在走完整挖掘会话：本方法只服务这一格，别的格子一律等它收尾。
+        // **为什么必须在最前面**：服务端只记一个 destroyPos，会话期间的任何其它方块动作包
+        // （零硬度秒破的 START+STOP、换目标的 ABORT）都会把它顶掉，于是那一格的 STOP 永远落空
+        // —— 实机表现就是同一格「开始挖掘 → 结束挖掘」走满 4 轮、按住 120 tick（阈值的 14 倍）
+        // 也纹丝不动，而同批的零硬度格子每 tick 都在发 START。
+        if (owner.breakDigPos != null) {
+            if (!pos.equals(owner.breakDigPos)) return true;
+            if (mc.level.getBlockState(pos).isAir()) {
+                clearBreakDig();
+                return true;
+            }
+            tickBreakDig();
+            return true;
+        }
+        BlockState state = mc.level.getBlockState(pos);
+        // 已经砸掉了：服务端确认过，交给验证层判成功（不需要再发包）
+        if (state.isAir()) {
+            clearBreakDig();
+            return true;
+        }
+        // 客户端算出的「每刻进度」是否为「一包即毁」。**只用来定首轮按住多少刻**，
+        // 不再用来选「秒破」还是「按住」——是否一包即毁由服务端裁决（见下方会话流程）；
+        // 也不再用它跳过换手：服务端是按手上那件算进度的，不换手就等于白等（见下方换手注释）。
+        boolean instantBreak = false;
+        if (requiredDigTicks(digProgress(mc, pos, state), SPECIAL_BREAK_THRESHOLD) == 0) {
+            // 零硬度载体（绊线 / 农作物 / 竹子）：不必先换手，直接开挖。
+            //
+            // **但不再走「同 tick START + STOP 秒破」那条快捷**（用户 2026-09-22 实机）：那条通道的
+            // 前提是「客户端算出的硬度 == 服务端认定的硬度」，而这台服的死作物在客户端算是 0 硬度、
+            // 服务端却要按住若干刻才放行 —— 秒破一律被驳回，方块一直在，于是每轮重来
+            // （实机：START/STOP 连发两秒方块纹丝不动，聊天栏反复「发现枯死作物 · 正在清理」）。
+            // 现在**一律走完整会话**：真零硬度的方块，服务端收到 START 就销毁，客户端下一 tick 见到
+            // 空气即判成功（只多 1 tick）；要按住的方块则等够 tick 再 STOP，放不放行**由服务端裁决**。
+            instantBreak = true;
+        }
+        // 服务端刚驳回过这一格：退避期内不再开新会话。
+        // 派发层（resolveTask）已经拦了一道，但「放弃」发生在会话进行中，之后本方法每 tick 都还会被
+        // 调用一次 —— 不在这里守同一道闸，放弃的下一秒就会重开（实机：同一格空砸两分钟、播报说
+        // 「60 秒内不再重试」却立刻又开挖）。
+        if (owner.isBreakRejected(pos)) {
+            clearBreakDig();
+            return false;
+        }
+        // 工具不限，但拿工具更快：**一律先换手再算进度**（含"客户端算一包即毁"的那类格子）。
+        //
+        // **为什么连零硬度格子也换手**（用户 2026-09-22 实机）：「可以挖了 但是没有用包里的效率」——
+        // 服务端在 STOP（或 START 即判定）那一刻按**手上那件**算进度，客户端算出来的一包即毁与
+        // 服务端无关：这服的死作物客户端算 0 硬度、服务端却按自己的硬度算，拿效率工具时进度爆表、
+        // 服务端收到 START 就销毁（玩家手动"点一下就掉"），空手则要按住二十几刻。
+        // 不换手等于把这 20 倍的时间白白花掉。换手的成本只有一次选中槽切换 / 一次栏位交换，
+        // 且真零硬度的格子在第一刻就被服务端拆掉、紧接着就换回来了。
+        state = mc.level.getBlockState(pos);
+        float delta = ensureDigTool(mc, pos, state);
+        // 悬空时挖掘速度被服务端除以 5（{@code Player#getDestroySpeed} 的 {@code !onGround} 修正）：
+        // 巨型作物的载体硬度 0.4，站定时 8 刻就能挖掉，悬空要 40 刻以上。而模块为了够近会站到
+        // 作物本体上，那类方块（紫颂植株等）没有碰撞，玩家直接掉下去 —— 于是永远在悬空状态开挖，
+        // 表现为「前面一格挖得掉、后面紧邻的几格怎么都不认」。
+        // 这一轮先不开挖，等落地：协调器每刻都会再进来（返回 true = 这一格仍在推进，不算失败）。
+        if (!mc.player.onGround()) {
+            LOGGER.info("[星露谷] 破坏 悬空等待落地 目标={} 选中物品={}", pos, selectedHotbarLabel(mc));
+            return true;
+        }
+        // 客户端算出的「需要多少刻」只用来定第一轮按住多久，**绝不用来拒挖**：本服的「方块破坏速度」
+        // 属性在挖掘期间会被压到 0（发包记录实机：发出 START 后几刻就变 0.0、ABORT 后几秒回到 1.0），
+        // 于是这里必然算出 1.0E-4 / 需要 7000 tick —— 但同一格手动按住左键照样能挖掉
+        // （用户 2026-09-22 实机确认「能掉啊」）。估算离谱时由 {@link #holdTicksFor} 退回固定时长、
+        // 逐轮翻倍，真正不放行由 {@link StardewCoordinator#BREAK_MAX_ATTEMPTS} 兜底。
+        int required = requiredDigTicks(delta, SPECIAL_BREAK_THRESHOLD);
+        owner.breakDigPos = pos;
+        owner.breakDigAttempts = 1;
+        owner.breakDigTickCount = 0;
+        owner.breakDigStopSent = false;
+        owner.breakDigHoldTicks = instantBreak
+            // 客户端算「一包即毁」的格子：给一个最小按住时长，**不给 0**。
+            // 给 0 会让「服务端其实要按住」的格子永远只按 0 tick（翻倍 0×2 还是 0），永远挖不掉；
+            // 给最小档后每一轮翻倍（20 → 40 → 80 → 120），几轮内就收敛到服务端真正要的时长。
+            // 真零硬度的方块不受影响：服务端收到 START 就销毁，客户端下一 tick 已是空气即判成功。
+            ? StardewCoordinator.BREAK_MIN_HOLD_TICKS
+            : holdTicksFor(required);
+        syncHeldSlot(mc);
+        // 挥一次手：原版「按住左键」的完整动作是「挥手 + START + 每刻推进」，模块直接拼包会漏掉挥手。
+        // 服务端的破坏校验常要求破坏动作伴随挥手动画（反作弊的常见判据），缺了它就表现为
+        // 「包全部正常、服务端一律不认」。
+        mc.player.swing(InteractionHand.MAIN_HAND);
+        boolean started = owner.adapter.face(pos) && ClientPacketSender.sendBreakStart(pos, Direction.UP, state);
+        // 硬度 / 物品破坏速度 / 是否算「正确工具」三个原始量都打出来：客户端估算离谱时靠这一行
+        // 才能定位是哪一项不对（实机：同一格 物品破坏速度=0.0 与 =1.0 交替，前者是手上那把假锄头）。
+        LOGGER.info("[星露谷] 破坏 开始挖掘 目标={} {} 选中槽={} 选中物品={} 硬度={} 物品破坏速度={} 正确工具={} 原始每刻进度={} → 实际用 {} 客户端估算 {} tick 按住 {} tick 发包={} 玩家={} 离方块={} onGround={} 交互距离={} 发包规则={}",
+            pos, cellSummary(pos), mc.player.getInventory().getSelectedSlot(), selectedHotbarLabel(mc),
+            state.getDestroySpeed(mc.level, pos), mc.player.getDestroySpeed(state),
+            mc.player.hasCorrectToolForDrops(state), rawDigProgress(mc, pos, state), delta,
+            required, owner.breakDigHoldTicks, started,
+            mc.player.blockPosition(), String.format("%.2f", mc.player.position().distanceTo(pos.getCenter())),
+            mc.player.onGround(), String.format("%.2f", mc.player.blockInteractionRange()),
+            ClientPacketSender.sendRuleCount());
+        return started;
+    }
+
+    /**
+     * 开挖前确保「手里那件真的挖得动这一格」，并把换手后的实测进度交回来。
+     *
+     * <p><b>为什么不能按物品类型认定「已经拿着锄头了」：</b>资源包里存在与金锄<b>同基底</b>
+     * （{@code minecraft:golden_hoe}）的自定义道具，它的 {@code tool} 组件采掘速度是 0；
+     * {@code ItemStack#is} 只比物品本体，于是手上的读数一天里在 {@code 0.0} 与 {@code 1.0} 之间跳
+     * （实机：同一格同一把金锄头，一次算出 0.0、一次 1.0）。判据只能是<b>实测</b>：换到这一格会算出多少。</p>
+     *
+     * <p><b>挑选口径（工具不限）：</b>全背包 0~35 一起比，比的是「{@link #effectiveDigSpeed}」——
+     * 物品本体破坏速度 + 该件的效率附魔加成；空槽按空手（采掘速度 1.0）算，于是「整包都是挖不动的
+     * 假道具」时也会挑中空格子空手挖，而不是抱着 0 进度硬砸。两条判据与防抖见
+     * {@link #bestDigSlot}：**算得出更快的换最快的；算不出快慢但手里不是工具、背包里有工具，
+     * 就按口径「有工具就拿工具」换上去**（本服的载体对金锄 / 木镐都算不出速度，
+     * 只比速度会导致工具一次都挑不出来）。</p>
+     *
+     * <p><b>为什么不再「够挖就别换手」：</b>原先的判据是「手上这件能在
+     * {@code BREAK_MAX_REQUIRED_TICKS} 刻内挖掉就别动」，而空手挖硬度 0.4 的载体只要 9 刻、
+     * 远在阈值内 —— 于是模块永远空手挖（或拿着手上的食物），背包里的效率附魔斧头一次都不上手
+     * （用户 2026-09-22 实机：「没有主动拿背包的工具，或者带效率的东西挖」）。
+     * 那个上限只该回答「这一格能不能挖」，不该回答「用哪件挖」。</p>
+     *
+     * <p><b>为什么不能只看快捷栏 + 一把金锄：</b>曾经只扫 0~8、并且只认配置的那把金锄，于是真能
+     * 挖的那件躺在背包 9~35 时谁也找不到，手被留在 0 进度的道具上再也回不来（实机：同一格
+     * {@code 0.0} 与 {@code 0.0833} 交替出现，模块砸了两分钟纹丝不动）。</p>
+     *
+     * <p><b>为什么换手后不等属性同步：</b>客户端的采掘速度属性由服务端同步、换手要一个来回才到，
+     * 同 tick 读到的还是旧手的值 —— 但那个值只用来估算「按住多久」，估算离谱时本来就退回固定时长，
+     * 放不放行由服务端裁决（第 199 条）。原先为它空转一轮，反被"任务之间还手"拖成连换 4 轮、
+     * 轮数用尽后误报「砸不掉」并停手（见下方 {@link #ensureDigTool}）。</p>
+     *
+     * @return 当前选中槽对这一格的每刻进度（换手后直接读新手，不做延迟）
+     */
+    private float ensureDigTool(Minecraft mc, BlockPos pos, BlockState state) {
+        // 本服特殊收割口径指定了工具：手里必须一直是那件（服务端认「拿的就是那件」），绝不换手
+        if (owner.specialToolHold != null) return digProgress(mc, pos, state);
+        int slot = bestDigSlot(mc, state);
+        if (!holdDigSlot(mc, slot)) return digProgress(mc, pos, state);
+        // 换手后**本轮直接开挖**，不空转一轮等属性同步。
+        //
+        // **为什么不再等同步**：换手要一个来回，客户端同 tick 读到的还是旧手的采掘速度 ——
+        // 但那个读数只用来估算「按住多久」，而估算离谱时 `holdTicksFor` 本来就退回固定时长，
+        // 真正放不放行由服务端裁决（第 199 条：客户端估算绝不用来拒挖）。空转一轮的代价却很大：
+        // 任务之间会把借来的手还回去，于是每轮都重新换一次、永远开不了工 —— 实机连换 4 轮
+        // （19:13:46~48、19:15:42~44），把这一格的轮数用尽，播报「特殊变种砸不掉」并停手，
+        // 剩下的巨型作物就没人管了。
+        //
+        // 顺序安全：换手包（选中槽切换 / 热键栏交换）与随后的 START 走同一条连接、按序到达，
+        // `syncHeldSlot` 还会在发 START 前再把当前选中槽声明一次。
+        return digProgress(mc, pos, state);
+    }
+
+    /**
+     * 背包里「该换上去挖这一格」的那一件（0~35；同分取下标小的，于是优先快捷栏）；没有就返回 -1。
+     *
+     * <p><b>两条判据，第一条优先：</b></p>
+     * <ol>
+     *   <li><b>真的更快</b>：{@link #effectiveDigSpeed} 严格大于手上这件 —— 效率附魔斧头这类。</li>
+     *   <li><b>分一样但手上不是工具，而背包里有工具</b>：本服口径就是「有工具就拿工具挖，
+     *       没有工具用任何东西破坏都可以」（用户 2026-09-22 第 19 条原话）。
+     *       这一类里**同分优先带效率附魔的那件**（客户端算不出速度差，但附魔数据本身读得到），
+     *       于是「金锄 + 效率 X 木镐」会选中效率木镐。</li>
+     * </ol>
+     *
+     * <p><b>为什么需要第二条：</b>挑工具原本只比 {@code getDestroySpeed}，而它只认「这件是这一格的
+     * 正确工具」才给速度 —— 实测机器的载体 {@code chorus_plant} 属 {@code mineable/axe}，
+     * 金锄与木镐对它都算出 1.0（与空手同分），效率 X 因此也不叠加。于是「背包里明明有工具，
+     * 模块却一直空手挖」（用户 2026-09-22 实机，日志连续三格 {@code 选中物品=air}）：
+     * 严格更快永远不成立，工具一次都挑不出来。而**服务端**认的显然不是客户端这个读数 ——
+     * 玩家手动拿它们挖得更快（同一次反馈：「效率 10 一挖就掉 点一下就行」）。
+     * 因此第二层判据退回「是不是一件工具」（带 {@code DataComponents.TOOL} 的物品：镐 / 斧 / 锄 / 锹 / 剪），
+     * 与客户端算得出多少无关。</p>
+     *
+     * <p><b>为什么不会来回倒手：</b>比较基准是手上这件、不是 0 —— 手里已经是最快的那件时返回 -1；
+     * 手上已经是工具时第二条不再触发（不会在锄头与镐子之间互倒）；空槽按空手（1.0）算，
+     * 于是手上那把 0 进度的假道具会被空槽比下去、自动退回空手。</p>
+     */
+    private int bestDigSlot(Minecraft mc, BlockState state) {
+        Inventory inventory = mc.player.getInventory();
+        ItemStack held = inventory.getItem(inventory.getSelectedSlot());
+        float heldSpeed = effectiveDigSpeed(held, state);
+        boolean heldIsTool = isTool(held);
+        // 第一类：算得出更快的那件（效率附魔斧头这类），不限是不是工具
+        int fastest = -1;
+        float fastestSpeed = heldSpeed;
+        // 第二类：算不出快慢、但确实是一把工具（同分优先带效率附魔的那件）
+        int tool = -1;
+        float toolEfficiency = -1.0F;
+        for (int slot = 0; slot < StardewInventoryService.MAIN_SLOTS; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            float speed = effectiveDigSpeed(stack, state);
+            if (speed > fastestSpeed) {
+                fastestSpeed = speed;
+                fastest = slot;
+                continue;
+            }
+            if (heldIsTool || speed < heldSpeed || !isTool(stack)) continue;
+            float efficiency = miningEfficiencyBonus(stack);
+            if (tool < 0 || efficiency > toolEfficiency) {
+                tool = slot;
+                toolEfficiency = efficiency;
+            }
+        }
+        return fastest >= 0 ? fastest : tool;
+    }
+
+    /** 是否是一件工具（带原版 {@code TOOL} 组件的镐 / 斧 / 锄 / 锹 / 剪等） */
+    private static boolean isTool(ItemStack stack) {
+        return !stack.isEmpty() && stack.has(DataComponents.TOOL);
+    }
+
+    /**
+     * 一件工具对某一格的「有效破坏速度」= 物品本体的破坏速度 + 该件附魔给的采掘效率加成。
+     *
+     * <p><b>为什么不能只看 {@code ItemStack#getDestroySpeed}</b>：效率附魔不在物品本体里 ——
+     * 它由附魔数据以「{@code Attributes.MINING_EFFICIENCY} 属性加成」的形式给到玩家
+     * （{@code Enchantments.EFFICIENCY} 的 {@code ATTRIBUTES} 效果，原版数值是等级²，随数据包可变），
+     * 也就是 {@code Player#getDestroySpeed} 里 {@code speed + MINING_EFFICIENCY} 那一项，物品侧读不到。
+     * 实机（用户 2026-09-22）：「拿效率附魔挖会更快，只是脚本识别不到」—— 只看本体速度时，
+     * 带效率的斧头和不带的是同一个读数，必然挑错那件。</p>
+     *
+     * <p><b>为什么不直接读玩家属性</b>：客户端的属性由服务端同步，换手后要一个来回才到，
+     * 那一刻读到的还是旧手的值（这正是「同一格读数忽大忽小」的来源），而候选件根本还没上手。
+     * 加成数值一律向引擎的附魔数据要（{@code LevelBasedValue#calculate}），模块里不写死等级²这类数值。</p>
+     *
+     * <p>加成只在物品本体速度 &gt; 1（这件确实是这一格的正确工具）时才计入 —— 与原版
+     * {@code Player#getDestroySpeed} 的 {@code if (speed > 1.0F)} 同一口径：拿错工具时效率不生效。</p>
+     */
+    private static float effectiveDigSpeed(ItemStack stack, BlockState state) {
+        float speed = stack.isEmpty() ? 1.0F : stack.getDestroySpeed(state);
+        return speed > 1.0F ? speed + miningEfficiencyBonus(stack) : speed;
+    }
+
+    /** 一件物品上的附魔给玩家的「采掘效率」加成总和（读附魔数据，不写死等级²这类公式） */
+    private static float miningEfficiencyBonus(ItemStack stack) {
+        ItemEnchantments enchantments = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+        if (enchantments.isEmpty()) return 0.0F;
+        float bonus = 0.0F;
+        for (Holder<Enchantment> holder : enchantments.keySet()) {
+            int level = enchantments.getLevel(holder);
+            if (level <= 0) continue;
+            for (EnchantmentAttributeEffect effect : holder.value().getEffects(EnchantmentEffectComponents.ATTRIBUTES)) {
+                if (effect.operation() == AttributeModifier.Operation.ADD_VALUE
+                    && sameAttribute(effect.attribute(), Attributes.MINING_EFFICIENCY)) {
+                    bonus += effect.amount().calculate(level);
+                }
+            }
+        }
+        return bonus;
+    }
+
+    /**
+     * 两个属性 {@code Holder} 是不是同一个属性。
+     *
+     * <p>按注册键比而不用 {@code Holder#is(Holder)}：后者在 26.1.2 已标记 {@code @Deprecated}
+     * （第 237 条：新代码不许沿用废弃写法）。</p>
+     */
+    private static boolean sameAttribute(Holder<Attribute> left, Holder<Attribute> right) {
+        return left.unwrapKey().equals(right.unwrapKey());
+    }
+
+    /** 把指定槽位换到手（快捷栏直接切；背包里的换到当前选中槽）；已经是它则返回 false（不必换） */
+    private boolean holdDigSlot(Minecraft mc, int slot) {
+        if (slot < 0) return false;
+        if (slot == mc.player.getInventory().getSelectedSlot()) return false;
+        saveHand();
+        activeHand = InteractionHand.MAIN_HAND;
+        if (slot < 9) {
+            owner.adapter.selectHotbar(slot);
+        } else {
+            owner.swappedInvSlot = slot;
+            owner.adapter.swapToHotbar(slot);
+        }
+        return true;
+    }
+
+    /**
+     * 这一格第一轮要按住多久才发 STOP。
+     *
+     * <p><b>估算只能当参考：</b>客户端算出的破坏速度在这台服上忽大忽小（实机：同一格同一把金锄头，
+     * 一次 {@code 0.0}、一次 {@code 1.0}）。因此：离谱的估算退回
+     * {@link StardewCoordinator#BREAK_FALLBACK_HOLD_TICKS}，其余夹在
+     * {@link StardewCoordinator#BREAK_MIN_HOLD_TICKS} ~ {@link StardewCoordinator#BREAK_MAX_HOLD_TICKS}
+     * 之间；估算偏小由 {@link #tickBreakDig()} 的逐轮翻倍兜底，服务端才是权威。</p>
+     */
+    private int holdTicksFor(int required) {
+        if (required == 0) return 0;
+        int wanted = required > StardewCoordinator.BREAK_MAX_REQUIRED_TICKS
+            ? StardewCoordinator.BREAK_FALLBACK_HOLD_TICKS
+            : required + 2;
+        return Math.min(Math.max(wanted, StardewCoordinator.BREAK_MIN_HOLD_TICKS),
+            StardewCoordinator.BREAK_MAX_HOLD_TICKS);
+    }
+
+    /**
+     * 挖掘序列的每刻推进（由协调器在主循环最前面调用，与任务相位无关）。
+     *
+     * <p><b>为什么自己管 START / STOP、不用原版 {@code MultiPlayerGameMode}</b>：原版那套状态是给
+     * 「玩家真的按住左键」用的 —— {@code Minecraft} 每刻都会检查攻击键，没按下就调
+     * {@code stopDestroyBlock()}。模块借它的推进时，会话状态每刻被清掉，
+     * {@code continueDestroyBlock} 就会每刻走「重开」分支、<b>每刻重发一次 START</b>；服务端的
+     * {@code destroyProgressStart} 随之每刻重置，「已挖 tick 数」永远是 0，{@code 0.7} 永远达不到
+     * （实机：原版流程挖满 201 刻仍纹丝不动）。</p>
+     *
+     * <p><b>一个 START 只配一个 STOP</b>：等够服务端要求的 tick 就发 STOP；STOP 之后给一个确认窗口，
+     * 方块还没变就重来一轮（新的 START 重新登记服务端槽位），最多
+     * {@link StardewCoordinator#BREAK_MAX_ATTEMPTS} 轮；仍不变则 ABORT + 清账，
+     * 交回验证层判失败（退避 + 播报），绝不在这格上无限砸。</p>
+     */
+    void tickBreakDig() {
+        Minecraft mc = Minecraft.getInstance();
+        if (owner.breakDigPos == null || mc.player == null || mc.level == null) return;
+        BlockPos pos = owner.breakDigPos;
+        // 服务端已经把这格拆了：账清了，成功与否交给验证层（方块已是空气 → 验证判成功）
+        if (mc.level.getBlockState(pos).isAir()) {
+            LOGGER.info("[星露谷] 破坏 目标已消失 目标={}", pos);
+            clearBreakDig();
+            return;
+        }
+        owner.breakDigTickCount++;
+        // **每刻挥一次手**：原版「按住左键」在挖掘期间（{@code Minecraft#continueAttack}）是每刻发一次
+        // 挥手包，而不是只挥一次。发包记录实测（同一格、玩家手动）：START 之后紧跟着一连串
+        // `挥手 MAIN_HAND`（一秒约二十次），而模块此前只在开挖时挥一次、之后二十刻静默 ——
+        // 服务端的破坏校验因此认为「没在挖」，把 STOP 驳回（实机：START/STOP 都发出、
+        // 每刻进度 0.0833、按住 120 刻仍纹丝不动）。
+        mc.player.swing(InteractionHand.MAIN_HAND);
+        if (!owner.breakDigStopSent) {
+            if (owner.breakDigTickCount < owner.breakDigHoldTicks) return;
+            // 松手前再确认一次手里那件真挖得动：服务端是在 STOP 那一刻按「当时手上那件」算进度的，
+            // 中途被重规划 / 换手改掉手里的东西，这一轮就白按了（实机：同一格前一轮 0.0833、后一轮 0.0）。
+            if (Float.isNaN(ensureDigTool(mc, pos, mc.level.getBlockState(pos)))) {
+                owner.breakDigTickCount = 0;
+                return;
+            }
+            // 服务端是在 STOP 那一刻按「当时的挖掘速度」算进度的，但**不能**用客户端这一刻的估算
+            // 去拦这一轮：本服的「方块破坏速度」属性只要在挖就会被压到 0，按住期间读数必然是 0.0，
+            // 而同一段里成功挖掉的那一格（发包记录实机 02:16:48 START、02:16:49 方块消失）读数也是 0.0。
+            // 拦在这里等于把每一轮都主动废掉，表现成 START / ABORT 抖动、永远挖不动。
+            owner.breakDigStopSent = true;
+            syncHeldSlot(mc);
+            boolean sent = ClientPacketSender.sendBreakStop(pos, Direction.UP);
+            LOGGER.info("[星露谷] 破坏 结束挖掘 目标={} 已按住 {} tick（计划 {}）发包={}",
+                pos, owner.breakDigTickCount, owner.breakDigHoldTicks, sent);
+            return;
+        }
+        if (owner.breakDigTickCount < owner.breakDigHoldTicks + StardewCoordinator.BREAK_RESEND_AFTER_TICKS) return;
+        if (owner.breakDigAttempts >= StardewCoordinator.BREAK_MAX_ATTEMPTS) {
+            LOGGER.info("[星露谷] 破坏 放弃 目标={} 已尝试 {} 轮（服务端没放行这一格） 选中槽={} 选中物品={}",
+                pos, owner.breakDigAttempts, mc.player.getInventory().getSelectedSlot(), selectedHotbarLabel(mc));
+            clearBreakDig();
+            ClientPacketSender.sendBreakAbort(pos, Direction.UP);
+            owner.reportBreakRejected(pos, cellSummary(pos));
+            return;
+        }
+        // 上一轮没挖掉：重新挥手 + 重新 START，按住时间翻倍再试（客户端估算在这台服上会偏小，
+        // 只靠估算永远卡在「按一下就松」，翻倍才能收敛到服务端真正要的时长）。
+        if (Float.isNaN(ensureDigTool(mc, pos, mc.level.getBlockState(pos)))) return;
+        owner.breakDigAttempts++;
+        owner.breakDigTickCount = 0;
+        owner.breakDigStopSent = false;
+        owner.breakDigHoldTicks = Math.min(owner.breakDigHoldTicks * 2,
+            StardewCoordinator.BREAK_MAX_HOLD_TICKS);
+        syncHeldSlot(mc);
+        mc.player.swing(InteractionHand.MAIN_HAND);
+        boolean sent = ClientPacketSender.sendBreakStart(pos, Direction.UP, mc.level.getBlockState(pos));
+        LOGGER.info("[星露谷] 破坏 重试挖掘 目标={} 第 {} 轮 按住 {} tick 发包={}",
+            pos, owner.breakDigAttempts, owner.breakDigHoldTicks, sent);
+    }
+
+    /**
+     * 开挖 / 松手前，把「当前选中槽」再向服务端声明一次。
+     *
+     * <p>服务端算破坏进度用的是<b>它那边</b>的手持物，而本地换手只在真的换了槽位时才发包；客户端与
+     * 服务端一旦对「手上那件」认知不一致（实机：客户端算出每刻 0.0833，服务端那边算出来是 0），
+     * 表现就是「客户端一直按、服务端永远不认这一格」。一个包换一次确定性。</p>
+     */
+    private void syncHeldSlot(Minecraft mc) {
+        if (mc.player == null) return;
+        owner.adapter.selectHotbar(mc.player.getInventory().getSelectedSlot());
+    }
+
+    /** 这一格的每刻破坏进度（客户端与 {@code getDestroyProgress} 同一口径）；负值/极小值一律按「几乎为 0」处理 */
+    private static float digProgress(Minecraft mc, BlockPos pos, BlockState state) {
+        return Math.max(state.getDestroyProgress(mc.player, mc.level, pos), 1.0E-4F);
+    }
+
+    /** 未经夹取的原始每刻进度：排查「客户端估算离谱」时看这个值最直接 */
+    private static float rawDigProgress(Minecraft mc, BlockPos pos, BlockState state) {
+        return state.getDestroyProgress(mc.player, mc.level, pos);
+    }
+
+    /** 玩家当前选中的快捷栏物品（{@code getDestroyProgress} 读的就是它，不是 activeHand） */
+    private static ItemStack selectedHotbarLabel(Minecraft mc) {
+        return mc.player == null ? ItemStack.EMPTY : mc.player.getInventory().getSelectedItem();
+    }
+
+    /** 这一格的挖掘已经结束（方块没了 / 已放弃）：清掉进度账，不发 ABORT */
+    private void clearBreakDig() {
+        owner.breakDigPos = null;
+        owner.breakDigAttempts = 0;
+        owner.breakDigTickCount = 0;
+        owner.breakDigStopSent = false;
+        owner.breakDigHoldTicks = 0;
+    }
+
+    /** 是否正在破坏的挖掘过程中（协调器据此把控制权留在这一格，别让重试上限打断） */
+    boolean digInProgress() {
+        return owner.breakDigPos != null;
+    }
+
+    /**
+     * 中止破坏：告诉服务端「不挖了」并清掉进度。
+     *
+     * <p>任务重规划 / 停机 / 换世界时必须调：服务端会一直记着「这个玩家在挖这一格」，
+     * 不带 ABORT 就换了目标，下一格的 START 会被当成同一段挖掘的继续。</p>
+     */
+    void abortBreakDig() {
+        if (owner.breakDigPos == null) return;
+        BlockPos pos = owner.breakDigPos;
+        clearBreakDig();
+        ClientPacketSender.sendBreakAbort(pos, Direction.UP);
+    }
+
+    /** 服务端公式 {@code delta × (已挖 tick + 1) ≥ 阈值} 的最少已挖 tick（与秒破同源） */
+    private static int requiredDigTicks(float delta, float threshold) {
+        if (delta <= 0) return Integer.MAX_VALUE - 1;
+        double samples = Math.ceil(threshold / (double) delta);
+        int elapsed = Math.max(0, (int) samples - 1);
+        while ((double) delta * (elapsed + 1) < threshold) elapsed++;
+        return elapsed;
     }
 
     /**
@@ -342,9 +879,10 @@ final class StardewFarmExecutor {
         InteractionHand hand = prepareHarvestHand();
         if (hand == null) {
             owner.probedLearningStages.add(key);
-            if (owner.reportedLearningFailures.add(key)) {
-                owner.status.state("LEARN_FAIL:" + key, "收获学习未确认",
-                    owner.activeCrop.chineseName() + "：没有可用空手，本会话不再试探该阶段");
+            // 与验证层同口径：同一作物每会话只播一条（逐阶段播会连刷好几条「未确认」）
+            if (owner.reportedLearningFailures.add(owner.activeCell.crop().cropKey())) {
+                owner.status.state("LEARN_FAIL:" + owner.activeCell.crop().cropKey(), "收获学习未确认",
+                    owner.activeCrop.chineseName() + "：没有可用空手，其余阶段会在后台继续试探");
             }
             return false;
         }
@@ -388,9 +926,12 @@ final class StardewFarmExecutor {
      * 左键破坏盆上方那格（清枯苗 / 清错位 / 清杂物共用；只打盆上方那格、绝不打盆本体）。
      *
      * <p>主目标走这里，同一批里余下的枯苗 / 错位 / 杂物由 {@link #sendBatchActions()} 在同一 tick 连发破坏包。</p>
+     *
+     * <p><b>走 {@link #breakAt} 而不是直接 {@code breakBlock}</b>：承载体不一定是零硬度方块
+     * （巨型作物常挂在硬度 0.4 的紫颂植株上），零硬度那条同 tick 通道对它只会「本地消失一下又回来」。</p>
      */
     boolean doBreakPlant() {
-        return owner.targetPot != null && owner.adapter.breakBlock(owner.targetPot.above(), Direction.UP);
+        return owner.targetPot != null && breakAt(owner.targetPot.above());
     }
 
     /**
@@ -1118,6 +1659,8 @@ final class StardewFarmExecutor {
         // 两个还原方法都会先把暂放状态清干净再动手，所以放在玩家判空之前，避免残留状态带到下一轮。
         restoreParkedMainHand();
         restoreParkedOffhand();
+        // 特殊收割口径的「不许换手」约束随任务一起结束：否则下一格（哪怕是普通菜）也不会再挑工具
+        owner.specialToolHold = null;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         activeHand = InteractionHand.MAIN_HAND;

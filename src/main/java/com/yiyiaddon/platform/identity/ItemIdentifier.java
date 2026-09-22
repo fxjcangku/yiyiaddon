@@ -107,6 +107,23 @@ public final class ItemIdentifier {
      * <p>只提取参与身份判定的字段，供每个容器槽位高频匹配使用，开销远小于完整识别。</p>
      */
     public static String coreKeyOf(ItemStack stack) {
+        return coreKey(stack, true);
+    }
+
+    /**
+     * 提取物品核心身份键，<b>不含附魔</b>。
+     *
+     * <p>用于「只要认得是哪一件东西」的场景：写死用什么工具去收特殊变种时，同一把工具后来附了魔、
+     * 或换了附魔等级，仍然是同一把 —— 附魔只决定挖得快不快，不该让人认不出这件工具（用户 2026-09-22）。</p>
+     *
+     * <p>与 {@link #coreKeyOf} 共用同一份身份判据，只把附魔那一维置空，不另起一套算法。</p>
+     */
+    public static String coreKeyWithoutEnchantmentsOf(ItemStack stack) {
+        return coreKey(stack, false);
+    }
+
+    /** 核心身份键的公共实现；{@code withEnchantments} 决定附魔是否参与判据 */
+    private static String coreKey(ItemStack stack, boolean withEnchantments) {
         if (stack == null || stack.isEmpty()) return "";
         String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
         String customName = componentPlain(stack, DataComponents.CUSTOM_NAME);
@@ -114,7 +131,7 @@ public final class ItemIdentifier {
         String identityName = customName != null ? customName : itemName;
         CompoundTag customData = customDataTag(stack);
         String customLogicId = extractCustomLogicId(modelOf(stack), customData);
-        List<ItemIdentity.EnchantmentEntry> enchantments = extractEnchantments(stack);
+        List<ItemIdentity.EnchantmentEntry> enchantments = withEnchantments ? extractEnchantments(stack) : List.of();
         return ItemIdentity.buildIdentityKey(itemId, customLogicId, identityName, enchantments);
     }
 

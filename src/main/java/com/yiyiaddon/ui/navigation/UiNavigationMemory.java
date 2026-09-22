@@ -12,6 +12,12 @@ import java.util.List;
  *
  * <p>存活范围是本次客户端进程：关掉面板（Esc / 关闭按钮）再打开回到原处；重启客户端回到首页。
  * 这是界面会话状态，不写进配置文件。</p>
+ *
+ * <p><b>模块页也要记住</b>（用户 2026-09-22：「ui 没有记得我关闭时候的记忆，我在星露谷模块关闭的 ui，
+ * 她又回到首页了」）：模块页是<b>独立屏幕</b>（{@code ModuleScreen}），不在左侧导航的路由栈里，
+ * 只记导航项等于「在模块页里关掉整个界面」这一情形永远回不到那一页。所以这里再记一个
+ * {@link #moduleId()}：进模块页时登记，<b>正常返回上级（返回键 / Esc）时抹掉</b>；
+ * 用 G 关掉整个界面时保留，下次打开直接落回那一页。</p>
  */
 public final class UiNavigationMemory {
 
@@ -20,8 +26,25 @@ public final class UiNavigationMemory {
 
     private static int rootIndex;
     private static List<String> tokens = List.of();
+    /** 上次关掉整个界面时停留的模块页（模块 id）；没在模块页里关过为 {@code null}。 */
+    private static String moduleId;
 
     private UiNavigationMemory() {
+    }
+
+    /** 上次关掉整个界面时停留的模块页（模块 id），没有则 {@code null}。 */
+    public static String moduleId() {
+        return moduleId;
+    }
+
+    /** 进入某个模块页时登记（下次「关掉整个界面再打开」直接落回这一页）。 */
+    public static void rememberModule(String id) {
+        moduleId = id == null || id.isBlank() ? null : id;
+    }
+
+    /** 从模块页正常返回上级：这一页不再算「上次停留的位置」。 */
+    public static void forgetModule() {
+        moduleId = null;
     }
 
     /** 上次停留的左侧导航项下标。 */
@@ -44,6 +67,7 @@ public final class UiNavigationMemory {
     public static void clear() {
         rootIndex = 0;
         tokens = List.of();
+        moduleId = null;
     }
 
     /** 拼一个「分类 id」标识；分类为空时返回 {@code null}。 */

@@ -247,18 +247,33 @@ public final class StardewResourceScanner {
     }
 
     /**
-     * 按语言文件解析本地化名称（{@code item.<ns>.<name>} 优先，其次 {@code block.<ns>.<name>}）。
+     * 按语言文件解析本地化名称：资源包自带语言表（{@link StardewPackLang}）→ 客户端已加载语言表
+     * （{@code Language}）；{@code item.<ns>.<名>} 优先，其次 {@code block.<ns>.<名>}。
      *
-     * <p>查不到返回 null——绝不把资源文件名伪装成中文名，语义层会改用文档化兜底名。</p>
+     * <p><b>为什么资源包语言表排在前：</b>客户端语言表只覆盖「游戏当前语言 + 已被应用的那份资源」，
+     * 而服务器资源包可能压根没被客户端应用（资源包处理模式「暴力绕过」、玩家还没接受推送），
+     * 那时这里什么都查不到，选择器就只剩技术名（真机：moexd 的肥料全部显示 {@code soil_retain_2}）。
+     * 本模组自己下载落盘的包里有完整的 {@code lang/zh_cn.json}，直接读它才是可靠来源。</p>
+     *
+     * <p><b>两种形态都要试：</b>语言键既可能跟着目录走（{@code item.customcrops.crops.tomato.tomato_seeds}），
+     * 也可能只认末段（{@code item.customcrops.quality_1}）——服务器爱用后者，漏掉末段就白白丢名字。</p>
+     *
+     * <p>查不到返回 {@code null}——绝不把资源文件名伪装成中文名，语义层会改用文档化兜底名。</p>
      */
     private static String resolveLocalizedName(String namespace, String modelName) {
+        String fromPack = StardewPackLang.itemName(namespace, modelName);
+        if (fromPack != null) return fromPack;
+
         Language language = Language.getInstance();
         if (language == null) return null;
         String flat = modelName.replace('/', '.');
-        String itemKey = "item." + namespace + "." + flat;
-        if (language.has(itemKey)) return clean(language.getOrDefault(itemKey));
-        String blockKey = "block." + namespace + "." + flat;
-        if (language.has(blockKey)) return clean(language.getOrDefault(blockKey));
+        String last = lastSegment(modelName);
+        for (String candidate : flat.equals(last) ? new String[]{flat} : new String[]{flat, last}) {
+            String itemKey = "item." + namespace + "." + candidate;
+            if (language.has(itemKey)) return clean(language.getOrDefault(itemKey));
+            String blockKey = "block." + namespace + "." + candidate;
+            if (language.has(blockKey)) return clean(language.getOrDefault(blockKey));
+        }
         return null;
     }
 

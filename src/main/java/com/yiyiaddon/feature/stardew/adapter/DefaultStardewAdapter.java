@@ -1,5 +1,6 @@
 package com.yiyiaddon.feature.stardew.adapter;
 
+import com.yiyiaddon.core.net.ClientPacketSender;
 import com.yiyiaddon.platform.navigation.FarmNav;
 import com.yiyiaddon.model.identity.ItemIdentity;
 import com.yiyiaddon.platform.identity.ItemIdentityMatcher;
@@ -7,10 +8,7 @@ import com.yiyiaddon.platform.network.BlockPacketSender;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
@@ -68,8 +66,7 @@ public final class DefaultStardewAdapter implements StardewAdapter {
         float yaw = (float) Math.toDegrees(Math.atan2(diff.z, diff.x)) - 90.0F;
         float pitch = (float) -Math.toDegrees(Math.atan2(diff.y, horizontal));
         // 只同步服务端视角，不突然扭动玩家画面；水源服通常会校验朝向与交互射线。
-        mc.getConnection().send(new ServerboundMovePlayerPacket.Rot(
-            yaw, pitch, mc.player.onGround(), mc.player.horizontalCollision));
+        ClientPacketSender.sendMoveRotation(yaw, pitch, mc.player.onGround(), mc.player.horizontalCollision);
         return true;
     }
 
@@ -108,31 +105,22 @@ public final class DefaultStardewAdapter implements StardewAdapter {
 
     @Override
     public void selectHotbar(int slot) {
-        if (mc.player == null || mc.getConnection() == null || slot < 0 || slot > 8) return;
-        mc.player.getInventory().setSelectedSlot(slot);
         // 发包层直接发 UseItemOn，不经过 gameMode 的 ensureHasSentCarriedItem；
-        // 因而必须在同一有序连接中先同步空手槽，否则服务端仍会按旧手持物处理右键。
-        mc.getConnection().send(new ServerboundSetCarriedItemPacket(slot));
+        // 因而必须在同一有序连接中先同步选中槽，否则服务端仍会按旧手持物处理右键与破坏。
+        // 走 ClientPacketSender 的绕行通道 —— 这条包一旦被本模组的发包规则拦下，
+        // 客户端与服务端就会分叉在「手上那件」上（见该方法的说明）。
+        ClientPacketSender.selectHotbar(slot);
     }
 
     @Override
     public boolean swapToHotbar(int invSlot) {
-        if (mc.player == null || mc.gameMode == null) return false;
-        if (invSlot < 0 || invSlot >= 36) return false;
-        int selected = mc.player.getInventory().getSelectedSlot();
-        mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, invSlot, selected, ContainerInput.SWAP, mc.player);
-        return true;
+        return ClientPacketSender.swapToHotbar(invSlot);
     }
 
     @Override
     public boolean swapOffhandWith(int invSlot) {
-        if (mc.player == null || mc.gameMode == null) return false;
-        // 背包槽 9~35：玩家物品栏菜单里这一段与 Inventory 索引一一对应（快捷栏是 36~44，别混用）。
-        if (invSlot < 9 || invSlot >= 36) return false;
         // 按钮 40 = 副手在 Inventory 里的索引（0~8 快捷栏 / 9~35 背包 / 36~39 护甲 / 40 副手）。
-        mc.gameMode.handleContainerInput(mc.player.inventoryMenu.containerId, invSlot, OFFHAND_INV_INDEX,
-            ContainerInput.SWAP, mc.player);
-        return true;
+        return ClientPacketSender.swapOffhandWith(invSlot, OFFHAND_INV_INDEX);
     }
 
     @Override

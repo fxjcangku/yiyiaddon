@@ -155,6 +155,24 @@ public final class StardewCropDisplayProbe {
         refresh(center.offset(-8, -4, -8), center.offset(8, 4, 8));
     }
 
+    /**
+     * 这一格上挂着的展示实体<b>此刻</b>携带的模型身份（没有 / 读不出返回 {@code null}）。
+     *
+     * <p>与 {@link #modelsAt} 的区别是数据来源：这里直接读世界里的实体，<b>不看扫描期归档</b>。
+     * 「绑定还成不成立」「刚才那个收割动作到底生效没有」这类判据必须看当下，
+     * 拿扫描期快照对比会把上一轮的结果当成事实（贴图形态洒水器被挖掉后仍判有效就是这个坑）。</p>
+     */
+    public static String liveIdentityAt(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || pos == null || !mc.level.isLoaded(pos)) return null;
+        for (Entity entity : mc.level.getEntities((Entity) null, new AABB(pos).inflate(1.0),
+            e -> e instanceof Display.ItemDisplay && e.blockPosition().equals(pos))) {
+            String model = modelOf(entity);
+            if (model != null) return model;
+        }
+        return null;
+    }
+
     /** 这一格盆上的全部展示物品模型（无则空表，顺序即发现顺序） */
     public static List<String> modelsAt(BlockPos potPos) {
         if (potPos == null) return List.of();

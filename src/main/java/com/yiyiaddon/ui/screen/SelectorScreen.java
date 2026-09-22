@@ -57,10 +57,12 @@ import java.util.function.Supplier;
  * —— 回执从聊天框改成面板内顶部弹窗，唯一出口见 {@link SelectionReceipt}：
  * 单条是「已添加 / 已移除 &lt;名&gt;」，组头「全选 / 清空」只发一条汇总「已添加 N 项」）。</p>
  *
- * <p><b>分组标题可折叠、且默认收起</b>（用户 2026-09-16：「装备选择列表要按大类分组且可折叠」）：
- * 标题右侧常显该组条目数（收起状态也看得出有多少项），折叠状态记在会话级集合
+ * <p><b>分组标题可折叠、默认只展开第一个有内容的分组</b>（用户 2026-09-16：「装备选择列表要按大类分组
+ * 且可折叠」；用户 2026-09-21 追加：「我打开目标选择器就这样」——截图里左栏只剩一行折叠标题、整片空白，
+ * 裁定开窗即展开第一组）：标题右侧常显该组条目数（收起状态也看得出有多少项），折叠状态记在会话级集合
  * {@link #expandedGroups} 里，过滤词变化重建也不丢。依据《开发习惯》第二十九章第 195~196 条
- * （候选多到需要滚动必须先分类；每个分类必须可折叠且默认收起）。空分组保持旧行为（静态标题 +「§8无」）。</p>
+ * （候选多到需要滚动必须先分类；每个分类必须可折叠且默认收起）—— 其余分组仍按第 196 条收起，
+ * 只有开窗时那一次自动展开（见 {@link #expandFirstGroup}）。空分组保持旧行为（静态标题 +「§8无」）。</p>
  *
  * <p><b>搜索时分组一律展开、空组不显示</b>（用户 2026-09-18：「搜索到了 但是还要自己点开分组才能看到」
  * ——要的是「输入『草』，下面直接列出带草字的关键字」）：过滤词非空时折叠记忆整体让位，命中的行直接铺在
@@ -245,11 +247,20 @@ public final class SelectorScreen extends PanelScreen {
     /**
      * <b>已展开</b>的分组标题（会话级：本窗口实例存活期间有效，过滤词变化触发 {@link #rebuild()} 也不丢）。
      *
-     * <p><b>为什么记「展开」而不是记「收起」：</b>第 196 条要求默认收起——集合初始为空即全部收起；
+     * <p><b>为什么记「展开」而不是记「收起」：</b>第 196 条要求默认收起——集合里没有的键就是收起态；
      * {@code ConsoleWidgets.FoldSection} 那套是记「收起」（不记即展开），口径正好相反，不能照抄。
-     * 键取分组标题原文（调用方给出的完整原文在候选表里唯一）。</p>
+     * 键取分组标题原文（调用方给出的完整原文在候选表里唯一）；两级结构的子组键见 {@link #foldKey}。</p>
+     *
+     * <p>集合的初始内容只有一项：开窗时自动展开的那个首组（见 {@link #expandFirstGroup}）。</p>
      */
     private final Set<String> expandedGroups = new HashSet<>();
+    /**
+     * 开窗自动展开首组是否已经做过（<b>只做一次</b>）。
+     *
+     * <p>为什么必须有这个闸：{@link #rebuild()} 在每次搜索词变化、每次加减一条后都会重跑，
+     * 若每次都自动展开，用户刚手动收起的首组会被立刻顶开——那就变成「收不起来」了。</p>
+     */
+    private boolean expandedFirstGroup;
     /**
      * <b>已收起</b>的右栏（已选列）分组标题。
      *
@@ -341,6 +352,13 @@ public final class SelectorScreen extends PanelScreen {
         List<String> keys = selectedKeys.get();
         Set<String> selected = new HashSet<>(keys == null ? List.of() : keys);
 
+        // 开窗首帧把第一个有内容的分组摊开：否则「只分了一组、组里上千项」的名单型选择器
+        // （如自动挖矿的保留白名单）打开后左栏只剩一行折叠标题，满屏空白
+        if (!expandedFirstGroup) {
+            expandedFirstGroup = true;
+            expandFirstGroup(selected);
+        }
+
         if (onPick != null) {
             // 单选：只有一条列表（点行即选中），铺在页面内容栈上
             buildColumn(content, Column.PICK, selected);
@@ -371,6 +389,40 @@ public final class SelectorScreen extends PanelScreen {
             }
             EntityType<?> type = entry.iconEntity();
             if (type != null) cache.prefetchEntity(type);
+        }
+    }
+
+    /**
+     * 开窗时自动展开「第一个有内容的分组」——两级结构时连它下面第一个有内容的子组一起展开。
+     *
+     * <p><b>为什么要这么做</b>（用户 2026-09-21 实机截图「我打开目标选择器就这样」）：分组默认收起
+     * 是为了压住上千项的长候选（第 195~196 条），但像自动挖矿「保留白名单」这种<b>只分得出一组</b>的
+     * 名单型选择器，打开后左栏就一行折叠标题、右栏空空如也，看到的是一个满屏空白的面板。
+     * 首组摊开之后打开即见候选，其余分组照旧收起。</p>
+     *
+     * <p><b>为什么只展第一个有内容的组、而不是全部展开：</b>全部展开等于把第 196 条作废——装备库那类
+     * 上千项候选会立刻铺成两百行长列表（{@link #MAX_ROWS} 截断），还得用户自己一组组收回去。</p>
+     *
+     * <p><b>为什么取「第一个可见条目的组」就够：</b>分组顺序 = 分组在候选表里首次出现的顺序
+     * （{@link #buildColumn} 里那棵 {@code LinkedHashMap} 的键序），而候选列要先剔除已选、再剔除
+     * 过滤未命中的条目；因此第一个可见条目的所属分组，正是重建时第一个非空的分组
+     * （排在它之前的分组里一条可见条目都没有）。</p>
+     *
+     * <p>写进 {@link #expandedGroups} 后与手动展开共用一个集合：用户收起即生效，不会被后续重建顶回去；
+     * 也与 {@link #isGroupExpanded} 的搜索态（过滤词非空一律展开）互不干扰。</p>
+     *
+     * @param selected 已选集合（候选列要剔除它们）；单选模式为空集，此处的剔除自然不生效
+     */
+    private void expandFirstGroup(Set<String> selected) {
+        for (Entry entry : entries) {
+            if (!matches(entry)) continue;
+            if (selected.contains(entry.key())) continue;
+            String parent = parentKey(entry);
+            String child = groupKey(entry);
+            // 一级组（parentGroup 为空时该组就是一级）与二级组各记各自的键
+            if (!parent.isEmpty()) expandedGroups.add(parent);
+            if (!child.isEmpty()) expandedGroups.add(foldKey(parent, child));
+            return;
         }
     }
 

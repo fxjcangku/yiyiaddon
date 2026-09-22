@@ -40,7 +40,10 @@ public final class UpdateService {
         if (pending != null && pending.isDone()) {
             try {
                 latest = pending.join();
-                status = latest == null ? "暂无发布版本" : hasUpdate() ? "发现新版本" : "已是最新版本";
+                // 正式版客户端只认正式版发布：否则「1.1-beta1 的版本值高于 1.0」会把正式版玩家
+                // 提示去装下一版测试包（用户 2026-09-22）。测试版客户端两类一起挑。
+                status = latest == null ? (stableChannel() ? "暂无正式版本" : "暂无发布版本")
+                    : hasUpdate() ? "发现新版本" : "已是最新版本";
                 if (ReleaseVersion.parse(ClientIdentity.version()) == null) status = "开发版本";
             } catch (RuntimeException error) {
                 status = "暂时无法检查";
@@ -84,10 +87,16 @@ public final class UpdateService {
                 throw new IllegalStateException("发布检查响应不可用");
             }
             return ReleaseCatalog.newest(new String(response.body(), java.nio.charset.StandardCharsets.UTF_8),
-                    ClientIdentity.gameVersion());
+                    ClientIdentity.gameVersion(), stableChannel());
         } catch (Exception error) {
             throw new IllegalStateException("发布检查失败", error);
         }
+    }
+
+    /** 本机是不是正式版（版本号不带 {@code -betaN} 这类后缀）；版本号认不出时不筛，两类都收。 */
+    private static boolean stableChannel() {
+        ReleaseVersion current = ReleaseVersion.parse(ClientIdentity.version());
+        return current != null && current.qualifier().isEmpty();
     }
 
     public static boolean hasUpdate() {

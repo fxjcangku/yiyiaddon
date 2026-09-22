@@ -116,6 +116,9 @@ public final class StardewStartupCheck {
         worldPendingDeferred = false;
         worldPendingRetries = 0;
         module.configureCoordinator(ResourceExtractionService.serverKey(), StardewContext.dimension());
+        // 自检通过：上一次留下的「错位红框」作废（玩家已经清好了），模块自己那层高亮接管
+        module.coordinator().clearStartupMismatch();
+        module.syncStartupMismatchOverlay();
         // 统一启动播报已经给出完整自检结论，屏蔽基类紧随其后的重复「已开启」。
         module.setSuppressEnableAnnounce(true);
         reportStartup();
@@ -285,6 +288,13 @@ public final class StardewStartupCheck {
                 : (region.cropName() != null ? region.cropName() : cropKey);
             notices.add("区域 " + region.index() + "（" + name + "）绑的作物不在目标作物里，这块地会被跳过"
                 + " ▸ 把它勾回来，或在「管理」里删掉该区域");
+        }
+        // 背包一个空格都没有：这时「去种子箱取种子」是死路（取回来也放不下），
+        // 唯一该让玩家知道的是「先清背包」（实机反馈：背包塞满，弹窗却写着「启动后自动去种子箱取」）。
+        if (module.inventory() != null && module.inventory().freeMainSlots() <= 0) {
+            notices.add("背包一个空格都没有 ▸ 模块收不了菜、也取不回种子；"
+                + "先清空背包腾出空格，腾出后自动继续");
+            return notices;
         }
         if (seedBoxUsable()) {
             for (String cropKey : module.cropsPlantableInDimension()) {

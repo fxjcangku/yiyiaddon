@@ -17,6 +17,7 @@
     "ModelManagerReloadMixin",
     "MultiPlayerGameModeFastBreakMixin",
     "MultiPlayerGameModePacketBreakMixin",
+    "MultiPlayerGameModeSpecialHarvestMixin",
     "PreeditCaptureMixin",
     "RenderTargetMixin",
     "ResourcePackPushMixin"

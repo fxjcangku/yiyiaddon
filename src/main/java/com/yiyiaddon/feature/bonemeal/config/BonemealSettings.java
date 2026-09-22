@@ -82,42 +82,26 @@ public final class BonemealSettings {
     /** 附近 / 准星处没有可催熟目标时提示一次（默认关） */
     public boolean noTargetHint;
 
-    // ── 组② 目标方块（默认值逐字 = 旧设置声明；登记 ID 名单） ──
+    // ── 组② 目标方块（登记 ID 名单） ──
+    //
+    // 出厂一律空名单：用户 2026-09-22「默认自己选择 不要帮我全选」—— 不给玩家预先勾满，
+    // 要催熟什么由玩家在「目标方块」页自己点「选择」勾（旧项目那份默认名单（11/9/8/4/6 项）
+    // 没有丢，已搬到 TargetList#members()，用作每组选择器的候选范围，即「哪些方块属于这一类」）。
 
-    /** 农作物（默认 11 种，逐字 = 旧 {@code targetCrops} 默认值） */
-    public final List<String> targetCrops = new ArrayList<>(List.of(
-        "minecraft:wheat", "minecraft:carrots", "minecraft:potatoes", "minecraft:beetroots",
-        "minecraft:torchflower_crop", "minecraft:pitcher_crop",
-        "minecraft:melon_stem", "minecraft:pumpkin_stem",
-        "minecraft:cocoa", "minecraft:sweet_berry_bush", "minecraft:cave_vines"
-    ));
+    /** 农作物（出厂空；候选范围 = {@link TargetList#members()}） */
+    public final List<String> targetCrops = new ArrayList<>();
 
-    /** 树苗（默认 9 种，逐字 = 旧 {@code targetSaplings} 默认值） */
-    public final List<String> targetSaplings = new ArrayList<>(List.of(
-        "minecraft:oak_sapling", "minecraft:spruce_sapling", "minecraft:birch_sapling",
-        "minecraft:jungle_sapling", "minecraft:acacia_sapling", "minecraft:dark_oak_sapling",
-        "minecraft:cherry_sapling", "minecraft:mangrove_propagule", "minecraft:pale_oak_sapling"
-    ));
+    /** 树苗（出厂空；候选范围 = {@link TargetList#members()}） */
+    public final List<String> targetSaplings = new ArrayList<>();
 
-    /** 花卉（默认 8 种，逐字 = 旧 {@code targetFlowers} 默认值） */
-    public final List<String> targetFlowers = new ArrayList<>(List.of(
-        "minecraft:sunflower", "minecraft:lilac", "minecraft:rose_bush", "minecraft:peony",
-        "minecraft:pink_petals", "minecraft:wildflowers",
-        "minecraft:flowering_azalea", "minecraft:azalea"
-    ));
+    /** 花卉（出厂空；候选范围 = {@link TargetList#members()}） */
+    public final List<String> targetFlowers = new ArrayList<>();
 
-    /** 蘑菇 / 菌类（默认 4 种，逐字 = 旧 {@code targetMushrooms} 默认值） */
-    public final List<String> targetMushrooms = new ArrayList<>(List.of(
-        "minecraft:brown_mushroom", "minecraft:red_mushroom",
-        "minecraft:crimson_fungus", "minecraft:warped_fungus"
-    ));
+    /** 蘑菇 / 菌类（出厂空；候选范围 = {@link TargetList#members()}） */
+    public final List<String> targetMushrooms = new ArrayList<>();
 
-    /** 水下 / 下界（默认 6 种，逐字 = 旧 {@code targetAquaticNether} 默认值） */
-    public final List<String> targetAquaticNether = new ArrayList<>(List.of(
-        "minecraft:kelp",
-        "minecraft:twisting_vines", "minecraft:weeping_vines",
-        "minecraft:moss_block", "minecraft:glow_lichen", "minecraft:small_dripleaf"
-    ));
+    /** 水下 / 下界（出厂空；候选范围 = {@link TargetList#members()}） */
+    public final List<String> targetAquaticNether = new ArrayList<>();
 
     // ── 组③ 防作弊绕过 ──
 
@@ -185,11 +169,20 @@ public final class BonemealSettings {
         checkOcclusion = boolOf(json, BonemealTexts.NAME_CHECK_OCCLUSION, checkOcclusion);
         noTargetHint = boolOf(json, BonemealTexts.NAME_NO_TARGET_HINT, noTargetHint);
 
-        replaceAll(targetCrops, listOf(json, BonemealTexts.NAME_TARGET_CROPS));
-        replaceAll(targetSaplings, listOf(json, BonemealTexts.NAME_TARGET_SAPLINGS));
-        replaceAll(targetFlowers, listOf(json, BonemealTexts.NAME_TARGET_FLOWERS));
-        replaceAll(targetMushrooms, listOf(json, BonemealTexts.NAME_TARGET_MUSHROOMS));
-        replaceAll(targetAquaticNether, listOf(json, BonemealTexts.NAME_TARGET_AQUATIC_NETHER));
+        // 名单只在配置里真有这个键时才整表替换 —— 缺字段要「保持字段里的默认值」（本方法开头就写明的契约，
+        // 与 boolOf / intOf / enumOf 的 fallback 口径一致）。原先无条件 replaceAll 是错的：
+        // listOf 在键不存在时返回空表，于是每次载入都把默认名单清成空的。
+        //
+        // 用户 2026-09-22 报的「自动骨粉五组全是『未选择（共 73 项）』」就是它：磁盘里
+        // module-state.json 的 bonemeal 段只有「启用」（设置从没存过），ModuleStateConfig.settingsOf
+        // 因此返回空对象，五个默认名单（11 / 9 / 8 / 4 / 6 项）全部被清空 —— 模块开箱即无任何目标，
+        // 自检、启动报告、催熟全都不成立。同项目里 AutoLoginSettings#listOf(json, key, fallback)
+        // 用的就是「缺键回落原名单」，本处按同一口径修。
+        replaceIfPresent(json, BonemealTexts.NAME_TARGET_CROPS, targetCrops);
+        replaceIfPresent(json, BonemealTexts.NAME_TARGET_SAPLINGS, targetSaplings);
+        replaceIfPresent(json, BonemealTexts.NAME_TARGET_FLOWERS, targetFlowers);
+        replaceIfPresent(json, BonemealTexts.NAME_TARGET_MUSHROOMS, targetMushrooms);
+        replaceIfPresent(json, BonemealTexts.NAME_TARGET_AQUATIC_NETHER, targetAquaticNether);
 
         tickDelay = clamp(intOf(json, BonemealTexts.NAME_TICK_DELAY, tickDelay),
             TICK_DELAY_MIN, TICK_DELAY_MAX);
@@ -241,6 +234,18 @@ public final class BonemealSettings {
     private static void replaceAll(List<String> target, List<String> source) {
         target.clear();
         target.addAll(source);
+    }
+
+    /**
+     * 名单载入：**只有配置里确有该键**（且是数组）时才整表替换，缺字段保持字段里的默认值。
+     *
+     * <p>不能直接用 {@code replaceAll(target, listOf(json, key))}：{@link #listOf} 对缺键 / 非数组返回空表，
+     * 那样「没存过设置的存档」会把默认名单清空（见 {@link #load} 里的注释）。</p>
+     */
+    private static void replaceIfPresent(JsonObject json, String key, List<String> target) {
+        JsonElement element = json.get(key);
+        if (element == null || !element.isJsonArray()) return;
+        replaceAll(target, listOf(json, key));
     }
 
     private static boolean boolOf(JsonObject json, String key, boolean fallback) {

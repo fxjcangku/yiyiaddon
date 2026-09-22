@@ -1,7 +1,11 @@
 package com.yiyiaddon.ui.keybind;
 
 import com.yiyiaddon.config.AddonConfig;
+import com.yiyiaddon.module.ModuleEntry;
+import com.yiyiaddon.module.ModuleRegistry;
+import com.yiyiaddon.ui.navigation.UiNavigationMemory;
 import com.yiyiaddon.ui.screen.ClickGuiScreen;
+import com.yiyiaddon.ui.screen.ModuleScreen;
 import com.yiyiaddon.ui.widget.SettingModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
@@ -182,6 +186,29 @@ public final class ModuleKeybindManager {
         return keyOf(id) != null;
     }
 
+    /**
+     * 这个键是不是「打开主界面」的绑定键（用户 2026-09-22：同一个键要能开也能关）。
+     *
+     * <p>界面里的关闭由各界面自己判定（见 {@code SkiaScreen#keyPressed}）：轮询通道的
+     * {@link #canTrigger} 在扩展自己的界面打开时一律不放行（那是「别抢玩家正在操作的地方」的守卫），
+     * 所以按一下 G 关界面这件事必须在界面内部处理。</p>
+     */
+    public static boolean isClickGuiKey(int key) {
+        Integer bound = keyOf(ACTION_CLICK_GUI);
+        return bound != null && bound == key;
+    }
+
+    /**
+     * 吞掉这一次「打开主界面」的按下边沿。
+     *
+     * <p><b>为什么必须有</b>：界面里按 G 关掉整个界面之后，同一个 tick 的轮询通道会看到
+     * 「G 按下 + 没有界面」这一跳变，于是刚关掉的界面立刻又被打开（开关变成没反应）。
+     * 关闭界面时调它，把这一轮记成「已经按下」，边沿就不成立；松开再按才重新算一次跳变。</p>
+     */
+    public static void suppressClickGuiKey() {
+        LAST_DOWN.put(ACTION_CLICK_GUI, true);
+    }
+
     public static boolean isCapturing() {
         return !captureId.isBlank();
     }
@@ -236,7 +263,12 @@ public final class ModuleKeybindManager {
         if (ACTION_CLICK_GUI.equals(id)) {
             // 父级给当前界面：从主菜单 / 暂停界面打开时 ESC 原路返回菜单；游戏里（无界面）仍是 null，
             // 与既有行为一字不差。
-            client.setScreen(new ClickGuiScreen(client.screen));
+            Screen root = new ClickGuiScreen(client.screen);
+            // 上次是在某个模块页里关掉整个界面的：直接把那一页再摆回主界面之上（返回键回到主界面），
+            // 而不是永远丢回首页（用户 2026-09-22：「ui 没有记得我关闭时候的记忆」）。
+            ModuleEntry restored = UiNavigationMemory.moduleId() == null
+                ? null : ModuleRegistry.byId(UiNavigationMemory.moduleId());
+            client.setScreen(restored == null ? root : new ModuleScreen(restored, root));
             return;
         }
         if (isModuleBinding(id)) {

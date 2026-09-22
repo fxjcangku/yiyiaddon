@@ -61,6 +61,16 @@ public final class StardewInventoryService {
      */
     public static final int OFFHAND_SLOT = 40;
 
+    /**
+     * 玩家主背包（含快捷栏）的格数：{@code Inventory} 里下标 0~35。
+     *
+     * <p><b>为什么必须有这个边界：</b>{@code Inventory#getContainerSize()} 是 41（36 主背包 +
+     * 4 护甲 + 1 副手），按它数空格会把护甲 / 副手那 5 个空位算成「背包还有位置」——
+     * 主背包 36 格塞满时仍然报「还有 5 格空」，于是「背包已满就停收」的判据永远不成立
+     * （实机：36 格全满，模块照常收菜且不去卸货）。</p>
+     */
+    public static final int MAIN_SLOTS = 36;
+
     /** 「当前/上限」水量对，兼容半角与全角斜杠 */
     private static final Pattern WATER_PAIR = Pattern.compile("(\\d{1,6})\\s*[/／]\\s*(\\d{1,6})");
 
@@ -76,6 +86,25 @@ public final class StardewInventoryService {
 
     public StardewInventoryService(IdentityService identityService) {
         this.identityService = identityService;
+    }
+
+    /**
+     * 玩家主背包（36 格）里真正为空的格数（不含护甲 / 副手）。
+     *
+     * <p>两条口径都不能走偏：① 不用 {@code Inventory#getFreeSlot()}（它返回「第一个空槽的下标」，
+     * 不是空格数）；② 不用 {@code getContainerSize()}（41 = 36 主背包 + 4 护甲 + 1 副手），
+     * 把护甲 / 副手算进来会让 36 格塞满时仍报「还有 5 格空」，「背包已满」永远不成立。</p>
+     *
+     * <p>「背包满没满」只此一处实现：任务层的停手判据与启动自检的提醒都读它，
+     * 两处各写一份必然走偏（启动自检就曾漏了这一判据，背包塞满还提示玩家「去种子箱取种子」）。</p>
+     */
+    public int freeMainSlots() {
+        if (mc.player == null) return 0;
+        int free = 0;
+        for (int i = 0; i < MAIN_SLOTS; i++) {
+            if (mc.player.getInventory().getItem(i).isEmpty()) free++;
+        }
+        return free;
     }
 
     /** 背包中某物品身份的总数量（0-35 全部槽位 + 副手） */

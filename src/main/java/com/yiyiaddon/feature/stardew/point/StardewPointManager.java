@@ -395,15 +395,50 @@ public final class StardewPointManager {
     /** @see #PENDING_CHUNK 容器方块实体尚未同步（区块已加载但方块实体还没到） */
     public static final String PENDING_CONTAINER = "容器数据尚未同步，无法验证";
 
+    /**
+     * 已绑定的洒水器<b>确实不在了</b>（贴图实体消失，通常是玩家把它挖了 / 拆了）。
+     *
+     * <p>与 {@link #PENDING_CHUNK} 相反，这是**确定结论**而不是「还没同步」：点位不该再被
+     * 当成维护对象（不跑去灌水、不画 ESP 方框、不计入「本轮 N 台」），只提示玩家清理或重绑。</p>
+     */
+    public static final String MISSING_SPRINKLER = "洒水器已不存在（那一格的洒水器实体消失了，可能已被挖掉）";
+
+    /** 资源 / 会话还没准备好：不是「这个点位有问题」，更不是「它不在了」 */
+    public static final String RESOURCE_NOT_READY = "当前服务器资源未就绪";
+
     /** 该失败是否属于「世界数据未就绪」（可稍后复核） */
     public static boolean isWorldPending(String failure) {
         return PENDING_CHUNK.equals(failure) || PENDING_CONTAINER.equals(failure);
     }
 
+    /**
+     * 这个洒水器点位现在<b>还能不能当维护对象</b>。
+     *
+     * <p>与 {@link #isWorldPending} 的分工：那类失败是「还不知道」（区块 / 方块实体还没到），
+     * 必须复核后才判，而且要照常跑过去把区块加载出来；本方法只回答「已经确定它不在了 / 绑定已失效」
+     * 的情况——那种点位跑过去也只是白点一次、还会被算进「本轮 N 台」和 ESP 方框（真机事故：
+     * 洒水器被挖掉后模块照常汇报「洒水器维护完成 ▸ 本轮 1 台」）。</p>
+     *
+     * @return {@code null} = 仍可维护（含「暂时还不知道」）；非 null = 确定不可用，返回值就是原因
+     */
+    public String sprinklerUnusableReason(StardewPoint point, StardewResourceIndex index) {
+        String failure = validationFailure(StardewPointType.SPRINKLER, point, index);
+        if (failure == null || isWorldPending(failure) || RESOURCE_NOT_READY.equals(failure)) return null;
+        return failure;
+    }
+
+    /**
+     * 洒水器型号身份 → 玩家认得的名字（索引里有就用显示名，没有就照身份报出来，绝不编一个）。
+     */
+    private static String describeSprinkler(StardewResourceIndex index, String identity) {
+        var entry = index == null ? null : index.entryByKey(identity);
+        return entry == null ? identity : entry.displayName();
+    }
+
     /** 设置、自检与运行交互共用的实时点位校验。 */
     public String validationFailure(StardewPointType type, StardewPoint point, StardewResourceIndex index) {
         if (point == null) return "未绑定";
-        if (!GameProbe.isMultiplayer() || !ResourceExtractionService.isReady()) return "当前服务器资源未就绪";
+        if (!GameProbe.isMultiplayer() || !ResourceExtractionService.isReady()) return RESOURCE_NOT_READY;
         if (!java.util.Objects.equals(point.serverKey(), StardewContext.serverKey())
             || !java.util.Objects.equals(loadedServer, StardewContext.serverKey())) return "点位属于其它服务器";
         if (!point.inCurrentDimension()) return "点位属于其它维度";
@@ -427,7 +462,18 @@ public final class StardewPointManager {
                 if (!java.util.Objects.equals(binding.fingerprint(), ResourceExtractionService.fingerprint())) return "资源指纹已改变，洒水器需重新人工确认";
                 if (!java.util.Objects.equals(binding.sprinklerKey(), point.identity())) return "洒水器逻辑身份与点位记录不一致";
                 if (!(index.entryByKey(binding.sprinklerKey()) instanceof SprinklerDefinition)) return "已选洒水器已不在当前资源索引";
-                if (!binding.matches(point.pos())) return "当前世界载体状态与人工确认绑定不一致";
+                if (!binding.matches(point.pos())) {
+                    // 贴图形态有两种失效：同格换了别的型号（型号能读出来）、或实体消失（挖掉了）。
+                    // 两者都要说人话，而不是含糊的「载体状态不一致」。
+                    String tier = binding.tierMismatchAt(point.pos());
+                    if (tier != null) {
+                        return "这一格的洒水器型号与绑定不一致（绑定的是 "
+                            + (point.typeName() == null ? "洒水器" : point.typeName())
+                            + "，现在挂的是 " + describeSprinkler(index, tier) + "）";
+                    }
+                    return binding.displayCarried() && mc.level.getBlockState(point.pos()).isAir()
+                        ? MISSING_SPRINKLER : "当前世界载体状态与人工确认绑定不一致";
+                }
                 return null;
             }
             SprinklerDefinition current = matchSprinkler(point.pos(), index);

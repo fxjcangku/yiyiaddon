@@ -25,6 +25,11 @@ public final class PanelFrame {
     public static final float CARD_RADIUS = 22f;
     /** 屏幕外边距：面板与窗口边缘的总留白（设计空间单位）。 */
     private static final float SCREEN_MARGIN = 24f;
+    /**
+     * {@link #opaqueScreenRect} 四边额外内缩的设计空间余量：圆角之外还有描边与取整误差，
+     * 多留一点才真的「盖得住」。
+     */
+    private static final float COVER_PAD = 4f;
 
     private static final float OPEN_DURATION = 0.16f;
     private static final float OPEN_MIN_SCALE = 0.88f;
@@ -187,5 +192,23 @@ public final class PanelFrame {
     /** 设计空间长度转换为 GUI 逻辑长度。 */
     public float toScreenLength(float designLength) {
         return designLength * scale;
+    }
+
+    /**
+     * 面板玻璃完全不透明的内接矩形（GUI 逻辑坐标），{@code [x, y, 宽, 高]}。
+     *
+     * <p><b>用途</b>：隐藏格子（{@code ItemIconCache}）整片只允许落在它里面 —— 格子露在面板之外的
+     * 部分就是屏幕上直接可见的放大物品图标。圆角处玻璃是缺的，所以四条边各内缩一个圆角再加余量。</p>
+     *
+     * @param rise 本帧面板相对最终位置的上浮位移（设计空间），开合动画期间由调用方给出
+     */
+    public float[] opaqueScreenRect(int screenWidth, int screenHeight, float rise) {
+        float inset = toScreenLength(CARD_RADIUS + COVER_PAD);
+        return new float[]{
+                toScreenX(cardX, screenWidth) + inset,
+                toScreenY(cardY + rise, screenHeight) + inset,
+                Math.max(1f, toScreenLength(cardW) - inset * 2f),
+                Math.max(1f, toScreenLength(cardH) - inset * 2f)
+        };
     }
 }

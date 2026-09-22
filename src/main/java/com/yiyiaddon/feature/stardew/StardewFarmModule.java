@@ -58,6 +58,7 @@ import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.screen.HelpPanelScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 
@@ -86,6 +87,11 @@ public final class StardewFarmModule extends Module {
     public static final String MODULE_ID = "stardew";
     /** 范围预览渲染层：与模块自身那一层分开，模块启动后预览层就不再挂载 */
     private static final String PREVIEW_LAYER_ID = MODULE_ID + "-preview";
+    /**
+     * 「启动自检留下错位」渲染层：自检不通过时模块会被立刻关掉，常规那层随之注销 ——
+     * 这一层专门负责「没启动也把那几格红框画出来」，只在未启动且确有自检错位时挂着。
+     */
+    private static final String STARTUP_MISMATCH_LAYER_ID = MODULE_ID + "-startup-mismatch";
     /** 事件订阅所有者标识 */
     private static final String EVENT_OWNER = "module.stardew";
 
@@ -235,6 +241,7 @@ public final class StardewFarmModule extends Module {
         coordinator.setRegionMismatchHandler(this::pauseForRegionMismatch);
         coordinator.setRegionMismatchRecoveredHandler(this::resumeFromRegionMismatch);
         coordinator.setMissingCanHandler(this::stopForMissingCan);
+        coordinator.setOutputBoxFullHandler(this::stopForOutputBoxFull);
 
         // 资源生命周期订阅：资源真正 READY 后才重建索引 / 加载档案 / 绑定选择；
         // 切服或断线立即失效，绝不在资源未就绪时使用上一服务器的数据。
@@ -506,6 +513,9 @@ public final class StardewFarmModule extends Module {
         // 「上次开启」时会在主菜单直接调用 onEnable，因此这里用同一口径跳过，等进服事件再跑，
         // 避免主菜单凭空播报一次「当前环境不是多人服务器」。
         if (mc.player != null) startupCheck.runStartupCheck();
+        // 自检可能在上面把自己关掉（这时 onDisable 已经挂上错位红框层），这里再同步一次兜底：
+        // 「未启动 + 有自检错位」挂层、其余情况摘层，两个方向的时机都覆盖到。
+        syncStartupMismatchOverlay();
 
         // 联动：星露谷农场开着的时候自动打开管理员检测（用户 2026-09-19 需求）。
         // 放在自检之后：自检可能已经把自己关掉了（不是多人服务器等），那种情况下不该把警戒一起拉起来
@@ -604,6 +614,9 @@ public final class StardewFarmModule extends Module {
         pendingSeasonFollowup = false;
         seasonDiagnosticGrace = 0;
         if (!forcedStop) statusReporter.state("STOPPED", "已停止", "自动任务已释放");
+        // 停在自检失败上时（未启动 + 自检留了错位），把红框层挂上：reset() 只清运行期那份高亮，
+        // 自检那份是留着的，靠这一层让玩家在世界里找得到那几格。
+        syncStartupMismatchOverlay();
     }
 
     /**
@@ -624,6 +637,19 @@ public final class StardewFarmModule extends Module {
      */
     private void stopForMissingCan() {
         forceStop("REFILL_NO_CAN", "找不到水壶", "水壶不在快捷栏、背包或副手，已停止农场任务");
+    }
+
+    /**
+     * 产物箱确实放不下成品：**直接关闭模块**（用户 2026-09-22：「我说了 直接停机了 关闭模块懂？」）。
+     *
+     * <p><b>为什么必须是关模块，而不是"停手等恢复"</b>：箱子满了要玩家亲自去开、去清 —— 那段时间
+     * 模块若还开着，它会继续跑动、抢容器界面，玩家连箱子都清不痛快（实机原话：「我刚刚打开箱子
+     * 然后又进去状态机 … 用户想清空箱子 都没办法」）。关掉之后世界彻底静止，玩家安心清箱；
+     * 清完自己重开模块即可（不再是"打开箱子就自动恢复"）。</p>
+     */
+    private void stopForOutputBoxFull() {
+        forceStop("OUTPUT_FULL", "产物箱没有空间，已关闭模块",
+            "已结束本次卸货｜清空产物箱后重新开启模块即可（模块关闭期间不会跑动）");
     }
 
     /**
@@ -773,6 +799,7 @@ public final class StardewFarmModule extends Module {
             // 玩家手动开的箱子：压掉 + 收掉那个容器（真不给开）+ 动作栏提示
             SilentContainer.rejectPlayerContainer();
             event.cancel();
+            return;
         }
     }
 
@@ -1225,21 +1252,108 @@ public final class StardewFarmModule extends Module {
         return null;
     }
 
-    /** 删除一个区域（该地块随即回到「未分区」，不再被种 / 收 / 浇 / 画） */
+    /**
+     * 删除一个区域（该地块随即回到「未分区」，不再被种 / 收 / 浇 / 画）；
+     * **该范围内的洒水器点位一并删除**（见 {@link #removeSprinklersInside}）；
+     * **已无区域在用的目标作物同步退勾选**（见 {@link #dropUnusedCrops}）。
+     */
     public boolean removeRegion(int seq) {
+        StardewRegionManager.Region region = regionByIndex(seq);
         boolean removed = regionManager.remove(StardewContext.serverKey(), seq);
-        if (removed) CommandMessageFormatter.of(MODULE_NAME, "已删除区域 " + seq)
-            .status(CommandMessageFormatter.Level.SUCCESS, "这块地不再被管理").send();
+        if (!removed) return false;
+        int sprinklers = region == null ? 0 : removeSprinklersInside(region);
+        List<String> dropped = dropUnusedCrops();
+        CommandMessageFormatter message = CommandMessageFormatter.of(MODULE_NAME, "已删除区域 " + seq);
+        if (sprinklers > 0) message.field("洒水器", sprinklers + " 个已一并删除");
+        if (!dropped.isEmpty()) message.field("目标作物", String.join("、", dropped) + " 已无区域在用，已同步取消勾选");
+        message.status(CommandMessageFormatter.Level.SUCCESS,
+            regionRemovedNote("这块地不再被管理", sprinklers > 0, dropped)).send();
+        return true;
+    }
+
+    /** 清空全部区域；**该服所有区域的洒水器点位一并删除**，已无区域在用的目标作物一并退勾选 */
+    public int clearRegions() {
+        int sprinklers = removeAllSprinklers();
+        int count = regionManager.clear(StardewContext.serverKey());
+        if (count > 0) {
+            List<String> dropped = dropUnusedCrops();
+            CommandMessageFormatter message =
+                CommandMessageFormatter.of(MODULE_NAME, "已清空全部种植区域").field("数量", count + " 个");
+            if (sprinklers > 0) message.field("洒水器", sprinklers + " 个已一并删除");
+            if (!dropped.isEmpty()) message.field("目标作物", String.join("、", dropped) + " 已无区域在用，已同步取消勾选");
+            message.status(CommandMessageFormatter.Level.SUCCESS,
+                regionRemovedNote("这些地不再被管理", sprinklers > 0, dropped)).send();
+        }
+        return count;
+    }
+
+    /** 删区 / 清区的副标题：把「顺带收掉了什么」如实说清（什么都没动就只说地不再被管理） */
+    private static String regionRemovedNote(String subject, boolean sprinklersRemoved, List<String> droppedCrops) {
+        StringBuilder note = new StringBuilder(subject);
+        if (sprinklersRemoved) note.append("，区域内的洒水器点位已一并删除");
+        if (!droppedCrops.isEmpty()) {
+            note.append("，").append(String.join("、", droppedCrops)).append("已无区域在用、同步取消勾选");
+        }
+        return note.toString();
+    }
+
+    /**
+     * 把「已经没有区域在用的目标作物」从目标选择器里退勾选，返回退掉的作物中文名。
+     *
+     * <p><b>为什么删区要连着退勾选</b>（用户 2026-09-22：「我刚刚不是已经删除了番茄的区域了吗，
+     * 但是目标选择器里面还是有番茄」）：目标作物勾选是「玩家想种什么」的意图记录，而作物最终只能种在
+     * 绑着它的区域里（{@code cropIsManaged} 要求格子落在某块绑该作物的单一作物区，或混种区）。
+     * 最后一块绑它的地删掉之后，这个勾选就再也落不到任何一格上 —— 留在选择器与作物计划里只会
+     * 一直显示「目标 番茄」、还会跟着报「背包无番茄种子」，玩家却怎么等都不会有地种它。</p>
+     *
+     * <p><b>退勾选的判据必须站得住脚</b>（与 {@link #changeRegionCrop} 换品种同一把尺、
+     * 同一处 {@link StardewSelectionBinding.Selection#deselect}）：全服（跨维度）确实再没有任何区域
+     * 绑着它；<b>有混种区时一律不动</b> —— 混种区可以种任何已勾选作物，勾选仍然有效。
+     * 只动「勾选」这一处，作物计划里的数量配额原样保留，重新勾上即恢复。</p>
+     */
+    private List<String> dropUnusedCrops() {
+        for (StardewRegionManager.Region region : regionManager.all()) {
+            if (region.mixed()) return List.of();
+        }
+        List<String> dropped = new ArrayList<>();
+        for (String cropKey : selections.crop().selectedCropKeys()) {
+            if (cropKeyInUse(cropKey)) continue;
+            if (selections.crop().deselect(cropKey)) dropped.add(cropDisplayName(cropKey));
+        }
+        return dropped;
+    }
+
+    /**
+     * 删掉落在某个区域范围内的洒水器点位，返回删除个数。
+     *
+     * <p><b>为什么区域删了要连点位一起删</b>（用户 2026-09-22）：那块地玩家已经不要了，
+     * 挂在它上面的设备点位留着没有意义 —— 点位列表里还列着、世界里还画着 ESP 框，
+     * 玩家只会以为「这块地还在被管」（实机原话：「洒水器点位还是有 4 个 然后删除区域的那个地方
+     * 洒水器还在显示 esp」；更早那次是「删掉了就不会去维护了，但点位还在」）。
+     * 所以删区的动作要连它的附属点位一起收干净，播报里也写清楚删了几个。</p>
+     *
+     * <p><b>只按维度 + 水平范围（x/z）判定，不判 y</b>：区域的 y 只是「盆在哪一层」，
+     * 而玩家说「这块地我不要了」指的是平面范围 —— 洒水器可能标在盆同层、也可能标在偏上一格，
+     * 判 y 会漏掉后者，又变回「删了地还留着点位」。同一平面上一层与下一层是同属这块地的。</p>
+     */
+    private int removeSprinklersInside(StardewRegionManager.Region region) {
+        int removed = 0;
+        for (StardewPointManager.StardewPoint point : pointManager.getAll(StardewPointType.SPRINKLER)) {
+            if (!java.util.Objects.equals(region.dimension(), point.dimension())) continue;
+            BlockPos pos = point.pos();
+            if (pos.getX() < region.minX() || pos.getX() > region.maxX()) continue;
+            if (pos.getZ() < region.minZ() || pos.getZ() > region.maxZ()) continue;
+            pointManager.removeSprinkler(point);
+            removed++;
+        }
         return removed;
     }
 
-    /** 清空全部区域 */
-    public int clearRegions() {
-        int count = regionManager.clear(StardewContext.serverKey());
-        if (count > 0) CommandMessageFormatter.of(MODULE_NAME, "已清空全部种植区域")
-            .field("数量", count + " 个")
-            .status(CommandMessageFormatter.Level.SUCCESS, "这些地不再被管理").send();
-        return count;
+    /** 删掉本服全部洒水器点位（清空区域时用），返回删除个数 */
+    private int removeAllSprinklers() {
+        List<StardewPointManager.StardewPoint> all = pointManager.getAll(StardewPointType.SPRINKLER);
+        for (StardewPointManager.StardewPoint point : all) pointManager.removeSprinkler(point);
+        return all.size();
     }
 
     /**
@@ -1474,6 +1588,23 @@ public final class StardewFarmModule extends Module {
             WorldOverlay.register(PREVIEW_LAYER_ID, renderState::renderNearby);
         } else {
             WorldOverlay.unregister(PREVIEW_LAYER_ID);
+        }
+    }
+
+    /**
+     * 「启动自检留下错位」红框层：**模块未启动时也要把那几格标出来**。
+     *
+     * <p><b>为什么必须单独挂一层：</b>自检不通过 → 模块被立刻关掉 → 常规渲染层注销，
+     * 那一刻起玩家只剩聊天栏一行坐标，农田一大就找不到那几格（用户 2026-09-22：
+     * 「这个报错显示坐标没用 应该显示红色的 ESP 全包那种 不然农田大了 不好找」）。
+     * 这一层只画错位红框（见 {@link StardewRenderState#renderMismatchOnly}），
+     * 不画区域与点位，所以关着模块也不会满屏东西。</p>
+     */
+    public void syncStartupMismatchOverlay() {
+        if (!isEnabled() && coordinator.hasStartupMismatch()) {
+            WorldOverlay.register(STARTUP_MISMATCH_LAYER_ID, renderState::renderMismatchOnly);
+        } else {
+            WorldOverlay.unregister(STARTUP_MISMATCH_LAYER_ID);
         }
     }
 
@@ -1742,7 +1873,7 @@ public final class StardewFarmModule extends Module {
                     + "（左键点一个角、右键点对角；作物要已在选择器里勾选，TAB 只补已勾选的）",
                 "  §e▸ §f混种地：§3.stardew 种植区域 混种§f 圈出一块不绑作物的地，"
                     + "里面的空盆按后勤缺口从已勾选作物里挑一种种，一块地上可以同时长好几种",
-                "  §e▸ §f区域的查看与收拾：§3.stardew 种植区域 列表 / 删除 <序号> / 清空 / 取消§f"
+                "  §e▸ §f区域的查看与收拾：§3.stardew 种植区域 管理 §8▸ §3列表 / 删除 <序号> / 清空 / 取消§f"
                     + "（删除 = 这块地不再被管；取消 = 退出选区，半成品丢弃）",
                 "  §e▸ §f每块地只种它绑定的那种作物（混种地除外），没圈到的地一律不管",
                 "  §e▸ §f错位处置：单一作物区里种了别的作物时，错位格会用§c红框§f标出；"
@@ -1760,8 +1891,8 @@ public final class StardewFarmModule extends Module {
                 "  §e▸ §f洒水器卡片的「§e管理§f」打开洒水器点位列表：每格一行「删除」，或只清空洒水器（不动箱子 / 补水点）"
             ),
             new HelpPanelScreen.HelpSection("后勤参数（控制台「后勤」页 · 每种作物独立）",
-                "  §e▸ §f默认勾选「简化后勤」：每种作物只显示数量模式与目标数量，四个阈值固定用默认值",
-                "  §e▸ §f取消勾选后才逐作物展开四个阈值；界面上没显示的旧值绝不会偷偷生效",
+                "  §e▸ §f「简化后勤」默认不勾选：逐作物展开四个阈值；没单独调过的作物用的就是那组默认值（2 / 8 / 8 / 0）",
+                "  §e▸ §f勾选「简化后勤」后收起四个阈值，固定用默认值；界面上没显示的旧值绝不会偷偷生效",
                 "  §8├─ §f每块标题就是作物名，右侧灰字是每行的含义，鼠标悬停有更细的说明",
                 "  §8├─ §f种子补货触发 / 种子补货目标 / 成品卸货触发 / 成品卸货保留",
                 "  §8├─ §f成品卸货触发 = 允许卸货的最低数量：达到后才有资格卸，实际时机在所有农田任务之后",

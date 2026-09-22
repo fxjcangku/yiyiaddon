@@ -172,24 +172,29 @@ public final class StardewResourceIndex {
      * 「末地」字眼（实机反馈）。整表替换，换包 / 换服不会残留旧声明。</p>
      */
     private void installCropPotGroups() {
-        Language language = Language.getInstance();
         Map<String, PotGroup> declared = new LinkedHashMap<>();
-        if (language != null) {
-            for (CropDefinition crop : crops) {
-                PotGroup group = declaredGroup(language, crop.cropKey());
-                if (group != PotGroup.NORMAL) declared.put(crop.cropKey(), group);
-            }
+        for (CropDefinition crop : crops) {
+            PotGroup group = declaredGroup(crop.cropKey());
+            if (group != PotGroup.NORMAL) declared.put(crop.cropKey(), group);
         }
         CropPotGroups.installPackGroups(declared);
     }
 
-    /** 单种作物的资源包声明；没有声明、或声明里看不出维度时按通用处理（绝不猜） */
-    private static PotGroup declaredGroup(Language language, String cropKey) {
+    /**
+     * 单种作物的资源包声明；没有声明、或声明里看不出维度时按通用处理（绝不猜）。
+     *
+     * <p>查询顺序与物品名一致：{@link StardewPackLang 资源包语言表} → 客户端已加载语言表。
+     * 客户端语言表可能压根没有这份服务器的资源（包没被应用），只认它会让「下界 / 末地专属作物」
+     * 在这类服务器上永远缺标记。</p>
+     */
+    private static PotGroup declaredGroup(String cropKey) {
         String key = "plugin.customcrops.crops." + cropKey + ".not_met_requirement.message";
-        if (!language.has(key)) return PotGroup.NORMAL;
-        String message = language.getOrDefault(key);
-        if (message == null) return PotGroup.NORMAL;
-        return dimensionIn(message);
+        String message = StardewPackLang.get(key);
+        if (message == null) {
+            Language language = Language.getInstance();
+            if (language != null && language.has(key)) message = language.getOrDefault(key);
+        }
+        return message == null ? PotGroup.NORMAL : dimensionIn(message);
     }
 
     /**
@@ -493,37 +498,125 @@ public final class StardewResourceIndex {
         };
     }
 
-    /** 显示名优先级：绑定身份 → 资源语言文件 → 文档化兜底 → 逻辑名 */
+    /**
+     * 显示名优先级：绑定身份（玩家自己绑的真实中文名）→ 学名 / 资源包语言表（**带汉字的优先**）→
+     * 扫描名（按模型路径解析出的语言名）→ 文档化兜底 → 逻辑名。
+     *
+     * <p>每一步都要过 {@link #meaningful}：与逻辑名 / 语言键相同的字符串属于「技术名冒充名字」，
+     * 一律当作没拿到——否则玩家看到的就是一排 {@code quality_1}、{@code soil_retain_2}
+     * （用户 2026-09-22 报「肥料没汉化」正是这个）。</p>
+     */
     private static String resolveDisplayName(Acc acc) {
-        if (firstNonBlank(acc.boundName, null) != null) return acc.boundName;
-        String scanned = firstNonBlank(acc.scannedName, null);
-        if (scanned != null && !scanned.equals(lastSegment(acc.canonical))) return scanned;
-        String documented = documentedName(acc.category, acc.index);
+        String bound = meaningful(acc.boundName, acc.canonical);
+        if (bound != null) return bound;
+
+        // 学名（服务器实际下发的名字，玩家在游戏里看到的就是它）与资源包语言表（服务器自己写的命名）
+        // 都是服务器真相，谁带汉字用谁：中文服务器两类都是中文，而只写了 en_us 的包语言表是英文名——
+        // 那种情况下学名才是玩家看到的写法。两者都没汉字时先用学名（更贴玩家），再退包语言表。
+        String learned = learnedName(acc);
+        String packed = packedName(acc);
+        if (hasHan(learned)) return learned;
+        if (hasHan(packed)) return packed;
+        if (learned != null) return learned;
+        if (packed != null) return packed;
+
+        String scanned = meaningful(acc.scannedName, acc.canonical);
+        if (scanned != null) return scanned;
+        String documented = documentedName(acc);
         return documented != null ? documented : acc.canonical;
     }
 
     /**
-     * 文档化兜底名（攻略记载级 DOCUMENTED，非硬编码业务规则）。
+     * 资源包语言表里的名字，**按逻辑名查**。
      *
-     * <p>仅覆盖 CustomCrops 标准层级（花盆 / 水壶 / 洒水器 / 温室玻璃）；肥料 / 药剂的中文名一律来自
-     * 绑定身份或资源语言文件，绝不在通用 Java 里写死 12 / 3 这种数量语义。</p>
+     * <p>为什么不只靠扫描阶段按模型路径查：聚合槽还可能由「真实身份」单独建出来（物品定义不在
+     * {@code items/} 下、模型路径被服务器混淆成随机串的服务器），这类槽根本没有扫描名，
+     * 而语言键恰恰是按逻辑名写的（{@code item.customcrops.quality_1}）——按逻辑名查才能命中。</p>
      */
-    private static String documentedName(StardewSelectorCategory cat, int index) {
-        return switch (cat) {
-            case POT -> switch (index) {
+    private static String packedName(Acc acc) {
+        return meaningful(StardewPackLang.itemName(STARDEW_NAMESPACE, acc.canonical), acc.canonical);
+    }
+
+    /**
+     * 实测学名：{@link StardewCropNameStore} 在背包 / 界面 / 田地里实见到的服务器物品名。
+     *
+     * <p><b>为什么工具类也要接这一层：</b>这些名字是服务器自己下发、玩家在游戏里真正看到的写法
+     * （真机：moexd 的 {@code quality_1} 游戏里叫「品质肥料 Lv.1」）。原先只有作物接了学名，
+     * 肥料 / 药剂 / 水壶 / 洒水器 / 盆 / 温室玻璃全部只走语言表，于是语言表一旦拿不到
+     * （包没被客户端应用、或名字写在别处）就只剩技术名。</p>
+     *
+     * <p>键的形态不止一套，逐个试：聚合键（{@code dry_pot_-1}）→ 去掉归一序号（{@code dry_pot}）→
+     * 原始末段名。学名是按观察到的物品键存的，不保证与聚合键写法一致。</p>
+     */
+    private static String learnedName(Acc acc) {
+        String name = meaningful(StardewCropNameStore.nameOf(acc.canonical), acc.canonical);
+        if (name != null) return name;
+        if (acc.canonical.endsWith("_-1")) {
+            name = meaningful(StardewCropNameStore.nameOf(
+                acc.canonical.substring(0, acc.canonical.length() - 3)), acc.canonical);
+            if (name != null) return name;
+        }
+        return meaningful(StardewCropNameStore.nameOf(lastSegment(acc.canonical)), acc.canonical);
+    }
+
+    /** 名字里是否含汉字（挑「带汉字的那一份」用，避免把服务器只写了 en_us 的英文名当汉化结果） */
+    private static boolean hasHan(String text) {
+        if (text == null) return false;
+        for (int i = 0; i < text.length(); i++) {
+            if (Character.UnicodeScript.of(text.charAt(i)) == Character.UnicodeScript.HAN) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 候选名是否算「拿到了名字」：非空、且不是技术名。
+     *
+     * <p>技术名的判据（任一命中即弃）：等于该对象的逻辑名或其末段；形如 {@code item.<ns>.<名>} /
+     * {@code block.<ns>.<名>} 的语言键原文。中文名、英文名（含空格）都不会命中这三条。</p>
+     */
+    private static String meaningful(String name, String canonical) {
+        String value = firstNonBlank(name, null);
+        if (value == null) return null;
+        if (value.equals(canonical) || value.equals(lastSegment(canonical))) return null;
+        if (value.startsWith("item.") || value.startsWith("block.")) return null;
+        return value;
+    }
+
+    /**
+     * 文档化兜底名（官方译名级 DOCUMENTED，非硬编码业务规则）。
+     *
+     * <p>覆盖 CustomCrops 本体的标准物品集，按类别分两档：</p>
+     * <ul>
+     *   <li><b>等级族</b>（花盆 / 水壶 / 洒水器 / 温室玻璃）：按序号取官方译名；</li>
+     *   <li><b>肥料 / 药剂</b>：按「家族前缀 + 阶数」取官方译名 —— 数据来源是五台不同服务器的资源包
+     *       语言文件（{@code item.customcrops.*}）里逐字一致的 15 条：
+     *       基础 / 优质 / 高级肥料、基础 / 优质 / 高级保湿土壤、生长激素 / 高级生长激素 / 超级生长激素、
+     *       基础 / 优质 / 高级增产剂、初级 / 中级 / 高级魔法药剂。</li>
+     * </ul>
+     *
+     * <p><b>为什么肥料 / 药剂必须留这一档：</b>有的服务器（真机：jmy.seasonmc.xyz）资源包里
+     * 一个 {@code item.customcrops.*} 语言键都没有、模型路径也整体混淆，而玩家还没在游戏里见过这些
+     * 物品（学名也学不到）—— 那时若没有这一档，选择器里就只剩 {@code soil_retain_2}、{@code variation_3}
+     * 这种技术名（用户 2026-09-22 报「肥料跟魔法药剂还是没汉化」）。</p>
+     *
+     * <p>优先级最低：绑定身份、实测学名、资源包语言表、扫描名任何一档拿到名字，都不会走到这里。</p>
+     */
+    private static String documentedName(Acc acc) {
+        return switch (acc.category) {
+            case POT -> switch (acc.index) {
                 case 1 -> "普通种植盆";
                 case 2 -> "下界种植盆";
                 case 3 -> "末地种植盆";
                 default -> null;
             };
-            case WATERING_CAN -> switch (index) {
+            case WATERING_CAN -> switch (acc.index) {
                 case 1 -> "铜制浇水壶";
                 case 2 -> "钢制浇水壶";
                 case 3 -> "黄金浇水壶";
                 case 4 -> "铱制浇水壶";
                 default -> null;
             };
-            case SPRINKLER -> switch (index) {
+            case SPRINKLER -> switch (acc.index) {
                 case 1 -> "初级洒水器";
                 case 2 -> "优质洒水器";
                 case 3 -> "高级洒水器";
@@ -532,6 +625,28 @@ public final class StardewResourceIndex {
             };
             // 温室玻璃只有一种，与等级无关（index 无意义），中文名以资源语言文件为准，这里只做兜底
             case SHELTER -> "温室玻璃";
+            case FERTILIZER -> documentedFertilizer(acc.canonical, acc.index);
+            case POTION -> tierName(acc.index, "初级魔法药剂", "中级魔法药剂", "高级魔法药剂");
+            default -> null;
+        };
+    }
+
+    /** 肥料官方译名：按家族前缀 + 阶数；前缀不认识（服务器自建肥料）一律返回 null，不编名字 */
+    private static String documentedFertilizer(String canonical, int index) {
+        String family = canonical == null ? "" : canonical;
+        if (family.startsWith("quality_")) return tierName(index, "基础肥料", "优质肥料", "高级肥料");
+        if (family.startsWith("soil_retain_")) return tierName(index, "基础保湿土壤", "优质保湿土壤", "高级保湿土壤");
+        if (family.startsWith("speed_grow_")) return tierName(index, "生长激素", "高级生长激素", "超级生长激素");
+        if (family.startsWith("yield_increase_")) return tierName(index, "基础增产剂", "优质增产剂", "高级增产剂");
+        return null;
+    }
+
+    /** 三阶取名：序号不是 1 / 2 / 3 时返回 null（序号缺失或被归一过的条目绝不套名字） */
+    private static String tierName(int index, String first, String second, String third) {
+        return switch (index) {
+            case 1 -> first;
+            case 2 -> second;
+            case 3 -> third;
             default -> null;
         };
     }

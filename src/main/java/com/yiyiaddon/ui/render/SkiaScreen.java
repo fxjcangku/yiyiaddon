@@ -2,12 +2,14 @@ package com.yiyiaddon.ui.render;
 
 import com.yiyiaddon.config.AddonConfig;
 import com.yiyiaddon.ui.component.GlassPanel;
+import com.yiyiaddon.ui.keybind.ModuleKeybindManager;
 import com.yiyiaddon.ui.theme.ClickGuiThemeColors;
 import io.github.humbleui.skija.Canvas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -65,9 +67,9 @@ public abstract class SkiaScreen extends Screen {
         frameMouseY = mouseY;
         frameDelta = partialTick;
         framePending = true;
-        // 把本帧待加载的物品图标画进屏幕中心的隐藏格子，帧末截取成贴图后即可被面板覆盖。
+        // 把本帧待加载的物品图标画进面板盖得住的隐藏格子，帧末截取成贴图后即可被面板覆盖。
         if (canCaptureIcons()) {
-            ItemIconCache.getInstance().renderPending(graphics);
+            ItemIconCache.getInstance().renderPending(graphics, coverRegion());
         }
         // 登记本帧面板玻璃要采样的世界帧区域：抽帧早于「世界画完、GUI 未画」那个截取点，
         // 所以第一帧画面板也有干净背景可采（否则那一帧会退回现场采样，闪一下自反馈的蓝雾）。
@@ -78,6 +80,17 @@ public abstract class SkiaScreen extends Screen {
             }
         }
         // 局部玻璃在帧末只采样面板区域；这里不再模糊整屏，否则折射边缘与主体失去差异。
+    }
+
+    /**
+     * 本帧面板玻璃完全不透明的内接矩形（GUI 逻辑坐标）；返回 {@code null} 表示本界面没给出可盖区域。
+     *
+     * <p>隐藏格子（{@code ItemIconCache}）整片排在它里面 —— 格子里的纯黑/纯白底与放大到 32 逻辑像素的
+     * 物品图标一旦露到面板之外，就是屏幕上直接看得见的一格格放大贴图（用户 2026-09-22：「物品选择器
+     * 两旁出现了大图标」）。面板类界面用 {@code PanelFrame#opaqueScreenRect} 给这个矩形。</p>
+     */
+    protected float[] coverRegion() {
+        return null;
     }
 
     /**
@@ -200,6 +213,44 @@ public abstract class SkiaScreen extends Screen {
     @Override
     public void onClose() {
         this.closing();
+    }
+
+    /**
+     * 按「打开主界面」的那个键（默认 G）关掉整个扩展界面（用户 2026-09-22：「按 g 可以关闭 ui 吧，
+     * 按 g 可以开启，按 g 也可以关闭」）。
+     *
+     * <p><b>为什么放在这里</b>：全部扩展界面（主界面 / 模块页 / 各控制台 / 小窗口）都是本类子类，
+     * 且各自的 {@code keyPressed} 最后都转发到本方法，一处判定就全都有这个键；用绑定值比较，
+     * 玩家改建位后跟着变。</p>
+     *
+     * <p><b>为什么是「关掉整个界面」而不是「退一级」</b>：子界面的返回是 ESC / 返回键的事，
+     * 这个键的语义是开关整个 UI —— 在模块页或控制台里按它，应当直接回到游戏，
+     * 而不是退回上一层界面再按一次（用户要的是「按一下开、按一下关」）。</p>
+     *
+     * <p>输入框 / 键位录制优先：子类在转发到本方法之前已经先把键盘给它们（键入 G、绑 G 都轮不到这里）。</p>
+     */
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (ModuleKeybindManager.isClickGuiKey(event.key())) {
+            closeEntireUi();
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
+    /**
+     * 关掉整棵扩展界面，退回「不属于本扩展的那个上级界面」（游戏里就是没有界面，从主菜单 /
+     * 暂停界面打开的就回到那个菜单），与 ESC 逐级返回不同。
+     *
+     * <p>直接切屏、不播关闭动画：等动画播完才真正关窗会让人以为「按了没反应」
+     * （与 {@code StardewConsoleScreen#closeToGame} 同口径）。</p>
+     */
+    protected final void closeEntireUi() {
+        // 先吞掉这一次按下边沿：否则同一个 tick 的快捷键轮询会把它当成「在游戏里按了 G」，立刻又打开
+        ModuleKeybindManager.suppressClickGuiKey();
+        Screen target = this.parent;
+        while (target instanceof SkiaScreen outer) target = outer.parent;
+        if (this.minecraft != null) this.minecraft.setScreen(target);
     }
 
     protected void closing() {

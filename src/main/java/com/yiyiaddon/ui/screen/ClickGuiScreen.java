@@ -628,6 +628,12 @@ public class ClickGuiScreen extends SkiaScreen {
                 frame.toScreenLength(l[2]), frame.toScreenLength(l[3]));
     }
 
+    /** 隐藏格子只能落在面板玻璃盖得住的范围内（口径见 {@link SkiaScreen#coverRegion()}）。 */
+    @Override
+    protected float[] coverRegion() {
+        return frame.opaqueScreenRect(width, height, 0f);
+    }
+
     /** 侧栏页头的版本行：模组版本号 + 运行中的游戏版本（两条版本线模组版本号相同，靠它区分）。 */
     private static String versionLine() {
         String game = ClientIdentity.gameVersion();

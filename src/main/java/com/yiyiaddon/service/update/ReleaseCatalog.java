@@ -39,8 +39,15 @@ public final class ReleaseCatalog {
      * 按版本值选择最新包，不依赖 GitHub 返回顺序，忽略草稿、坏条目和未传完的包。
      *
      * @param minecraftVersion 运行中的 Minecraft 版本号（如 26.1.2 / 26.2），用于只认本线的附件
+     * @param stableChannel    true = 本机是正式版：只把正式版发布（版本号不带 {@code -betaN} 这类后缀）
+     *                         当作候选。否则正式版玩家会被提示去装下一版测试包 ——
+     *                         因为版本值先比数字再比后缀，{@code 1.1-beta1} 高于 {@code 1.0}
+     *                         （用户 2026-09-22：「正式版玩家不该被推测试版」）。
+     *                         测试版玩家（false）两类一起挑，正式版更高就提示升正式版。
+     *                         判据只看<b>版本号</b>，不看 GitHub 的预发布勾选：勾选是页面装饰、容易漏勾，
+     *                         而标签命名是硬规范（发布包名也按它匹配）。
      */
-    public static Release newest(String json, String minecraftVersion) {
+    public static Release newest(String json, String minecraftVersion, boolean stableChannel) {
         Release newest = null;
         for (JsonElement element : JsonParser.parseString(json).getAsJsonArray()) {
             try {
@@ -49,6 +56,7 @@ public final class ReleaseCatalog {
                 String tag = item.get("tag_name").getAsString();
                 ReleaseVersion version = ReleaseVersion.parse(tag);
                 if (version == null || !tag.matches("[vV]?[0-9A-Za-z.+-]+")) continue;
+                if (stableChannel && !version.qualifier().isEmpty()) continue;
                 String number = tag.replaceFirst("^[vV]", "");
                 boolean ready = false;
                 for (JsonElement asset : item.getAsJsonArray("assets")) {
