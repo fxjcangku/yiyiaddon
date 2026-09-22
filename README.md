@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="展示资源/方块世界封面.gif" width="1120" alt="yiyiaddon：Minecraft 方块农场与矿洞场景动态封面，1.0-beta1 公开测试版。此图为概念插画，非实机截图。">
+  <img src="展示资源/方块世界封面.gif" width="1120" alt="yiyiaddon：Minecraft 方块农场与矿洞场景动态封面，1.0-beta2 公开测试版。此图为概念插画，非实机截图。">
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta1"><strong>下载 Beta 测试版</strong></a> ·
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta2"><strong>下载 Beta 测试版</strong></a> ·
   <a href="展示资源/方块世界封面.png">查看静态封面</a> ·
   <a href="https://github.com/fxjcangku/yiyiaddon/issues">问题反馈</a> ·
   <a href="https://discord.gg/vwrRCtET">Discord 社区</a>
@@ -171,7 +171,7 @@ ID 识别负责认物品、把目标记进 ID 配置；自动箱子直接读这�
 **四步装好：**
 
 1. 在启动器里建一个对应游戏版本（**26.1.2** 或 **26.2**）的 Fabric 实例，Java 选 **25**。
-2. 到 [Releases](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta1) 下载**与游戏版本对应**的包（文件名末尾带 MC 版本，如 `yiyiaddon-1.0-beta1-26.1.2.zip`）。
+2. 到 [Releases](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta2) 下载**与游戏版本对应**的包（文件名末尾带 MC 版本，如 `yiyiaddon-1.0-beta2-26.1.2.zip`）。
 3. 把包**解压**，取出里面的 JAR，连同对应版本的 Fabric API 一起放进该实例的 `mods` 文件夹——**别直接把 ZIP 丢进去**。
 4. 启动游戏。升级已有实例前，先备份存档与配置。
 
@@ -189,7 +189,7 @@ yiyiaddon 的前身是 **Meteor Client 的附属插件**——功能、算法、
 
 ## 版本状态
 
-> **1.0-beta1 · Beta 公开测试版**
+> **1.0-beta2 · Beta 公开测试版**
 >
 > 已完成构建检查与独立客户端启动验证，完整游戏内功能与长期性能仍待测试。本版为预发布版本，建议使用独立实例并备份存档和配置。
 
