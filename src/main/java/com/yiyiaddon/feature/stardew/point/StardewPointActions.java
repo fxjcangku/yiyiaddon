@@ -230,6 +230,18 @@ public final class StardewPointActions {
             pointFailure(StardewPointType.SPRINKLER.title(), "无法读取准星方块的稳定世界载体状态");
             return false;
         }
+        // 贴图形态的型号核对：这一格挂的展示实体是另一款时当场拒绝，别绑成「装在高级洒水器上的
+        // 优质洒水器点位」——那之后定位 / 覆盖范围 / 水位判断全按错的型号走。
+        // 读不出展示身份（模型认不出）时不拦：那是「还不知道」，不是「不一致」。
+        String tierConflict = SprinklerWorldBinding.displayTierMismatch(pos, definition.key());
+        if (tierConflict != null) {
+            var actual = index == null ? null : index.entryByKey(tierConflict);
+            pointFailure(StardewPointType.SPRINKLER.title(),
+                "这一格挂的是「" + (actual == null ? tierConflict : actual.displayName())
+                    + "」，不是要绑的「" + definition.displayName()
+                    + "」：请对准实物确认型号，或改用 .stardew 添加洒水器 <类型> 明确指定");
+            return false;
+        }
         String mismatch = sprinklerMismatch(pos, definition);
         if (mismatch != null) {
             pointFailure(StardewPointType.SPRINKLER.title(), mismatch);

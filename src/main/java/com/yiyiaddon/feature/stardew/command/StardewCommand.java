@@ -84,8 +84,17 @@ public final class StardewCommand extends ClientCommand {
     /** {@code 绑定} / {@code 移除} 的点位字面量 */
     private static final List<String> POINT_NAMES = List.of("种子箱", "成品箱", "补水点");
 
-    /** {@code 种植区域} 的管理字面量（第二层固定候选，与「选择」和已勾选作物一起列） */
-    private static final List<String> REGION_ACTIONS = List.of("选择", "混种", "取消", "列表", "删除", "清空");
+    /**
+     * {@code 种植区域} 的第二层字面量：圈地入口（TAB 第一屏只给这些 + 已勾选作物）。
+     *
+     * <p><b>管理动作不再摊在第二层</b>：{@code 列表 / 删除 / 清空 / 取消} 收进 {@code 管理} 一层，
+     * 否则补全里 6 个固定字面量跟已勾选作物混在一起，候选又长又乱（用户 2026-09-22 实机反馈）。
+     * 旧写法（{@code .stardew 种植区域 列表} 这类）**仍然可用**，只是不再出现在补全里。</p>
+     */
+    private static final List<String> REGION_ENTRIES = List.of("选择", "混种", "管理");
+
+    /** {@code 种植区域 管理} 的字面量 */
+    private static final List<String> REGION_ADMIN_ACTIONS = List.of("列表", "删除", "清空", "取消");
 
     /** {@code 季节} 的字面量（先 {@code 清除}，再短名 / 全名成对） */
     private static final List<String> SEASON_NAMES = List.of(
@@ -174,13 +183,20 @@ public final class StardewCommand extends ClientCommand {
 
             case "季节" -> context.size() == 1 ? SEASON_NAMES : List.of();
 
-            // 种植区域：第二层列「取消 / 列表 / 删除 / 清空」+ 已勾选的作物；删除之后再列区域序号
+            // 种植区域：第二层列「已勾选作物 + 选择 / 混种 / 管理」；管理之下才是列表 / 删除 / 清空 / 取消
             case "种植区域" -> {
                 if (context.size() == 1) {
-                    List<String> candidates = new ArrayList<>(REGION_ACTIONS);
+                    List<String> candidates = new ArrayList<>();
                     if (module != null) candidates.addAll(module.selectedCropCompletions());
+                    candidates.addAll(REGION_ENTRIES);
                     yield candidates;
                 }
+                if (context.size() == 2 && "管理".equals(context.arg(1))) yield REGION_ADMIN_ACTIONS;
+                if (context.size() == 3 && "管理".equals(context.arg(1)) && "删除".equals(context.arg(2))
+                    && module != null) {
+                    yield module.regionSequenceCompletions();
+                }
+                // 旧写法（省略「管理」，直接敲 .stardew 种植区域 删除 1）仍给序号补全
                 if (context.size() == 2 && "删除".equals(context.arg(1)) && module != null) {
                     yield module.regionSequenceCompletions();
                 }
@@ -360,15 +376,19 @@ public final class StardewCommand extends ClientCommand {
     }
 
     /**
-     * {@code .stardew 种植区域 <作物|混种>} 进入选区模式。
+     * {@code .stardew 种植区域 <作物|混种|选择|管理>}。
      *
-     * <p>四种管理动作（{@code 取消 / 列表 / 删除 <序号> / 清空}）与「圈一块新地」共用同一个子命令，
-     * 与旧项目「一个子命令下挂中文字面量」的风格一致。</p>
+     * <p>四种管理动作收在 {@code 管理} 之下（{@code 管理 列表 / 管理 删除 <序号> / 管理 清空 / 管理 取消}），
+     * 与旧写法 {@code .stardew 种植区域 列表} 等价 —— 后者保留可用是为了不破坏已有习惯，
+     * 补全里只列 {@code 管理} 一条。</p>
      */
     private void region(CommandContext context) {
         StardewFarmModule module = module();
         if (module == null) return;
-        String action = context.arg(1);
+        // 「管理」只是补全用的分组，管理动作本身一个都没改
+        boolean admin = "管理".equals(context.arg(1));
+        String action = admin ? context.arg(2) : context.arg(1);
+        String argument = admin ? context.arg(3) : context.arg(2);
         // 资源闸门最优先：没资源时「连没带参数」也先说资源问题，管理动作同样一并拦下。
         // 唯一例外是「取消」——它是选区模式唯一的退出方式，任何情况下都必须能敲。
         if (!"取消".equals(action) && !resourceGate(module, "种植区域失败", "未圈地")) return;
@@ -379,10 +399,10 @@ public final class StardewCommand extends ClientCommand {
                 .field("选择", "圈一块新地，两个角点完之后弹窗选作物（勾了好几种时用这个）")
                 .field("混种", "圈一块混种地：地里的空盆按后勤缺口挑已勾选作物种"
                     + "（控制台「点位」页「农田」卡里就叫「农场模式」）")
-                .field("列表", "看当前已划分的区域")
-                .field("删除 <序号>", "删掉其中一块地（不再管它，不挖作物）")
-                .field("清空", "删掉全部区域")
-                .field("取消", "退出正在圈的地")
+                .field("管理 列表", "看当前已划分的区域")
+                .field("管理 删除 <序号>", "删掉其中一块地（不再管它，不挖作物）")
+                .field("管理 清空", "删掉全部区域")
+                .field("管理 取消", "退出正在圈的地")
                 .status(CommandMessageFormatter.Level.FAILURE, "未圈地")
                 .send();
             return;
@@ -392,7 +412,7 @@ public final class StardewCommand extends ClientCommand {
                 if (!module.cancelRegionSelection()) fail("取消种植区域", "当前没有正在圈的地");
             }
             case "列表" -> listRegions(module);
-            case "删除" -> removeRegion(module, context.arg(2));
+            case "删除" -> removeRegion(module, argument);
             case "清空" -> {
                 if (module.clearRegions() == 0) fail("清空种植区域", "当前还没有划分任何区域");
             }
@@ -436,7 +456,7 @@ public final class StardewCommand extends ClientCommand {
             sequence = -1;
         }
         if (sequence <= 0) {
-            fail("删除种植区域", "请给出区域序号，例如 .stardew 种植区域 删除 1（序号可用 TAB 补全）");
+            fail("删除种植区域", "请给出区域序号，例如 .stardew 种植区域 管理 删除 1（序号可用 TAB 补全）");
             return;
         }
         if (!module.removeRegion(sequence)) fail("删除种植区域", "没有序号为 " + sequence + " 的区域");
@@ -517,6 +537,20 @@ public final class StardewCommand extends ClientCommand {
         }
         if (!crop.isCrop()) {
             fail("标记成熟失败", crosshairSubject(target) + "不是已识别的自定义作物");
+            return;
+        }
+        // 特殊变种（巨型 / 金色 / 变种）没有「普通成熟阶段」这回事：它的收割动作与手持按本服口径
+        // （学习 / 预置）执行，不需要也不能人工确认成熟阶段。原先落到下面那条「缺少阶段信息」，
+        // 玩家会对着一株好好的巨型作物看到一句像是出错的提示（实机反馈）。
+        if (crop.state() == CropRuntimeStateResolver.RuntimeState.SPECIAL) {
+            CommandMessageFormatter.of(MODULE_NAME, "无需标记成熟")
+                .highlight("作物", module.cropDisplayName(crop.cropKey()))
+                .field("当前状态", "特殊变种（巨型 / 金色 / 变异作物）")
+                .field("说明", "特殊变种没有普通成熟阶段，收割动作与手持工具按本服务器学到的口径执行"
+                    + "（本服已预置过的作物无需示范）")
+                .field("你要做的", "什么都不用做：模块会自己按口径收割；想确认口径可看聊天栏的收割播报")
+                .status(CommandMessageFormatter.Level.INFO, "未改动任何规则")
+                .send();
             return;
         }
         if (!crop.hasStage()) {

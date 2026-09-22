@@ -82,8 +82,15 @@ public final class StardewSettings {
 
     // ━━━ 后勤参数 ━━━
 
-    /** 简化后勤，默认 true */
-    public boolean logisticsSimple = true;
+    /**
+     * 简化后勤，默认 false（走逐作物那四个后勤阈值）。
+     *
+     * <p>用户 2026-09-22：「卸货补货那些种子单独设置那个简单精简模式能不能默认关闭」。
+     * 关掉≠改数值：{@code CropLogistics.DEFAULT} 就是简化那组（种子少于 2 补、补到 8；
+     * 成品攒 8 卸、不留底），所以没单独设过的作物行为和开着完全一样，只是界面按作物展开，
+     * 你想给某个作物单独调阈值时立刻就能生效。</p>
+     */
+    public boolean logisticsSimple = false;
 
     // ━━━ 渲染：点位渲染（每类独立） ━━━
 
@@ -135,6 +142,17 @@ public final class StardewSettings {
 
     /** 调色板版本：小于它的旧存档会被 {@link #migratePalette()} 升级一次 */
     private static final int PALETTE_REVISION = 3;
+
+    /**
+     * 后勤默认值版本：小于它的旧存档会被迁到「简化后勤 = 关闭」。
+     *
+     * <p>旧版把默认值 {@code true} 写进了每一份存档，所以光改字段默认值对老档无效 ——
+     * 用户要的是「默认关闭」，于是按版本迁一次。这次迁移<b>不改任何数值</b>：
+     * 逐作物阈值的初始值（{@code CropLogistics.DEFAULT}）就是简化那组（2 / 8 / 8 / 0），
+     * 没单独调过的作物，迁前迁后行为完全一样；手动调到过阈值的作物反而从此按他调的值走。
+     * 想回到简化档，后勤页把「简化后勤」勾上即可。</p>
+     */
+    private static final int LOGISTICS_DEFAULT_REVISION = 2;
 
     /**
      * 改过名的渲染对象：当前名 → 旧名。
@@ -241,7 +259,8 @@ public final class StardewSettings {
 
     public static final String NAME_LOGISTICS_SIMPLE = "简化后勤";
     public static final String DESC_LOGISTICS_SIMPLE = "开启时不用设置补货 / 卸货：种子少于 2 去补、补到 8；成品攒到 8 去卸、不留底。"
-        + "关闭后才会逐作物显示那四个后勤阈值";
+        + "关闭后才会逐作物显示那四个后勤阈值（默认关闭）。关掉不改数值：没单独设过的作物用的就是上面这组，"
+        + "和开启时完全一样 —— 区别只是你能给某个作物单独调";
 
     public static final String NAME_LABEL_SIZE = "字牌大小";
     public static final String DESC_LABEL_SIZE = "各绑定点位头顶文字的字号（取值域 6~32，默认 12）；"
@@ -282,6 +301,7 @@ public final class StardewSettings {
         if (regionToolKey != null) json.addProperty("regionToolKey", regionToolKey);
         if (regionToolName != null) json.addProperty("regionToolName", regionToolName);
         json.addProperty("logisticsSimple", logisticsSimple);
+        json.addProperty("logisticsRevision", LOGISTICS_DEFAULT_REVISION);
         json.addProperty("labelSize", labelSize);
         json.addProperty("paletteRevision", PALETTE_REVISION);
         for (EspRenderObject object : renderObjects) {
@@ -311,6 +331,9 @@ public final class StardewSettings {
         regionToolKey = stringOf(json, "regionToolKey");
         regionToolName = stringOf(json, "regionToolName");
         logisticsSimple = boolOf(json, "logisticsSimple", logisticsSimple);
+        // 旧档里的 logisticsSimple 是旧默认（true）写下的，不是玩家开的：按版本关掉，
+        // 换成逐作物那四个阈值（初始值与简化那组相同，行为不变；见 LOGISTICS_DEFAULT_REVISION）
+        if (intOf(json, "logisticsRevision", 1) < LOGISTICS_DEFAULT_REVISION) logisticsSimple = false;
         labelSize = clamp(intOf(json, "labelSize", labelSize), LABEL_SIZE_MIN, LABEL_SIZE_MAX);
         for (EspRenderObject object : renderObjects) {
             object.load(json, renderPrefix(json, object));

@@ -8,6 +8,7 @@ import com.yiyiaddon.ui.component.CardLayout;
 import com.yiyiaddon.ui.component.GlassPanel;
 import com.yiyiaddon.ui.component.PanelFrame;
 import com.yiyiaddon.ui.component.ScrollViewport;
+import com.yiyiaddon.ui.navigation.UiNavigationMemory;
 import com.yiyiaddon.ui.page.BasePage;
 import com.yiyiaddon.ui.page.ModuleDetailPage;
 import com.yiyiaddon.ui.page.ModulePage;
@@ -99,6 +100,9 @@ public final class ModuleScreen extends SkiaScreen {
     public ModuleScreen(ModuleEntry entry, Screen parent) {
         super(Component.literal(entry.displayName()), parent);
         this.page = createPageBody(entry);
+        // 记住「现在停在哪个模块页」：用 G 关掉整个界面时保留，下次打开直接落回这一页
+        // （正常返回上级时由 requestClose 抹掉，见 UiNavigationMemory）。
+        UiNavigationMemory.rememberModule(entry.id());
     }
 
     /** 取模块自己的页面；未接入页面时使用占位页。 */
@@ -131,6 +135,12 @@ public final class ModuleScreen extends SkiaScreen {
     protected float[] glassRegion() {
         return glassRegionOf(frame.toScreenX(frame.cardX(), width), frame.toScreenY(frame.cardY(), height),
                 frame.toScreenLength(frame.cardWidth()), frame.toScreenLength(frame.cardHeight()));
+    }
+
+    /** 隐藏格子只能落在面板玻璃盖得住的范围内（口径见 {@link SkiaScreen#coverRegion()}）。 */
+    @Override
+    protected float[] coverRegion() {
+        return frame.opaqueScreenRect(width, height, 0f);
     }
 
     // —— 绘制 ——
@@ -380,6 +390,9 @@ public final class ModuleScreen extends SkiaScreen {
         closingRequested = true;
         SettingTextBox.clearFocus();
         backButton.cancel();
+        // 这是「正常返回上级」（返回键 / Esc）：这一页不再算上次停留的位置，下次打开回主界面。
+        // 用 G 关掉整个界面走的是 SkiaScreen#closeEntireUi，不经过这里，位置照旧留着。
+        UiNavigationMemory.forgetModule();
         frame.beginClose();
     }
 

@@ -59,12 +59,15 @@ public final class ServerDetectorSettings {
     // ── 组② 资源包劫持 ──
 
     /**
-     * 资源包处理模式（默认自动白嫖）。
+     * 资源包处理模式（默认原版处理）。
      *
-     * <p>用户 2026-09-18：「服务器核心的资源包下载 默认打开白嫖模式」——服务器下发的资源包一律下载留档，
-     * 而不是直接绕过不接。已经存过盘的旧配置仍以存档里的值为准（要改在控制台「资源包劫持」页切换）。</p>
+     * <p>用户 2026-09-22：「服务器核心资源包下载 默认就是原版，不是自动白嫖」——默认不接管服务器资源包
+     * 推送，交回原版处理；想留档的玩家自己在控制台「资源包劫持」页切到「自动白嫖」。</p>
+     *
+     * <p>历史上曾是「自动白嫖」（用户 2026-09-18：「服务器核心的资源包下载 默认打开白嫖模式」），
+     * 2026-09-22 被新指令覆盖。已经存过盘的旧配置仍以存档里的值为准（不强制改回）。</p>
      */
-    public ResourcePackMode resourcePackMode = ResourcePackMode.AUTO_DOWNLOAD;
+    public ResourcePackMode resourcePackMode = ResourcePackMode.VANILLA;
 
     /** 下载失败后的重试次数（默认 5；仅自动白嫖可见） */
     public int downloadRetries = 5;

@@ -10,16 +10,23 @@ import com.yiyiaddon.feature.stardew.memory.FarmMemoryStore;
 import com.yiyiaddon.feature.stardew.navigation.ContainerApproachPlanner;
 import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
+import com.yiyiaddon.feature.stardew.recognition.CropRuntimeStateResolver;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
 import com.yiyiaddon.feature.stardew.profile.PotDefinition;
 import com.yiyiaddon.feature.stardew.profile.StardewCropLifecycle;
 import com.yiyiaddon.feature.stardew.profile.StardewHarvestRule;
 import com.yiyiaddon.feature.stardew.profile.StardewResourceIndex;
 import com.yiyiaddon.feature.stardew.profile.StardewServerProfile;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestAction;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestPresets;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestRecipe;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestStore;
 import com.yiyiaddon.feature.stardew.profile.StardewToolDefinition;
 import com.yiyiaddon.feature.stardew.recognition.CropPotGroups;
+import com.yiyiaddon.feature.stardew.recognition.CropRecognizer;
 import com.yiyiaddon.feature.stardew.recognition.CropState;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
+import com.yiyiaddon.feature.stardew.recognition.StardewCropDisplayProbe;
 import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
 import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
@@ -27,8 +34,11 @@ import com.yiyiaddon.feature.stardew.service.StardewInventoryService;
 import com.yiyiaddon.feature.stardew.status.StardewStatusReporter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -145,6 +155,53 @@ public final class StardewCoordinator {
     static final double PLAYER_MOVE_EPSILON_SQ = 0.0025;
     /** 背包空格降到该值及以下时，卸货提前插队，避免成品掉地。 */
     static final int PLAYER_LOW_FREE_SLOTS = 6;
+    /**
+     * 「客户端估算所需 tick」超过它就别当真：实机里手拿金锄头对着一格
+     * {@code minecraft:chorus_plant}，客户端算出每刻 1.0E-4、需 <b>7000</b> tick。
+     *
+     * <p>它的用法只有两处：{@link #BREAK_FALLBACK_HOLD_TICKS}（估算离谱时第一轮按多久）与
+     * {@code StardewFarmExecutor#ensureDigTool}（判断「手上这件挖不动，该换一件试试」）。
+     * 估算离谱不等于这一格挖不动 —— 换手后仍离谱时照旧按固定时长试，真挖不动由轮数上限兜底。</p>
+     */
+    static final int BREAK_MAX_REQUIRED_TICKS = 200;
+    /**
+     * 发过 STOP 之后再等这么多刻，让服务端确认拆除；这个窗口内<b>绝不重发 START</b>。
+     *
+     * <p><b>为什么强调「不重发」</b>：服务端的 {@code destroyProgressStart} 每收到一次 START 都会
+     * 重置，于是「已挖 tick 数」永远归零、{@code delta × (已挖 tick + 1)} 永远到不了 0.7 ——
+     * 实机表现就是「怎么按服务端都不认这一格」。
+     * （也正因为如此，破坏<b>不能</b>交给原版 {@code MultiPlayerGameMode}：{@code Minecraft} 每刻
+     * 会在攻击键没按下时调 {@code stopDestroyBlock()}，把会话状态清掉，我们的推进就变成每刻重开、
+     * 每刻重发 START —— 实测原版流程挖满 201 刻仍纹丝不动。）</p>
+     */
+    static final int BREAK_RESEND_AFTER_TICKS = 20;
+    /**
+     * 单轮最少按住多少 tick（20 tick = 1 秒）。
+     *
+     * <p>客户端算出的破坏速度在这台服上忽大忽小（实机：同一格同一把金锄头，一次
+     * {@code 物品破坏速度=0.0}、一次 {@code =1.0}），所以估算只能当参考，实际按住时间必须有下限。</p>
+     */
+    static final int BREAK_MIN_HOLD_TICKS = 20;
+    /** 单轮最多按住多少 tick（120 tick = 6 秒）：够长的同时，真挖不动时也不至于赖在这格上太久 */
+    static final int BREAK_MAX_HOLD_TICKS = 120;
+    /** 估算离谱时第一轮就按这么久（40 tick = 2 秒），之后每轮翻倍 */
+    static final int BREAK_FALLBACK_HOLD_TICKS = 40;
+    /**
+     * 同一格最多挖几轮（每轮按住的时间翻倍：20 → 40 → 80 → 120）。
+     *
+     * <p>轮数 × 翻倍是「客户端估算偏小」的兜底：估算偏小就靠逐轮加长收敛，真挖不动
+     * （服务端保护 / 收法不对）才会走到最后一轮并报出来，绝不无限砸。</p>
+     */
+    static final int BREAK_MAX_ATTEMPTS = 4;
+    /**
+     * 「服务端没放行这一格」之后，这一格多久内不再派发任何破坏动作（60 秒）。
+     *
+     * <p><b>为什么必须有退避：</b>挖不动那条播报按坐标只报一次，但<b>派发原先没有退避</b> ——
+     * 下一轮决策又是这一格，于是每十几秒照样来一轮「4 次发包 + 4 轮按住」。实机日志里同一格
+     * 从 23:36 一直砸到 23:38，方块纹丝不动，玩家只看到模块赖在那儿空砸。到期自动再试一次
+     * （服务端可能松了、玩家也可能换成了一把真挖得动的工具）。</p>
+     */
+    static final long BREAK_REJECT_BACKOFF_MS = 60_000L;
     /** 精确移动（非整叠）时单次交互最多连发的点击次数，超出部分下一轮继续。 */
     static final int MAX_TRANSFER_BURST = 16;
     /** 「批量动作」的硬上限：再多也不会发，避免一 tick 内刷出一串交互包。 */
@@ -164,6 +221,8 @@ public final class StardewCoordinator {
     final StardewFarmScanner scanner;
     final StardewAdapter adapter;
     final StardewSeasonService seasonService;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("yiyiaddon/stardew");
 
     // ── 运行时配置（模块 onTick 同步） ──
     StardewServerProfile profile = null;
@@ -243,6 +302,17 @@ public final class StardewCoordinator {
     Runnable missingCanHandler = null;
     /** 分区错位格子：只用于世界高亮，每轮决策按最新快照刷新 */
     private final Set<BlockPos> mismatchCells = new HashSet<>();
+
+    /**
+     * 启动自检查出来的分区错位格：**独立于运行期高亮，且不随停机清空**。
+     *
+     * <p><b>为什么要独立一份：</b>自检不通过时模块会被立刻关掉（{@code onDisable → reset()}），
+     * 运行期那份高亮随之清空 —— 于是玩家只看到聊天栏一行坐标，跑到田里什么都找不到
+     * （用户 2026-09-22：「这个报错显示坐标没用 应该显示红色的 ESP 全包那种 不然农田大了 不好找」）。
+     * 自检这份留着，模块在未启动状态也能把这几格用红框标出来；玩家清掉后由
+     * {@link #pruneStartupMismatch()} 逐步摘掉，自检通过时整体清空（{@link #clearStartupMismatch()}）。</p>
+     */
+    private final Set<BlockPos> startupMismatchCells = new HashSet<>();
     /** 是否已因错位停住等玩家清理（停住期间一个任务都不派发） */
     private boolean regionMismatchPaused = false;
     /** 已提示过「缺种子」的区域号（同一块地只报一次，不刷屏） */
@@ -304,9 +374,55 @@ public final class StardewCoordinator {
         if (missingCanHandler != null) missingCanHandler.run();
     }
 
-    /** 当前错位格子（世界高亮用；空 = 没有冲突） */
+    /** 注入「产物箱没有空间」的回调（模块注入的是关模块） */
+    public void setOutputBoxFullHandler(Runnable handler) {
+        this.outputBoxFullHandler = handler;
+    }
+
+    /** 产物箱确认放不下：交给模块关模块（与「水壶不见了」同一条路径，绝不在这里自行关闭） */
+    void stopForOutputBoxFull() {
+        if (outputBoxFullHandler != null) outputBoxFullHandler.run();
+    }
+
+    /** 当前错位格子（世界高亮用；空 = 没有冲突）。含运行期快照与启动自检那份 */
     public Set<BlockPos> regionMismatchCells() {
-        return Set.copyOf(mismatchCells);
+        if (startupMismatchCells.isEmpty()) return Set.copyOf(mismatchCells);
+        Set<BlockPos> all = new HashSet<>(mismatchCells);
+        all.addAll(startupMismatchCells);
+        return Set.copyOf(all);
+    }
+
+    /** 启动自检是否留下了错位高亮（模块未启动时据此挂上只画红框的那一层） */
+    public boolean hasStartupMismatch() {
+        return !startupMismatchCells.isEmpty();
+    }
+
+    /** 自检通过：自检那份错位高亮整体作废 */
+    public void clearStartupMismatch() {
+        startupMismatchCells.clear();
+    }
+
+    /**
+     * 复核自检那份错位高亮：那一格还是不是「种错了东西」。
+     *
+     * <p>模块被禁止启动期间没有 tick，玩家把错位作物清掉或换成该区作物之后，红框必须自己灭掉，
+     * 否则玩家清完了还看着红框（比没有框更误导）。所以复核借渲染这一路：渲染层每若干帧叫一次。
+     * 判据与运行期同口径 —— 区域被删、格子里已认不出作物 / 是枯死株 / 已是本区作物，都不算错位。</p>
+     */
+    public void pruneStartupMismatch() {
+        if (startupMismatchCells.isEmpty() || profile == null || Minecraft.getInstance().level == null) return;
+        startupMismatchCells.removeIf(pos -> !stillRegionMismatch(pos));
+    }
+
+    /** 某一格（盆坐标）此刻还算不算分区错位 */
+    private boolean stillRegionMismatch(BlockPos potPos) {
+        StardewRegionManager.Region region = regionAt(potPos);
+        if (region == null || region.cropKey() == null) return false;
+        CropRecognizer.CropRecognition crop = CropRecognizer.recognizeAtPot(potPos, profile);
+        CropState state = crop.state();
+        if (state == CropState.EMPTY || state == CropState.UNKNOWN || state == CropState.DEAD) return false;
+        String key = crop.cropKey();
+        return key != null && !key.equals(region.cropKey());
     }
 
     /**
@@ -352,9 +468,17 @@ public final class StardewCoordinator {
                 }
             }
         }
-        if (found.isEmpty()) return null;
+        if (found.isEmpty()) {
+            // 这一轮没查出错位：上一次自检留下的高亮一并作废（玩家已经把地清好了）
+            startupMismatchCells.clear();
+            return null;
+        }
+        // 登记成「世界高亮」：自检不通过时模块会被立刻关掉，运行期那份高亮随之清空，
+        // 玩家就只剩聊天栏一行坐标、跑到田里找不着（用户 2026-09-22）。这份不随停机清。
+        startupMismatchCells.clear();
+        for (StardewTaskPlanner.RegionMismatch mismatch : found) startupMismatchCells.add(mismatch.pos());
         return "分区错位：" + String.join("；", planner.describeMismatches(found))
-            + " ▸ 清掉那几格里的作物，或把该区域删掉重划";
+            + " ▸ 已用红框在世界里标出，清掉那几格里的作物，或把该区域删掉重划";
     }
 
     /**
@@ -494,6 +618,13 @@ public final class StardewCoordinator {
     BlockPos sprinklerPourTarget;
     /** 「刚验过是满的」洒水器：坐标 → 到期时间（毫秒），见 {@link #SPRINKLER_FULL_SKIP_ROUNDS} */
     private final java.util.Map<BlockPos, Long> sprinklerFullUntil = new java.util.HashMap<>();
+    /**
+     * 已提示过「这台洒水器不在了」的点位。
+     *
+     * <p>同一台只提示一次（每刻都在巡查的点位列表不能每 tick 刷屏）；它重新出现后再消失，
+     * 会重新提示一次。</p>
+     */
+    private final java.util.Set<BlockPos> missingSprinklersReported = new java.util.HashSet<>();
 
     // ── 多步任务子状态（后勤 / 补水 / 施肥 / 洒水器） ──
     final ContainerService broker = new ContainerService();
@@ -529,6 +660,17 @@ public final class StardewCoordinator {
     final Map<String, RestockBlock> restockBlocks = new HashMap<>();
     final Map<String, Integer> lastBlockedSeedCounts = new HashMap<>();
     final Map<String, Long> unloadBlockedUntil = new HashMap<>();
+    /**
+     * 「产物箱没有空间」的回调，由模块注入（**关闭模块**，与「水壶不见了」同一条路径）。
+     *
+     * <p><b>为什么是关模块而不是停手</b>：箱子满了要玩家去开箱子清 —— 那段时间模块若还开着，
+     * 它会继续跑动 / 抢动作，玩家连箱子都清不痛快（用户 2026-09-22 实机：「我刚刚打开箱子然后又进去
+     * 状态机 那这样 用户想清空箱子 都没办法」；同一条反馈里明确要求：「我说了 直接停机了 关闭模块懂？」）。
+     * 关掉之后世界彻底静止，玩家安心清箱，清完自己重开模块即可。</p>
+     *
+     * <p>协调器只判定并交付事实，不自行关模块（{@link #stopForOutputBoxFull()}）。</p>
+     */
+    Runnable outputBoxFullHandler = null;
     /** 种子回收负缓存：箱内暂无空间 / 交互失败后短时退避，避免死循环开箱。 */
     final Map<String, Long> seedReturnBlockedUntil = new HashMap<>();
     final Map<String, Long> navigationBlockedUntil = new HashMap<>();
@@ -561,6 +703,22 @@ public final class StardewCoordinator {
     final Set<String> seasonBlockedCrops = new HashSet<>();
     /** 已播报过的「作物 + 季节」阻塞组合：重算不会重复刷屏，季节变化后允许再次播报 */
     final Set<String> announcedSeasonBlocks = new HashSet<>();
+    /**
+     * 「背包已满、收不动也卸不出去」是否已经播报过。
+     *
+     * <p>去重到「一次阻塞只报一条」：背包重新有空格后由 {@link #forgetBagFullHalt()} 复位，
+     * 于是下次再撑满会重新报一次，不会因为报过一次就永远沉默。</p>
+     */
+    private boolean bagFullHalted;
+    /** 已报过「服务端没放行这一格」的坐标：同一格只报一次 */
+    private final Set<Long> breakRejectedReported = new HashSet<>();
+    /**
+     * 「服务端不放行这一格」的退避：坐标 → 到期时刻（见 {@link #BREAK_REJECT_BACKOFF_MS}）。
+     *
+     * <p>写在这个类里而不是执行器：调度层（{@code StardewTaskPlanner#resolveTask}）要按它跳过这一格，
+     * 执行器负责在挖不动时登记；两边共用同一份账，绝不各记各的（第 169 条）。</p>
+     */
+    private final Map<Long, Long> breakRejectedUntil = new HashMap<>();
     /** 已播报过的「作物 + 季节」温室豁免组合：有玻璃照常播种只播一次，绝不每格刷屏 */
     final Set<String> announcedShelterCrops = new HashSet<>();
     /** 已播报过「盆型 × 维度不匹配」的盆型：下界盆 / 末地盆各只提示一次，避免每轮扫描刷屏 */
@@ -597,6 +755,64 @@ public final class StardewCoordinator {
     int learningBeforeDrops;
     boolean learningInteractionSent;
     final Set<String> reportedLearningFailures = new HashSet<>();
+
+    // ── 特殊变种收割口径（按服务器 + 资源指纹 + 作物学习，见 StardewSpecialHarvestStore） ──
+    /**
+     * 本服已学到 / 已存盘的特殊阶段收割口径：作物键 → 动作 + 手持。
+     *
+     * <p>取不到就看本服预置（{@link StardewSpecialHarvestPresets}），再取不到才是
+     * {@link StardewSpecialHarvestRecipe#DEFAULT}（老口径：金锄头右键），
+     * 绝不因为本服学到「左键破坏」就去动别的服务器的巨型 / 金色作物。</p>
+     */
+    final Map<String, StardewSpecialHarvestRecipe> specialHarvestRules = new HashMap<>();
+    /**
+     * 本服「通用口径」在档案里的键：玩家在本服示范过一次后写进去，
+     * 供本服其它变种沿用（见 {@link #specialHarvestRecipe}）。作物专属记录优先于它。
+     */
+    static final String SPECIAL_HARVEST_SERVER_WIDE_KEY = "*";
+    /** 玩家刚做过的特殊阶段收割动作，等那一格确实被收掉的证据到了才落盘 */
+    SpecialObservation pendingSpecialObservation;
+    /** 已提示过「本服这个作物的特殊变种还没学到收法」的作物键：只提示一次，避免每轮刷屏 */
+    final Set<String> announcedSpecialUnknown = new HashSet<>();
+    /** 已提示过「学到的左键口径也没砸掉」的作物键：只提示一次（服务端保护方块 / 口径其实不对） */
+    final Set<String> announcedSpecialBreakFailed = new HashSet<>();
+    /** 已播报过「已学会本服特殊变种收法」的作物键：只播一次 */
+    private final Set<String> announcedSpecialLearned = new HashSet<>();
+    private final StardewSpecialHarvestStore specialHarvestStore = new StardewSpecialHarvestStore();
+
+    /**
+     * 一次待确认的玩家手动收割观测。
+     *
+     * <p>玩家动手时先记下来，等那一格<b>确实被收掉</b>（方块变了 / 展示实体身份变了）才落盘：
+     * 只看「玩家点了什么」会把点空、被服务端驳回、拿错工具一起学进去。</p>
+     *
+     * @param ruleKey 落盘用的键（{@code 作物#变种标记}；认不出变种时就是作物键）——
+     *                同一作物的两种变种因此各记各的，不会互相顶掉
+     * @param cropKey 仅用于播报与日志的作物键
+     */
+    record SpecialObservation(String ruleKey, String cropKey, StardewSpecialHarvestRecipe recipe, BlockPos pos,
+                              String beforeSnapshot, long deadline) {
+    }
+
+    /** 待确认观测的有效窗口：玩家动手后这么久内那一格必须真的变了，否则当次动作不算数 */
+    static final long SPECIAL_OBSERVATION_WINDOW_MS = 2500L;
+
+    // ── 破坏（学到的「左键破坏」口径 / 清枯苗 / 清错位 / 清杂物）的挖掘进度 ──
+    /** 正在挖的那一格；null 表示当前没有进行中的破坏 */
+    BlockPos breakDigPos;
+    /** 这一格已经挖了几轮（START → 等够 → STOP 算一轮），用来给「服务端不放行」封顶 */
+    int breakDigAttempts;
+    /** 本轮已经推进了多少刻（发过 STOP 后继续走，用来判「确认窗口」） */
+    int breakDigTickCount;
+    /** 本轮是否已经发过 STOP（发完先等服务端确认，窗口内绝不重发 START） */
+    boolean breakDigStopSent;
+    /** 这一轮要按住多少 tick 才发 STOP（开挖那一刻定下来，之后不再受「客户端估算」影响） */
+    int breakDigHoldTicks;
+    /**
+     * 本服口径指定了特殊收割工具时：这一格破坏期间手里必须一直是那件，模块不得换手
+     * （服务端按「拿的就是那件」放行，换掉就砸不掉）。任务结束由 {@code restoreHandNow} 清空。
+     */
+    StardewSpecialHarvestRecipe specialToolHold;
 
     // ── 主手切换恢复 ──
     boolean handSwapped;
@@ -653,6 +869,9 @@ public final class StardewCoordinator {
             lastScanSummary = null;
             // 料箱退避按维度 / 服务器生效：换环境后那只箱子未必还是空的，不该带着旧退避
             materialFetchBlockedUntil = 0L;
+            // 破坏退避也是「某个维度里那一格方块」的结论：同一坐标在另一个维度是别的方块，
+            // 带着旧退避过去只会让那边的活也停一分钟
+            breakRejectedUntil.clear();
         }
         if (!java.util.Objects.equals(configuredServerKey, serverKey)
             || !java.util.Objects.equals(configuredFingerprint, newFingerprint)
@@ -669,6 +888,24 @@ public final class StardewCoordinator {
             waitingSeasonAnnouncedLabel = null;
             reportedContainerFailures.clear();
             reportedCollectFailures.clear();
+        }
+        // 特殊变种收割口径按「服务器 + 资源指纹」隔离：换服 / 换包必须重读，
+        // 绝不能带着上一个服的结论（老服右键、本服左键破坏）去砸另一边的巨型作物。
+        if (!java.util.Objects.equals(configuredServerKey, serverKey)
+            || !java.util.Objects.equals(configuredFingerprint, newFingerprint)) {
+            specialHarvestRules.clear();
+            specialHarvestRules.putAll(specialHarvestStore.load(serverKey, newFingerprint));
+            announcedSpecialUnknown.clear();
+            announcedSpecialLearned.clear();
+            pendingSpecialObservation = null;
+            // 箱子是「某个服务器某个维度里那个方块」的状态：换服 / 换包（以及上面的换维度）必须清掉，
+            // 否则新环境会凭空继承「产物箱没空间」的结论，白白停收一分钟。
+            unloadBlockedUntil.clear();
+            seedReturnBlockedUntil.clear();
+            // 破坏退避按「服务器 + 资源包」隔离：换服 / 换包后那一格是不是同一种方块、手上那把是不是
+            // 也换了把真的，都无从判断，一律重新试
+            breakRejectedUntil.clear();
+            LOGGER.info("[星露谷] 特殊变种收法 服务器={} 已记录 {} 个作物", serverKey, specialHarvestRules.size());
         }
         configuredServerKey = serverKey;
         configuredFingerprint = newFingerprint;
@@ -729,6 +966,8 @@ public final class StardewCoordinator {
         retryCount = 0;
         viewAlignWait = 0;
         pointWatchTicks = 0;
+        // 停机 / 换世界：进行中的破坏要中止，别让服务端还记着「这个玩家在挖这一格」
+        executor.abortBreakDig();
         reporter.forgetLostPoints();
         taskStep = 0;
         taskTicks = 0;
@@ -756,10 +995,12 @@ public final class StardewCoordinator {
         logisticsBlocked = false;
         restockBlocks.clear();
         lastBlockedSeedCounts.clear();
-        unloadBlockedUntil.clear();
-        seedReturnBlockedUntil.clear();
+        // 注意：背包「已满」这条状态**故意不在这里清**：它描述的是「玩家背包此刻的实况」，
+        // 模块一开一关（玩家反复开关、换维度、重载）就清掉，会让下一次启动立刻白跑一趟箱子、
+        // 再刷一条同样的提示（实机：连点开关时每开一次都「正在卸货 → 产物箱没有空间」）。
         navigationBlockedUntil.clear();
         sprinklerFullUntil.clear();
+        missingSprinklersReported.clear();
         planner.resetNavigationWatchdog();
         playerPositionKnown = false;
         stationaryTicks = 0;
@@ -780,6 +1021,11 @@ public final class StardewCoordinator {
         waitingSeasonAnnouncedLabel = null;
         reportedContainerFailures.clear();
         reportedCollectFailures.clear();
+        announcedSpecialUnknown.clear();
+        announcedSpecialBreakFailed.clear();
+        // 背包「已满」的播报去重同样不清：背包还是满的，重启一次就再报一遍纯属噪声
+        // （背包腾出空格时由 {@link #forgetBagFullHalt()} 解除）。
+        breakRejectedReported.clear();
         observedSeasonRevision = seasonService.revision();
         verifier.clearLearningSnapshot();
         taskInventoryBefore = Map.of();
@@ -815,6 +1061,78 @@ public final class StardewCoordinator {
         if (pos != null) sprinklerFullUntil.remove(pos);
     }
 
+    /**
+     * 这台洒水器已确认不在了：本次会话第一次为 {@code true}（调用方据此只提示一次）。
+     *
+     * <p>本方法只负责去重记账，判定与播报分别由 {@code StardewPointManager#sprinklerUnusableReason}
+     * 与 {@code StardewFarmReporter#announceSprinklerMissing} 负责。</p>
+     */
+    boolean markSprinklerMissingReported(BlockPos pos) {
+        return pos != null && missingSprinklersReported.add(pos);
+    }
+
+    /** 这台洒水器又在了：解除「已提示过不在」的记录，下次再消失会重新提示 */
+    void clearSprinklerMissingReported(BlockPos pos) {
+        if (pos != null) missingSprinklersReported.remove(pos);
+    }
+
+    /**
+     * 背包一个空格都不剩、又（暂时）卸不出去：停收并报一条。
+     *
+     * <p><b>为什么要停</b>：收下来的成品和地上的掉落都无处安放 —— 继续收只会掉地，
+     * 要么被别的玩家捡走、要么 5 分钟后消失（用户实机：故意把背包塞满，模块照样一格一格收）。</p>
+     *
+     * <p>只报一次，且背包腾出空间后自动复位（见 {@link #forgetBagFullHalt()}）。</p>
+     */
+    void reportBagFullHalt(String reason) {
+        if (bagFullHalted) return;
+        bagFullHalted = true;
+        status.critical("BAG_FULL_HALT", "背包已满，已停机",
+            reason + "｜出路：清空背包腾出空格（种子 / 工具 / 杂物同样占格），或清空产物箱；"
+                + "腾出空间后自动继续");
+    }
+
+    /** 背包又有空格了：解除「已满」去重，下次再撑满会重新提示 */
+    void forgetBagFullHalt() {
+        bagFullHalted = false;
+    }
+
+    /**
+     * 「这一格挖不动」的唯一出口：报一次，并登记退避（退避期内不再派发这一格的破坏动作）。
+     *
+     * <p>走到这里只有一种情形：START / STOP 都真发出去了、{@link #BREAK_MAX_ATTEMPTS} 轮按住都发完，
+     * 服务端就是不放行（保护方块 / 收法其实不是左键）。按坐标去重，同一格只报一条。</p>
+     */
+    void reportBreakRejected(BlockPos pos, String cellSummary) {
+        markBreakRejected(pos);
+        if (pos == null || !breakRejectedReported.add(pos.asLong())) return;
+        status.critical("BREAK_REJECTED:" + pos, "这一格砸不动，已跳过",
+            pos.toShortString() + " ▸ " + cellSummary
+                + "｜" + (BREAK_REJECT_BACKOFF_MS / 1000L) + " 秒后会自动再试；"
+                + "若你手动能收掉它，收一棵给我看，口径会自动更新");
+    }
+
+    /**
+     * 这一格是否还在「服务端没放行」的退避期内。
+     *
+     * <p>到期自动解除并清账（不留永久黑名单，服务端松了、手上换了件挖得动的都会自动恢复）。</p>
+     */
+    boolean isBreakRejected(BlockPos pos) {
+        if (pos == null) return false;
+        long key = pos.asLong();
+        Long until = breakRejectedUntil.get(key);
+        if (until == null) return false;
+        if (System.currentTimeMillis() < until) return true;
+        breakRejectedUntil.remove(key);
+        return false;
+    }
+
+    /** 这一格这一轮挖不动（服务端没放行）：登记退避，退避期内不再对它派发破坏动作 */
+    void markBreakRejected(BlockPos pos) {
+        if (pos == null) return;
+        breakRejectedUntil.put(pos.asLong(), System.currentTimeMillis() + BREAK_REJECT_BACKOFF_MS);
+    }
+
     public BlockPos currentTarget() {
         return planner.taskTarget();
     }
@@ -846,6 +1164,10 @@ public final class StardewCoordinator {
     public void tick() {
         if (profile == null || index == null || idManager == null || memory == null || inventory == null) return;
         if (points == null) return;
+        // 挖掘序列独立推进：START 发出去后一定会等到 STOP（或 ABORT），与任务相位无关。
+        // 它必须排在相位机之前 —— 相位机随时可能重扫 / 换任务 / 跳转，一旦那时不去推进序列，
+        // 服务端那个「已累计的破坏会话」就永远收不了尾（实机：日志只有「开始挖掘」，方块永远挖不掉）。
+        executor.tickBreakDig();
         // 点位方块巡检：绑定的箱子 / 水源 / 洒水器被挖掉时立即报警，不必等下一次真正用到才发现
         if (++pointWatchTicks >= POINT_WATCH_INTERVAL) {
             pointWatchTicks = 0;
@@ -867,6 +1189,18 @@ public final class StardewCoordinator {
         }
         logistics.refreshRestockBlocks();
         planner.updatePlayerIdle();
+        // 玩家自己动手收特殊变种时同步学到的收法（按服务器分开记）
+        tickSpecialObservation();
+        // 满仓停机要覆盖「任务已经在跑」的情形：decide() 那道闸只管新派发，而已经派发的补货 /
+        // 播种 / 补水会一路走到完成 —— 实机反馈：背包已经满到收不了菜，模块还在「正在补货
+        // 菠萝种子」，又跑去种子箱拿更多种子回来。
+        // 卸货与种子回收不打断（它们正是满仓的出路），破坏序列也不打断（tickBreakDig 自己收尾）。
+        if (taskType != null && taskType != TaskType.UNLOAD && taskType != TaskType.SEED_RETURN
+            && phase != Phase.OBSERVE && planner.storageFullHalts() && !executor.digInProgress()) {
+            adapter.cancelPath();
+            phase = Phase.REPLAN;
+            return;
+        }
 
         switch (phase) {
             case OBSERVE -> observe();
@@ -882,6 +1216,128 @@ public final class StardewCoordinator {
         for (StardewFarmScanner.Cell cell : cells) {
             if (cell == null || cell.crop() == null) continue;
             CropPotGroups.observe(cell.crop().cropKey(), cell.potGroup());
+        }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //  特殊变种收割口径：按服务器学习 + 持久化
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /**
+     * 某个作物在本服特殊阶段的收割口径（动作 + 手持）。
+     *
+     * <p><b>认得出变种时</b>（{@code 作物#标记}）：本变种的学习记录 → 本变种的预置 → 本服通用口径
+     * → 该作物的预置 → 老口径。<b>刻意不看「不带标记的作物键学习记录」</b>：那条记录说不清
+     * 是哪个变种（本服番茄既有巨型又有黄金，一个左键一个右键），拿它当兜底就是用错动作 ——
+     * 在左键破坏不可逆的服上等于砸坏作物。</p>
+     *
+     * <p><b>认不出变种时</b>（退回纯作物键）：学习记录 → 预置 → 本服通用口径 → 老口径，
+     * 与旧档案完全兼容。</p>
+     */
+    StardewSpecialHarvestRecipe specialHarvestRecipe(String cropKey, String variantTag) {
+        if (cropKey == null) return StardewSpecialHarvestRecipe.DEFAULT;
+        String scoped = specialRuleKey(cropKey, variantTag);
+        StardewSpecialHarvestRecipe learned = specialHarvestRules.get(scoped);
+        if (learned != null) return learned;
+        StardewSpecialHarvestRecipe preset = StardewSpecialHarvestPresets.find(serverKey, scoped);
+        if (preset != null) return preset;
+        // 本服的通用口径：玩家在本服示范过任意一种变种后，其它变种先按同一口径收，
+        // 不必为每种作物各示范一次（同服的变种形态通常一致；玩家若真收到不一样的，那一次会覆盖成专属记录）
+        StardewSpecialHarvestRecipe serverWide = specialHarvestRules.get(SPECIAL_HARVEST_SERVER_WIDE_KEY);
+        if (serverWide != null) return serverWide;
+        if (scoped.equals(cropKey)) {
+            StardewSpecialHarvestRecipe byCrop = specialHarvestRules.get(cropKey);
+            if (byCrop != null) return byCrop;
+        }
+        StardewSpecialHarvestRecipe cropPreset = StardewSpecialHarvestPresets.find(serverKey, cropKey);
+        return cropPreset == null ? StardewSpecialHarvestRecipe.DEFAULT : cropPreset;
+    }
+
+    /** 口径查表：直接用识别结果（键里自动带上变种标记） */
+    StardewSpecialHarvestRecipe specialHarvestRecipe(CropRecognizer.CropRecognition crop) {
+        if (crop == null) return specialHarvestRecipe((String) null, null);
+        return specialHarvestRecipe(crop.cropKey(),
+            CropRuntimeStateResolver.variantTag(crop.modelIdentity(), crop.stageName()));
+    }
+
+    /** 口径的存档键：作物 + 变种标记。没有标记（认不出变种）时退回纯作物键，与旧档案同键 */
+    static String specialRuleKey(String cropKey, String variantTag) {
+        if (cropKey == null) return null;
+        return variantTag == null || variantTag.isBlank() ? cropKey : cropKey + '#' + variantTag;
+    }
+
+    /** 本服这个变种的特殊阶段口径是否已经确定（学过 / 本服通用口径 / 预置；都没有时收不动要给玩家一条出路） */
+    boolean specialHarvestLearned(CropRecognizer.CropRecognition crop) {
+        if (crop == null || crop.cropKey() == null) return false;
+        String tag = CropRuntimeStateResolver.variantTag(crop.modelIdentity(), crop.stageName());
+        String scoped = specialRuleKey(crop.cropKey(), tag);
+        boolean tagged = !scoped.equals(crop.cropKey());
+        return specialHarvestRules.containsKey(scoped)
+            || (!tagged && specialHarvestRules.containsKey(crop.cropKey()))
+            || specialHarvestRules.containsKey(SPECIAL_HARVEST_SERVER_WIDE_KEY)
+            || StardewSpecialHarvestPresets.find(serverKey, scoped) != null
+            || StardewSpecialHarvestPresets.find(serverKey, crop.cropKey()) != null;
+    }
+
+    /**
+     * 玩家手动收了一次特殊阶段作物（左键破坏 / 右键交互）：先记一条待确认观测。
+     *
+     * <p><b>为什么不自动试探</b>：本服的巨型作物是「左键破坏」、老服是「金锄头右键」，
+     * 拿错动作去试会直接砸掉一棵巨型作物（不可逆）。所以只从玩家自己的动作里学——
+     * 玩家怎么收的（连当时手上那件一起），模块就怎么收，零风险。</p>
+     *
+     * <p>调用方（Mixin）上报玩家当时的<b>主手物品</b>（空手传空栈 = 工具不限）；
+     * 这里确认「那一格此刻确实是特殊阶段作物」，并核对「动作 + 手持」是否与本服已知口径相同。</p>
+     */
+    public void observePlayerSpecialHarvest(BlockPos pos, StardewSpecialHarvestAction action, ItemStack held) {
+        if (pos == null || action == null || profile == null) return;
+        BlockPos pot = StardewFarmScanner.normalizeToPot(pos);
+        CropRecognizer.CropRecognition crop = CropRecognizer.recognizeAtPot(pot, profile);
+        if (crop == null || crop.cropKey() == null || crop.state() != CropState.SPECIAL) return;
+        StardewSpecialHarvestRecipe recipe = StardewSpecialHarvestRecipe.of(action, held);
+        // 与本服已知口径完全一致（动作 + 手持都同）不必再学：右键服上玩家右键收一棵是最常见的动作
+        if (specialHarvestRecipe(crop).compareKey().equals(recipe.compareKey())) return;
+        String tag = CropRuntimeStateResolver.variantTag(crop.modelIdentity(), crop.stageName());
+        pendingSpecialObservation = new SpecialObservation(specialRuleKey(crop.cropKey(), tag), crop.cropKey(),
+            recipe, pos, cellSnapshot(pos), System.currentTimeMillis() + SPECIAL_OBSERVATION_WINDOW_MS);
+        LOGGER.info("[星露谷] 观测到玩家手动收割特殊变种 作物={} 变种={} 口径={} 坐标={}（等那一格真的变了才落盘）",
+            crop.cropKey(), tag == null ? "无标记" : tag, recipe.displayName(), pos);
+    }
+
+    /** 那一格「此刻构成」的快照：方块 ID + 展示实体身份（读不到就是空串），用于判断动作是否真的生效 */
+    private static String cellSnapshot(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || pos == null) return "";
+        var blockId = BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock());
+        String display = StardewCropDisplayProbe.liveIdentityAt(pos);
+        return blockId + "|" + (display == null ? "" : display);
+    }
+
+    /** 待确认观测的推进：那一格真的变了 → 学会并落盘；窗口内没变 → 当次动作不算数 */
+    void tickSpecialObservation() {
+        SpecialObservation observation = pendingSpecialObservation;
+        if (observation == null) return;
+        if (!cellSnapshot(observation.pos()).equals(observation.beforeSnapshot())) {
+            pendingSpecialObservation = null;
+            specialHarvestRules.put(observation.ruleKey(), observation.recipe());
+            // 本服通用口径：只在第一次学到时写入（先到者为准）。之后学到的形态各异的作物只更新
+            // 自己的专属记录，不去改通用口径 —— 否则「最后学到的那条」会顺手用在下一个还没学过的
+            // 变种上，而左键破坏不可逆（同服多形态时这个风险不能留）。
+            specialHarvestRules.putIfAbsent(SPECIAL_HARVEST_SERVER_WIDE_KEY, observation.recipe());
+            boolean saved = specialHarvestStore.save(serverKey, configuredFingerprint, specialHarvestRules);
+            LOGGER.info("[星露谷] 特殊变种口径已学会 服务器={} 口径键={}（作物={}） 口径={} 本服通用口径={} 存盘={}",
+                serverKey, observation.ruleKey(), observation.cropKey(), observation.recipe().displayName(),
+                specialHarvestRules.get(SPECIAL_HARVEST_SERVER_WIDE_KEY).displayName(), saved);
+            if (saved && announcedSpecialLearned.add(observation.ruleKey())) {
+                reporter.announceSpecialHarvestLearned(observation.cropKey(), observation.recipe());
+            }
+            return;
+        }
+        if (System.currentTimeMillis() > observation.deadline()) {
+            // 点空了 / 被服务端驳回：不学，也不反复重记（下次玩家再动手会重新观测）
+            pendingSpecialObservation = null;
+            LOGGER.info("[星露谷] 观测到的特殊变种收割动作没有生效，已丢弃 作物={} 口径={}",
+                observation.cropKey(), observation.recipe().displayName());
         }
     }
 
@@ -923,6 +1379,30 @@ public final class StardewCoordinator {
         if (summary.equals(lastScanSummary)) return;
         lastScanSummary = summary;
         if (matched == 0 && scanned > 0) announcePotMismatch(foundGroups);
+    }
+
+    /**
+     * 本轮扫到的格子按作物状态分个类（「熟 3 · 生长 12 · 空 5」）。
+     *
+     * <p><b>为什么必须报出来：</b>「当前农田已处理完成」有两种截然不同的含义 —— 地里真没熟菜，
+     * 或熟菜在眼前却没被认成成熟。玩家看到的画面一模一样，只能靠这行分清是哪一种
+     * （实机反馈：满地的熟菜，模块报「已处理完成」，无法判断是识别问题还是逻辑问题）。</p>
+     */
+    private String pendingBreakdown() {
+        int mature = 0;
+        int growing = 0;
+        int empty = 0;
+        int other = 0;
+        for (StardewFarmScanner.Cell cell : pending) {
+            switch (cell.crop().state()) {
+                case MATURE, SPECIAL -> mature++;
+                case GROWING -> growing++;
+                case EMPTY -> empty++;
+                default -> other++;
+            }
+        }
+        return "本轮熟 " + mature + " · 生长 " + growing + " · 空盆 " + empty
+            + (other > 0 ? " · 其它 " + other : "");
     }
 
     /**
@@ -979,14 +1459,36 @@ public final class StardewCoordinator {
             return;
         }
 
+        // 满仓整机停机：背包一个空格都没有 —— 整个模块停（不浇水、不播种、不施肥、不维护洒水器、
+        // 不回中心点、不收菜、不拾取）。
+        // **但「会自动把背包腾空」的两条路必须放行** —— 它们正是满仓的出路，而原先这道闸排在
+        // 它们前面（卸货闸在下方、种子回收更靠后），于是背包一满就再也卸不了货、也存不回超量种子，
+        // 只能玩家自己动手清（实机反馈：「背包满了为什么还提示我拿种子」）。
+        // 产物箱满不在这里 —— 那条已经改成**直接关闭模块**了（见 #stopForOutputBoxFull）。
+        if (planner.storageFullHalts()) {
+            status.silent("FULL_HALT", "背包已满，已停机",
+                "腾出空间后自动继续 · " + pendingBreakdown(), "");
+            if (planner.tryStartUnloadForProtection()) {
+                phase = Phase.NAVIGATE;
+                return;
+            }
+            if (planner.tryStartSeedReturn()) {
+                phase = Phase.NAVIGATE;
+                return;
+            }
+            restartObserve();
+            return;
+        }
+
         // 资源保护：背包快满且能卸货时，优先卸货避免掉落损失
         if (planner.tryStartUnloadForProtection()) {
             phase = Phase.NAVIGATE;
             return;
         }
 
-        // 农田内掉落优先拾取（种子自给自足 + 成品入账，必须在继续收割/种植前处理）
-        if (drops.hasFarmDrop()) {
+        // 农田内掉落优先拾取（种子自给自足 + 成品入账，必须在继续收割/种植前处理）。
+        // 背包一个空格都没有时拾取必然装不进去，先去卸货（上面那一步）或停下等玩家清背包。
+        if (drops.hasFarmDrop() && !planner.bagFullBlocksHarvest()) {
             taskType = TaskType.COLLECT;
             targetPot = null;
             activeCell = null;
@@ -1001,6 +1503,12 @@ public final class StardewCoordinator {
             pending.sort(Comparator.comparingInt(planner::priority));
             // 区域粘性：当前作业地块还有活就先做它，这块地做干净再换下一块（只认单一作物区）
             if (planner.startStickyRegionTask()) {
+                phase = Phase.NAVIGATE;
+                return;
+            }
+            // 当前地块还有空盆等着补种：先去把这一块的种子取回来，再去别的区域
+            // （补种是「把这一块做完」的一部分，见 planner#startStickyRegionRestock）
+            if (planner.startStickyRegionRestock()) {
                 phase = Phase.NAVIGATE;
                 return;
             }
@@ -1048,7 +1556,14 @@ public final class StardewCoordinator {
 
         if (waitingForGrowth && !waitingMatureNotified) {
             waitingMatureNotified = true;
-            status.state("WAIT_GROWTH", "等待作物生长", "当前农田已处理完成");
+            if (planner.storageFullHalts()) {
+                // 这一刻「没有可派发的任务」的真实原因是满仓停手，不是农活干完了。
+                // 说成「当前农田已处理完成」会让玩家以为状态机坏了（实机反馈：熟菜明明在地里）。
+                status.state("FULL_HALT", "背包已满，暂停收菜",
+                    "腾出空间后自动继续 · " + pendingBreakdown());
+            } else {
+                status.state("WAIT_GROWTH", "等待作物生长", "当前农田已处理完成 · " + pendingBreakdown());
+            }
         }
 
         // 所有待播种作物都被季节阻塞、且没有任何可执行任务：模块保持开启，回中心等待。
@@ -1215,6 +1730,12 @@ public final class StardewCoordinator {
             // 上限由 SPRINKLER_MAX_POURS 兜底，否则高级洒水器永远灌不满。
             stepTick = 0;
             phase = Phase.NAVIGATE;
+        } else if (executor.digInProgress()) {
+            // 破坏正在进行（学到的左键口径 / 清枯苗 / 清错位 / 清杂物，载体可能是非零硬度方块）：
+            // 服务端要「START → 等够挖掘时长 → STOP」才会砸掉，这中间不能用普通重试上限把这一轮
+            // 打断（那会变成每几刻重挖一次、永远挖不穿）。原地继续挖，不重走寻路。
+            stepTick = 0;
+            phase = Phase.INTERACT;
         } else if (taskType == TaskType.WATER && (executor.canWaterIsEmpty() || retryCount >= MAX_RETRY)) {
             // 水量字段缺失时以连续浇水失败兜底判断空壶，下一轮必须先去补水点。
             forceRefill = true;
@@ -1226,6 +1747,14 @@ public final class StardewCoordinator {
             // 不该按秒重发右键刷屏——退避窗口内先去做别的格，到期再回来试一次。
             if (taskType == TaskType.CLEAR_JUNK || taskType == TaskType.HARVEST) {
                 planner.blockNavigationTarget(taskType, targetPot);
+            }
+            // 特殊变种：默认口径（金锄头右键）在本服收不动时，给玩家一条可执行的出路
+            // （本服实测是左键破坏，见 StardewSpecialHarvestAction）。每个作物只提示一次。
+            if (taskType == TaskType.HARVEST) {
+                reporter.announceSpecialHarvestUnknownOnce();
+                // 学到的「左键破坏」口径也没砸掉（服务端保护这一格 / 口径其实不对）：同样要报出来，
+                // 否则玩家只看到对着同一格反复砸却一直不变。
+                reporter.announceSpecialBreakBlockedOnce();
             }
             phase = Phase.REPLAN;
         } else {
@@ -1239,7 +1768,14 @@ public final class StardewCoordinator {
         boolean wasLogistics = taskType == TaskType.RESTOCK || taskType == TaskType.UNLOAD
             || taskType == TaskType.SEED_RETURN;
         boolean wasReturnCenter = taskType == TaskType.RETURN_CENTER;
-        executor.restoreHandNow();
+        // 挖掘序列还在跑时先别还原手持：服务端累计进度是按「当前手持」的破坏速度算的，
+        // 中途把工具换回去（常常换回一件慢物品）会让这一轮的 STOP 被驳回。
+        // 序列自己收尾后，由下一次重规划（或停机）的 restoreHandNow 还原。
+        if (!executor.digInProgress()) executor.restoreHandNow();
+        // 注意：这里<b>不</b>中止进行中的挖掘序列（{@link StardewFarmExecutor#tickBreakDig()} 会自己收尾）。
+        // 之前每次重规划都 ABORT，而重规划随时可能发生（重扫、季节代次变化、玩家开背包…），
+        // 于是「START → 被 ABORT → 再 START」无限循环，方块永远挖不掉（实机事故）。
+        // 换目标时由 breakAt 自己先 ABORT 上一格，模块停机 / 换世界由 reset() 兜底。
         drops.stopNudge();
         taskType = null;
         targetPot = null;

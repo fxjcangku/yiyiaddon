@@ -18,10 +18,12 @@ import net.minecraft.network.protocol.game.ServerboundPlayerAbilitiesPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
@@ -116,6 +118,61 @@ public final class ClientPacketSender {
         Connection connection = connection();
         if (connection == null) return false;
         dispatch(connection, new ServerboundMovePlayerPacket.Rot(yaw, pitch, onGround, horizontalCollision));
+        return true;
+    }
+
+    /** 当前生效的发包规则条数（诊断用：大于 0 表示模块发出的包会先经过本模组的规则判定） */
+    public static int sendRuleCount() {
+        return SendGate.ruleCount();
+    }
+
+    // ── 换手 / 选中槽 ──
+
+    /**
+     * 切换快捷栏选中槽（0~8），并把这次选择同步给服务端。
+     *
+     * <p><b>为什么必须走绕行通道</b>：服务端算方块破坏进度读的是<b>它那边</b>的
+     * {@code getSelectedItem()}，而模块原先这个包是直接 {@code connection.send} 的 —— 一旦被本模组
+     * 的发包规则拦下（延迟或取消），客户端与服务端就会对「手上那件」产生认知分叉：客户端算出每刻
+     * 0.0833、服务端那边拿着的是采掘速度为 0 的道具、算出 0，表现就是「怎么按服务端都不认这一格」
+     * （实机：同一格按住 120 tick、原版流程挖满 10 秒仍纹丝不动）。</p>
+     */
+    public static boolean selectHotbar(int slot) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        Connection connection = connection();
+        if (player == null || connection == null || slot < 0 || slot > 8) return false;
+        player.getInventory().setSelectedSlot(slot);
+        dispatch(connection, new ServerboundSetCarriedItemPacket(slot));
+        return true;
+    }
+
+    /**
+     * 把背包槽（0~35）与当前选中的快捷栏槽交换（原版「背包里那格 ↔ 手上那格」的同一个动作）。
+     *
+     * <p>同样必须绕行：这条点击包一旦被拦，客户端本地预测已经换了手、服务端却没换，
+     * 分叉会一直留到下一次全量同步，其间所有需要「手持物正确」的动作（尤其是破坏）全部失效。</p>
+     */
+    public static boolean swapToHotbar(int invSlot) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.gameMode == null || invSlot < 0 || invSlot >= 36) return false;
+        int selected = player.getInventory().getSelectedSlot();
+        PacketSendBypass.run(() -> mc.gameMode.handleContainerInput(
+            player.inventoryMenu.containerId, invSlot, selected, ContainerInput.SWAP, player));
+        return true;
+    }
+
+    /**
+     * 把背包槽（9~35）与副手交换（原版「F 键换副手」的同一个动作），同样绕行发放。
+     *
+     * @param offhandMenuSlot 副手在物品栏菜单里的槽位索引（40）
+     */
+    public static boolean swapOffhandWith(int invSlot, int offhandMenuSlot) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.gameMode == null || invSlot < 9 || invSlot >= 36) return false;
+        PacketSendBypass.run(() -> mc.gameMode.handleContainerInput(
+            player.inventoryMenu.containerId, invSlot, offhandMenuSlot, ContainerInput.SWAP, player));
         return true;
     }
 

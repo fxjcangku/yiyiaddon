@@ -35,14 +35,16 @@ import java.util.function.Supplier;
 public final class StardewLogisticsPage {
 
     /** 后勤：每作物块的四条阈值行文案（标签 / 范围 / tooltip / 行尾注释），逐字照旧 */
-    private static final String LABEL_RESTOCK_TRIGGER = "种子少于";
+    private static final String LABEL_RESTOCK_TRIGGER = "种子补货";
     private static final String LABEL_RESTOCK_TARGET = "种子补到";
     private static final String LABEL_UNLOAD_TRIGGER = "成品攒到";
     private static final String LABEL_UNLOAD_KEEP = "成品留底";
 
-    private static final String TIP_RESTOCK_TRIGGER = "背包里这种作物的种子少于这个数时，才去种子箱取种子补货；\n"
-        + "补多少由下一行「种子补到」决定。\n"
-        + "填 0 = 不自动补货（也就不需要种子箱）。\n"
+    private static final String TIP_RESTOCK_TRIGGER = "这种作物「自动补货」的开关：\n"
+        + "· 填 0 = 不自动补货（也就不需要给它绑种子箱，启动自检按这个判）\n"
+        + "· 填任何正数 = 开启：背包里这种作物的种子一颗都不剩、又刚好有空盆要种时，\n"
+        + "  才去种子箱取种子，每次取到「种子补到」为止\n"
+        + "数字填几都不影响行为（正数即开启，数值只为兼容旧配置保留）\n"
         + "技术名：种子补货触发";
     private static final String TIP_RESTOCK_TARGET = "每次补货都补到这个数量为止。\n"
         + "收获后多余种子的回收也看它：背包里超过这个数的种子会被送回种子箱，\n"
@@ -56,13 +58,17 @@ public final class StardewLogisticsPage {
         + "只有需要「留一点成品在手上」时才改。\n"
         + "技术名：成品卸货保留";
 
-    private static final String COMMENT_RESTOCK_TRIGGER = "低于它才去补种";
+    private static final String COMMENT_RESTOCK_TRIGGER = "0 = 关掉补货";
     private static final String COMMENT_RESTOCK_TARGET = "每次补到这个数";
     private static final String COMMENT_UNLOAD_TRIGGER = "攒够它才去卸货";
     private static final String COMMENT_UNLOAD_KEEP = "卸货时留下不卸";
 
-    /** 后勤：简化后勤下展示的一行说明（逐字照旧 {@code SIMPLE_HINT}） */
-    private static final String SIMPLE_HINT = "§7后勤全自动：种子少于2补到8，成品攒到8卸光";
+    /** 后勤：简化后勤下展示的一行说明（数值直接取自逐作物默认值，避免两处数字各说各话） */
+    private static String simpleHint() {
+        StardewLogisticsStore.CropLogistics defaults = StardewLogisticsStore.CropLogistics.DEFAULT;
+        return "§7后勤全自动：种子用光补到 " + defaults.restockTarget()
+            + "，成品攒到 " + defaults.unloadTrigger() + " 卸光";
+    }
 
     /** 后勤：作物块空态 / 未识别服务器（逐字照旧 {@code renderCropBlocks}） */
     private static final String LOGISTICS_NO_SERVER =
@@ -170,7 +176,7 @@ public final class StardewLogisticsPage {
 
         if (module.settings().logisticsSimple) {
             // 简化模式：四个阈值不画出来，改用一行灰字把「实际在用什么值」写明
-            content.add(new Note(owner, SIMPLE_HINT, simpleHintTooltip()));
+            content.add(new Note(owner, simpleHint(), simpleHintTooltip()));
         } else {
             content.add(thresholdRow(cropKey, LABEL_RESTOCK_TRIGGER, 0, 64,
                 StardewLogisticsStore.CropLogistics.DEFAULT.restockTrigger(),
@@ -259,11 +265,10 @@ public final class StardewLogisticsPage {
     private static String simpleHintTooltip() {
         StardewLogisticsStore.CropLogistics defaults = StardewLogisticsStore.CropLogistics.DEFAULT;
         return "后勤全自动，不用设置：\n"
-            + "· 种子少于 " + defaults.restockTrigger()
-            + " 才去种子箱补，补到 " + defaults.restockTarget() + "\n"
+            + "· 种子用光了才去种子箱补，补到 " + defaults.restockTarget() + "\n"
             + "· 成品攒到 " + defaults.unloadTrigger()
             + " 才去成品箱卸，卸完背包不留底\n"
-            + "想自己调这四个数：到「后勤参数」分组顶上关掉「简化后勤」";
+            + "想自己调这四个数：取消勾选上面的「简化后勤」，四个阈值就会逐作物展开";
     }
 
     private static String resetTooltip(CropDefinition crop) {

@@ -1,6 +1,7 @@
 package com.yiyiaddon.feature.stardew.task;
 
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
+import com.yiyiaddon.feature.stardew.region.StardewRegionManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -133,6 +134,11 @@ final class StardewDropCollector {
 
         ItemEntity best = null;
         double bestSq = Double.MAX_VALUE;
+        // 区域粘性：先把自己正在干活的那块地里的掉落物拾干净，再去别的地块捡
+        // （用户 2026-09-22：「当前区域掉落物没拾取完成，就跑到下一个区域」）。
+        // 只在这里改挑哪一颗：一块都没有时不改变原有行为，仍然是「全场最近的一颗」。
+        ItemEntity bestInRegion = null;
+        double bestInRegionSq = Double.MAX_VALUE;
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity instanceof ItemEntity item) {
                 // 只拾取当前农场掉落（种子 / 成品 / 变种），不捡无关玩家物品
@@ -147,9 +153,20 @@ final class StardewDropCollector {
                     bestSq = d;
                     best = item;
                 }
+                if (d < bestInRegionSq && inStickyRegion(itemPos)) {
+                    bestInRegionSq = d;
+                    bestInRegion = item;
+                }
             }
         }
-        return best;
+        return bestInRegion == null ? best : bestInRegion;
+    }
+
+    /** 这一格是不是在「当前作业地块」里（与 planner#isStickyCell 同一口径：只认单一作物区）。 */
+    private boolean inStickyRegion(BlockPos pos) {
+        if (owner.stickyRegionIndex <= 0) return false;
+        StardewRegionManager.Region region = owner.regionAt(pos);
+        return region != null && !region.mixed() && region.index() == owner.stickyRegionIndex;
     }
 
     /**

@@ -2,6 +2,8 @@ package com.yiyiaddon.feature.stardew.ui.console;
 
 import com.yiyiaddon.feature.stardew.StardewFarmModule;
 import com.yiyiaddon.feature.stardew.config.StardewSettings;
+import com.yiyiaddon.feature.stardew.point.StardewPointType;
+import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.ui.StardewConsoleScreen;
 import com.yiyiaddon.ui.console.ConsoleWidgets;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Ctl;
@@ -9,9 +11,11 @@ import com.yiyiaddon.ui.console.ConsoleWidgets.ConsoleRow;
 import com.yiyiaddon.ui.console.ConsoleWidgets.Note;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
+import com.yiyiaddon.ui.screen.ConfirmPanelScreen;
 import com.yiyiaddon.ui.widget.Button;
 import com.yiyiaddon.ui.widget.SettingNumberBox;
 import com.yiyiaddon.ui.widget.SettingToggle;
+import net.minecraft.client.Minecraft;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -64,20 +68,23 @@ public final class StardewRunPage {
 
         stack.add(section("自动化"));
         stack.add(boolRow(StardewSettings.NAME_AUTO_WATER, StardewSettings.DESC_AUTO_WATER,
-            () -> s.autoWater, value -> s.autoWater = value, () -> DEFAULTS.autoWater));
+            () -> s.autoWater, value -> s.autoWater = value, () -> DEFAULTS.autoWater,
+            this::autoWaterBlockReason));
         stack.add(boolRow(StardewSettings.NAME_SWITCH_CAN, StardewSettings.DESC_SWITCH_CAN,
             () -> s.switchCan, value -> s.switchCan = value, () -> DEFAULTS.switchCan));
         stack.add(boolRow(StardewSettings.NAME_RESTORE_HAND, StardewSettings.DESC_RESTORE_HAND,
             () -> s.restoreHand, value -> s.restoreHand = value, () -> DEFAULTS.restoreHand));
         stack.add(boolRow(StardewSettings.NAME_AUTO_FERTILIZE, StardewSettings.DESC_AUTO_FERTILIZE,
-            () -> s.autoFertilize, value -> s.autoFertilize = value, () -> DEFAULTS.autoFertilize));
+            () -> s.autoFertilize, value -> s.autoFertilize = value, () -> DEFAULTS.autoFertilize,
+            this::autoFertilizeBlockReason));
         stack.add(boolRow(StardewSettings.NAME_AUTO_POTION, StardewSettings.DESC_AUTO_POTION,
-            () -> s.autoPotion, value -> s.autoPotion = value, () -> DEFAULTS.autoPotion));
+            () -> s.autoPotion, value -> s.autoPotion = value, () -> DEFAULTS.autoPotion,
+            this::autoPotionBlockReason));
 
         stack.add(section("洒水器维护"));
         stack.add(boolRow(StardewSettings.NAME_SPRINKLER_MAINTENANCE, StardewSettings.DESC_SPRINKLER_MAINTENANCE,
             () -> s.sprinklerMaintenance, value -> s.sprinklerMaintenance = value,
-            () -> DEFAULTS.sprinklerMaintenance));
+            () -> DEFAULTS.sprinklerMaintenance, this::sprinklerMaintenanceBlockReason));
         stack.add(intRow(StardewSettings.NAME_SPRINKLER_INTERVAL, StardewSettings.DESC_SPRINKLER_INTERVAL,
             StardewSettings.SPRINKLER_INTERVAL_MIN, StardewSettings.SPRINKLER_INTERVAL_MAX,
             () -> s.sprinklerInterval, value -> s.sprinklerInterval = value, () -> DEFAULTS.sprinklerInterval));
@@ -104,7 +111,31 @@ public final class StardewRunPage {
 
     private CompactElement boolRow(String name, String description, Supplier<Boolean> getter,
                                    Consumer<Boolean> setter, Supplier<Boolean> defaultValue) {
+        return boolRow(name, description, getter, setter, defaultValue, null);
+    }
+
+    /**
+     * 布尔设置行（可带「打开前置条件」）。
+     *
+     * <p><b>为什么有的开关要先过一道闸</b>（用户 2026-09-22：「我还打开了洒水器维护，这些都没检测的；
+     * 没选洒水器不给打开洒水器维护才对」）：启动自检一次会话只跑一次，进服之后再打开一个「缺对象」的
+     * 开关，不会被任何判据拦下——玩家以为它已经在干活，实际只是空转。所以「打开」这一步当场校验，
+     * 缺什么就说清楚。</p>
+     *
+     * <p>{@code blockReason} 返回非空 = 拒绝打开（设置不写、不落盘，开关停在原位），并把原因弹出来；
+     * 关闭（{@code false}）永远放行——不让人因为一个缺项连关都关不掉。</p>
+     */
+    private CompactElement boolRow(String name, String description, Supplier<Boolean> getter,
+                                   Consumer<Boolean> setter, Supplier<Boolean> defaultValue,
+                                   Supplier<String> blockReason) {
         SettingToggle toggle = new SettingToggle(getter, value -> {
+            if (value && blockReason != null) {
+                String reason = blockReason.get();
+                if (reason != null) {
+                    refuse(name, reason);
+                    return;
+                }
+            }
             setter.accept(value);
             module.persistSettings();
         });
@@ -114,6 +145,59 @@ public final class StardewRunPage {
                 module.persistSettings();
                 owner.reload();
             }, name)));
+    }
+
+    /** 打开「自动浇灌」的前置条件：要用得上水壶的盆型得先选水壶（下界盆浇岩浆、末地盆浇龙息，用不到） */
+    private String autoWaterBlockReason() {
+        if (!module.selections().can().selectedKeys().isEmpty()) return null;
+        PotGroup group = module.index() == null ? null
+            : module.index().potGroupOfSelected(module.selections().pot().selectedKeys());
+        if (group != null && group.refillItem() != null) return null;
+        return "还没选水壶：先在「水壶」选择器里勾选要用的水壶，再打开自动浇灌";
+    }
+
+    /** 打开「自动施肥」的前置条件：先选肥料（没选肥料就没有可施的东西） */
+    private String autoFertilizeBlockReason() {
+        return module.selections().fertilizer().selectedKeys().isEmpty()
+            ? "还没选肥料：先在「肥料」选择器里勾选要用的肥料，再打开自动施肥" : null;
+    }
+
+    /** 打开「自动用药剂」的前置条件：先选药剂 */
+    private String autoPotionBlockReason() {
+        return module.selections().potion().selectedKeys().isEmpty()
+            ? "还没选药剂：先在「魔法药剂」选择器里勾选要用的药剂，再打开自动用药剂" : null;
+    }
+
+    /**
+     * 打开「洒水器维护」的前置条件：先选洒水器型号，并且绑过至少一台洒水器点位。
+     *
+     * <p>两样缺一，这个开关打开也只是空转：没选型号就不知道维护哪一种，没有点位就没有维护对象
+     * （点位按维度分档，这里只判「任意维度是否绑过」，具体本维度有没有由启动自检报出）。</p>
+     */
+    private String sprinklerMaintenanceBlockReason() {
+        if (module.selections().sprinkler().selectedKeys().isEmpty()) {
+            return "还没选洒水器型号：先在「洒水器」选择器里勾选要维护的型号，再打开洒水器维护";
+        }
+        if (module.pointManager() != null && module.pointManager().getAll(StardewPointType.SPRINKLER).isEmpty()) {
+            return "还没绑定洒水器点位：对准洒水器实物绑一次点位，再打开洒水器维护";
+        }
+        return null;
+    }
+
+    /**
+     * 拒绝打开：屏幕中间弹一块原位说明面板（点掉回本页），聊天栏同时留一条记录。
+     *
+     * <p>只发聊天容易被后面的状态播报刷走（启动自检面板当初就是为这个加的），所以两处都给。</p>
+     */
+    private void refuse(String settingName, String reason) {
+        if (module.statusReporter() != null) {
+            module.statusReporter().critical("SETTING_BLOCKED:" + settingName,
+                "无法打开「" + settingName + "」", reason);
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client == null) return;
+        client.setScreen(ConfirmPanelScreen.noticeInPlace("星露谷农场 · 无法打开「" + settingName + "」",
+            "§7这个开关要先满足条件：", List.of(reason), owner));
     }
 
     private CompactElement intRow(String name, String description, int min, int max,

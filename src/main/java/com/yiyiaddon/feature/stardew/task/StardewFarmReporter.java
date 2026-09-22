@@ -4,6 +4,9 @@ import com.yiyiaddon.feature.stardew.point.StardewPointManager;
 import com.yiyiaddon.feature.stardew.point.StardewPointType;
 import com.yiyiaddon.feature.stardew.point.SprinklerWorldBinding;
 import com.yiyiaddon.feature.stardew.profile.CropDefinition;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestAction;
+import com.yiyiaddon.feature.stardew.profile.StardewSpecialHarvestRecipe;
+import com.yiyiaddon.feature.stardew.recognition.CropState;
 import com.yiyiaddon.feature.stardew.recognition.PotGroup;
 import com.yiyiaddon.feature.stardew.recognition.PotState;
 import com.yiyiaddon.feature.stardew.scan.StardewFarmScanner;
@@ -225,6 +228,20 @@ final class StardewFarmReporter {
         owner.status.state("SPRINKLER_ROUND", "洒水器维护完成", "本轮 " + count + " 台");
     }
 
+    /**
+     * 已绑定的洒水器点位失效（实体没了 / 同格换成了别的型号）：提示一次，并给出收拾出路。
+     *
+     * <p><b>为什么要报</b>：不报的话玩家只会看到「洒水器维护完成 ▸ 本轮 1 台」这种假结论
+     * （真机事故），根本想不到那台早就被挖了、或已经换成别的型号。同一台由协调器去重，
+     * 不会每 tick 刷屏（见 {@code StardewCoordinator#markSprinklerMissingReported}）。</p>
+     */
+    void announceSprinklerMissing(BlockPos pos, String reason) {
+        owner.status.critical("SPRINKLER_MISSING:" + pos, "洒水器点位已失效，已跳过维护",
+            sprinklerLabel(pos) + " ▸ " + reason
+                + "｜收拾办法：在控制台「点位」页的洒水器卡片点「管理」，删掉它并按现场重新绑定；"
+                + "若这块地不再用洒水器，把「洒水器维护」关掉即可（自检会拦启动）");
+    }
+
     /** 这台刚验过是满的：本轮跳过，只更新状态卡，不刷聊天（一轮最多一条汇总） */
     void announceSprinklerSkipped(BlockPos pos) {
         owner.status.silent("SPRINKLER_SKIP:" + pos, "洒水器已满，本轮跳过", sprinklerLabel(pos), "");
@@ -234,6 +251,61 @@ final class StardewFarmReporter {
     void announceSprinklerAllSkipped(int count) {
         owner.status.state("SPRINKLER_SKIP_ROUND", "洒水器本轮全部已满，跳过",
             "共 " + count + " 台 · 到点后自动重查");
+    }
+
+    /**
+     * 已学会本服的特殊变种口径（动作 + 手持那件）。
+     *
+     * <p>特意把「按服务器分开记」写给玩家看：他的原话就是担心在一个服学了左键，
+     * 回另一个服把巨型作物全砸了（用户 2026-09-22）。</p>
+     */
+    void announceSpecialHarvestLearned(String cropKey, StardewSpecialHarvestRecipe recipe) {
+        owner.status.state("SPECIAL_HARVEST_LEARNED:" + cropKey, "已学会特殊变种收割口径",
+            cropLabel(cropKey) + " ▸ " + recipe.displayName()
+                + "｜本服其它变种也按这条收；按服务器分开记，其它服务器不受影响");
+    }
+
+    /**
+     * 特殊变种在本服还没学到口径、且默认口径（金锄头右键）连续收不动：给一条可执行的出路。
+     *
+     * <p>只在「这一格确实是特殊阶段 + 本服没学过（也没预置）+ 默认口径是右键」时提示，每个作物只提示一次
+     * （判定与去重都在这里，调用点只管在收割连续失败时喊一声）。</p>
+     */
+    void announceSpecialHarvestUnknownOnce() {
+        if (owner.activeCell == null || owner.activeCell.crop() == null) return;
+        String cropKey = owner.activeCell.crop().cropKey();
+        if (cropKey == null || owner.activeCell.crop().state() != CropState.SPECIAL) return;
+        if (owner.specialHarvestLearned(owner.activeCell.crop())) return;
+        if (owner.specialHarvestRecipe(owner.activeCell.crop()).action() != StardewSpecialHarvestAction.RIGHT_CLICK) return;
+        if (!owner.announcedSpecialUnknown.add(cropKey)) return;
+        owner.status.critical("SPECIAL_HARVEST_UNKNOWN:" + cropKey, "特殊变种收不动（本服口径未知）",
+            owner.specialHarvestRecipe(owner.activeCell.crop()).displayName() + " 连点多次，这一格毫无变化"
+                + "｜出路：对着它左键砸一棵告诉我（能砸掉就说明本服是左键口径），我记住后照做；"
+                + "口径按服务器分开保存，其它服照旧");
+    }
+
+    /**
+     * 学到的「左键破坏」口径也没砸掉这一格：报一条，别让玩家只看到对着同一格反复砸。
+     *
+     * <p>与 {@link #announceSpecialHarvestUnknownOnce()} 互补：那条管「本服口径还不知道」，
+     * 这条管「口径知道了、服务端就是不放行」（保护方块 / 口径其实不对）。同一作物只报一次。</p>
+     */
+    void announceSpecialBreakBlockedOnce() {
+        if (owner.activeCell == null || owner.activeCell.crop() == null) return;
+        String cropKey = owner.activeCell.crop().cropKey();
+        if (cropKey == null || owner.activeCell.crop().state() != CropState.SPECIAL) return;
+        if (owner.specialHarvestRecipe(owner.activeCell.crop()).action() != StardewSpecialHarvestAction.BREAK) return;
+        if (!owner.announcedSpecialBreakFailed.add(cropKey)) return;
+        owner.status.critical("SPECIAL_BREAK_FAILED:" + cropKey, "特殊变种砸不掉",
+            cropLabel(cropKey) + " ▸ 已按学到的口径（" + owner.specialHarvestRecipe(owner.activeCell.crop()).displayName()
+                + "）挖了 " + StardewCoordinator.BREAK_MAX_ATTEMPTS + " 轮，这一格还是原样"
+                + "｜多半是服务端保护了它，或本服收法其实不对：手动收一棵给我看，口径会自动更新");
+    }
+
+    /** 作物键 → 玩家认得的名字（索引里没有就照键报出来，绝不编一个）；执行层播报同样用它 */
+    String cropLabel(String cropKey) {
+        CropDefinition crop = owner.index == null ? null : owner.index.cropByKey(cropKey);
+        return crop == null ? cropKey : crop.chineseName();
     }
 
     private CropDefinition taskCrop() {

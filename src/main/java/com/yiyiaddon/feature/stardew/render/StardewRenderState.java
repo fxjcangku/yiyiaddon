@@ -71,6 +71,17 @@ public final class StardewRenderState {
     private static final EspColor MISMATCH_SIDE = new EspColor(0xFF2D2D, 60);
     private static final EspColor MISMATCH_LINE = new EspColor(0xFF2D2D, 220);
 
+    /**
+     * 「自检错位」红框每隔多少帧复核一次「那一格还错没错位」。
+     *
+     * <p>模块被禁止启动期间没有 tick，而那几格的数量通常个位数，读方块 + 识别一次的开销可忽略；
+     * 取 20 帧（约 0.3 秒）足够跟上玩家清理的动作。</p>
+     */
+    private static final int MISMATCH_PRUNE_INTERVAL = 20;
+
+    /** 「自检错位」复核计数器（只服务 {@link #renderMismatchOnly}） */
+    private int mismatchPruneTicks;
+
     private final Minecraft mc = Minecraft.getInstance();
     private final StardewSettings settings;
     private final StardewPointManager pointManager;
@@ -205,6 +216,34 @@ public final class StardewRenderState {
         onRender2D(renderer, preview, nearbyOnly);
     }
 
+    /**
+     * 「自检错位」专用层绘制：**只画分区错位的红框**，别的什么都不画。
+     *
+     * <p><b>为什么要单独一层：</b>启动自检不通过时模块会被立刻关掉，常规那层（{@code render}）
+     * 随之注销 —— 那时玩家只剩聊天栏一行坐标，农田一大就找不着那几格（用户 2026-09-22：
+     * 「这个报错显示坐标没用 应该显示红色的 ESP 全包那种」）。这一层由模块在「未启动但自检留了错位」
+     * 时挂着，只画框、不画区域与点位，避免关着模块还满屏东西。</p>
+     */
+    public void renderMismatchOnly(EspRenderer renderer) {
+        if (!EspGlobalSettings.get().layerEnabled(EspGlobalSettings.Layer.STARDEW)) return;
+        // 模块没启动就没有 tick，玩家清掉错位后红框得自己灭：借这一路每隔若干帧复核一次
+        if (++mismatchPruneTicks >= MISMATCH_PRUNE_INTERVAL) {
+            mismatchPruneTicks = 0;
+            coordinator.pruneStartupMismatch();
+        }
+        drawMismatchBoxes(renderer);
+    }
+
+    /** 分区错位红框：连同那株植株一起框住（上下两格） */
+    private void drawMismatchBoxes(EspRenderer renderer) {
+        for (BlockPos mismatchPos : coordinator.regionMismatchCells()) {
+            renderer.blockBox(mismatchPos.getX(), mismatchPos.getY(), mismatchPos.getZ(),
+                MISMATCH_SIDE.argb(), MISMATCH_LINE.argb(), ShapeMode.Lines, LINE_THICKNESS);
+            renderer.blockBox(mismatchPos.getX(), mismatchPos.getY() + 1, mismatchPos.getZ(),
+                MISMATCH_SIDE.argb(), MISMATCH_LINE.argb(), ShapeMode.Lines, LINE_THICKNESS);
+        }
+    }
+
     private void onRender3D(EspRenderer renderer, List<StardewPointActions.NearbySprinkler> preview,
                             boolean nearbyOnly) {
         if (mc.player == null || mc.level == null) return;
@@ -222,12 +261,7 @@ public final class StardewRenderState {
 
         // 分区错位：把每一个「种了别的作物」的格子画成红框（连同那株植株一起框住），
         // 玩家照着红框走过去清掉即可；清理干净后模块自动恢复，红框随之消失
-        for (BlockPos mismatchPos : coordinator.regionMismatchCells()) {
-            renderer.blockBox(mismatchPos.getX(), mismatchPos.getY(), mismatchPos.getZ(),
-                MISMATCH_SIDE.argb(), MISMATCH_LINE.argb(), ShapeMode.Lines, LINE_THICKNESS);
-            renderer.blockBox(mismatchPos.getX(), mismatchPos.getY() + 1, mismatchPos.getZ(),
-                MISMATCH_SIDE.argb(), MISMATCH_LINE.argb(), ShapeMode.Lines, LINE_THICKNESS);
-        }
+        drawMismatchBoxes(renderer);
 
         // 单点位方框：各类各自独立开关 / 颜色 / 模式，关掉任意一类不影响其它
         renderPointBox(renderer, StardewPointType.SEED_BOX, renderSeedBox, nearbyOnly);
@@ -449,11 +483,17 @@ public final class StardewRenderState {
             settings.labelSize, option.color().currentRgb(), textureOf(type.iconItemId()));
     }
 
-    /** 本维度的已绑定洒水器点位（预览层只取玩家附近那些） */
+    /**
+     * 本维度的已绑定洒水器点位（预览层只取玩家附近那些）。
+     *
+     * <p>已确认不在了的点位不画（真机事故：洒水器被挖掉后 ESP 方框还留在原地）；「区块还没加载」
+     * 照常画——玩家走过去的路上本来就要看到它，加载出来才能判。</p>
+     */
     private List<BlockPos> boundSprinklers(boolean nearbyOnly) {
         List<BlockPos> sprinklers = new ArrayList<>();
         for (StardewPointManager.StardewPoint p : pointManager.getAll(StardewPointType.SPRINKLER)) {
             if (!p.inCurrentDimension()) continue;
+            if (pointManager.sprinklerUnusableReason(p, index) != null) continue;
             if (!nearPlayer(nearbyOnly, p.pos().getX() + 0.5, p.pos().getY() + 0.5, p.pos().getZ() + 0.5)) continue;
             sprinklers.add(p.pos());
         }

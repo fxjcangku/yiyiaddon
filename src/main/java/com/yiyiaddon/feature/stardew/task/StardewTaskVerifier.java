@@ -212,17 +212,19 @@ final class StardewTaskVerifier {
         if (confirmed) {
             owner.harvestLearningListener.accept(new LearnedHarvest(
                 owner.learningCropKey, owner.learningMatureStage, lifecycle, afterStage));
-            owner.reportedLearningFailures.remove(learningKey(owner.learningCropKey, owner.learningMatureStage));
+            owner.reportedLearningFailures.remove(owner.learningCropKey);
         } else {
             String reason;
             if (!owner.learningInteractionSent) reason = "空手右键交互包未发送";
             else if (!potRetained) reason = "下方种植盆未保留，证据不满足安全学习条件";
-            else if (!worldEvidence) reason = "该阶段空手右键后世界没有任何变化（不是可收获阶段，或服务端另有收法）";
+            else if (!worldEvidence) reason = "空手右键后世界没有任何变化（不是可收获阶段，或服务端另有收法）";
             else reason = "未观察到对应掉落物或库存增加";
-            String key = learningKey(owner.learningCropKey, owner.learningMatureStage);
-            if (owner.reportedLearningFailures.add(key)) {
-                owner.status.state("LEARN_FAIL:" + key, "收获学习未确认",
-                    owner.activeCrop.chineseName() + "：" + reason + "，本会话不再试探该阶段");
+            // 同一作物每会话只播一条：成熟阶段未知时模块要对每个见到的阶段各探一次，
+            // 逐阶段播报会连刷好几条「未确认」，看着像模块坏了（实机：番茄 stage_1/2/3 各一条，
+            // 试到 stage_4 才确认）。试探本身继续，只是不再逐条提示。
+            if (owner.reportedLearningFailures.add(owner.learningCropKey)) {
+                owner.status.state("LEARN_FAIL:" + owner.learningCropKey, "收获学习未确认",
+                    owner.activeCrop.chineseName() + "：" + reason + "，其余阶段会在后台继续试探");
             }
         }
     }
@@ -268,15 +270,17 @@ final class StardewTaskVerifier {
                     owner.status.critical("SEED_RETURN_FAIL:" + owner.activeCrop.cropKey() + ':' + failure,
                         "种子回收失败", failure + "，已停止循环开箱");
                 }
+            } else if (failure == null) {
+                // 产物箱确实放不下：**直接关闭模块**（与「水壶不见了」同一条停机路径）。
+                // 箱子要玩家自己去开、去清，那段时间模块若还开着就会继续跑动 / 抢动作，
+                // 玩家连箱子都清不痛快（用户 2026-09-22：「我刚刚打开箱子然后又进去状态机 …
+                // 用户想清空箱子 都没办法」「我说了 直接停机了 关闭模块懂？」）。
+                // 关掉之后世界静止，清完自己重开模块 —— 不再有任何"开箱即恢复"的自动路径。
+                owner.stopForOutputBoxFull();
             } else {
                 owner.unloadBlockedUntil.put(owner.activeCrop.cropKey(), until);
-                if (failure == null) {
-                    owner.status.state("OUTPUT_FULL:" + owner.activeCrop.cropKey(), "产物箱没有可用空间",
-                        "已结束本次卸货，其他任务继续");
-                } else {
-                    owner.status.critical("UNLOAD_FAIL:" + owner.activeCrop.cropKey() + ':' + failure,
-                        "产物卸货失败", failure + "，已停止循环开箱");
-                }
+                owner.status.critical("UNLOAD_FAIL:" + owner.activeCrop.cropKey() + ':' + failure,
+                    "产物卸货失败", failure + "，已停止循环开箱");
             }
         }
     }

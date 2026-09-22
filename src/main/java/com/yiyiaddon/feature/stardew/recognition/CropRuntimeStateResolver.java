@@ -302,6 +302,13 @@ public final class CropRuntimeStateResolver {
 
         // ── 非阶段化方块（普通方块 / 非作物自定义方块）：证据不足，如实返回未知 ──
         if (cropKey == null || stage == null) {
+            // 独立变异体（pineapple_gigantic_pineapple）不是「阶段化作物流水线」，没有 _stage_ 段，
+            // 但它是已确认作物的特殊变种 —— 前缀是已知作物 + 变异标记。这里认回 SPECIAL，
+            // 让收割决策 / 特殊收法学习（两者都要求 SPECIAL）能对巨型菠萝生效（实机：「其它 1」）。
+            String special = specialCropKey(lower);
+            if (special != null && src.knownCrop(special)) {
+                return build(RuntimeState.SPECIAL, src, special, null, identity, resourceName, model);
+            }
             return new RuntimeResult(RuntimeState.UNKNOWN, null, null, null, null, null, null,
                 identity, resourceName, model);
         }
@@ -376,11 +383,50 @@ public final class CropRuntimeStateResolver {
         return idx >= 0 ? lowerPath.substring(idx + 1) : null;
     }
 
+    /**
+     * 特殊变种「独立变异体」的作物键：{@code pineapple_gigantic_pineapple} → {@code pineapple}。
+     *
+     * <p>特殊变种有两种身份形态：① 阶段化（{@code tomato_stage_golden}，走 {@link #stageName} →
+     * {@link #isSpecialStage}）；② 独立变异体（{@code pineapple_gigantic_pineapple}），它没有
+     * {@code _stage_} 标记，整条阶段化解析链都不认识它，会落到「非阶段化方块」→ UNKNOWN
+     * （实机：巨型菠萝 gigantic_pineapple 被报「其它 1」，模块从不动手）。这里按变异标记前缀把它
+     * 认回作物键，<b>必须由调用方再核 {@code knownCrop}</b>，绝不凭字符串猜。</p>
+     */
+    private static String specialCropKey(String lowerPath) {
+        for (String marker : new String[]{"_golden", "_giant", "_gigantic", "_variation"}) {
+            int idx = lowerPath.indexOf(marker);
+            if (idx > 0) return lowerPath.substring(0, idx);
+        }
+        return null;
+    }
+
     /** 是否为特殊变种阶段（金色 / 巨大 / 变种）——只看阶段段，避免把名为 golden_xxx 的普通作物误判 */
     public static boolean isSpecialStage(String stage) {
         if (stage == null || stage.isBlank()) return false;
         String s = stage.toLowerCase(Locale.ROOT);
         return s.contains("golden") || s.contains("giant") || s.contains("gigantic") || s.contains("variation");
+    }
+
+    /**
+     * 特殊变种的<b>标记</b>（{@code gigantic / golden / giant / variation}）；不是变种返回 {@code null}。
+     *
+     * <p><b>为什么口径要带上它</b>（用户 2026-09-22：「黄金番茄是用右键收割的，不用指定工具」）：
+     * 同一作物可能有两种变种、且收法不同 —— 本服 jmy 的<b>巨型番茄是左键破坏、黄金番茄是右键</b>，
+     * 而口径原先只按作物键存，两者会互相顶掉（后学的把先学的覆盖掉，另一种就再也收不动）。
+     * 带上标记后「番茄#golden」与「番茄#gigantic」各记各的；查不到时仍按作物键 / 本服通用口径回退。</p>
+     *
+     * <p>两种身份形态都要认：① 阶段化变种（{@code tomato_stage_golden}，标记在阶段段里）；
+     * ② 独立变异体（{@code pineapple_gigantic_pineapple}，标记在身份路径里）。</p>
+     */
+    public static String variantTag(String identity, String stage) {
+        String both = ((identity == null ? "" : identity) + "|" + (stage == null ? "" : stage))
+            .toLowerCase(Locale.ROOT);
+        // gigantic 必须排在 giant 前面：否则会被 "giant" 先命中
+        if (both.contains("gigantic")) return "gigantic";
+        if (both.contains("golden")) return "golden";
+        if (both.contains("giant")) return "giant";
+        if (both.contains("variation")) return "variation";
+        return null;
     }
 
     /**
