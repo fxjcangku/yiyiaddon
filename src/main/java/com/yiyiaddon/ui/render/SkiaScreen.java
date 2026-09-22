@@ -254,7 +254,7 @@ public abstract class SkiaScreen extends Screen {
         ModuleKeybindManager.suppressClickGuiKey();
         Screen target = this.parent;
         while (target instanceof SkiaScreen outer) target = outer.parent;
-        if (this.minecraft != null) this.minecraft.setScreen(target);
+        if (this.minecraft != null) this.minecraft.gui.setScreen(target);
     }
 
     protected void closing() {

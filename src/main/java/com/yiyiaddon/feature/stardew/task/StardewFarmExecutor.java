@@ -37,6 +37,7 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.enchantment.effects.EnchantmentAttributeEffect;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -527,7 +528,7 @@ final class StardewFarmExecutor {
             state.getDestroySpeed(mc.level, pos), mc.player.getDestroySpeed(state),
             mc.player.hasCorrectToolForDrops(state), rawDigProgress(mc, pos, state), delta,
             required, owner.breakDigHoldTicks, started,
-            mc.player.blockPosition(), String.format("%.2f", mc.player.position().distanceTo(pos.getCenter())),
+            mc.player.blockPosition(), String.format("%.2f", mc.player.position().distanceTo(Vec3.atCenterOf(pos))),
             mc.player.onGround(), String.format("%.2f", mc.player.blockInteractionRange()),
             ClientPacketSender.sendRuleCount());
         return started;

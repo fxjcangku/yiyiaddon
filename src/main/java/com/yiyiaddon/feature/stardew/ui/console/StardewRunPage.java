@@ -196,7 +196,7 @@ public final class StardewRunPage {
         }
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(ConfirmPanelScreen.noticeInPlace("星露谷农场 · 无法打开「" + settingName + "」",
+        client.gui.setScreen(ConfirmPanelScreen.noticeInPlace("星露谷农场 · 无法打开「" + settingName + "」",
             "§7这个开关要先满足条件：", List.of(reason), owner));
     }
 
