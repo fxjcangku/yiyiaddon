@@ -42,8 +42,8 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
 
     private static final String CONSOLE_BUTTON = "§b打开控制台";
     private static final String CONSOLE_HINT =
-        "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / 自用模式 / Baritone调优"
-            + "（自用模式与「目标选择」「传送指令」互斥显示）";
+        "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / 自用模式 / Baritone调优 / 种子挖矿"
+            + "（自用模式与「目标选择」「传送指令」「种子挖矿」互斥显示）";
 
     // ── 配置记录入口（用户 2026-09-18：「是控制台下面新建一个按钮 服务器记录复原」、「我说弄在控制台按钮下面」） ──
 

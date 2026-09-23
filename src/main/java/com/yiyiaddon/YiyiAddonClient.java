@@ -8,6 +8,7 @@ import com.yiyiaddon.feature.stardew.season.StardewSeasonService;
 import com.yiyiaddon.feature.tactical.core.TacticalCoordinator;
 import com.yiyiaddon.integration.baritone.BaritoneOverlay;
 import com.yiyiaddon.module.AddonModules;
+import com.yiyiaddon.seed.service.SeedMiningService;
 import com.yiyiaddon.service.ChatService;
 import com.yiyiaddon.service.CommandActivityService;
 import com.yiyiaddon.service.HeartbeatService;
@@ -49,6 +50,10 @@ public final class YiyiAddonClient implements ClientModInitializer {
         // 战术协调器：四个战术模块共用的常驻决策中枢（旧项目静态自挂总线，
         // 本项目以固定所有者订阅核心事件，生命周期同样不依赖任何模块开关）
         TacticalCoordinator.init();
+        // 种子挖矿运行时服务（正式化第二阶段）：配置 + 当前维度 + 正式 Predictor 生命周期 +
+        // 后台单线程预测。它同样是常驻的（不随模块开关），因为「退出世界清运行时缓存」这一刻
+        // 模块可能是关着的；必须排在 AddonModules.bootstrap() 之后（配置系统与事件入口都在那里就绪）
+        SeedMiningService.init();
         ModuleKeybindManager.initialize();
         ClientTickEvents.END_CLIENT_TICK.register(ModuleKeybindManager::tick);
         // 常驻功能键通道：模块的功能键（非开关绑定）在模块关闭时也必须可检测——
@@ -108,5 +113,10 @@ public final class YiyiAddonClient implements ClientModInitializer {
         // 本入口执行时可能还没就绪（拿到 null），只在入口调一次会永久失手（见 BaritoneOverlay#syncTakeover）
         WorldOverlay.register(BaritoneOverlay.LAYER_ID, BaritoneOverlay::render);
         ClientTickEvents.END_CLIENT_TICK.register(client -> BaritoneOverlay.syncTakeover());
+
+        // 开发期实验：种子挖矿算法 PoC（com.yiyiaddon.dev.seedpoc 整包）。
+        // 不给 -Dyiyiaddon.seedpoc.enabled=1 时本调用立刻返回，对正式功能零影响；
+        // 该包不读写任何模块配置、不注册指令与界面，PoC 结案后整包删除（与第三十三章 DebugProbe 同口径）。
+        com.yiyiaddon.dev.seedpoc.SeedPocEntry.installIfEnabled();
     }
 }
