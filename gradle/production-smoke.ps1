@@ -20,12 +20,18 @@
     powershell -NoProfile -File gradle/production-smoke.ps1 `
         -ModJar build/release/yiyiaddon-1.0-beta2-26.1.2.jar `
         -SeedPocJvmArgs '-Dyiyiaddon.seedpoc.enabled=1','-Dyiyiaddon.seedpoc.service=1','-Dyiyiaddon.seedpoc.exit=1'
+
+  冒烟实例位置（235 · 开发测试目录统一收口）：
+    不传 -GameDir 时默认 = <仓库>\build\production-smoke\worker。
+    各场景目录约定：build\production-smoke\{worker,parity,observation,validation,realmods,mp}；
+    需要每次独立实例时可用 build\production-smoke\<场景>\<run-id>。
+    禁止写到项目父目录（例如 D:\mcaddon\<中文临时实例名>）——脚本会直接拒绝。
 #>
 [CmdletBinding()]
 param(
     [string]$MinecraftDir = 'C:\Users\Administrator\Desktop\MC\.minecraft',
     [string]$VersionId = 'LunarFox',
-    [string]$GameDir = 'D:\mcaddon\种子 Worker Production Test',
+    [string]$GameDir = '',
     [Parameter(Mandatory = $true)][string]$ModJar,
     [string]$FabricApiJar = '',
     [string[]]$ExtraModJars = @(),
@@ -44,6 +50,20 @@ param(
 $ErrorActionPreference = 'Stop'
 $osName = 'windows'
 $script:failures = New-Object System.Collections.Generic.List[string]
+
+# ── 0. 冒烟实例位置（235 目录收口）────────────────────────────────────────────
+# 实例一律落在 <仓库>\build\production-smoke\ 之下，不再落到项目父目录。
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$smokeRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'build\production-smoke'))
+if (-not $GameDir) {
+    $GameDir = Join-Path $smokeRoot 'worker'
+} elseif (-not [System.IO.Path]::IsPathRooted($GameDir)) {
+    $GameDir = Join-Path $repoRoot $GameDir
+}
+$GameDir = [System.IO.Path]::GetFullPath($GameDir)
+if (-not $GameDir.StartsWith($smokeRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "GameDir 必须位于 $smokeRoot 之下（当前：$GameDir）。冒烟实例不得写到项目父目录，见 235 报告「开发测试目录统一收口」。"
+}
 
 function Write-Smoke([string]$text) { Write-Host "[SMOKE] $text" }
 
@@ -68,7 +88,7 @@ if (-not (Test-Path -LiteralPath $versionJson)) { throw "版本 JSON 不存在�
 $modJarName = Split-Path $ModJar -Leaf
 Write-Smoke "正式产物：$ModJar（$([math]::Round((Get-Item -LiteralPath $ModJar).Length / 1MB, 1)) MB）"
 
-# ── 2. 一次性冒烟实例 ─────────────────────────────────────────────────────────
+# ── 2. 一次性冒烟实例（默认 build\production-smoke\<场景>，见第 0 节）──────────
 $modsDir = Join-Path $GameDir 'mods'
 $evidenceDir = Join-Path $GameDir 'evidence'
 New-Item -ItemType Directory -Force -Path $modsDir, $evidenceDir | Out-Null
@@ -248,7 +268,7 @@ if (-not $workerCommand) {
 } else {
     Set-Content -LiteralPath (Join-Path $evidenceDir 'worker-command.txt') -Encoding UTF8 -Value $workerCommand
     $forbidden = @('\build\classes', '\build\resources', '\build\devlaunch', '\src\main\java',
-        '\src\main\resources', 'fabric-loom', '\run-26.1.2')
+        '\src\main\resources', 'fabric-loom', '\run-26.1.2', '\.dev-runs')
     foreach ($needle in $forbidden) {
         if ($workerCommand -like "*$needle*") {
             $script:failures.Add("Worker 命令行包含开发目录：$needle")

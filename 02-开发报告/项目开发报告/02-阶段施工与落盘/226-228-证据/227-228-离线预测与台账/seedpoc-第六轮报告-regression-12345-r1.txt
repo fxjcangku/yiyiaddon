@@ -1,0 +1,201 @@
+================ 种子挖矿 PoC 实验报告（第六轮 · Target ± 写半径 viewer 离线最终预测） ================
+本报告由开发期实验代码自动生成。第五轮已实机证明：最终钻石集合与 Chunk 生成/装饰先后顺序无关，
+因此正式 Predictor 不需要任何真实调度历史（装饰批号）作为输入。
+第六轮要证的是：只凭 版本 + 世界 Seed + 维度 + Target ChunkPos + 原版注册表/worldgen 配置，
+在<b>一份共享离线世界</b>里把目标区块周围「按原版写半径能写进目标」的 viewer 各跑一遍它自己的 FEATURES，
+只读目标区块，能否与真实世界的最终钻石逐 BlockPos 完全一致。所有数字均为本次实机运行实测值。
+本模式下第二/三/四轮的重口径默认不跑（见【十一】说明）；第四轮「单 viewer」模型改为在本报告第六轮章节里现场复算。
+
+【零、运行环境】
+  世界：seedpoc-known-seed
+  维度：minecraft:overworld
+  被试种子：12345（来源：系统属性 yiyiaddon.seedpoc.seed）
+  耗时：16856 ms
+  第六轮口径说明：离线预测用的种子 = 当前单人世界的真实种子（level.getSeed()），系统属性指定的种子只用于「新建这个测试世界」，两者一致 ⇒ 真值可比。
+
+【一、上下文构造（全部自建，未被服务端对象代劳）】
+  生物群系源：自建：MultiNoiseBiomeSource.createFromPreset(minecraft:overworld)
+  区块生成器：自建：new NoiseBasedChunkGenerator(生物群系源, NoiseGeneratorSettings.overworld)
+  随机状态：自建：RandomState.create(注册表, NoiseGeneratorSettings.overworld, 种子)
+  装饰步骤数：11（原版 11 步，含 underground_ores）
+  索引表交叉核对：一致：步骤数 11、feature 总数 164、钻石索引比对 44 项全部相同
+  钻石四条 placed_feature 运行期配置（直接读注册表，不是抄源码）：
+    ore_diamond：configured_feature=ResourceKey[minecraft:worldgen/configured_feature / minecraft:ore_diamond_small] / size=4 / discardChanceOnAirExposure=0.5 / 目标：diamond_ore←TagMatchTest、deepslate_diamond_ore←TagMatchTest
+    ore_diamond_medium：configured_feature=ResourceKey[minecraft:worldgen/configured_feature / minecraft:ore_diamond_medium] / size=8 / discardChanceOnAirExposure=0.5 / 目标：diamond_ore←TagMatchTest、deepslate_diamond_ore←TagMatchTest
+    ore_diamond_large：configured_feature=ResourceKey[minecraft:worldgen/configured_feature / minecraft:ore_diamond_large] / size=12 / discardChanceOnAirExposure=0.7 / 目标：diamond_ore←TagMatchTest、deepslate_diamond_ore←TagMatchTest
+    ore_diamond_buried：configured_feature=ResourceKey[minecraft:worldgen/configured_feature / minecraft:ore_diamond_buried] / size=8 / discardChanceOnAirExposure=1.0 / 目标：diamond_ore←TagMatchTest、deepslate_diamond_ore←TagMatchTest
+
+【二、真实生成期探针】
+探针模式：常规模式（阶段快照 + 逐阶段 checkpoint + pre-diamond + 逐事件台账）
+探针挂载：ChunkGenerator#applyBiomeDecoration HEAD（装饰开始前）+ PlacedFeature#placeWithBiomeCheck HEAD（第一条钻石 feature 前）
+需要捕获的区块（测试区块 ±1）：32 个
+已捕获：装饰开始前 32 份 / 第一条钻石 feature 前 32 份；未捕获到快照的区块按「缺少输入」如实记录，不做任何代替
+钩子命中次数：applyBiomeDecoration 32 次 / placeWithBiomeCheck 57110 次
+已发放装饰批号：32 个（每个区块每次真实装饰一个号，pre-diamond 与 post-diamond 配对前必须同号）
+方块状态编号表：195 种（快照按 short 编号存储）
+捕获异常：无
+逐阶段 checkpoint（真实侧，只在测试区块上采）：BIOMES 命中 32 次 / 已存快照 32 份；NOISE 命中 32 次 / 已存快照 32 份；SURFACE 命中 32 次 / 已存快照 32 份；CARVERS 命中 0 次 / 已存快照 32 份；pre-diamond（第一条钻石 feature 前）已存 32 份
+
+【三、单次装饰 oracle（pre-diamond → post-diamond 差集）】
+  注入位置：同一区块同一次 applyBiomeDecoration 内，
+    · pre-diamond = PlacedFeature#placeWithBiomeCheck HEAD（该区块第一条钻石 placed_feature 执行前）
+    · post-diamond = 同方法 RETURN（该区块最后一条钻石 placed_feature 执行结束时）
+  配对约束：两个时刻都必须带同一个「装饰批号」（applyBiomeDecoration 每进入一次发一个号）；
+  批号不同即判「不可配对」，绝不跨越做差集。
+  差集口径：vanillaContribution = post-diamond 钻石 - pre-diamond 钻石（同一次真实装饰内）。
+单次装饰 oracle：已取到 post-diamond 的区块 32 个；逐 feature 记录 128 条（每条 = 一次 HEAD/RETURN 差集）
+oracle 捕获异常：无
+OreFeature 放置台账：已落账 101 组（侧 + viewer + feature）；记账异常：无
+四个注入点被调用总次数（任何一项为 0 即说明该探针未生效，对应层的「两侧一致」不成立）：noteBiomeCheck 989565 次 ／ notePlace 257462 次 ／ noteVein 109090 次 ／ noteAccept 8600528 次
+记账窗口：窗口打开 57110 个（其中记账 128 个）；窗口栈深度峰值 1
+  影子世界访问层调用面：装饰链路实际调用 WorldGenLevel 方法 0 种 / 共 0 次（这份清单就是「做一个完整离线上下文还差什么」的直接证据）：
+    
+
+【四、第一阶段：单 viewer 单次装饰逐 viewer 数据】
+  未运行第一阶段（variant.single 被关闭）
+
+【五、第一阶段汇总（本次装饰内的本区块自身贡献）】
+  无数据
+
+【六、第三阶段：first-divergence（第一阶段未达 100%，按口径不执行第二阶段）】
+  逐 viewer 的第一处分叉结论：
+  说明：placement origin 逐项对比与矿脉几何参数对比的原始明细见【四】每个 viewer 的「逐行明细」。
+
+【七、装置自证对照（第二轮的既有口径，用来证明放置链路确实以输入状态为依据）】
+  本轮未运行装置自证对照（期望值可判定的两个对照：不可替换 ⇒ 预测 0；可替换 ⇒ 预测明显变多）
+
+【七、生物群系可复现性（种子函数层）】
+  第六轮模式下未运行（第六轮只用最终世界真值；每个目标区块的真实生物群系在第六轮章节逐行登记）
+
+【八、噪声地形探针（地形层，仅登记差异、不声称等价）】
+  第六轮模式下未运行（该探针属第二轮口径，与本轮判据无关）
+
+【九、第二轮既有口径对照（本轮默认关闭，用 -Dyiyiaddon.seedpoc.variant.old=1 可打开）】
+  本轮未运行第二轮口径：按用户口径第三轮只验证「单 viewer 单次装饰」，
+  避免把九遍聚合的旧数字混进本轮结论。
+
+【十、第六轮：目标 ± 写半径 viewer 共享离线世界 → 最终目标区块钻石】
+  输入边界：只使用 版本 / Seed / 维度 / Target ChunkPos / 原版注册表 / NoiseGeneratorSettings /
+  原版 worldgen 配置。不读取真实世界的方块状态、ChunkAccess、pre-diamond 快照、高度图、矿物坐标、
+  装饰批号；真实世界只在「真值」一侧出现（FinalOreTruthComparator，测试侧，不参与预测）。
+  第六轮不使用任何真实装饰批号 / applyBiomeDecoration 顺序 / 服务端 Chunk 历史（第五轮已证不需要）。
+  阶段：regression；被试种子：12345（种子来源：系统属性 yiyiaddon.seedpoc.seed）
+  阶段：regression（Seed 12345 的 4 个旧回归区块，原样保留不替换）
+  写半径推导：写半径来源：ChunkPyramid.GENERATION_PYRAMID.getStepTo(FEATURES).blockStateWriteRadius() = 1；同一步直接依赖=[minecraft:carvers, minecraft:carvers, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts]；累积依赖=[minecraft:carvers, minecraft:carvers, minecraft:biomes, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts]
+  OfflinePredictionSession：一个 种子=12345 下的共享离线 worldgen，持有 1 套 BiomeSource / NoiseBasedChunkGenerator / RandomState / ChunkGeneratorStructureState，1 份 ProtoChunk 表 + OfflineChunkRegion 视图；目标周围 1 圈（共 9 个 viewer）全部在这同一份世界状态里推进。
+  会话内已开窗口的目标区块：(0,0) r=1、(-1,-1) r=1、(-25,17) r=1、(120,-130) r=1
+  共享缓存隔离维度：会话本身 = (版本, 种子, 维度)；区块键 = ChunkPos；每个键下按生成状态分槽（{@code OfflineChunkHolder} 一个状态一份产出）。跨种子不可能共用同一份缓存。
+  viewer 顺序：由远到近、目标区块最后（第五轮已实测最终钻石集合与装饰先后无关，因此顺序不引入任何真实调度历史输入）。
+  离线构造的邻域要求（照原版 ChunkPyramid 逐层算）：
+    minecraft:empty：铺到半径 10
+    minecraft:structure_starts：铺到半径 10
+    minecraft:structure_references：铺到半径 2
+    minecraft:biomes：铺到半径 2
+    minecraft:noise：铺到半径 1
+    minecraft:surface：铺到半径 1
+    minecraft:carvers：铺到半径 1
+    FEATURES：铺到半径 0（目标区块自己）
+    依赖明细（FEATURES 步起算，逐圈）：[minecraft:carvers, minecraft:carvers, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts, minecraft:structure_starts]
+  离线世界口径：跨 viewer 复用同一份世界（共享会话口径：前一个 viewer 装饰写进去的方块，后一个 viewer 执行时真实存在）
+  离线缓存半径（照原版 ChunkGenerationTask 算）：10 区块 → 每层最多 21x21 区块
+  离线阶段执行次数合计（跨 viewer 累加）：3868（结构起点 1632 / 生物群系 160 / 噪声 84 / 地表 84 / 雕刻器 84 / 装饰 32）
+  共享缓存命中（同一区块同一状态重复请求而跳过的阶段数）：1092；当前持有区块 1632 个
+  离线 region 向宿主 ChunkMap 的查询次数累计：0（这是「没有从真实世界读生成数据」的自证指标：次数不为 0 时必须逐条解释来源）
+  离线 pre-diamond 捕获：0 份；离线 FEATURES 期间的 placed_feature 调用 1723 次；方块状态编号表 0 种
+  离线归属台账（会话 1）：离线 placed_feature 窗口 1723 个（其中钻石四条 128 个）；OreFeature 候选点接受 188091 次 / 拒绝 63681 次（其中钻石四条接受 805 次）；会话累计归属坐标 805 个；窗口栈深度峰值 1
+  宿主只当环境宿主：离线 region 向宿主 ChunkMap 的查询次数 = 0（>0 必须逐条解释来源）
+
+  ── 逐目标结果（第六轮模型：目标 ± 写半径 viewer）
+  ── 目标 (0,0) 写半径 1（viewer 9 个）
+      真值：diamond_ore 0 / deepslate_diamond_ore 38 / 合计 38
+      预测：31 个；真值 38 / 预测 31 / 匹配 31 / 漏报 7 / 错报 0 / 查全 81.58% / 查准 100.00% → **不一致**
+      跨区块写入：预测集里 0 个坐标由邻 viewer 写入（按 viewer：无）
+      本遍逐 viewer 新增（0 = 该 viewer 在本会话更早的目标区块里就已装饰过，本会话直接复用）：{-1,-1=0, -1,0=0, -1,1=0, 0,-1=0, 0,1=0, 1,-1=0, 1,0=0, 1,1=0, 0,0=31}
+      归属台账：31 个坐标有 OreFeature 接受记录；未归属（非 OreFeature 来源，如化石 fossil_diamonds / 结构自带钻石）0 个
+      漏报样本：(12,-14,1) (12,-13,1) (6,-9,2) (7,-9,2) (6,-9,3) (7,-9,3) (7,-8,3)
+      错报样本：无
+      FIRST DIVERGENCE 取证｜漏报/错报坐标两侧方块：{BlockPos{x=12, y=-14, z=1}=离线=clay / 真值=deepslate_diamond_ore, BlockPos{x=12, y=-13, z=1}=离线=clay / 真值=deepslate_diamond_ore, BlockPos{x=6, y=-9, z=2}=离线=deepslate / 真值=deepslate_diamond_ore, BlockPos{x=7, y=-9, z=2}=离线=tuff / 真值=deepslate_diamond_ore, BlockPos{x=6, y=-9, z=3}=离线=deepslate / 真值=deepslate_diamond_ore, BlockPos{x=7, y=-9, z=3}=离线=tuff / 真值=deepslate_diamond_ore, BlockPos{x=7, y=-8, z=3}=离线=tuff / 真值=deepslate_diamond_ore}
+      FIRST DIVERGENCE 取证｜逐格状态比对（y ∈ [-64,31] 共 24576 格）：与真值不同 93 格；其中「离线有钻石、真值没有」0 格、「真值有钻石、离线没有」7 格、「两边都非钻石」86 格；前若干样本：(2,-45,14)离线=cave_vines/真值=air (0,-44,14)离线=cave_vines/真值=air (13,-41,12)离线=oak_fence/真值=oak_fence (12,-41,14)离线=cave_air/真值=smooth_basalt (13,-41,14)离线=oak_fence/真值=smooth_basalt (14,-41,14)离线=cave_air/真值=smooth_basalt (15,-41,14)离线=cave_air/真值=smooth_basalt (14,-40,9)离线=moss_block/真值=clay (13,-40,12)离线=oak_fence/真值=oak_fence （两边都非钻石的那部分 = 地形/其它地物差异，说明离线世界未复现真实方块状态）；地形差异的可替换性分类（保守判据：按最终状态判定，两侧都可替换 36 格（不改变随机流消耗）/ 两侧都不可替换 19 格（不改变随机流消耗）/ 真值可替换·离线不可替换 21 格（离线少消耗随机 → 后续漂移）/ 真值不可替换·离线可替换 10 格（离线多消耗随机 → 后续漂移）⇒ 能改变随机流的格子合计 31 格；差异成对（真值→离线）共 14 种，最多的 granite→diorite 20 格；andesite→diorite 16 格；deepslate→moss_block 11 格；tuff→moss_block 10 格；moss_block→deepslate 9 格；smooth_basalt→cave_air 8 格；漏报坐标在离线侧的方块：可替换 5 格 / 不可替换 2 格；不可替换样本：BlockPos{x=12, y=-14, z=1}离线=clay BlockPos{x=12, y=-13, z=1}离线=clay 
+      说明：viewer 集合由 ChunkPyramid 现算（写半径 1）；预测集里由邻 viewer 跨区块写入的坐标 0 个（来自 0 个 viewer）
+  ── 目标 (-1,-1) 写半径 1（viewer 9 个）
+      真值：diamond_ore 1 / deepslate_diamond_ore 28 / 合计 29
+      预测：29 个；真值 29 / 预测 29 / 匹配 29 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 逐 BlockPos 完全一致
+      跨区块写入：预测集里 2 个坐标由邻 viewer 写入（按 viewer：{0,-1=2}）
+      本遍逐 viewer 新增（0 = 该 viewer 在本会话更早的目标区块里就已装饰过，本会话直接复用）：{-2,-2=0, -2,-1=0, -2,0=0, -1,-2=0, -1,0=0, 0,-2=0, 0,-1=0, 0,0=0, -1,-1=0}
+      归属台账：29 个坐标有 OreFeature 接受记录；未归属（非 OreFeature 来源，如化石 fossil_diamonds / 结构自带钻石）0 个
+      说明：viewer 集合由 ChunkPyramid 现算（写半径 1）；预测集里由邻 viewer 跨区块写入的坐标 2 个（来自 1 个 viewer）
+  ── 目标 (-25,17) 写半径 1（viewer 9 个）
+      真值：diamond_ore 0 / deepslate_diamond_ore 24 / 合计 24
+      预测：24 个；真值 24 / 预测 24 / 匹配 24 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 逐 BlockPos 完全一致
+      跨区块写入：预测集里 0 个坐标由邻 viewer 写入（按 viewer：无）
+      本遍逐 viewer 新增（0 = 该 viewer 在本会话更早的目标区块里就已装饰过，本会话直接复用）：{-26,16=0, -26,17=0, -26,18=0, -25,16=0, -25,18=0, -24,16=0, -24,17=0, -24,18=0, -25,17=24}
+      归属台账：24 个坐标有 OreFeature 接受记录；未归属（非 OreFeature 来源，如化石 fossil_diamonds / 结构自带钻石）0 个
+      说明：viewer 集合由 ChunkPyramid 现算（写半径 1）；预测集里由邻 viewer 跨区块写入的坐标 0 个（来自 0 个 viewer）
+  ── 目标 (120,-130) 写半径 1（viewer 9 个）
+      真值：diamond_ore 0 / deepslate_diamond_ore 26 / 合计 26
+      预测：26 个；真值 26 / 预测 26 / 匹配 26 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 逐 BlockPos 完全一致
+      跨区块写入：预测集里 0 个坐标由邻 viewer 写入（按 viewer：无）
+      本遍逐 viewer 新增（0 = 该 viewer 在本会话更早的目标区块里就已装饰过，本会话直接复用）：{119,-131=0, 119,-130=0, 119,-129=0, 120,-131=0, 120,-129=0, 121,-131=0, 121,-130=0, 121,-129=0, 120,-130=26}
+      归属台账：26 个坐标有 OreFeature 接受记录；未归属（非 OreFeature 来源，如化石 fossil_diamonds / 结构自带钻石）0 个
+      说明：viewer 集合由 ChunkPyramid 现算（写半径 1）；预测集里由邻 viewer 跨区块写入的坐标 0 个（来自 0 个 viewer）
+  ── 合计：4 个目标区块
+      真值 117 / 预测 110 / 匹配 110 / 漏报 7 / 错报 0
+      逐 BlockPos 完全一致的目标区块：3/4
+      本轮判定：**未达标**（禁止把本行读成「精准种子挖矿已实现」）
+
+  ── 第四轮旧漏报的找回情况（旧口径 = 只装饰目标区块自己，在本轮运行里现场复算，不引用上一轮数字）
+    本次未跑旧口径复算（系统属性 yiyiaddon.seedpoc.round6.baseline=0）
+
+  ── 缓存隔离（用户口径第二十一节）
+    本阶段不跑缓存隔离实验（第一阶段已跑）
+
+  ── 性能记录（用户口径第二十节）
+    合计：真值 117 / 预测 110 / 匹配 110 / 漏报 7 / 错报 0 / 查全 94.02% / 查准 100.00%；逐 BlockPos 完全一致 3/4
+    共享会话累计：阶段执行 3868 次 / 缓存命中跳过 1092 次 / 持有区块 1632 个 / FEATURES 执行 32 次 / 宿主 ChunkMap 查询 0 次；单目标平均耗时 639 ms
+      · 目标 (0,0)：耗时 1300 ms / 新建区块 529 / 阶段执行 1240（缓存命中跳过 0） / FEATURES 9 遍预测集摘要 h=3af6d n=31 / 真值集摘要 h=3df5c n=38；真实装饰批号：中心批号=5；邻域 (-1,-1)=1（先于中心装饰 → 可写进中心） (-1,0)=2（先于中心装饰 → 可写进中心） (-1,1)=3（先于中心装饰 → 可写进中心） (0,-1)=4（先于中心装饰 → 可写进中心） (0,0)=中心 (0,1)=6 (1,-1)=7 (1,0)=8 (1,1)=9 ；真实 SURFACE→CARVERS 多出的方块：差异成对（真实→离线）共 24 种，y ∈ [-63,52]，最多的三对：air → deepslate 949 格；tuff → deepslate 302 格；clay → deepslate 241 格
+      · 目标 (-1,-1)：耗时 149 ms / 新建区块 45 / 阶段执行 148（缓存命中跳过 1092） / FEATURES 9 遍预测集摘要 h=fffcbbf3 n=29 / 真值集摘要 h=fffcbbf3 n=29；真实装饰批号：中心批号=1；邻域 (-2,-2)=10 (-2,-1)=11 (-2,0)=12 (-1,-2)=13 (-1,-1)=中心 (-1,0)=2 (0,-2)=14 (0,-1)=4 (0,0)=5 ；真实 SURFACE→CARVERS 多出的方块：差异成对（真实→离线）共 3 种，y ∈ [-42,39]，最多的三对：air → deepslate 240 格；water → stone 73 格；air → tuff 2 格
+      · 目标 (-25,17)：耗时 553 ms / 新建区块 529 / 阶段执行 1240（缓存命中跳过 0） / FEATURES 9 遍预测集摘要 h=60ecd4 n=24 / 真值集摘要 h=60ecd4 n=24；真实装饰批号：中心批号=19；邻域 (-26,16)=15（先于中心装饰 → 可写进中心） (-26,17)=16（先于中心装饰 → 可写进中心） (-26,18)=17（先于中心装饰 → 可写进中心） (-25,16)=18（先于中心装饰 → 可写进中心） (-25,17)=中心 (-25,18)=20 (-24,16)=21 (-24,17)=22 (-24,18)=23 ；真实 SURFACE→CARVERS 多出的方块：差异成对（真实→离线）共 18 种，y ∈ [-62,79]，最多的三对：water → stone 781 格；air → deepslate 437 格；andesite → stone 288 格
+      · 目标 (120,-130)：耗时 557 ms / 新建区块 529 / 阶段执行 1240（缓存命中跳过 0） / FEATURES 9 遍预测集摘要 h=fce9e4d3 n=26 / 真值集摘要 h=fce9e4d3 n=26；真实装饰批号：中心批号=28；邻域 (119,-131)=24（先于中心装饰 → 可写进中心） (119,-130)=25（先于中心装饰 → 可写进中心） (119,-129)=26（先于中心装饰 → 可写进中心） (120,-131)=27（先于中心装饰 → 可写进中心） (120,-130)=中心 (120,-129)=29 (121,-131)=30 (121,-130)=31 (121,-129)=32 ；真实 SURFACE→CARVERS 多出的方块：差异成对（真实→离线）共 10 种，y ∈ [-46,79]，最多的三对：air → stone 2605 格；air → deepslate 978 格；andesite → stone 190 格
+
+  ── 失败案例与 FIRST DIVERGENCE（无失败则写明「无」）
+    第六轮模型 目标 (0,0)：真值 38 / 预测 31 / 匹配 31 / 漏报 7 / 错报 0 / 查全 81.58% / 查准 100.00% / 逐 BlockPos 完全一致：否；漏报样本 (12,-14,1) (12,-13,1) (6,-9,2) (7,-9,2) (6,-9,3) (7,-9,3) (7,-8,3)；错报样本 无；归属信息：预测集里跨区块写入 0 个；漏报/错报坐标两侧方块：{BlockPos{x=12, y=-14, z=1}=离线=clay / 真值=deepslate_diamond_ore, BlockPos{x=12, y=-13, z=1}=离线=clay / 真值=deepslate_diamond_ore, BlockPos{x=6, y=-9, z=2}=离线=deepslate / 真值=deepslate_diamond_ore, BlockPos{x=7, y=-9, z=2}=离线=tuff / 真值=deepslate_diamond_ore, BlockPos{x=6, y=-9, z=3}=离线=deepslate / 真值=deepslate_diamond_ore, BlockPos{x=7, y=-9, z=3}=离线=tuff / 真值=deepslate_diamond_ore, BlockPos{x=7, y=-8, z=3}=离线=tuff / 真值=deepslate_diamond_ore}；逐格状态比对（y ∈ [-64,31] 共 24576 格）：与真值不同 93 格；其中「离线有钻石、真值没有」0 格、「真值有钻石、离线没有」7 格、「两边都非钻石」86 格；前若干样本：(2,-45,14)离线=cave_vines/真值=air (0,-44,14)离线=cave_vines/真值=air (13,-41,12)离线=oak_fence/真值=oak_fence (12,-41,14)离线=cave_air/真值=smooth_basalt (13,-41,14)离线=oak_fence/真值=smooth_basalt (14,-41,14)离线=cave_air/真值=smooth_basalt (15,-41,14)离线=cave_air/真值=smooth_basalt (14,-40,9)离线=moss_block/真值=clay (13,-40,12)离线=oak_fence/真值=oak_fence （两边都非钻石的那部分 = 地形/其它地物差异，说明离线世界未复现真实方块状态）；地形差异的可替换性分类（保守判据：按最终状态判定，两侧都可替换 36 格（不改变随机流消耗）/ 两侧都不可替换 19 格（不改变随机流消耗）/ 真值可替换·离线不可替换 21 格（离线少消耗随机 → 后续漂移）/ 真值不可替换·离线可替换 10 格（离线多消耗随机 → 后续漂移）⇒ 能改变随机流的格子合计 31 格；差异成对（真值→离线）共 14 种，最多的 granite→diorite 20 格；andesite→diorite 16 格；deepslate→moss_block 11 格；tuff→moss_block 10 格；moss_block→deepslate 9 格；smooth_basalt→cave_air 8 格；漏报坐标在离线侧的方块：可替换 5 格 / 不可替换 2 格；不可替换样本：BlockPos{x=12, y=-14, z=1}离线=clay BlockPos{x=12, y=-13, z=1}离线=clay 
+      ↳ 结构比对（目标 ±1）：共 9 个区块，starts/refs 不一致 0 个（结构起点与引用两侧一致）
+      ↳ 逐阶段比对（离线 vs 真实，只比目标区块自己）：[BIOMES：方块 36864/36864（不一致 0；未长出的 section 离线 0 / 真实 0）；生物群系 0/576（不一致 0；不可比 576）；高度图 512/512（不一致 0；不可比 0）；结构 9 区块中不一致 0 → 完全一致] [NOISE：方块 4450/36864（不一致 32414；未长出的 section 离线 0 / 真实 0）；生物群系 576/576（不一致 0；不可比 0）；高度图 0/512（不一致 512；不可比 0）；结构 9 区块中不一致 0 → **存在差异**；第一处方块差异 @0,-64,0：真实 air / 离线 stone] [SURFACE：方块 36864/36864（不一致 0；未长出的 section 离线 0 / 真实 0）；生物群系 576/576（不一致 0；不可比 0）；高度图 512/512（不一致 0；不可比 0）；结构 9 区块中不一致 0 → 完全一致] [CARVERS：方块 35836/36864（不一致 1028；未长出的 section 离线 0 / 真实 0）；生物群系 576/576（不一致 0；不可比 0）；高度图 512/512（不一致 0；不可比 0）；结构 9 区块中不一致 0 → **存在差异**；第一处方块差异 @7,-63,0：真实 clay / 离线 deepslate] ；CARVERS 步半径：写半径=0，累积依赖半径=10 项，对 EMPTY 的累积半径=9；同侧 SURFACE → CARVERS 的差（判断该层取证是否被跨区块写入污染）：离线 差异成对（真实→离线）共 4 种，y ∈ [-55,-14]，最多的三对：air → deepslate 957 格；lava → deepslate 39 格；air → tuff 11 格 ／ 真实 差异成对（真实→离线）共 24 种，y ∈ [-63,52]，最多的三对：air → deepslate 949 格；tuff → deepslate 302 格；clay → deepslate 241 格；真实装饰批号顺序：中心批号=5；邻域 (-1,-1)=1（先于中心装饰 → 可写进中心） (-1,0)=2（先于中心装饰 → 可写进中心） (-1,1)=3（先于中心装饰 → 可写进中心） (0,-1)=4（先于中心装饰 → 可写进中心） (0,0)=中心 (0,1)=6 (1,-1)=7 (1,0)=8 (1,1)=9 
+
+  ── 其它钻石来源的处理（用户口径第十八节）
+    预测侧：本次 117 个钻石坐标<b>全部</b>有 OreFeature 接受记录 ⇒ 本批数据里没有其它钻石来源（化石 fossil_diamonds / 结构自带方块）参与，因此不存在「把其它来源当 OreFeature 漏报」的情形。
+    真值侧：真值来自「真实世界最终方块」，与来源无关，因此本轮的判据（真值 = 最终世界目标区块内的 diamond_ore + deepslate_diamond_ore）对来源不做区分。
+    边界：归属台账只覆盖 OreFeature（canPlaceOre 接受的候选点）；非 OreFeature 来源的写入无法逐点归属，报告里如实标为「未归属」。该分支的实现已具备（有未归属坐标就会逐目标列出），只是本批数据恰好没有触发。
+  ── 结论边界
+    1. 本轮的判据是「目标区块内的最终自然钻石集合」逐 BlockPos 相等，不是「离线世界与真实世界每一格都相同」（用户口径第十九节）。
+    2. 预测侧输入只有 版本 / Seed / 维度 / Target ChunkPos / 原版 worldgen 配置；会话与真值读取在代码上完全分离（PredictionRegressionSuite 只做编排）。
+    3. 只测 26.1.2 主世界钻石；其它矿物、其它维度、26.2/26.3 一概未做。
+
+【十一、第四轮：仅凭 Seed 离线构造 pre-diamond（离线 vs 真实逐 BlockPos）】
+  未运行。原因：
+    第六轮模式：第四轮口径改为在第六轮章节里用独立离线世界现场复算（「只装饰目标自己」那一行），因此这里不再重复跑一遍
+
+【十二、结论边界（必须与数字一致）】
+  1. 本实验证明的是装饰阶段：装饰种子派生 → feature 全局索引 → 逐个 setFeatureSeed →
+     PlacedFeature/OreFeature 放置，在给定输入状态下能否与「同一次真实装饰」逐 BlockPos 相同。
+  2. pre-diamond 与 post-diamond 都取自同一个 viewer 的同一次真实装饰（批号必须相同），
+     因此 oracle 不含任何跨 viewer、跨批次、跨最终世界倒推的成分。
+  3. 重放的输入是 pre-diamond 快照（安装进真实区块后再重放），因此它证明的是
+     「算法在正确输入下能否复现」，不代表「客户端已经能离线构造该输入」。
+  4. 第一阶段的判据是中心 ±1（3x3）与落点区块两个口径的逐 BlockPos 差集；
+     中心 ±1 的依据是原版 FEATURES 的 blockStateWriteRadius = 1。
+  5. 快照纵向只覆盖 y ∈ [-64, 79] 的 9 个 section；钻石扫描只用其中 y ≤ 31 的 6 个 section。
+  6. 若第一阶段仍未逐 BlockPos 完全一致，禁止在任何下游材料里写「精准种子挖矿已实现」。
+  7. 第四轮的离线上下文里，有一个环境边界必须写明：宿主世界只提供与种子无关的环境参数
+     （维度类型 / 世界高度 / 注册表 / 结构模板管理器 / 调色板工厂）；种子的四件东西全部自建。
+     离线 region 对宿主 ChunkMap 的查询次数已在【十一】列出（>0 必须逐条解释）。
+  8. 第四轮只做 26.1.2 原版主世界 + 钻石；其它矿物、其它维度、26.2/26.3 一概未做。
+  9. 第二阶段的钻石验收有<b>两个口径</b>，禁止只引用其中一个：
+     · 口径一（第三轮口径 · 同一次装饰内的贡献）= 真实 post-diamond − 真实 pre-diamond；
+       它把「先被装饰的邻域已经写进本区块的钻石」排除在真值之外；
+     · 口径二（真实世界最终钻石 · 只算目标区块内）= 安装离线状态前，真实世界里目标区块内的全部钻石；
+       产品要回答的是「这一格到底有没有钻石」，所以口径二才是最终判据。
+  10. 离线 pre-diamond 与真实 pre-diamond 的差异，只有在「该区块是生成波前的中心（邻域尚未装饰）」
+      这一种情形下才有意义地逐格比对；若真实世界里邻域先装饰过（报告里逐 viewer 给出真实装饰批号），
+      邻域按其写半径 1 写进本区块的地物方块属于<b>真实服务端调度顺序</b>，不是种子函数。
+=====================================================

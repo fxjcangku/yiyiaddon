@@ -9,9 +9,16 @@ loom-cache/
 
 # Fabric / 运行期（运行目录按版本分流：run-26.1.2/ 与 run-26.2/，见 开发习惯.md 第 232 条）
 /run-*/
+# 自动化 / 回归 / 烟测 / 临时专用服务器的统一运行目录（235 目录收口）：
+# 结构 = .dev-runs/<MC 版本>/seed/<场景>，整棵树都是本机可再生状态，不进版本库。
+.dev-runs/
 logs/
 crash-reports/
 .fabric/
+
+# Mixin / 调试转储（Mixin 运行时 dump 与 JDWP 调试目录，属机器本地状态，不进版本库）
+.dbg/
+.mixin.out/
 
 # IDE
 .idea/

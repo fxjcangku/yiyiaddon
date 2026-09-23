@@ -2,14 +2,14 @@
 ## —— 本地隔离 Worldgen Worker 与多人服务器预测闭环
 
 > **⚠ 历史过程报告**：最新基线与**唯一优先参考**是
-> 《232-FINAL · 种子挖矿多人 Worker 与生产发行最终收口报告》（`232-FINAL-report.md`）。
+> 《232-FINAL · 种子挖矿多人 Worker 与生产发行最终收口报告》（`232-FINAL-种子挖矿多人Worker与生产发行最终收口报告.md`）。
 > 本文件保留为过程证据；其中已被后续阶段改写的结论（默认堆、Java 可执行文件、失败文案、
 > 「未实机」三项等）**一律以 FINAL 为准**。
 
 > 项目：`D:/mcaddon/yiyiaddon` ｜ 分支：`master` ｜ Minecraft：`26.1.2` ｜ 模组版本：`1.0-beta2`
 > 本报告全部数字均为**本机实机运行实测值**（每一条都注明了产出文件 / 日志位置）；
 > 凡未实机验证的项，一律在【二十、已知限制】里显式标注「未实机」。
-> **配套报告**：《232-P · 真实用户生产发行验收》（`seedmining-phase4p-232p-report.md`）——
+> **配套报告**：《232-P · 真实用户生产发行验收》（`232P-追加-种子挖矿真实用户生产发行验收报告.md`）——
 > 它把本报告里标着「未实机 / 推断」的三项（生产实例、超时实触发、含空格路径）全部补成了实机证据，
 > 并新增低内存 Heap 矩阵与发行门槛验收；本报告已同步标注。口径第 102 节六十七项逐条对照见【二十一·补】。
 
@@ -35,7 +35,7 @@
 
 ## 二、231 失败结论复核（不许重试旧路线）
 
-231 报告（`seedmining-phase3-231-report.md` 与 `02-开发报告/.../231-追加-...md`）的结论是类型契约级阻塞：
+231 报告（`231-追加-种子挖矿正式化第三阶段报告-多人服务器离线预测环境解耦.md`）的结论是类型契约级阻塞：
 
 * 26.1.2 的 `WorldGenLevel extends ServerLevelAccessor`，而 `ServerLevelAccessor#getLevel()` 返回 `ServerLevel`；
 * 因此 `OfflineChunkRegion extends WorldGenRegion` 的构造链上**必须**拿到一个真实 `ServerLevel`，
@@ -680,5 +680,5 @@ com/yiyiaddon/seed/worker/protocol/           ← 传输层（版本化、fail-c
 | 协议负路径 | `build/seed-worker-probe-neg-*/seed-worker-probe/probe-report.txt` |
 | Worker 自身日志 | `run-26.1.2-seed-worker-*/yiyiaddon/seed-worker/26.1.2/seed-worker-26.1.2.log` |
 | 内存采样 | `build/seed-memory-samples.txt` |
-| 配套：生产发行验收（jar-only / 真实 Mod 环境 / Heap 矩阵 / 超时注入） | `seedmining-phase4p-232p-report.md`（同内容落盘于 `02-开发报告/…/232P-追加-种子挖矿真实用户生产发行验收报告.md`） |
+| 配套：生产发行验收（jar-only / 真实 Mod 环境 / Heap 矩阵 / 超时注入） | `232P-追加-种子挖矿真实用户生产发行验收报告.md`（同目录） |
 | 配套：生产冒烟脚本与证据 | `gradle/production-smoke.ps1`、`02-开发报告/…/232P-证据/`（57 个文件） |

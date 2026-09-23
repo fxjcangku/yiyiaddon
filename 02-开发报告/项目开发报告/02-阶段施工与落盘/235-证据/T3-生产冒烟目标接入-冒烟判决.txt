@@ -1,0 +1,13 @@
+﻿[SMOKE] 正式产物：D:\mcaddon\yiyiaddon\build\release\yiyiaddon-1.0-beta2-26.1.2.jar（45.2 MB）
+[SMOKE] fabric-api：fabric-api-0.155.2+26.1.2.jar（取自真实实例）
+[SMOKE] 冒烟实例 mods（2 个文件）：fabric-api-0.155.2+26.1.2.jar, yiyiaddon-1.0-beta2-26.1.2.jar
+[SMOKE] classpath：83 个条目（库 82 + 游戏 jar；按规则跳过 32 条，按坐标推导 7 条）
+[SMOKE] Java：C:\Users\Administrator\AppData\Roaming\.minecraft\runtime\java-runtime-epsilon\bin\java.exe
+[SMOKE] 客户端已启动 PID=16252，gameDir=D:\mcaddon\yiyiaddon\build\production-smoke\target
+[SMOKE] 客户端退出：退出码 0，耗时 81s
+[SMOKE] Worker 命令行已记录（10667 字符）→ evidence\worker-command.txt
+[SMOKE] Worker RSS：峰值 867 MB，末次 867 MB，采样 59 次
+[SMOKE]   t=16s 出现 Worker PID=36200 可执行文件=javaw.exe
+[SMOKE] 退出后残留 Worker 进程：0
+[SMOKE] 装置报告：seedpoc-目标接入回归.txt
+[SMOKE] 结论：通过（正式产物 Worker 已启动、命令行无开发目录、退出后无残留）

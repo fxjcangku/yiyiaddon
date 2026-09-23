@@ -249,7 +249,7 @@ public final class ServiceRegression {
             module.settings().personalMode = false;
             MiningConsoleScreen console = new MiningConsoleScreen(null, module);
             CompactStack probe = new CompactStack(6f);
-            new MiningSeedPage(console).build(probe);
+            new MiningSeedPage(console, module).build(probe);
             report("  个人模式关：控制台整窗装配成功；单独装配「种子挖矿」页成功，总高 "
                 + Math.round(probe.height()) + " 像素、是否为空：" + probe.isEmpty());
             module.settings().personalMode = true;

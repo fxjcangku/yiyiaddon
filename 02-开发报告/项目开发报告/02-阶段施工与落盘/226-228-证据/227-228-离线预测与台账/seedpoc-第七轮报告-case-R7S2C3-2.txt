@@ -1,0 +1,224 @@
+目标 (-400,380)：真值 23 / 重放A(观测顺序) 23 / 重放B(反事实) 22；真值 vs 重放A：完全一致；重放A vs 重放B：真值 23 / 预测 22 / 匹配 22 / 漏报 1 / 错报 0 / 查全 95.65% / 查准 100.00%
+请求顺序：(-398,382) → (-398,378) → (-402,382) → (-402,378) → (-398,380) → (-402,380) → (-400,382) → (-400,378) → (-400,380)＝目标
+新鲜度：驱动开始时目标 3x3 未生成=true；目标区 region 文件存在=false
+真实装饰批号（本台账自记，越小越先进入 decoration）：(-399,381)=1、(-399,379)=2、(-401,381)=3、(-401,379)=4、(-399,380)=5、(-401,380)=6、(-400,381)=7、(-400,379)=8、(-400,380)=9
+真实最终钻石：23 格
+FEATURES 逐格写入台账：目标区块内真实侧 5357 条（全进程全局写序号到 41936）；按 viewer：(-399,379)×40、(-401,381)×19、(-401,379)×4、(-399,380)×491、(-401,380)×297、(-400,381)×550、(-400,379)×126、(-400,380)×3830
+  同格冲突位置合计：433 个（两次以上「真正改变了值」的写入碰过同一格）；其中「最终状态 = 最后一次写的后置状态」433 / 433
+  冲突位置 (-6386,18,6090)：
+    #20037 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40993 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40993 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,19,6090)：
+    #20040 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40926 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40926 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,19,6091)：
+    #20041 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #41020 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #41020 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,20,6091)：
+    #20043 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40994 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40994 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,18,6089)：
+    #20049 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40893 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40893 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,19,6089)：
+    #20051 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40857 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40857 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,19,6090)：
+    #20052 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40997 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40997 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,20,6089)：
+    #20053 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40858 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40858 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,20,6090)：
+    #20054 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40929 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40929 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,18,6089)：
+    #20065 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40891 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40891 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,19,6089)：
+    #20066 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40849 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40849 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,20,6090)：
+    #20067 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40927 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40927 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,21,6090)：
+    #20069 viewer(-399,380) ore_diorite_lower/OreFeature 批5 stone → diorite
+    #40998 viewer(-400,380) ore_andesite_lower/OreFeature 批9 diorite → andesite
+    FINAL：andesite（= 最后一次写 #40998 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,13,6093)：
+    #20422 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36696 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    #36766 viewer(-400,380) 未在placed_feature上下文中 批9 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #36766 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,13,6093)：
+    #20446 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36695 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36695 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6387,13,6093)：
+    #20481 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36694 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36694 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,14,6093)：
+    #20487 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36720 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    #36767 viewer(-400,380) 未在placed_feature上下文中 批9 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #36767 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6389,13,6093)：
+    #20541 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36692 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36692 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6389,13,6094)：
+    #20542 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36700 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36700 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6389,14,6093)：
+    #20547 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36716 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36716 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6388,13,6093)：
+    #20570 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36693 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36693 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6388,13,6094)：
+    #20571 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36701 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36701 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6388,14,6093)：
+    #20577 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36717 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36717 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6388,14,6094)：
+    #20578 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36725 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36725 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6387,13,6094)：
+    #20602 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36702 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36702 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6387,14,6093)：
+    #20605 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36718 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36718 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6387,14,6094)：
+    #20606 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36726 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36726 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6387,15,6093)：
+    #20611 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36742 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36742 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,13,6094)：
+    #20628 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36703 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36703 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,13,6095)：
+    #20629 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36711 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36711 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,14,6093)：
+    #20631 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36719 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36719 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,14,6094)：
+    #20632 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36727 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36727 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,15,6091)：
+    #20635 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #41849 viewer(-400,380) ore_copper/OreFeature 批9 andesite → copper_ore
+    FINAL：copper_ore（= 最后一次写 #41849 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6386,15,6093)：
+    #20637 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36743 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36743 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,13,6094)：
+    #20646 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36704 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36704 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,14,6094)：
+    #20647 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36728 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36728 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,15,6093)：
+    #20651 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36744 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    #36770 viewer(-400,380) 未在placed_feature上下文中 批9 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #36770 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6391,13,6092)：
+    #20677 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #41859 viewer(-400,380) ore_copper/OreFeature 批9 andesite → copper_ore
+    FINAL：copper_ore（= 最后一次写 #41859 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6391,13,6093)：
+    #20678 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #36690 viewer(-400,380) 未在placed_feature上下文中 批9 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #36690 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6391,14,6092)：
+    #20680 viewer(-399,380) ore_andesite_lower/OreFeature 批5 stone → andesite
+    #41860 viewer(-400,380) ore_copper/OreFeature 批9 andesite → copper_ore
+    FINAL：copper_ore（= 最后一次写 #41860 的后置状态，最后写者决定最终方块）
+  （冲突位置过多，只列前 40 个；完整清单见落盘的 journal 文件）
+OreFeature 候选点真实侧：17149 条
+重放 A（观测顺序）：h=80125ef n=23；顺序 (-399,381) → (-399,379) → (-401,381) → (-401,379) → (-399,380) → (-401,380) → (-400,381) → (-400,379) → (-400,380)
+  候选点逐项比对（REAL vs OFFLINE）：可配对 55 条 / 左 17149 条 / 右 17149 条；出现差异 0 条；其中「累计消耗随机序号已偏移」0 条
+重放 C（正式 Predictor 固定顺序）：h=80125ef n=23；顺序 (-401,379) → (-401,380) → (-401,381) → (-400,379) → (-400,381) → (-399,379) → (-399,380) → (-399,381) → (-400,380)
+对照③ 真值 vs 重放 C（Predictor 固定顺序）：真值 23 / 预测 23 / 匹配 23 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00%（这一行应当等于第六轮 Predictor 在该目标上的成绩）
+  候选点逐项比对（重放A(观测顺序) vs 重放C(预测器固定顺序)）：可配对 17149 条 / 左 17149 条 / 右 17149 条；出现差异 293 条；其中「累计消耗随机序号已偏移」0 条
+  第一处分叉候选 #1（起点）：viewer(-399,379) ore_diorite_lower 矿脉#2 候选#394
+    重放A(观测顺序)：pos=(-6387,2,6077) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6387,2,6077) before=coal_ore replaceable=false randomOrdinal=0 consumed=false accepted=false
+  第一处分叉候选 #2：viewer(-399,379) ore_diorite_lower 矿脉#2 候选#426
+    重放A(观测顺序)：pos=(-6387,1,6076) before=deepslate replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6387,1,6076) before=deepslate_coal_ore replaceable=false randomOrdinal=0 consumed=false accepted=false
+  第一处分叉候选 #3：viewer(-399,379) ore_diorite_lower 矿脉#2 候选#430
+    重放A(观测顺序)：pos=(-6387,2,6076) before=deepslate replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6387,2,6076) before=deepslate_coal_ore replaceable=false randomOrdinal=0 consumed=false accepted=false
+  第一处分叉候选 #4：viewer(-399,379) ore_diorite_lower 矿脉#2 候选#482
+    重放A(观测顺序)：pos=(-6385,6,6073) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6385,6,6073) before=copper_ore replaceable=false randomOrdinal=0 consumed=false accepted=false
+  第一处分叉候选 #5：viewer(-399,379) ore_diorite_lower 矿脉#2 候选#585
+    重放A(观测顺序)：pos=(-6386,3,6071) before=deepslate replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6386,3,6071) before=deepslate_iron_ore replaceable=false randomOrdinal=0 consumed=false accepted=false
+  第一处分叉候选 #6：viewer(-399,379) ore_diorite_lower 矿脉#2 候选#587
+    重放A(观测顺序)：pos=(-6386,4,6071) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6386,4,6071) before=iron_ore replaceable=false randomOrdinal=0 consumed=false accepted=false
+  第一处分叉候选 #7：viewer(-399,380) ore_diorite_lower 矿脉#2 候选#0
+    重放A(观测顺序)：pos=(-6373,18,6098) before=diorite replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6373,18,6098) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+  第一处分叉候选 #8：viewer(-399,380) ore_diorite_lower 矿脉#2 候选#1
+    重放A(观测顺序)：pos=(-6373,18,6099) before=diorite replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6373,18,6099) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+  第一处分叉候选 #9：viewer(-399,380) ore_diorite_lower 矿脉#2 候选#2
+    重放A(观测顺序)：pos=(-6373,18,6100) before=diorite replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6373,18,6100) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+  第一处分叉候选 #10：viewer(-399,380) ore_diorite_lower 矿脉#2 候选#3
+    重放A(观测顺序)：pos=(-6373,19,6098) before=diorite replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6373,19,6098) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+  第一处分叉候选 #11：viewer(-399,380) ore_diorite_lower 矿脉#2 候选#4
+    重放A(观测顺序)：pos=(-6373,19,6099) before=diorite replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6373,19,6099) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+  第一处分叉候选 #12：viewer(-399,380) ore_diorite_lower 矿脉#2 候选#5
+    重放A(观测顺序)：pos=(-6373,19,6100) before=diorite replaceable=true randomOrdinal=0 consumed=false accepted=true
+    重放C(预测器固定顺序)：pos=(-6373,19,6100) before=stone replaceable=true randomOrdinal=0 consumed=false accepted=true
+重放 B（反事实：观测顺序整体倒序）：h=7a80b80 n=22；顺序 (-400,380) → (-400,379) → (-400,381) → (-401,380) → (-399,380) → (-401,379) → (-401,381) → (-399,379) → (-399,381)
+对照① 真值 vs 重放 A（观测顺序）：真值 23 / 预测 23 / 匹配 23 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 观测顺序重放复现了真实集合
+对照② 重放 A vs 重放 B（只差执行先后）：真值 23 / 预测 22 / 匹配 22 / 漏报 1 / 错报 0 / 查全 95.65% / 查准 100.00% → **仅改变合法 FEATURES 执行先后就改变了最终钻石集合**（因果证据）
+  差集样本（重放 A 有 / 重放 B 无）：(-6385,-59,6085)
+  差集样本（重放 B 有 / 重放 A 无）：无
+  差异格 (-6385,-59,6085)：
+    重放A（观测顺序）：#63372 viewer(-399,380) ore_diamond/OreFeature deepslate→deepslate_diamond_ore
+    重放B（反事实顺序）：#126370 viewer(-400,380) ore_gravel/OreFeature deepslate→gravel
+    真实世界：#21463 viewer(-399,380) ore_diamond/OreFeature deepslate→deepslate_diamond_ore
+【汇总】目标 1 个（重放=观测顺序）：真值 23 / 预测 23 / 匹配 23 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00%
+END 阶段=case 标签=R7S2C3 耗时=6014 ms

@@ -54,6 +54,10 @@ public final class SeedPocEntry {
         if (SeedPocFlags.observation()) {
             ObservationRenderRegression.configure();
         }
+        // 234 验证回归：同样在日志最前面打一遍参数与阈值（便于取证时确认本次用的是什么口径）
+        if (SeedPocFlags.validationRegression()) {
+            SeedValidationRegression.configure();
+        }
         LOGGER.info("{}：开发期实验已挂载，进单人世界后自动运行一次（系统属性 yiyiaddon.seedpoc.enabled=1）",
                 SeedPocConstants.LOG_KEY);
     }
@@ -94,6 +98,31 @@ public final class SeedPocEntry {
         // 第五阶段（233）：关闭态回归（没开种子挖矿 = 计算器不启动 / 缓存与渲染全空）
         if (SeedPocFlags.offRegression()) {
             SeedOffRegression.onClientTick(client);
+            return;
+        }
+        // 第六阶段（234）：种子验证（正确种子必须验证通过 / 错误种子绝不允许 / 被挖矿容错 / 清理矩阵）
+        if (SeedPocFlags.validationRegression()) {
+            SeedValidationRegression.onClientTick(client);
+            return;
+        }
+        // 第六阶段（234）：233 遗留「1 个 MISSING」定位与复现
+        if (SeedPocFlags.missingCandidateRegression()) {
+            SeedMissingCandidateRegression.onClientTick(client);
+            return;
+        }
+        // 第六阶段（234）：ESP / UI 目视验收（把画面停在五个状态上供取图）
+        if (SeedPocFlags.visualAcceptance()) {
+            SeedVisualAcceptance.onClientTick(client);
+            return;
+        }
+        // 第六阶段（234）：半径 6 压力烟测（169 个目标区块的规模 / 帧率 / 卡顿 / 内存读数）
+        if (SeedPocFlags.radius6Smoke()) {
+            SeedRadius6Smoke.onClientTick(client);
+            return;
+        }
+        // 第七阶段（235）：钻石 Seed Target → AutoMiner 正式接入（A~L 十二项实机回归）
+        if (SeedPocFlags.targetRegression()) {
+            SeedTargetRegression.onClientTick(client);
             return;
         }
         if (dispatched) {

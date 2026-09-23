@@ -1,0 +1,1013 @@
+[17:01:23] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 26.1.2 with Fabric Loader 0.19.5
+[17:01:23] [main/INFO] (FabricLoader/Mappings) Mappings not present!
+[17:01:23] [ForkJoinPool-1-worker-5/WARN] (FabricLoader/Metadata) Mod me_friwi_jcef-api uses the version jcef-d3de827+cef-146.0.10+g8219561+chromium-146.0.7680.179 which isn't compatible with Loader's extended semantic version format (Could not parse version number component 'jcef'!), SemVer is recommended for reliably evaluating dependencies and prioritizing newer version
+[17:01:23] [main/INFO] (FabricLoader) Loading 57 mods:
+	- baritone 1.18.0
+	   \-- dev_babbaj_nether-pathfinder 1.6
+	- dev-auth-neo 1.1.1
+	   |-- me_friwi_jcef-api jcef-d3de827+cef-146.0.10+g8219561+chromium-146.0.7680.179
+	   |-- me_friwi_jcefmaven 146.0.10
+	   \-- org_slf4j_jul-to-slf4j 2.0.18
+	- fabric-api 0.155.2+26.1.2
+	- fabric-api-base 2.0.3+ece063234c
+	- fabric-api-lookup-api-v1 2.0.12+d5a053b64c
+	- fabric-biome-api-v1 18.0.5+2fa62b4e4c
+	- fabric-block-api-v1 3.0.2+ec56b6014c
+	- fabric-block-getter-api-v2 2.0.6+ec56b6014c
+	- fabric-client-gametest-api-v1 5.1.0+0a5283664c
+	- fabric-command-api-v2 3.0.5+e2bdee784c
+	- fabric-content-registries-v0 11.3.0+0082c9664c
+	- fabric-convention-tags-v2 4.6.2+4f11f7994c
+	- fabric-crash-report-info-v1 1.0.3+9f78a5a84c
+	- fabric-creative-tab-api-v1 5.0.11+d871b99e4c
+	- fabric-data-attachment-api-v1 2.2.9+44a0bd1d4c
+	- fabric-data-generation-api-v1 24.3.3+cda368334c
+	- fabric-debug-api-v1 1.0.1+c792624d4c
+	- fabric-dimensions-v1 5.1.7+ad343a8d4c
+	- fabric-entity-events-v1 5.0.2+e2bdee784c
+	- fabric-events-interaction-v0 5.2.2+07b380be4c
+	- fabric-game-rule-api-v1 4.0.5+d871b99e4c
+	- fabric-gametest-api-v1 4.0.17+867b87624c
+	- fabric-item-api-v1 14.3.0+6d1aaa724c
+	- fabric-key-mapping-api-v1 2.0.4+e2bdee784c
+	- fabric-lifecycle-events-v1 4.1.1+df84eb3d4c
+	- fabric-loot-api-v3 3.0.12+00a1fba64c
+	- fabric-menu-api-v1 2.0.14+d871b99e4c
+	- fabric-message-api-v1 7.0.5+dae8ce3e4c
+	- fabric-model-loading-api-v1 8.0.11+c80601bb4c
+	- fabric-networking-api-v1 6.3.1+554860db4c
+	- fabric-object-builder-api-v1 23.1.0+abb459f14c
+	- fabric-particles-v1 5.0.15+b61fef434c
+	- fabric-permission-api-v1 1.0.2+7437387b4c
+	- fabric-recipe-api-v1 9.0.16+be4b75ae4c
+	- fabric-registry-sync-v0 7.1.0+2fa62b4e4c
+	- fabric-renderer-api-v1 13.0.8+c80601bb4c
+	- fabric-renderer-indigo 8.1.5+1403e82c4c
+	- fabric-rendering-fluids-v1 6.0.1+d871b99e4c
+	- fabric-rendering-v1 23.3.1+e9207d814c
+	- fabric-resource-conditions-api-v1 6.1.0+83dd0ba34c
+	- fabric-resource-loader-v0 3.3.17+4fc5413f4c
+	- fabric-resource-loader-v1 2.0.10+7c44c7324c
+	- fabric-screen-api-v1 5.1.0+981dd9b24c
+	- fabric-serialization-api-v1 2.0.3+11a26f314c
+	- fabric-sound-api-v1 2.0.4+11a26f314c
+	- fabric-tag-api-v1 2.1.1+371cf5db4c
+	- fabric-transfer-api-v1 8.0.6+357ea7334c
+	- fabric-transitive-access-wideners-v1 8.1.3+3ff549fb4c
+	- fabricloader 0.19.5
+	- java 25
+	- minecraft 26.1.2
+	- mixinextras 0.5.5
+	- yiyiaddon 1.0-beta2
+[17:01:24] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/C:/Users/Administrator/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.4+mixin.0.8.7/5f66cc9f59b8efaa942155a3d5a30599bf6640dd/sponge-mixin-0.17.4+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[17:01:24] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.5).
+[17:01:24] [main/INFO] (DevAuthNeo) DevAuth active for account 'main'
+[17:01:25] [Datafixer Bootstrap/INFO] (Minecraft) 291 Datafixer optimizations took 183 milliseconds
+[17:01:27] [Render thread/INFO] (Minecraft) Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[17:01:27] [Render thread/INFO] (Minecraft) Setting user: yiyijia
+[17:01:27] [Render thread/INFO] (yiyiaddon) yiyiaddon initialised (baritone localisation: on)
+[17:01:27] [Render thread/INFO] (Indigo) [Indigo] Registering Indigo renderer!
+[17:01:28] [Render thread/INFO] (Minecraft) [STDOUT]: [nether-pathfinder] Created temp file at C:\Users\Administrator\AppData\Local\Temp\nether_pathfinder-x86_6416831613405471226875.dll
+[17:01:28] [Render thread/INFO] (Minecraft) [STDERR]: [nether-pathfinder] Failed to delete temp file
+[17:01:28] [Render thread/INFO] (Minecraft) [STDOUT]: [nether-pathfinder] Loaded shared library
+[17:01:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜观察：已安装客户端区块加载 / 卸载监听（Fabric ClientChunkEvents）
+[17:01:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时服务已挂载（本地世界生成计算器 + 预测缓存 / 覆盖调度 / 实际区块观察 / 世界渲染；后台单线程；配置项 启用/种子/显示预测钻石/预测范围/显示当前缺失）
+[17:01:28] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：参数 正确种子 20260922 / 覆盖半径 3 / 逐批移除 20% / 错误种子矩阵 [12345, 2, 0, -7777] / 换服用例 开（B = 127.0.0.1:25566）
+[17:01:28] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：验证阈值 验证阈值：独立确认样本 ≥ 8 组、覆盖 ≥ 3 个目标区块、解释比例 ≥ 50.00%（比例 = 曾经确认组 ÷ 已观察组）
+[17:01:28] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：可疑语义 —— 自动可疑判定保持禁用：只有先证明「当前候选宇宙覆盖了全部合法世界生成调度可能产生的钻石坐标」，才有资格判定某位置「不该出现钻石」。合法 FEATURES 顺序本身就会改变同一位置的最终结果，因此调度敏感候选永远不能当作可疑证据。
+[17:01:28] [Render thread/INFO] (yiyiaddon/seedpoc) 种子挖矿PoC：开发期实验已挂载，进单人世界后自动运行一次（系统属性 yiyiaddon.seedpoc.enabled=1）
+[17:01:28] [Render thread/INFO] (Minecraft) Backend library: LWJGL version 3.4.1-snapshot
+[17:01:28] [Render thread/INFO] (Minecraft) Using optional rendering extensions: GL_ARB_buffer_storage, GL_KHR_debug, GL_ARB_vertex_attrib_binding, GL_ARB_direct_state_access, GL_EXT_texture_filter_anisotropic
+[17:01:29] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, yiyiaddon
+[17:01:29] [Render thread/INFO] (Minecraft) [CHAT] [Baritone] 未找到 Baritone 设置文件，正在重置。
+[17:01:29] [Worker-Main-4/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[17:01:29] [Worker-Main-2/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[17:01:29] [Render thread/INFO] (yiyiaddon/render-compat) 光影兼容兜底生效：已为缺失的原版采样器补绑 Sampler1(叠加纹理)、Sampler2(光照贴图)（上游 Iris 在 26.1.2 上偶发丢失绑定）
+[17:01:29] [Worker-Main-4/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[17:01:29] [Render thread/INFO] (Minecraft) OpenAL initialized on device OpenAL Soft on SteelSeries Sonar - Gaming (SteelSeries Sonar Virtual Audio Device)
+[17:01:29] [Render thread/INFO] (Minecraft) Sound engine started
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/beds.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/signs.png-atlas
+[17:01:29] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[17:01:30] [Render thread/INFO] (Minecraft) Connecting to 127.0.0.1, 25567
+[17:01:32] [Render thread/INFO] (Minecraft) [STDOUT]: World seems to be a replay. Not loading Baritone cache.
+[17:01:32] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[发包防踢]§r§l§f进服伪装自检：\n§8├─ §f客户端名 §8▸ §a§lvanilla§r§f§l\n§8├─ §fMod通信 §8▸ §a§l拦截中§r§f§l\n§8├─ §f假潜行 §8▸ §a§l拦截中§r§f§l\n§8└─ §f假疾跑 §8▸ §a§l拦截中§r§f§l
+[17:01:32] [Render thread/INFO] (Minecraft) Loaded 2 advancements
+[17:01:32] [Render thread/INFO] (Minecraft) [STDOUT]: Retrying to load Baritone cache
+[17:01:32] [Render thread/INFO] (Minecraft) [STDOUT]: Baritone world data dir: D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384
+[17:01:32] [Render thread/INFO] (Minecraft) [STDOUT]: Cached world directory: D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:01:32] [Render thread/INFO] (Minecraft) [STDOUT]: Would save waypoints to D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\waypoints
+[17:01:32] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loading region -1,0 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 28ms
+[17:01:32] [Render thread/INFO] (yiyiaddon/stardew) [星露谷] 界面观察：LevelLoadingScreen —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[17:01:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：配置作用域切换为 server_127.0.0.1_25567
+[17:01:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[17:01:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：重新开始验证（丢弃旧证据 0 条；预测缓存 / 观察层 / 种子 / 世界一律未动；需要产生新的观察样本 —— 重新加载区块或发生方块更新）
+[17:01:32] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：第一段开跑 —— 客户端种子 20260922（服务器世界种子 20260922），范围 3（49 个目标区块）；预期：多个目标区块上的多个独立证据组被确认 → 进入「已验证」
+[17:01:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25567 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #1），预测缓存与渲染层已就绪
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loading region -1,-1 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 14ms
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loading region 0,0 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:01:32] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 12ms
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loading region 0,-1 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:01:32] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 11ms
+[17:01:32] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：正在启动本地世界生成计算器（第 1 次，版本 26.1.2，模组 1.0-beta2）
+[17:01:32] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[服务器检测]§r§l§f§b§l━━ 服务端侦测报告 ━━§r\n§7服务器核心 §8▸ §6§lFabric§r§f§l\n§7反作弊   §8▸ §a§l未发现指纹§r§f§l §8（不等于没有）
+[17:01:32] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[17:01:32] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[17:01:32] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[17:01:32] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[17:01:33] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[17:01:33] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 本地世界生成计算器已拉起：PID 8324，运行目录 D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\yiyiaddon\seed-worker\26.1.2，日志 D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\yiyiaddon\seed-worker\26.1.2\seed-worker-26.1.2.log，宿主端口 58301
+[17:01:33] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 32 reached during a single frame. New capacity will be 64.
+[17:01:34] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 64 reached during a single frame. New capacity will be 128.
+[17:01:35] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 128 reached during a single frame. New capacity will be 256.
+[17:01:36] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 256 reached during a single frame. New capacity will be 512.
+[17:01:39] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：已就绪（PID 8324，协议 1，Minecraft 26.1.2，模组 1.0-beta2，耗时 6423 ms，宿主监听 已停用（不接受任何外部连接））
+[17:01:39] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s1-135283a（种子 20260922，维度 minecraft:overworld）
+[17:01:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,0) → 22 个（候选 22（未观察 0 / 已确认 22 / 当前缺失 0）），缓存 1 个区块 / 上限 256
+[17:01:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 7 组独立样本（独立确认 7 组），尚不足以给出结论）
+[17:01:41] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：验证状态 未验证 → 收集中（已收集 7 组独立样本（独立确认 7 组），尚不足以给出结论）
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,0) → 25 个（候选 47（未观察 0 / 已确认 47 / 当前缺失 0）），缓存 2 个区块 / 上限 256
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 15 组，但独立确认样本 15 组 / 覆盖 2 个目标区块 / 解释比例 100.00%，未达到验证阈值）
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：验证状态 收集中 → 证据不足（已观察 15 组，但独立确认样本 15 组 / 覆盖 2 个目标区块 / 解释比例 100.00%，未达到验证阈值）
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 21 个（候选 68（未观察 0 / 已确认 68 / 当前缺失 0）），缓存 3 个区块 / 上限 256
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 证据不足 → 已验证（已验证（锁存）：本次会话曾经满足全部验证阈值（独立确认样本 19 组（阈值 8），覆盖 3 个目标区块（阈值 3），解释比例 100.00%（阈值 50.00%）））
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：验证状态 证据不足 → 已验证（已验证（锁存）：本次会话曾经满足全部验证阈值（独立确认样本 19 组（阈值 8），覆盖 3 个目标区块（阈值 3），解释比例 100.00%（阈值 50.00%）））
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：已验证证据 #1 → 独立确认样本 19 组 / 覆盖 3 个目标区块 / 已观察 19 组 / 解释比例 100.00%；有效样本区块 3；当前已确认候选 68 / 缺失 0；证据条数 68，候选方块 68（渲染快照）
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：证据组样本 组 #-7108548090824726362 目标区块(-2,0) 成员 2（当前已确认 2 / 缺失 0）【曾确认】
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：证据组样本 组 #-6721242316741756389 目标区块(-2,0) 成员 1（当前已确认 1 / 缺失 0）【曾确认】
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：证据组样本 组 #-8445704327459724015 目标区块(-2,0) 成员 2（当前已确认 2 / 缺失 0）【曾确认】
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：证据组样本 组 #4648599127365039346 目标区块(-2,0) 成员 9（当前已确认 9 / 缺失 0）【曾确认】
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：证据组样本 组 #1244915024607995903 目标区块(-2,0) 成员 5（当前已确认 5 / 缺失 0）【曾确认】
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：证据组样本 组 #-4042544065775979727 目标区块(-2,0) 成员 1（当前已确认 1 / 缺失 0）【曾确认】
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：证据组总数 19（曾经确认 19 组），候选方块总数 68（证据条数）
+[17:01:42] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：AutoMiner 安全门 mayUseForAutomatedMining() = true（只有已验证才允许 true；本阶段仍未接 AutoMiner）
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,1) → 16 个（候选 84（未观察 0 / 已确认 84 / 当前缺失 0）），缓存 4 个区块 / 上限 256
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,0) → 45 个（候选 129（未观察 0 / 已确认 129 / 当前缺失 0）），缓存 5 个区块 / 上限 256
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 34 个（候选 163（未观察 0 / 已确认 163 / 当前缺失 0）），缓存 6 个区块 / 上限 256
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,1) → 23 个（候选 186（未观察 0 / 已确认 186 / 当前缺失 0）），缓存 7 个区块 / 上限 256
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-1) → 27 个（候选 213（未观察 0 / 已确认 213 / 当前缺失 0）），缓存 8 个区块 / 上限 256
+[17:01:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,1) → 29 个（候选 242（未观察 0 / 已确认 242 / 当前缺失 0）），缓存 9 个区块 / 上限 256
+[17:01:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,0) → 20 个（候选 262（未观察 0 / 已确认 262 / 当前缺失 0）），缓存 10 个区块 / 上限 256
+[17:01:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 12 个（候选 274（未观察 0 / 已确认 274 / 当前缺失 0）），缓存 11 个区块 / 上限 256
+[17:01:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,2) → 22 个（候选 296（未观察 0 / 已确认 296 / 当前缺失 0）），缓存 12 个区块 / 上限 256
+[17:01:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,0) → 9 个（候选 305（未观察 0 / 已确认 305 / 当前缺失 0）），缓存 13 个区块 / 上限 256
+[17:01:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 11 个（候选 316（未观察 0 / 已确认 316 / 当前缺失 0）），缓存 14 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,1) → 21 个（候选 337（未观察 0 / 已确认 337 / 当前缺失 0）），缓存 15 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 20 个（候选 357（未观察 0 / 已确认 357 / 当前缺失 0）），缓存 16 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,2) → 21 个（候选 378（未观察 0 / 已确认 378 / 当前缺失 0）），缓存 17 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-2) → 22 个（候选 400（未观察 0 / 已确认 400 / 当前缺失 0）），缓存 18 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,2) → 35 个（候选 435（未观察 0 / 已确认 435 / 当前缺失 0）），缓存 19 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-1) → 21 个（候选 456（未观察 0 / 已确认 456 / 当前缺失 0）），缓存 20 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,1) → 21 个（候选 477（未观察 0 / 已确认 477 / 当前缺失 0）），缓存 21 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 16 个（候选 493（未观察 0 / 已确认 493 / 当前缺失 0）），缓存 22 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,2) → 25 个（候选 518（未观察 0 / 已确认 518 / 当前缺失 0）），缓存 23 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-2) → 21 个（候选 539（未观察 0 / 已确认 539 / 当前缺失 0）），缓存 24 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,2) → 7 个（候选 546（未观察 0 / 已确认 546 / 当前缺失 0）），缓存 25 个区块 / 上限 256
+[17:01:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,0) → 20 个（候选 566（未观察 0 / 已确认 566 / 当前缺失 0）），缓存 26 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 17 个（候选 583（未观察 0 / 已确认 583 / 当前缺失 0）），缓存 27 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,3) → 17 个（候选 600（未观察 0 / 已确认 600 / 当前缺失 0）），缓存 28 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,0) → 28 个（候选 628（未观察 0 / 已确认 628 / 当前缺失 0）），缓存 29 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 16 个（候选 644（未观察 0 / 已确认 644 / 当前缺失 0）），缓存 30 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,1) → 15 个（候选 659（未观察 0 / 已确认 659 / 当前缺失 0）），缓存 31 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 12 个（候选 671（未观察 0 / 已确认 671 / 当前缺失 0）），缓存 32 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,3) → 33 个（候选 704（未观察 0 / 已确认 704 / 当前缺失 0）），缓存 33 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-3) → 37 个（候选 741（未观察 0 / 已确认 741 / 当前缺失 0）），缓存 34 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,3) → 21 个（候选 762（未观察 0 / 已确认 762 / 当前缺失 0）），缓存 35 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-1) → 19 个（候选 781（未观察 0 / 已确认 781 / 当前缺失 0）），缓存 36 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,1) → 22 个（候选 803（未观察 0 / 已确认 803 / 当前缺失 0）），缓存 37 个区块 / 上限 256
+[17:01:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 15 个（候选 818（未观察 0 / 已确认 818 / 当前缺失 0）），缓存 38 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,2) → 27 个（候选 845（未观察 0 / 已确认 845 / 当前缺失 0）），缓存 39 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 43 个（候选 888（未观察 0 / 已确认 888 / 当前缺失 0）），缓存 40 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,3) → 27 个（候选 915（未观察 0 / 已确认 915 / 当前缺失 0）），缓存 41 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-3) → 34 个（候选 949（未观察 0 / 已确认 949 / 当前缺失 0）），缓存 42 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,3) → 1 个（候选 950（未观察 0 / 已确认 950 / 当前缺失 0）），缓存 43 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-2) → 33 个（候选 983（未观察 0 / 已确认 983 / 当前缺失 0）），缓存 44 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,2) → 18 个（候选 1001（未观察 0 / 已确认 1001 / 当前缺失 0）），缓存 45 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 38 个（候选 1039（未观察 0 / 已确认 1039 / 当前缺失 0）），缓存 46 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,3) → 22 个（候选 1061（未观察 0 / 已确认 1061 / 当前缺失 0）），缓存 47 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-3) → 28 个（候选 1089（未观察 0 / 已确认 1089 / 当前缺失 0）），缓存 48 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,3) → 8 个（候选 1097（未观察 0 / 已确认 1097 / 当前缺失 0）），缓存 49 个区块 / 上限 256
+[17:01:46] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：满覆盖读数 —— 目标区块 49 个 / 候选 1097 个；验证「已验证」：独立确认样本 274 组 / 覆盖 49 个目标区块 / 已观察 274 组 / 解释比例 100.00%；有效样本区块 49；当前已确认候选 1097 / 缺失 0
+[17:01:46] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：被挖矿容错 —— 先移除 20% 的已确认候选（220 / 1097 个，当前验证「已验证」，独立确认 274 组）
+[17:01:46] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -64, -49, 2
+[17:01:46] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -64, 0, 43
+[17:01:46] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -64, -56, 56
+[17:01:46] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -64, -26, -25
+[17:01:46] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -63, -42, 39
+[17:01:46] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -63, -1, 44
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -63, -20, -30
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -63, -46, -9
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -62, -42, 39
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -62, -45, 63
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -62, -37, -41
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -62, -61, -7
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -61, -45, 63
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -61, -38, -41
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -60, -40, 12
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -60, -60, -37
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -59, -41, 12
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -59, -22, 13
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -59, -23, 17
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -59, -59, -37
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -58, -23, 16
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -58, -49, 42
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -58, -6, -46
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -58, -14, -40
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -57, -20, 20
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -57, -6, -46
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -57, -15, -40
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -56, -53, 1
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -56, -46, -2
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -55, -52, 0
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -55, -46, -3
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -54, -20, -43
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -53, -37, 45
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -52, -14, 52
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -52, -6, -19
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -51, -13, 52
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -51, -12, 63
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -51, -6, -19
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -49, -44, 35
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -48, -24, -29
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -47, -46, 21
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -47, -9, 59
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -46, 5, 11
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -46, -46, 20
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -46, -10, 59
+[17:01:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -45, -18, 3
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -45, 6, 12
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -45, -22, -46
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -44, -28, 28
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -44, -24, 38
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -44, -21, -47
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -43, -28, 27
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -43, -23, 38
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -43, -29, 63
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -43, -39, -16
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -42, -17, 56
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -41, -16, 55
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -41, -47, -29
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -40, -47, -28
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -39, -55, -48
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -39, -35, -37
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -21, 40
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -55, -47
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -60, -45
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -35, -38
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -41, -35
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, 1, -33
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -17, 22
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -20, 40
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -32, 55
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -59, -45
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, 1, -34
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -9, -14
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -36, -18, 23
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -36, -37, -27
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -35, -41, 11
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -34, 5, 28
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -33, -34, 29
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -33, -3, 59
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -32, -40, 29
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -32, -33, 30
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -32, -3, 59
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -31, -56, -25
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -30, -10, 14
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -30, -56, -26
+[17:01:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -29, 10, 0
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -29, -35, 41
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -28, -36, 42
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -28, 10, -1
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -27, -12, 8
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -27, -30, -41
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -26, -12, 7
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -26, -53, 36
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -26, -61, -33
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -40, 1
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -53, 35
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -29, 37
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -41, 55
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -49, -12
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -24, -25, 31
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -24, -30, 51
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -24, -42, 55
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -24, -50, -5
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -56, 28
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -26, 32
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -52, 54
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -54, -5
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -50, -4
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -22, -38, 22
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -22, -47, -22
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -22, -54, -6
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -21, -33, 7
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -21, -32, 63
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -21, -46, -21
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -19, -55, 54
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -18, -55, 54
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -18, -46, -10
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -18, -39, -5
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -17, -49, 55
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -17, -46, -10
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -17, -39, -5
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -16, -48, -32
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -15, -49, -31
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -15, -58, -8
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -14, -18, -43
+[17:01:49] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -14, -58, -9
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -13, -29, 14
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -13, -30, 16
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -12, -49, 16
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -12, -29, 17
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -11, -46, 45
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -10, -12, 41
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -10, -45, 45
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -9, -12, 40
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -9, -54, -39
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -8, -54, 12
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -8, 8, 53
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -8, -61, -13
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -7, -37, 19
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -7, 6, -44
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -7, -60, -14
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -6, -57, 22
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -6, -13, -44
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -5, -40, 14
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -4, -48, 47
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -4, -10, 56
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -4, -44, -23
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -3, -49, 47
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -3, -25, 53
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -3, -37, 59
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -3, -25, -10
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -2, -48, -26
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -1, -46, 18
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 0, -46, 12
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 1, -34, -43
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 1, -60, -3
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 2, -55, 40
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 2, -56, -12
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -49, 3
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -49, 4
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -31, 13
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -30, 19
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -14, -37
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -55, -11
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 4, -48, 4
+[17:01:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 4, -15, -36
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 4, -28, -18
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 5, -15, 11
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 5, -35, -22
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 5, -27, -19
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 6, -15, 11
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 6, -35, 46
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 6, -61, -5
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 7, -61, 47
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 7, -53, 48
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 7, -36, 63
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 7, -35, -10
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -4, 20
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -60, 47
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -52, 48
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -35, 54
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -57, 8
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -57, 17
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -5, 21
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -36, 53
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -17, 55
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 10, -58, 8
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 10, -30, 26
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 10, -32, 63
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 10, -58, -12
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 11, -13, 5
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 11, -32, 45
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 11, -54, -32
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 11, -58, -12
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 12, -54, 42
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 12, -38, -30
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 13, -36, 23
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 13, -20, -36
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 14, -2, 20
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 14, -29, 42
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 14, -19, -36
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -3, 19
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -29, 41
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -50, -43
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -51, -41
+[17:01:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -40, -39
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -46, -14
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 16, -49, -43
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 16, -50, -41
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 16, -45, -15
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 16, -44, -13
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 17, -44, -14
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 18, -24, -19
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 19, -55, 7
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 19, -63, 57
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 19, -23, -19
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 20, -26, -34
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 21, -16, -5
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 22, -34, 0
+[17:01:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 22, -42, 31
+[17:02:02] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：被挖矿容错证据 #1（第一批）→ 已移除约 20% 已确认候选（220 条指令）：验证仍为「已验证」，独立确认样本 274 组（基线 274 组），当前已确认候选 877 / 缺失 220（基线缺失 0）
+[17:02:02] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：继续移除到累计 40%（本次再移除 219 个，累计 220 个；当前验证「已验证」，独立确认 274 组 / 已确认候选 877）
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -64, -39, 12
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -64, 0, 44
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -64, -27, -25
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -63, 0, 43
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -63, -14, 50
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -63, -45, -10
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -62, -14, 49
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -62, -38, -42
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -62, -62, -7
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -61, -44, 63
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -61, -43, -25
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -60, -40, 13
+[17:02:02] [ForkJoinPool.commonPool-worker-2/INFO] (Minecraft) [STDOUT]: Saving region 0,0 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:02:02] [ForkJoinPool.commonPool-worker-3/INFO] (Minecraft) [STDOUT]: Saving region -1,-1 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:02:02] [ForkJoinPool.commonPool-worker-1/INFO] (Minecraft) [STDOUT]: Saving region 0,-1 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:02:02] [Baritone-Worker-2/INFO] (Minecraft) [STDOUT]: Saving region -1,0 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25567\minecraft\overworld_384\cache
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -59, -40, 12
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -59, -23, 16
+[17:02:02] [ForkJoinPool.commonPool-worker-3/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:02] [Baritone-Worker-2/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:02] [ForkJoinPool.commonPool-worker-1/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:02] [ForkJoinPool.commonPool-worker-2/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:02] [Baritone-Worker-2/INFO] (Minecraft) [STDOUT]: World save took 34ms
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -59, -48, 43
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -58, -22, 16
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -58, -7, -47
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -58, -15, -40
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -57, -20, 21
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -57, -14, -41
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -56, -54, 1
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -56, -39, -2
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -55, -43, 37
+[17:02:02] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -54, -21, -44
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -52, -38, 44
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -52, -12, 63
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -51, -13, 51
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -51, -15, -38
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -50, -56, 63
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -48, -25, -29
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -47, -10, 58
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -47, -24, -29
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -46, 6, 12
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -46, -9, 59
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -45, 6, 11
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -45, -21, -47
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -44, -41, 37
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -44, -29, 63
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -43, -29, 27
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -43, -49, 52
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -43, -5, -48
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -42, -47, 53
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -41, -17, 56
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -40, 2, 13
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -39, 2, 13
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -39, -25, -10
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -21, 41
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -58, -46
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -36, -37
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -38, -42, -34
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -18, 22
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -21, 41
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -58, -46
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -41, -35
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -37, -9, -13
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -36, -35, 53
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -35, -42, 11
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -34, -47, -34
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -33, -40, 30
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -33, -21, -6
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -32, -30, 43
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -31, -56, -26
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -30, -60, 13
+[17:02:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -30, -55, -26
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -29, -46, 21
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -28, 10, 0
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -27, -13, 7
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -27, -10, 55
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -26, -13, 7
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -26, -31, -42
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -26, -45, -30
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -54, 35
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -29, 38
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -25, -44, -31
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -24, -39, 2
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -24, -52, 54
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -24, -42, 58
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -57, 28
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -25, 32
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -44, 59
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -23, -50, -5
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -22, -57, 29
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -22, -47, -21
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -22, -53, -5
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -21, -47, -22
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -20, -32, 63
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -18, -25, 11
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -18, -45, -10
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -18, -39, -4
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -17, 1, -48
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -17, -38, -5
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -15, -17, -42
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -15, -57, -9
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -14, -17, -43
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -14, -58, -8
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -13, -28, 15
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -12, -30, 16
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -11, -46, 44
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -10, -13, 41
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -9, -61, 7
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -9, -6, 41
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -8, -54, 11
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -8, -53, -40
+[17:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -7, -55, 11
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -7, -56, 36
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -7, -61, -13
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -6, -56, 37
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -5, -59, 0
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -4, -48, 48
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -4, -9, 57
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -4, -24, -9
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -3, -9, 56
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -3, -46, -22
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -2, -48, -27
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at -1, -45, 18
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 0, -45, 18
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 1, -40, -4
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 2, -54, 41
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -55, 3
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -54, 4
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -30, 13
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -55, 40
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 3, -56, -12
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 4, -51, 11
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 4, -28, -19
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 5, -16, 11
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 5, -36, -21
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 5, -27, -18
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 6, -36, 46
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 6, -60, -5
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 7, -36, 47
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 7, -52, 49
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -58, 17
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -4, 21
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -53, 48
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 8, -36, 63
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -57, 9
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -4, 20
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -35, 53
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 9, -23, -7
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 10, -57, 9
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 10, -26, -36
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 10, -57, -11
+[17:02:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 11, -33, 45
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 11, -54, -31
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 12, -29, 22
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 12, -54, -32
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 13, -54, 42
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 13, -19, -35
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 14, -30, 42
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 14, -19, -35
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -33, 37
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -47, -45
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -50, -41
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 15, -40, -38
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 16, -50, -43
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 16, -52, -40
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 16, -24, -14
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 17, -45, -14
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 18, -23, -19
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 19, -22, 22
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 19, -24, -19
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 20, -27, -33
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 21, -16, -4
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 22, -42, 30
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 22, -52, -14
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 23, -37, 22
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 23, -42, 31
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 23, -37, -43
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 24, -35, 23
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 24, -17, -47
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 25, -24, 44
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 25, -23, -43
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 26, -24, 45
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 27, -2, 22
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 27, -32, 30
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 27, -47, -18
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 28, -48, -18
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 30, -20, 0
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 30, -25, -23
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 31, -25, -23
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 33, -23, -20
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 34, -38, 11
+[17:02:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 34, -23, -19
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 35, -50, -34
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 35, -30, -6
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 36, -50, -35
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 36, -8, -18
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 36, -30, -7
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 37, -8, -18
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 38, -29, 27
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 39, -28, 28
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 40, -55, 2
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 40, -38, 61
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 40, -28, -34
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 41, -54, 2
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 41, -39, 11
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 41, -27, 22
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 41, -36, 60
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 42, -26, 2
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 42, -38, 11
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 42, -26, 22
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 43, -27, 1
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 43, -53, 31
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 43, -35, -42
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 43, -48, -4
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 44, -41, 13
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 44, -35, 36
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 44, -35, -42
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 44, -51, -10
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 44, -47, -4
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 45, -57, 35
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 45, -51, -20
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 46, -60, 34
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 46, -59, 35
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 46, -12, -41
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 46, -30, -27
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 47, -60, 35
+[17:02:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Changed the block at 47, -61, -48
+[17:02:17] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：被挖矿容错证据 #2（第二批）→ 已移除约 40% 已确认候选（439 条指令）：验证仍为「已验证」，独立确认样本 274 组（基线 274 组），当前已确认候选 658 / 缺失 439（基线缺失 0）
+[17:02:17] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：策略用例 —— 单区块 45/45 全部确认：证据 45 条 → 独立证据组 45 组 / 曾经确认 45 组 / 覆盖 1 个区块 / 解释比例 100.00%，判定「证据不足」，期望「不是已验证」（通过）
+[17:02:17] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：策略用例 —— 只有一个独立确认证据组：证据 3 条 → 独立证据组 1 组 / 曾经确认 1 组 / 覆盖 1 个区块 / 解释比例 100.00%，判定「收集中」，期望「不是已验证」（通过）
+[17:02:17] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：策略用例 —— 8 个独立组 / 3 个目标区块（正向对照）：证据 9 条 → 独立证据组 9 组 / 曾经确认 9 组 / 覆盖 3 个区块 / 解释比例 100.00%，判定「已验证」，期望「已验证」（通过）
+[17:02:17] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[17:02:17] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:17] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[17:02:17] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：清理证据 #1（改种子）→ 20260922 → 12345：状态「已验证」→「未验证」，独立确认 274 组 → 0 组，证据 1097 条 → 0 条
+[17:02:17] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话 s1-135283a 已关闭（Worker 侧离线世界缓存已释放）
+[17:02:18] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25567 / 种子 12345 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #2），预测缓存与渲染层已就绪
+[17:02:18] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s2-3039（种子 12345，维度 minecraft:overworld）
+[17:02:19] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,0) → 35 个（候选 35（未观察 0 / 已确认 0 / 当前缺失 35）），缓存 1 个区块 / 上限 256
+[17:02:19] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 7 组独立样本（独立确认 0 组），尚不足以给出结论）
+[17:02:19] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,0) → 20 个（候选 55（未观察 0 / 已确认 0 / 当前缺失 55）），缓存 2 个区块 / 上限 256
+[17:02:19] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 12 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:19] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 25 个（候选 80（未观察 0 / 已确认 0 / 当前缺失 80）），缓存 3 个区块 / 上限 256
+[17:02:19] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,1) → 27 个（候选 107（未观察 0 / 已确认 0 / 当前缺失 107）），缓存 4 个区块 / 上限 256
+[17:02:20] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,0) → 38 个（候选 145（未观察 0 / 已确认 0 / 当前缺失 145）），缓存 5 个区块 / 上限 256
+[17:02:20] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 22 个（候选 167（未观察 0 / 已确认 0 / 当前缺失 167）），缓存 6 个区块 / 上限 256
+[17:02:20] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,1) → 15 个（候选 182（未观察 0 / 已确认 0 / 当前缺失 182）），缓存 7 个区块 / 上限 256
+[17:02:20] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-1) → 26 个（候选 208（未观察 0 / 已确认 0 / 当前缺失 208）），缓存 8 个区块 / 上限 256
+[17:02:20] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,1) → 25 个（候选 233（未观察 0 / 已确认 0 / 当前缺失 233）），缓存 9 个区块 / 上限 256
+[17:02:20] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,0) → 34 个（候选 267（未观察 0 / 已确认 0 / 当前缺失 267）），缓存 10 个区块 / 上限 256
+[17:02:20] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 17 个（候选 284（未观察 0 / 已确认 0 / 当前缺失 284）），缓存 11 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,2) → 24 个（候选 308（未观察 0 / 已确认 0 / 当前缺失 308）），缓存 12 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,0) → 22 个（候选 330（未观察 0 / 已确认 0 / 当前缺失 330）），缓存 13 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 21 个（候选 351（未观察 0 / 已确认 0 / 当前缺失 351）），缓存 14 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,1) → 27 个（候选 378（未观察 0 / 已确认 0 / 当前缺失 378）），缓存 15 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 17 个（候选 395（未观察 0 / 已确认 0 / 当前缺失 395）），缓存 16 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,2) → 31 个（候选 426（未观察 0 / 已确认 0 / 当前缺失 426）），缓存 17 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-2) → 23 个（候选 449（未观察 0 / 已确认 0 / 当前缺失 449）），缓存 18 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,2) → 36 个（候选 485（未观察 0 / 已确认 0 / 当前缺失 485）），缓存 19 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-1) → 34 个（候选 519（未观察 0 / 已确认 0 / 当前缺失 519）），缓存 20 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,1) → 22 个（候选 541（未观察 0 / 已确认 0 / 当前缺失 541）），缓存 21 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 9 个（候选 550（未观察 0 / 已确认 0 / 当前缺失 550）），缓存 22 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,2) → 33 个（候选 583（未观察 0 / 已确认 0 / 当前缺失 583）），缓存 23 个区块 / 上限 256
+[17:02:21] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-2) → 27 个（候选 610（未观察 0 / 已确认 0 / 当前缺失 610）），缓存 24 个区块 / 上限 256
+[17:02:22] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,2) → 20 个（候选 630（未观察 0 / 已确认 0 / 当前缺失 630）），缓存 25 个区块 / 上限 256
+[17:02:22] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,0) → 27 个（候选 657（未观察 0 / 已确认 0 / 当前缺失 657）），缓存 26 个区块 / 上限 256
+[17:02:22] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 15 个（候选 672（未观察 0 / 已确认 0 / 当前缺失 672）），缓存 27 个区块 / 上限 256
+[17:02:22] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,3) → 16 个（候选 688（未观察 0 / 已确认 0 / 当前缺失 688）），缓存 28 个区块 / 上限 256
+[17:02:22] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,0) → 9 个（候选 697（未观察 0 / 已确认 0 / 当前缺失 697）），缓存 29 个区块 / 上限 256
+[17:02:22] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 16 个（候选 713（未观察 0 / 已确认 0 / 当前缺失 713）），缓存 30 个区块 / 上限 256
+[17:02:22] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,1) → 18 个（候选 731（未观察 0 / 已确认 0 / 当前缺失 731）），缓存 31 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 26 个（候选 757（未观察 0 / 已确认 0 / 当前缺失 757）），缓存 32 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,3) → 33 个（候选 790（未观察 0 / 已确认 1 / 当前缺失 789）），缓存 33 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-3) → 22 个（候选 812（未观察 0 / 已确认 1 / 当前缺失 811）），缓存 34 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,3) → 20 个（候选 832（未观察 0 / 已确认 1 / 当前缺失 831）），缓存 35 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-1) → 25 个（候选 857（未观察 0 / 已确认 1 / 当前缺失 856）），缓存 36 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,1) → 26 个（候选 883（未观察 0 / 已确认 1 / 当前缺失 882）），缓存 37 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 14 个（候选 897（未观察 0 / 已确认 1 / 当前缺失 896）），缓存 38 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,2) → 28 个（候选 925（未观察 0 / 已确认 1 / 当前缺失 924）），缓存 39 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 28 个（候选 953（未观察 0 / 已确认 1 / 当前缺失 952）），缓存 40 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,3) → 20 个（候选 973（未观察 0 / 已确认 1 / 当前缺失 972）），缓存 41 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-3) → 10 个（候选 983（未观察 0 / 已确认 1 / 当前缺失 982）），缓存 42 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,3) → 12 个（候选 995（未观察 0 / 已确认 1 / 当前缺失 994）），缓存 43 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-2) → 17 个（候选 1012（未观察 0 / 已确认 2 / 当前缺失 1010）），缓存 44 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,2) → 13 个（候选 1025（未观察 0 / 已确认 2 / 当前缺失 1023）），缓存 45 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 32 个（候选 1057（未观察 0 / 已确认 2 / 当前缺失 1055）），缓存 46 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,3) → 23 个（候选 1080（未观察 0 / 已确认 2 / 当前缺失 1078）），缓存 47 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-3) → 32 个（候选 1112（未观察 0 / 已确认 2 / 当前缺失 1110）），缓存 48 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,3) → 13 个（候选 1125（未观察 0 / 已确认 2 / 当前缺失 1123）），缓存 49 个区块 / 上限 256
+[17:02:23] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子证据 #1 → 客户端种子 12345：状态「证据不足」，候选 1125 个 / 已观察 301 组 / 曾经确认 2 组 / 覆盖 2 个目标区块 / 解释比例 0.66%；有效样本区块 49；当前确认候选 2 / 缺失 1123（已观察 301 组，但独立确认样本 2 组 / 覆盖 2 个目标区块 / 解释比例 0.66%，未达到验证阈值）
+[17:02:24] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[17:02:24] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:24] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[17:02:24] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子用例 —— 客户端种子改为 2（服务器世界种子仍是 20260922），等待样本积累
+[17:02:24] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话 s2-3039 已关闭（Worker 侧离线世界缓存已释放）
+[17:02:24] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25567 / 种子 2 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #3），预测缓存与渲染层已就绪
+[17:02:24] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s3-2（种子 2，维度 minecraft:overworld）
+[17:02:25] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,0) → 26 个（候选 26（未观察 0 / 已确认 0 / 当前缺失 26）），缓存 1 个区块 / 上限 256
+[17:02:25] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 7 组独立样本（独立确认 0 组），尚不足以给出结论）
+[17:02:25] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,0) → 22 个（候选 48（未观察 0 / 已确认 0 / 当前缺失 48）），缓存 2 个区块 / 上限 256
+[17:02:25] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 13 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:25] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 25 个（候选 73（未观察 0 / 已确认 0 / 当前缺失 73）），缓存 3 个区块 / 上限 256
+[17:02:25] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,1) → 11 个（候选 84（未观察 0 / 已确认 0 / 当前缺失 84）），缓存 4 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,0) → 25 个（候选 109（未观察 0 / 已确认 0 / 当前缺失 109）），缓存 5 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 23 个（候选 132（未观察 0 / 已确认 0 / 当前缺失 132）），缓存 6 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,1) → 25 个（候选 157（未观察 0 / 已确认 0 / 当前缺失 157）），缓存 7 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-1) → 20 个（候选 177（未观察 0 / 已确认 0 / 当前缺失 177）），缓存 8 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,1) → 23 个（候选 200（未观察 0 / 已确认 0 / 当前缺失 200）），缓存 9 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,0) → 16 个（候选 216（未观察 0 / 已确认 0 / 当前缺失 216）），缓存 10 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 15 个（候选 231（未观察 0 / 已确认 0 / 当前缺失 231）），缓存 11 个区块 / 上限 256
+[17:02:26] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,2) → 26 个（候选 257（未观察 0 / 已确认 0 / 当前缺失 257）），缓存 12 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,0) → 30 个（候选 287（未观察 0 / 已确认 0 / 当前缺失 287）），缓存 13 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 24 个（候选 311（未观察 0 / 已确认 0 / 当前缺失 311）），缓存 14 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,1) → 15 个（候选 326（未观察 0 / 已确认 0 / 当前缺失 326）），缓存 15 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 24 个（候选 350（未观察 0 / 已确认 0 / 当前缺失 350）），缓存 16 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,2) → 28 个（候选 378（未观察 0 / 已确认 0 / 当前缺失 378）），缓存 17 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-2) → 22 个（候选 400（未观察 0 / 已确认 0 / 当前缺失 400）），缓存 18 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,2) → 27 个（候选 427（未观察 0 / 已确认 0 / 当前缺失 427）），缓存 19 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-1) → 50 个（候选 477（未观察 0 / 已确认 0 / 当前缺失 477）），缓存 20 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,1) → 26 个（候选 503（未观察 0 / 已确认 0 / 当前缺失 503）），缓存 21 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 24 个（候选 527（未观察 0 / 已确认 0 / 当前缺失 527）），缓存 22 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,2) → 19 个（候选 546（未观察 0 / 已确认 0 / 当前缺失 546）），缓存 23 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-2) → 26 个（候选 572（未观察 0 / 已确认 0 / 当前缺失 572）），缓存 24 个区块 / 上限 256
+[17:02:27] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,2) → 16 个（候选 588（未观察 0 / 已确认 0 / 当前缺失 588）），缓存 25 个区块 / 上限 256
+[17:02:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,0) → 17 个（候选 605（未观察 0 / 已确认 0 / 当前缺失 605）），缓存 26 个区块 / 上限 256
+[17:02:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 21 个（候选 626（未观察 0 / 已确认 0 / 当前缺失 626）），缓存 27 个区块 / 上限 256
+[17:02:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,3) → 25 个（候选 651（未观察 0 / 已确认 0 / 当前缺失 651）），缓存 28 个区块 / 上限 256
+[17:02:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,0) → 49 个（候选 700（未观察 0 / 已确认 0 / 当前缺失 700）），缓存 29 个区块 / 上限 256
+[17:02:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 29 个（候选 729（未观察 0 / 已确认 0 / 当前缺失 729）），缓存 30 个区块 / 上限 256
+[17:02:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,1) → 27 个（候选 756（未观察 0 / 已确认 0 / 当前缺失 756）），缓存 31 个区块 / 上限 256
+[17:02:28] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 17 个（候选 773（未观察 0 / 已确认 0 / 当前缺失 773）），缓存 32 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,3) → 28 个（候选 801（未观察 0 / 已确认 0 / 当前缺失 801）），缓存 33 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-3) → 26 个（候选 827（未观察 0 / 已确认 0 / 当前缺失 827）），缓存 34 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,3) → 17 个（候选 844（未观察 0 / 已确认 0 / 当前缺失 844）），缓存 35 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-1) → 36 个（候选 880（未观察 0 / 已确认 0 / 当前缺失 880）），缓存 36 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,1) → 22 个（候选 902（未观察 0 / 已确认 0 / 当前缺失 902）），缓存 37 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 21 个（候选 923（未观察 0 / 已确认 0 / 当前缺失 923）），缓存 38 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,2) → 16 个（候选 939（未观察 0 / 已确认 0 / 当前缺失 939）），缓存 39 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 24 个（候选 963（未观察 0 / 已确认 0 / 当前缺失 963）），缓存 40 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,3) → 17 个（候选 980（未观察 0 / 已确认 0 / 当前缺失 980）），缓存 41 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-3) → 33 个（候选 1013（未观察 0 / 已确认 0 / 当前缺失 1013）），缓存 42 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,3) → 30 个（候选 1043（未观察 0 / 已确认 0 / 当前缺失 1043）），缓存 43 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-2) → 14 个（候选 1057（未观察 0 / 已确认 0 / 当前缺失 1057）），缓存 44 个区块 / 上限 256
+[17:02:29] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,2) → 25 个（候选 1082（未观察 0 / 已确认 0 / 当前缺失 1082）），缓存 45 个区块 / 上限 256
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 37 个（候选 1119（未观察 0 / 已确认 0 / 当前缺失 1119）），缓存 46 个区块 / 上限 256
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,3) → 37 个（候选 1156（未观察 0 / 已确认 0 / 当前缺失 1156）），缓存 47 个区块 / 上限 256
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-3) → 18 个（候选 1174（未观察 0 / 已确认 0 / 当前缺失 1174）），缓存 48 个区块 / 上限 256
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,3) → 27 个（候选 1201（未观察 0 / 已确认 0 / 当前缺失 1201）），缓存 49 个区块 / 上限 256
+[17:02:30] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子证据 #2 → 客户端种子 2：状态「证据不足」，候选 1201 个 / 已观察 319 组 / 曾经确认 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%；有效样本区块 49；当前确认候选 0 / 缺失 1201（已观察 319 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[17:02:30] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子用例 —— 客户端种子改为 0（服务器世界种子仍是 20260922），等待样本积累
+[17:02:30] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话 s3-2 已关闭（Worker 侧离线世界缓存已释放）
+[17:02:30] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25567 / 种子 0 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #4），预测缓存与渲染层已就绪
+[17:02:30] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s4-0（种子 0，维度 minecraft:overworld）
+[17:02:31] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,0) → 25 个（候选 25（未观察 0 / 已确认 0 / 当前缺失 25）），缓存 1 个区块 / 上限 256
+[17:02:31] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 7 组独立样本（独立确认 0 组），尚不足以给出结论）
+[17:02:31] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,0) → 17 个（候选 42（未观察 0 / 已确认 0 / 当前缺失 42）），缓存 2 个区块 / 上限 256
+[17:02:31] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 12 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 31 个（候选 73（未观察 0 / 已确认 0 / 当前缺失 73）），缓存 3 个区块 / 上限 256
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,1) → 34 个（候选 107（未观察 0 / 已确认 0 / 当前缺失 107）），缓存 4 个区块 / 上限 256
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,0) → 22 个（候选 129（未观察 0 / 已确认 0 / 当前缺失 129）），缓存 5 个区块 / 上限 256
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 11 个（候选 140（未观察 0 / 已确认 0 / 当前缺失 140）），缓存 6 个区块 / 上限 256
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,1) → 22 个（候选 162（未观察 0 / 已确认 0 / 当前缺失 162）），缓存 7 个区块 / 上限 256
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-1) → 29 个（候选 191（未观察 0 / 已确认 0 / 当前缺失 191）），缓存 8 个区块 / 上限 256
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,1) → 41 个（候选 232（未观察 0 / 已确认 0 / 当前缺失 232）），缓存 9 个区块 / 上限 256
+[17:02:32] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,0) → 20 个（候选 252（未观察 0 / 已确认 0 / 当前缺失 252）），缓存 10 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 23 个（候选 275（未观察 0 / 已确认 0 / 当前缺失 275）），缓存 11 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,2) → 20 个（候选 295（未观察 0 / 已确认 0 / 当前缺失 295）），缓存 12 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,0) → 18 个（候选 313（未观察 0 / 已确认 0 / 当前缺失 313）），缓存 13 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 27 个（候选 340（未观察 0 / 已确认 0 / 当前缺失 340）），缓存 14 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,1) → 15 个（候选 355（未观察 0 / 已确认 0 / 当前缺失 355）），缓存 15 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 18 个（候选 373（未观察 0 / 已确认 0 / 当前缺失 373）），缓存 16 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,2) → 31 个（候选 404（未观察 0 / 已确认 1 / 当前缺失 403）），缓存 17 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-2) → 28 个（候选 432（未观察 0 / 已确认 1 / 当前缺失 431）），缓存 18 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,2) → 29 个（候选 461（未观察 0 / 已确认 1 / 当前缺失 460）），缓存 19 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-1) → 30 个（候选 491（未观察 0 / 已确认 1 / 当前缺失 490）），缓存 20 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,1) → 22 个（候选 513（未观察 0 / 已确认 1 / 当前缺失 512）），缓存 21 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 24 个（候选 537（未观察 0 / 已确认 1 / 当前缺失 536）），缓存 22 个区块 / 上限 256
+[17:02:33] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,2) → 27 个（候选 564（未观察 0 / 已确认 1 / 当前缺失 563）），缓存 23 个区块 / 上限 256
+[17:02:34] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-2) → 34 个（候选 598（未观察 0 / 已确认 2 / 当前缺失 596）），缓存 24 个区块 / 上限 256
+[17:02:34] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,2) → 36 个（候选 634（未观察 0 / 已确认 2 / 当前缺失 632）），缓存 25 个区块 / 上限 256
+[17:02:34] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,0) → 24 个（候选 658（未观察 0 / 已确认 2 / 当前缺失 656）），缓存 26 个区块 / 上限 256
+[17:02:34] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 23 个（候选 681（未观察 0 / 已确认 2 / 当前缺失 679）），缓存 27 个区块 / 上限 256
+[17:02:34] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,3) → 31 个（候选 712（未观察 0 / 已确认 2 / 当前缺失 710）），缓存 28 个区块 / 上限 256
+[17:02:34] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,0) → 41 个（候选 753（未观察 0 / 已确认 3 / 当前缺失 750）），缓存 29 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 32 个（候选 785（未观察 0 / 已确认 3 / 当前缺失 782）），缓存 30 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,1) → 38 个（候选 823（未观察 0 / 已确认 3 / 当前缺失 820）），缓存 31 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 12 个（候选 835（未观察 0 / 已确认 3 / 当前缺失 832）），缓存 32 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,3) → 26 个（候选 861（未观察 0 / 已确认 3 / 当前缺失 858）），缓存 33 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-3) → 26 个（候选 887（未观察 0 / 已确认 3 / 当前缺失 884）），缓存 34 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,3) → 45 个（候选 932（未观察 0 / 已确认 3 / 当前缺失 929）），缓存 35 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-1) → 30 个（候选 962（未观察 0 / 已确认 3 / 当前缺失 959）），缓存 36 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,1) → 30 个（候选 992（未观察 0 / 已确认 3 / 当前缺失 989）），缓存 37 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 30 个（候选 1022（未观察 0 / 已确认 3 / 当前缺失 1019）），缓存 38 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,2) → 21 个（候选 1043（未观察 0 / 已确认 3 / 当前缺失 1040）），缓存 39 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 21 个（候选 1064（未观察 0 / 已确认 3 / 当前缺失 1061）），缓存 40 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,3) → 22 个（候选 1086（未观察 0 / 已确认 3 / 当前缺失 1083）），缓存 41 个区块 / 上限 256
+[17:02:35] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-3) → 30 个（候选 1116（未观察 0 / 已确认 3 / 当前缺失 1113）），缓存 42 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,3) → 20 个（候选 1136（未观察 0 / 已确认 3 / 当前缺失 1133）），缓存 43 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-2) → 29 个（候选 1165（未观察 0 / 已确认 3 / 当前缺失 1162）），缓存 44 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,2) → 13 个（候选 1178（未观察 0 / 已确认 3 / 当前缺失 1175）），缓存 45 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 8 个（候选 1186（未观察 0 / 已确认 3 / 当前缺失 1183）），缓存 46 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,3) → 26 个（候选 1212（未观察 0 / 已确认 3 / 当前缺失 1209）），缓存 47 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-3) → 19 个（候选 1231（未观察 0 / 已确认 3 / 当前缺失 1228）），缓存 48 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,3) → 31 个（候选 1262（未观察 0 / 已确认 3 / 当前缺失 1259）），缓存 49 个区块 / 上限 256
+[17:02:36] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子证据 #3 → 客户端种子 0：状态「证据不足」，候选 1262 个 / 已观察 321 组 / 曾经确认 3 组 / 覆盖 3 个目标区块 / 解释比例 0.93%；有效样本区块 49；当前确认候选 3 / 缺失 1259（已观察 321 组，但独立确认样本 3 组 / 覆盖 3 个目标区块 / 解释比例 0.93%，未达到验证阈值）
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[17:02:36] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子用例 —— 客户端种子改为 -7777（服务器世界种子仍是 20260922），等待样本积累
+[17:02:36] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话 s4-0 已关闭（Worker 侧离线世界缓存已释放）
+[17:02:36] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25567 / 种子 -7777 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #5），预测缓存与渲染层已就绪
+[17:02:36] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s5-ffffffffffffe19f（种子 -7777，维度 minecraft:overworld）
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,0) → 20 个（候选 20（未观察 0 / 已确认 0 / 当前缺失 20）），缓存 1 个区块 / 上限 256
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 5 组独立样本（独立确认 0 组），尚不足以给出结论）
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,0) → 32 个（候选 52（未观察 0 / 已确认 0 / 当前缺失 52）），缓存 2 个区块 / 上限 256
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 13 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 31 个（候选 83（未观察 0 / 已确认 0 / 当前缺失 83）），缓存 3 个区块 / 上限 256
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,1) → 24 个（候选 107（未观察 0 / 已确认 0 / 当前缺失 107）），缓存 4 个区块 / 上限 256
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,0) → 34 个（候选 141（未观察 0 / 已确认 0 / 当前缺失 141）），缓存 5 个区块 / 上限 256
+[17:02:38] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 13 个（候选 154（未观察 0 / 已确认 0 / 当前缺失 154）），缓存 6 个区块 / 上限 256
+[17:02:39] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,1) → 33 个（候选 187（未观察 0 / 已确认 0 / 当前缺失 187）），缓存 7 个区块 / 上限 256
+[17:02:39] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-1) → 27 个（候选 214（未观察 0 / 已确认 0 / 当前缺失 214）），缓存 8 个区块 / 上限 256
+[17:02:39] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,1) → 22 个（候选 236（未观察 0 / 已确认 0 / 当前缺失 236）），缓存 9 个区块 / 上限 256
+[17:02:39] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,0) → 24 个（候选 260（未观察 0 / 已确认 0 / 当前缺失 260）），缓存 10 个区块 / 上限 256
+[17:02:39] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 34 个（候选 294（未观察 0 / 已确认 0 / 当前缺失 294）），缓存 11 个区块 / 上限 256
+[17:02:39] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,2) → 30 个（候选 324（未观察 0 / 已确认 0 / 当前缺失 324）），缓存 12 个区块 / 上限 256
+[17:02:39] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,0) → 26 个（候选 350（未观察 0 / 已确认 0 / 当前缺失 350）），缓存 13 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 24 个（候选 374（未观察 0 / 已确认 0 / 当前缺失 374）），缓存 14 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,1) → 48 个（候选 422（未观察 0 / 已确认 0 / 当前缺失 422）），缓存 15 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 36 个（候选 458（未观察 0 / 已确认 0 / 当前缺失 458）），缓存 16 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,2) → 48 个（候选 506（未观察 0 / 已确认 0 / 当前缺失 506）），缓存 17 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-2) → 20 个（候选 526（未观察 0 / 已确认 0 / 当前缺失 526）），缓存 18 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,2) → 26 个（候选 552（未观察 0 / 已确认 0 / 当前缺失 552）），缓存 19 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-1) → 16 个（候选 568（未观察 0 / 已确认 0 / 当前缺失 568）），缓存 20 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,1) → 35 个（候选 603（未观察 0 / 已确认 0 / 当前缺失 603）），缓存 21 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 33 个（候选 636（未观察 0 / 已确认 0 / 当前缺失 636）），缓存 22 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,2) → 29 个（候选 665（未观察 0 / 已确认 0 / 当前缺失 665）），缓存 23 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-2) → 30 个（候选 695（未观察 0 / 已确认 0 / 当前缺失 695）），缓存 24 个区块 / 上限 256
+[17:02:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,2) → 17 个（候选 712（未观察 0 / 已确认 0 / 当前缺失 712）），缓存 25 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,0) → 16 个（候选 728（未观察 0 / 已确认 0 / 当前缺失 728）），缓存 26 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 25 个（候选 753（未观察 0 / 已确认 0 / 当前缺失 753）），缓存 27 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,3) → 17 个（候选 770（未观察 0 / 已确认 0 / 当前缺失 770）），缓存 28 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,0) → 14 个（候选 784（未观察 0 / 已确认 0 / 当前缺失 784）），缓存 29 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 11 个（候选 795（未观察 0 / 已确认 0 / 当前缺失 795）），缓存 30 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,1) → 31 个（候选 826（未观察 0 / 已确认 0 / 当前缺失 826）），缓存 31 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 22 个（候选 848（未观察 0 / 已确认 0 / 当前缺失 848）），缓存 32 个区块 / 上限 256
+[17:02:41] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,3) → 26 个（候选 874（未观察 0 / 已确认 0 / 当前缺失 874）），缓存 33 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,-3) → 21 个（候选 895（未观察 0 / 已确认 0 / 当前缺失 895）），缓存 34 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,3) → 14 个（候选 909（未观察 0 / 已确认 0 / 当前缺失 909）），缓存 35 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-1) → 21 个（候选 930（未观察 0 / 已确认 0 / 当前缺失 930）），缓存 36 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,1) → 27 个（候选 957（未观察 0 / 已确认 0 / 当前缺失 957）），缓存 37 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 19 个（候选 976（未观察 0 / 已确认 0 / 当前缺失 976）），缓存 38 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,2) → 28 个（候选 1004（未观察 0 / 已确认 0 / 当前缺失 1004）），缓存 39 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 19 个（候选 1023（未观察 0 / 已确认 0 / 当前缺失 1023）），缓存 40 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-3,3) → 29 个（候选 1052（未观察 0 / 已确认 0 / 当前缺失 1052）），缓存 41 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,-3) → 22 个（候选 1074（未观察 0 / 已确认 0 / 当前缺失 1074）），缓存 42 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (1,3) → 24 个（候选 1098（未观察 0 / 已确认 0 / 当前缺失 1098）），缓存 43 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-2) → 21 个（候选 1119（未观察 0 / 已确认 0 / 当前缺失 1119）），缓存 44 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,2) → 31 个（候选 1150（未观察 0 / 已确认 0 / 当前缺失 1150）），缓存 45 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 6 个（候选 1156（未观察 0 / 已确认 0 / 当前缺失 1156）），缓存 46 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-4,3) → 30 个（候选 1186（未观察 0 / 已确认 0 / 当前缺失 1186）），缓存 47 个区块 / 上限 256
+[17:02:42] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,-3) → 38 个（候选 1224（未观察 0 / 已确认 0 / 当前缺失 1224）），缓存 48 个区块 / 上限 256
+[17:02:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (2,3) → 21 个（候选 1245（未观察 0 / 已确认 0 / 当前缺失 1245）），缓存 49 个区块 / 上限 256
+[17:02:43] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子证据 #4 → 客户端种子 -7777：状态「证据不足」，候选 1245 个 / 已观察 314 组 / 曾经确认 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%；有效样本区块 49；当前确认候选 0 / 缺失 1245（已观察 314 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[17:02:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[17:02:43] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子矩阵跑完，客户端种子改回正确值 20260922，等待它重新进入「已验证」（换服清理用例要求 A 侧此刻确实是已验证）
+[17:02:43] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话 s5-ffffffffffffe19f 已关闭（Worker 侧离线世界缓存已释放）
+[17:02:43] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25567 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #6），预测缓存与渲染层已就绪
+[17:02:43] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s6-135283a（种子 20260922，维度 minecraft:overworld）
+[17:02:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,0) → 22 个（候选 22（未观察 0 / 已确认 14 / 当前缺失 8）），缓存 1 个区块 / 上限 256
+[17:02:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 7 组独立样本（独立确认 6 组），尚不足以给出结论）
+[17:02:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-2,0) → 25 个（候选 47（未观察 0 / 已确认 27 / 当前缺失 20）），缓存 2 个区块 / 上限 256
+[17:02:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 15 组，但独立确认样本 12 组 / 覆盖 2 个目标区块 / 解释比例 80.00%，未达到验证阈值）
+[17:02:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 21 个（候选 68（未观察 0 / 已确认 39 / 当前缺失 29）），缓存 3 个区块 / 上限 256
+[17:02:44] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 证据不足 → 已验证（已验证（锁存）：本次会话曾经满足全部验证阈值（独立确认样本 16 组（阈值 8），覆盖 3 个目标区块（阈值 3），解释比例 84.21%（阈值 50.00%）））
+[17:02:44] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：恢复证据 → 种子改回 20260922 后重新「已验证」：独立确认样本 16 组 / 覆盖 3 个目标区块 / 已观察 19 组 / 解释比例 84.21%；当前已确认候选 39 / 缺失 29（此前已被移除约 40% 的矿）
+[17:02:44] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：A 侧验证基线 —— 状态「已验证」，证据 68 条（种子 20260922）
+[17:02:45] [Render thread/WARN] (Minecraft) Client disconnected with reason: 234 换服用例：主动断开 A
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：退出世界）→ 状态回到「未验证」
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：退出世界）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：停止本地世界生成计算器（原因：退出世界）
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：已离开世界，计算结果已清除、计算器已停止（配置保留）
+[17:02:45] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：已断开 A，发起连接 B（127.0.0.1:25566）
+[17:02:45] [Render thread/INFO] (Minecraft) Connecting to 127.0.0.1, 25566
+[17:02:45] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：已发送停机指令（PID 8324）
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测 区块 (-1,1) 返回时身份已变，结果丢弃
+[17:02:45] [Render thread/INFO] (Minecraft) [STDOUT]: World seems to be a replay. Not loading Baritone cache.
+[17:02:45] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Started saving the world in a new thread
+[17:02:45] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: World save took 0ms
+[17:02:45] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Retrying to load Baritone cache
+[17:02:45] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Baritone world data dir: D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384
+[17:02:45] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Cached world directory: D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:45] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Would save waypoints to D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\waypoints
+[17:02:45] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[发包防踢]§r§l§f进服伪装自检：\n§8├─ §f客户端名 §8▸ §a§lvanilla§r§f§l\n§8├─ §fMod通信 §8▸ §a§l拦截中§r§f§l\n§8├─ §f假潜行 §8▸ §a§l拦截中§r§f§l\n§8└─ §f假疾跑 §8▸ §a§l拦截中§r§f§l
+[17:02:45] [Render thread/INFO] (Minecraft) Loaded 39 advancements
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loading region 0,0 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 12ms
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loading region -1,0 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:45] [Render thread/INFO] (yiyiaddon/stardew) [星露谷] 界面观察：LevelLoadingScreen —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：配置作用域切换为 server_127.0.0.1_25566
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[17:02:45] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：清理证据 #2（换服务器）→ 已进入 B（127.0.0.1:25566）：验证状态「未验证」，证据 0 条（A 侧基线「已验证」/ 68 条），AutoMiner 门 = false
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：显示预测钻石改为 开
+[17:02:45] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25566 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #8），预测缓存与渲染层已就绪
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 10ms
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loading region 0,-1 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 10ms
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loading region -1,-1 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:45] [Baritone-Worker-4/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 9ms
+[17:02:45] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[服务器检测]§r§l§f§b§l━━ 服务端侦测报告 ━━§r\n§7服务器核心 §8▸ §6§lFabric§r§f§l\n§7反作弊   §8▸ §a§l未发现指纹§r§f§l §8（不等于没有）
+[17:02:45] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：本地世界生成计算器已停止（PID 8324，退出码 0）
+[17:02:45] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：正在启动本地世界生成计算器（第 2 次，版本 26.1.2，模组 1.0-beta2）
+[17:02:45] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 本地世界生成计算器已拉起：PID 33120，运行目录 D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\yiyiaddon\seed-worker\26.1.2，日志 D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\yiyiaddon\seed-worker\26.1.2\seed-worker-26.1.2.log，宿主端口 58498
+[17:02:47] [Render thread/WARN] (Minecraft) Unable to play empty soundEvent: minecraft:entity.cod.ambient
+[17:02:49] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：已就绪（PID 33120，协议 1，Minecraft 26.1.2，模组 1.0-beta2，耗时 4215 ms，宿主监听 已停用（不接受任何外部连接））
+[17:02:49] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s1-135283a（种子 20260922，维度 minecraft:overworld）
+[17:02:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,0) → 45 个（候选 45（未观察 0 / 已确认 0 / 当前缺失 45）），缓存 1 个区块 / 上限 256
+[17:02:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 证据不足（已观察 9 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:51] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：B 侧已重新收集到验证证据：状态「证据不足」，已观察 9 组 / 曾经确认 0 组 / 覆盖 0 个目标区块（接下来跑换维度清理）
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Started saving the world in a new thread
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Saving region -1,0 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:51] [ForkJoinPool.commonPool-worker-1/INFO] (Minecraft) [STDOUT]: Saving region 0,-1 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:51] [ForkJoinPool.commonPool-worker-3/INFO] (Minecraft) [STDOUT]: Saving region 0,0 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:51] [ForkJoinPool.commonPool-worker-2/INFO] (Minecraft) [STDOUT]: Saving region -1,-1 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384\cache
+[17:02:51] [Render thread/INFO] (Minecraft) [STDOUT]: Baritone world data dir: D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128
+[17:02:51] [Render thread/INFO] (Minecraft) [STDOUT]: Cached world directory: D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [Render thread/INFO] (Minecraft) [STDOUT]: Would save waypoints to D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\waypoints
+[17:02:51] [ForkJoinPool.commonPool-worker-2/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [ForkJoinPool.commonPool-worker-1/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [ForkJoinPool.commonPool-worker-3/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: World save took 23ms
+[17:02:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported yiyijia to 0.500000, 70.000000, 0.500000
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loading region 0,0 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 1ms
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loading region -1,0 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 0ms
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loading region 0,-1 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 1ms
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loading region -1,-1 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [Baritone-Worker-6/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 1ms
+[17:02:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：进入世界 / 换服）→ 状态回到「未验证」
+[17:02:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：进入世界 / 换服）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：进入世界 维度=minecraft:the_nether（世界生成宿主由本地隔离计算器提供）
+[17:02:51] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：清理证据 #3（换维度）→ 下界中：验证状态「未验证」，证据 0 条，身份 未建立
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Started saving the world in a new thread
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Saving region -1,0 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [ForkJoinPool.commonPool-worker-3/INFO] (Minecraft) [STDOUT]: Saving region 0,-1 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [ForkJoinPool.commonPool-worker-1/INFO] (Minecraft) [STDOUT]: Saving region 0,0 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [ForkJoinPool.commonPool-worker-2/INFO] (Minecraft) [STDOUT]: Saving region -1,-1 to disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\the_nether_128\cache
+[17:02:51] [Render thread/INFO] (Minecraft) [STDOUT]: Baritone world data dir: D:\mcaddon\yiyiaddon\run-26.1.2-seed-validation-test\baritone\127.0.0.1_25566\minecraft\overworld_384
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported yiyijia to 0.500000, 100.000000, 0.500000
+[17:02:51] [ForkJoinPool.commonPool-worker-2/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [ForkJoinPool.commonPool-worker-1/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [ForkJoinPool.commonPool-worker-3/INFO] (Minecraft) [STDOUT]: Saved region successfully
+[17:02:51] [Baritone-Worker-3/INFO] (Minecraft) [STDOUT]: World save took 6ms
+[17:02:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[17:02:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25566 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #10），预测缓存与渲染层已就绪
+[17:02:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测 区块 (-1,0) 返回时身份已变，结果丢弃
+[17:02:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (0,0) → 45 个（候选 45（未观察 0 / 已确认 0 / 当前缺失 45）），缓存 1 个区块 / 上限 256
+[17:02:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证状态 未验证 → 证据不足（已观察 9 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：清理证据 #4（回主世界重建）→ 验证已重新开始收集：状态「证据不足」，已观察 9 组 / 曾经确认 0 组（种子 20260922）
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：====== 结果汇总 ======
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：已验证证据 1 条 / 被挖矿容错证据 2 条 / 策略合成用例 3 条 / 错误种子证据 4 条 / 清理证据 4 条
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：错误种子矩阵 [12345, 2, 0, -7777] 全部未通过验证：是
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：可疑语义 自动可疑判定保持禁用：只有先证明「当前候选宇宙覆盖了全部合法世界生成调度可能产生的钻石坐标」，才有资格判定某位置「不该出现钻石」。合法 FEATURES 顺序本身就会改变同一位置的最终结果，因此调度敏感候选永远不能当作可疑证据。
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：硬冲突判据 硬冲突判据不可达：硬冲突判据只接受「确定性（DETERMINISTIC）候选与实际方块不符」，而本阶段正式预测器不产出确定性候选（恒为 0）：合法 FEATURES 调度顺序本身就会改变同一位置最终是否为钻石，因此调度敏感候选永远不能当作冲突证据。证明不了安全，就不产出冲突结论。
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：最终读数 缓存目标区块 1 / 上限 256，累计淘汰 0，身份 世界 127.0.0.1:25566 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #10；覆盖半径 3（目标 49 个），中心 0,0，在跑 -1, 0，排队 47，累计提交 253 / 完成 250（移动丢弃排队 0，失败不再重试 0）；观察 候选 45（未观察 0 / 已确认 0 / 当前缺失 45）；已登记区块 1，绑定世界 有；渲染 目标区块 1 / 候选 45（未观察 0 / 已确认 0 / 当前缺失 45 / 调度敏感 0）；验证「证据不足」：独立样本组 9（曾经确认 0 组 / 覆盖 0 个目标区块 / 已观察 9 组 / 解释比例 0.00%）；有效样本区块 1；当前已确认候选 0 / 缺失 45；证据 45 条，身份 世界 127.0.0.1:25566 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #10，锁存 未锁定
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：全部判定：通过
+[17:02:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：显示预测钻石改为 关
+[17:02:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜验证：验证已清空（原因：已关闭显示预测钻石）→ 状态回到「未验证」
+[17:02:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：已关闭显示预测钻石）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 234验证回归：已关闭显示预测钻石；缓存 0 个区块，验证证据 0 条
+[17:02:52] [Render thread/INFO] (yiyiaddon/seedpoc) 种子挖矿PoC：按系统属性要求退出客户端
+[17:02:52] [Render thread/INFO] (Minecraft) Stopping!
+[17:02:52] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[发包防踢]§r§l§f§6§l§c存活不到 1 分钟，可能被踢了
+[17:02:52] [yiyiaddon-seed-calculator-shutdown/INFO] (yiyiaddon/seed) 种子挖矿：客户端正在退出，开始回收本地世界生成计算器

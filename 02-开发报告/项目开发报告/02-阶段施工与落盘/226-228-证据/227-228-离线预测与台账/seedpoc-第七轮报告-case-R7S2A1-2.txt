@@ -1,0 +1,183 @@
+目标 (-400,380)：真值 22 / 重放A(观测顺序) 22 / 重放B(反事实) 23；真值 vs 重放A：完全一致；重放A vs 重放B：真值 22 / 预测 23 / 匹配 22 / 漏报 0 / 错报 1 / 查全 100.00% / 查准 95.65%
+请求顺序：(-400,380)＝目标
+新鲜度：驱动开始时目标 3x3 未生成=true；目标区 region 文件存在=false
+真实装饰批号（本台账自记，越小越先进入 decoration）：(-401,379)=1、(-401,380)=2、(-401,381)=3、(-400,379)=4、(-400,380)=5、(-400,381)=6、(-399,379)=7、(-399,380)=8、(-399,381)=9
+真实最终钻石：22 格
+FEATURES 逐格写入台账：真实侧 4224 条（全局写序号到 4224）；按 viewer：(-401,380)×31、(-401,381)×4、(-400,379)×3、(-400,380)×422
+  同格冲突位置合计：60 个（两次以上「真正改变了值」的写入碰过同一格）；其中「最终状态 = 最后一次写的后置状态」60 / 60
+  冲突位置 (-6396,12,6084)：
+    #2691 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2744 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2744 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6395,12,6080)：
+    #2694 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2751 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2751 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6395,12,6081)：
+    #2695 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2752 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2752 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6395,12,6082)：
+    #2696 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2753 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2753 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6395,12,6084)：
+    #2698 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2754 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2754 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6395,12,6085)：
+    #2699 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2755 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2755 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,12,6084)：
+    #2705 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2746 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2746 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6396,13,6084)：
+    #2712 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2745 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2745 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,13,6084)：
+    #2726 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2747 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2747 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,14,6084)：
+    #2742 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2750 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2750 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6396,13,6093)：
+    #2757 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2837 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2837 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6396,13,6095)：
+    #2759 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2840 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2840 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,13,6093)：
+    #2765 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2843 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2843 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,13,6095)：
+    #2767 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2846 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2846 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6396,14,6093)：
+    #2769 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2838 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2838 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6396,14,6095)：
+    #2771 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2841 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2841 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,14,6093)：
+    #2777 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2844 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2844 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,14,6095)：
+    #2779 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2847 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2847 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6396,15,6093)：
+    #2781 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2839 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2839 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6396,15,6095)：
+    #2783 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2842 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2842 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,15,6093)：
+    #2789 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2845 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2845 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6394,15,6095)：
+    #2791 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2848 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2848 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6400,13,6093)：
+    #2851 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2873 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2873 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6398,13,6094)：
+    #2852 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2880 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2880 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6399,13,6094)：
+    #2853 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2881 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2881 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6400,13,6094)：
+    #2854 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2882 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → rail
+    FINAL：rail（= 最后一次写 #2882 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6400,13,6095)：
+    #2857 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2875 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2875 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6400,14,6093)：
+    #2860 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2874 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2874 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6400,14,6095)：
+    #2866 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2876 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2876 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6400,15,6093)：
+    #2868 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2877 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2877 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6400,15,6095)：
+    #2872 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2879 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2879 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6390,13,6093)：
+    #2885 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2953 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2953 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,13,6093)：
+    #2890 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2960 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2960 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6390,13,6095)：
+    #2901 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2955 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2955 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,13,6095)：
+    #2906 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2962 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2962 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6390,14,6093)：
+    #2909 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2954 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2954 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,14,6093)：
+    #2914 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2961 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2961 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6390,14,6095)：
+    #2925 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2956 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2956 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6385,14,6095)：
+    #2930 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2963 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_fence
+    FINAL：oak_fence（= 最后一次写 #2963 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6390,15,6093)：
+    #2933 viewer(-400,380) 未在placed_feature上下文中 批5 stone → cave_air
+    #2957 viewer(-400,380) 未在placed_feature上下文中 批5 cave_air → oak_planks
+    FINAL：oak_planks（= 最后一次写 #2957 的后置状态，最后写者决定最终方块）
+  （冲突位置过多，只列前 40 个；完整清单见落盘的 journal 文件）
+OreFeature 候选点真实侧：1080119 条
+重放 A（观测顺序）：h=7a80b80 n=22；顺序 (-401,379) → (-401,380) → (-401,381) → (-400,379) → (-400,380) → (-400,381) → (-399,379) → (-399,380) → (-399,381)
+  候选点逐项比对：可配对 0 条；出现差异 0 条；其中「累计消耗随机序号已偏移」0 条
+  （没有可配对的候选点：说明两侧的矿脉/候选序列本身就对不上，此时不能声称「随机流漂移」，只能声称「矿脉几何不同」）
+重放 B（反事实：观测顺序整体倒序）：h=80125ef n=23；顺序 (-399,381) → (-399,380) → (-399,379) → (-400,381) → (-400,380) → (-400,379) → (-401,381) → (-401,380) → (-401,379)
+对照① 真值 vs 重放 A（观测顺序）：真值 22 / 预测 22 / 匹配 22 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 观测顺序重放复现了真实集合
+对照② 重放 A vs 重放 B（只差执行先后）：真值 22 / 预测 23 / 匹配 22 / 漏报 0 / 错报 1 / 查全 100.00% / 查准 95.65% → **仅改变合法 FEATURES 执行先后就改变了最终钻石集合**（因果证据）
+  差集样本（重放 A 有 / 重放 B 无）：无
+  差集样本（重放 B 有 / 重放 A 无）：(-6385,-59,6085)
+  差异格 (-6385,-59,6085)：
+    重放A（观测顺序）：（无写入记录）
+    重放B（反事实顺序）：（无写入记录）
+    真实世界：（无写入记录）
+【汇总】目标 1 个（重放=观测顺序）：真值 22 / 预测 22 / 匹配 22 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00%
+END 阶段=case 标签=R7S2A1 耗时=4764 ms

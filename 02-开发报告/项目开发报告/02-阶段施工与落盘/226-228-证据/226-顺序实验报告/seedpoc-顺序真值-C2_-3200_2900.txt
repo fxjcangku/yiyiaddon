@@ -1,0 +1,155 @@
+# 种子挖矿 PoC 第五轮 · Chunk 生成顺序决定性实验 · 单次实验真值（机器可读，请勿手改）
+FORMAT 1
+SCENARIO C2
+SEED 20260922
+TARGET -3200 2900
+WORLD_NAME seedpoc-known-seed
+WORLD_PATH D:\mcaddon\yiyiaddon\run-26.1.2-seed-order-test\saves\seedpoc-known-seed
+WORLD_FRESH 1
+WORLD_NOTE #建世界前已删除上次实验存档并重建（全新 world / region / poi / entities）｜驱动开始时 saves 目录 region 文件数 21｜目标区 region 文件 r.-100.90.mca 存在=false｜level.dat 修改时间 2026-09-22T18:43:15.9930173Z
+TARGET_UNTOUCHED 1
+REGION_EXISTED_BEFORE 0
+MC_ID 26.1.2
+MC_NAME 26.1.2
+FABRIC_LOADER 0.19.5
+FABRIC_API 0.155.2+26.1.2
+JAVA 25.0.4.1
+MODS_HASH 3c9f3d95d6675b5c4e88aafc1eab1f353e94b0c7967609df9562049f3445aa73
+C2ME 0
+MODERNFIX 0
+MOD baritone@1.18.0
+MOD dev-auth-neo@1.1.1
+MOD dev_babbaj_nether-pathfinder@1.6
+MOD fabric-api@0.155.2+26.1.2
+MOD fabric-api-base@2.0.3+ece063234c
+MOD fabric-api-lookup-api-v1@2.0.12+d5a053b64c
+MOD fabric-biome-api-v1@18.0.5+2fa62b4e4c
+MOD fabric-block-api-v1@3.0.2+ec56b6014c
+MOD fabric-block-getter-api-v2@2.0.6+ec56b6014c
+MOD fabric-client-gametest-api-v1@5.1.0+0a5283664c
+MOD fabric-command-api-v2@3.0.5+e2bdee784c
+MOD fabric-content-registries-v0@11.3.0+0082c9664c
+MOD fabric-convention-tags-v2@4.6.2+4f11f7994c
+MOD fabric-crash-report-info-v1@1.0.3+9f78a5a84c
+MOD fabric-creative-tab-api-v1@5.0.11+d871b99e4c
+MOD fabric-data-attachment-api-v1@2.2.9+44a0bd1d4c
+MOD fabric-data-generation-api-v1@24.3.3+cda368334c
+MOD fabric-debug-api-v1@1.0.1+c792624d4c
+MOD fabric-dimensions-v1@5.1.7+ad343a8d4c
+MOD fabric-entity-events-v1@5.0.2+e2bdee784c
+MOD fabric-events-interaction-v0@5.2.2+07b380be4c
+MOD fabric-game-rule-api-v1@4.0.5+d871b99e4c
+MOD fabric-gametest-api-v1@4.0.17+867b87624c
+MOD fabric-item-api-v1@14.3.0+6d1aaa724c
+MOD fabric-key-mapping-api-v1@2.0.4+e2bdee784c
+MOD fabric-lifecycle-events-v1@4.1.1+df84eb3d4c
+MOD fabric-loot-api-v3@3.0.12+00a1fba64c
+MOD fabric-menu-api-v1@2.0.14+d871b99e4c
+MOD fabric-message-api-v1@7.0.5+dae8ce3e4c
+MOD fabric-model-loading-api-v1@8.0.11+c80601bb4c
+MOD fabric-networking-api-v1@6.3.1+554860db4c
+MOD fabric-object-builder-api-v1@23.1.0+abb459f14c
+MOD fabric-particles-v1@5.0.15+b61fef434c
+MOD fabric-permission-api-v1@1.0.2+7437387b4c
+MOD fabric-recipe-api-v1@9.0.16+be4b75ae4c
+MOD fabric-registry-sync-v0@7.1.0+2fa62b4e4c
+MOD fabric-renderer-api-v1@13.0.8+c80601bb4c
+MOD fabric-renderer-indigo@8.1.5+1403e82c4c
+MOD fabric-rendering-fluids-v1@6.0.1+d871b99e4c
+MOD fabric-rendering-v1@23.3.1+e9207d814c
+MOD fabric-resource-conditions-api-v1@6.1.0+83dd0ba34c
+MOD fabric-resource-loader-v0@3.3.17+4fc5413f4c
+MOD fabric-resource-loader-v1@2.0.10+7c44c7324c
+MOD fabric-screen-api-v1@5.1.0+981dd9b24c
+MOD fabric-serialization-api-v1@2.0.3+11a26f314c
+MOD fabric-sound-api-v1@2.0.4+11a26f314c
+MOD fabric-tag-api-v1@2.1.1+371cf5db4c
+MOD fabric-transfer-api-v1@8.0.6+357ea7334c
+MOD fabric-transitive-access-wideners-v1@8.1.3+3ff549fb4c
+MOD fabricloader@0.19.5
+MOD java@25
+MOD me_friwi_jcef-api@jcef-d3de827+cef-146.0.10+g8219561+chromium-146.0.7680.179
+MOD me_friwi_jcefmaven@146.0.10
+MOD minecraft@26.1.2
+MOD mixinextras@0.5.5
+MOD org_slf4j_jul-to-slf4j@2.0.18
+MOD yiyiaddon@1.0-beta2
+ORDER -3202 2900
+ORDER -3200 2900
+DECOR -1 -1 10
+DECOR -1 0 11
+DECOR -1 1 12
+DECOR 0 -1 13
+DECOR 0 0 14
+DECOR 0 1 15
+DECOR 1 -1 16
+DECOR 1 0 17
+DECOR 1 1 18
+STEP 1 -3202 2900 -1 0 367 -3201,2899:10;-3201,2900:11;-3201,2901:12
+STEP 2 -3200 2900 14 31 341 -3200,2899:13;-3200,2900:14;-3200,2901:15;-3199,2899:16;-3199,2900:17;-3199,2901:18
+D diamond_ore -51195 6 46409 2
+D diamond_ore -51194 5 46409 2
+D diamond_ore -51194 5 46410 2
+D deepslate_diamond_ore -51199 -51 46413 2
+D deepslate_diamond_ore -51199 -51 46414 2
+D deepslate_diamond_ore -51199 -50 46413 2
+D deepslate_diamond_ore -51199 -50 46414 2
+D deepslate_diamond_ore -51198 -51 46413 2
+D deepslate_diamond_ore -51198 -51 46414 2
+D deepslate_diamond_ore -51198 -50 46413 2
+D deepslate_diamond_ore -51198 -50 46414 2
+D deepslate_diamond_ore -51190 -59 46400 2
+D deepslate_diamond_ore -51190 -58 46400 2
+D deepslate_diamond_ore -51189 -49 46409 2
+D deepslate_diamond_ore -51189 -49 46410 2
+D deepslate_diamond_ore -51188 -55 46413 2
+D deepslate_diamond_ore -51188 -54 46413 2
+D deepslate_diamond_ore -51188 -49 46409 2
+D deepslate_diamond_ore -51187 -55 46412 2
+D deepslate_diamond_ore -51187 -54 46412 2
+D deepslate_diamond_ore -51187 -36 46408 2
+D deepslate_diamond_ore -51187 -34 46405 2
+D deepslate_diamond_ore -51187 -34 46406 2
+D deepslate_diamond_ore -51187 -33 46406 2
+D deepslate_diamond_ore -51186 -35 46405 2
+D deepslate_diamond_ore -51186 -34 46405 2
+D deepslate_diamond_ore -51186 -34 46406 2
+D deepslate_diamond_ore -51185 -46 46402 2
+D deepslate_diamond_ore -51185 -45 46401 2
+D deepslate_diamond_ore -51195 6 46410 2
+D deepslate_diamond_ore -51189 3 46411 2
+P -51187 -36 46408 -3200 2900 14 ore_diamond deepslate 1
+P -51194 5 46409 -3200 2900 14 ore_diamond stone 1
+P -51194 5 46410 -3200 2900 14 ore_diamond stone 1
+P -51195 6 46409 -3200 2900 14 ore_diamond stone 1
+P -51195 6 46410 -3200 2900 14 ore_diamond deepslate 1
+P -51190 -59 46400 -3200 2900 14 ore_diamond tuff 1
+P -51190 -58 46400 -3200 2900 14 ore_diamond tuff 1
+P -51189 3 46411 -3200 2900 14 ore_diamond deepslate 1
+P -51198 -51 46413 -3200 2900 14 ore_diamond_medium deepslate 1
+P -51198 -50 46413 -3200 2900 14 ore_diamond_medium deepslate 1
+P -51198 -51 46414 -3200 2900 14 ore_diamond_medium deepslate 1
+P -51198 -50 46414 -3200 2900 14 ore_diamond_medium tuff 1
+P -51199 -51 46413 -3200 2900 14 ore_diamond_medium tuff 1
+P -51199 -51 46414 -3200 2900 14 ore_diamond_medium tuff 1
+P -51199 -50 46413 -3200 2900 14 ore_diamond_medium tuff 1
+P -51199 -50 46414 -3200 2900 14 ore_diamond_medium tuff 1
+P -51188 -49 46409 -3200 2900 14 ore_diamond_medium deepslate 1
+P -51189 -49 46409 -3200 2900 14 ore_diamond_medium deepslate 1
+P -51189 -49 46410 -3200 2900 14 ore_diamond_medium deepslate 1
+P -51187 -55 46412 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51187 -54 46412 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51188 -55 46413 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51188 -54 46413 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51186 -35 46405 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51186 -34 46405 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51187 -34 46405 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51187 -34 46406 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51186 -34 46406 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51187 -33 46406 -3200 2900 14 ore_diamond_buried deepslate 1
+P -51185 -46 46402 -3199 2900 17 ore_diamond_buried deepslate 1
+P -51185 -45 46401 -3199 2900 17 ore_diamond_buried deepslate 1
+TOTAL_DIAMOND_ORE 3
+TOTAL_DEEPSLATE_DIAMOND_ORE 28
+TOTAL 31
+END

@@ -1,0 +1,762 @@
+目标 (0,0)：真值 38 / 重放A(观测顺序) 38 / 重放B(反事实) 31；真值 vs 重放A：完全一致；重放A vs 重放B：真值 38 / 预测 31 / 匹配 31 / 漏报 7 / 错报 0 / 查全 81.58% / 查准 100.00%
+请求顺序：(0,0)＝目标
+新鲜度：驱动开始时目标 3x3 未生成=true；目标区 region 文件存在=false
+真实装饰批号（本台账自记，越小越先进入 decoration）：(-1,-1)=1、(-1,0)=2、(-1,1)=3、(0,-1)=4、(0,0)=5、(0,1)=6、(1,-1)=7、(1,0)=8、(1,1)=9、(-1,-2)=10、(0,-2)=11、(-2,-2)=12、(-2,-1)=13、(-2,0)=14
+真实最终钻石：38 格
+FEATURES 逐格写入台账：目标区块内真实侧 7782 条（全进程全局写序号到 90872）；按 viewer：(-1,-1)×11、(-1,0)×243、(-1,1)×105、(0,-1)×725、(0,0)×5595、(0,1)×301、(1,-1)×6、(1,0)×675、(1,1)×121
+  同格冲突位置合计：482 个（两次以上「真正改变了值」的写入碰过同一格）；其中「最终状态 = 最后一次写的后置状态」482 / 482
+  冲突位置 (0,12,6)：
+    #9355 viewer(-1,0) ore_granite_lower/OreFeature 批2 stone → granite
+    #29777 viewer(0,0) ore_andesite_lower/OreFeature 批5 granite → andesite
+    FINAL：andesite（= 最后一次写 #29777 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,12,7)：
+    #9356 viewer(-1,0) ore_granite_lower/OreFeature 批2 stone → granite
+    #29778 viewer(0,0) ore_andesite_lower/OreFeature 批5 granite → andesite
+    FINAL：andesite（= 最后一次写 #29778 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,42,8)：
+    #11400 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26631 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26631 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,42,9)：
+    #11401 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26632 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26632 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,43,8)：
+    #11403 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26634 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26634 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,43,9)：
+    #11404 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26635 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26635 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,44,8)：
+    #11405 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26637 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26637 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,44,9)：
+    #11406 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26638 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26638 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,42,10)：
+    #11417 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26633 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26633 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,43,10)：
+    #11418 viewer(-1,0) ore_andesite_lower/OreFeature 批2 stone → andesite
+    #26636 viewer(0,0) 未在placed_feature上下文中 批5 andesite → cave_air
+    FINAL：cave_air（= 最后一次写 #26636 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,-41,5)：
+    #12796 viewer(-1,0) ore_tuff/OreFeature 批2 deepslate → tuff
+    #31267 viewer(0,0) ore_gold/OreFeature 批5 tuff → deepslate_gold_ore
+    FINAL：deepslate_gold_ore（= 最后一次写 #31267 的后置状态，最后写者决定最终方块）
+  冲突位置 (1,-40,5)：
+    #12814 viewer(-1,0) ore_tuff/OreFeature 批2 deepslate → tuff
+    #31269 viewer(0,0) ore_gold/OreFeature 批5 tuff → deepslate_gold_ore
+    FINAL：deepslate_gold_ore（= 最后一次写 #31269 的后置状态，最后写者决定最终方块）
+  冲突位置 (0,-41,6)：
+    #12930 viewer(-1,0) ore_tuff/OreFeature 批2 deepslate → tuff
+    #31270 viewer(0,0) ore_gold/OreFeature 批5 tuff → deepslate_gold_ore
+    FINAL：deepslate_gold_ore（= 最后一次写 #31270 的后置状态，最后写者决定最终方块）
+  冲突位置 (9,42,0)：
+    #20737 viewer(0,-1) ore_diorite_lower/OreFeature 批4 stone → diorite
+    #31196 viewer(0,0) ore_iron_middle/OreFeature 批5 diorite → iron_ore
+    FINAL：iron_ore（= 最后一次写 #31196 的后置状态，最后写者决定最终方块）
+  冲突位置 (8,41,0)：
+    #20904 viewer(0,-1) ore_diorite_lower/OreFeature 批4 stone → diorite
+    #31197 viewer(0,0) ore_iron_middle/OreFeature 批5 diorite → iron_ore
+    FINAL：iron_ore（= 最后一次写 #31197 的后置状态，最后写者决定最终方块）
+  冲突位置 (8,42,0)：
+    #20907 viewer(0,-1) ore_diorite_lower/OreFeature 批4 stone → diorite
+    #31195 viewer(0,0) ore_iron_middle/OreFeature 批5 diorite → iron_ore
+    FINAL：iron_ore（= 最后一次写 #31195 的后置状态，最后写者决定最终方块）
+  冲突位置 (8,42,1)：
+    #20979 viewer(0,-1) ore_diorite_lower/OreFeature 批4 stone → diorite
+    #31198 viewer(0,0) ore_iron_middle/OreFeature 批5 diorite → iron_ore
+    FINAL：iron_ore（= 最后一次写 #31198 的后置状态，最后写者决定最终方块）
+  冲突位置 (12,-60,2)：
+    #22638 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26913 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26913 的后置状态，最后写者决定最终方块）
+  冲突位置 (12,-59,2)：
+    #22640 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26914 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26914 的后置状态，最后写者决定最终方块）
+  冲突位置 (12,-58,2)：
+    #22642 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26916 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26916 的后置状态，最后写者决定最终方块）
+  冲突位置 (13,-60,2)：
+    #22653 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26891 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26891 的后置状态，最后写者决定最终方块）
+  冲突位置 (13,-59,2)：
+    #22654 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26895 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26895 的后置状态，最后写者决定最终方块）
+  冲突位置 (13,-58,2)：
+    #22655 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26899 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26899 的后置状态，最后写者决定最终方块）
+  冲突位置 (14,-60,2)：
+    #22662 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26904 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26904 的后置状态，最后写者决定最终方块）
+  冲突位置 (14,-59,2)：
+    #22663 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26905 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26905 的后置状态，最后写者决定最终方块）
+  冲突位置 (14,-58,2)：
+    #22664 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26906 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26906 的后置状态，最后写者决定最终方块）
+  冲突位置 (15,-59,2)：
+    #22670 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26882 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26882 的后置状态，最后写者决定最终方块）
+  冲突位置 (15,-58,2)：
+    #22671 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26883 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26883 的后置状态，最后写者决定最终方块）
+  冲突位置 (11,-59,2)：
+    #22715 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26917 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26917 的后置状态，最后写者决定最终方块）
+  冲突位置 (11,-59,3)：
+    #22716 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26911 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26911 的后置状态，最后写者决定最终方块）
+  冲突位置 (11,-58,3)：
+    #22718 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26919 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26919 的后置状态，最后写者决定最终方块）
+  冲突位置 (12,-59,3)：
+    #22725 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26886 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26886 的后置状态，最后写者决定最终方块）
+  冲突位置 (12,-58,3)：
+    #22726 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26888 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26888 的后置状态，最后写者决定最终方块）
+  冲突位置 (13,-61,2)：
+    #22730 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26920 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26920 的后置状态，最后写者决定最终方块）
+  冲突位置 (13,-59,3)：
+    #22731 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26896 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26896 的后置状态，最后写者决定最终方块）
+  冲突位置 (13,-58,3)：
+    #22732 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26900 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26900 的后置状态，最后写者决定最终方块）
+  冲突位置 (14,-58,3)：
+    #22735 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26880 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26880 的后置状态，最后写者决定最终方块）
+  冲突位置 (10,-59,3)：
+    #22755 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #26922 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #26922 的后置状态，最后写者决定最终方块）
+  冲突位置 (9,-58,4)：
+    #22772 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #27043 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #27043 的后置状态，最后写者决定最终方块）
+  冲突位置 (9,-57,4)：
+    #22773 viewer(0,-1) ore_tuff/OreFeature 批4 deepslate → tuff
+    #27045 viewer(0,0) ore_gravel/OreFeature 批5 tuff → gravel
+    FINAL：gravel（= 最后一次写 #27045 的后置状态，最后写者决定最终方块）
+  （冲突位置过多，只列前 40 个；完整清单见落盘的 journal 文件）
+重放 A（观测顺序）：h=3df5c n=38；顺序 (-1,-1) → (-1,0) → (-1,1) → (0,-1) → (0,0) → (0,1) → (1,-1) → (1,0) → (1,1)
+重放 C（正式 Predictor 固定顺序）：h=3af6d n=31；顺序 (-1,-1) → (-1,0) → (-1,1) → (0,-1) → (0,1) → (1,-1) → (1,0) → (1,1) → (0,0)
+对照③ 真值 vs 重放 C（Predictor 固定顺序）：真值 38 / 预测 31 / 匹配 31 / 漏报 7 / 错报 0 / 查全 81.58% / 查准 100.00%（这一行应当等于第六轮 Predictor 在该目标上的成绩）
+重放 B（反事实：观测顺序整体倒序）：h=3af6d n=31；顺序 (1,1) → (1,0) → (1,-1) → (0,1) → (0,0) → (0,-1) → (-1,1) → (-1,0) → (-1,-1)
+对照① 真值 vs 重放 A（观测顺序）：真值 38 / 预测 38 / 匹配 38 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 观测顺序重放复现了真实集合
+对照② 重放 A vs 重放 B（只差执行先后）：真值 38 / 预测 31 / 匹配 31 / 漏报 7 / 错报 0 / 查全 81.58% / 查准 100.00% → **仅改变合法 FEATURES 执行先后就改变了最终钻石集合**（因果证据）
+  差集样本（重放 A 有 / 重放 B 无）：(7,-9,3) (6,-9,3) (12,-14,1) (7,-8,3) (7,-9,2) (6,-9,2) (12,-13,1)
+  差集样本（重放 B 有 / 重放 A 无）：无
+  差异格 (7,-9,3)：
+    重放A（观测顺序）：#122088 viewer(0,0) ore_tuff/OreFeature deepslate→tuff → #122297 viewer(0,0) ore_diamond_medium/OreFeature tuff→deepslate_diamond_ore
+    重放B（反事实顺序）：#242350 viewer(0,0) ore_tuff/OreFeature deepslate→tuff
+    真实世界：#31126 viewer(0,0) ore_tuff/OreFeature deepslate→tuff → #31335 viewer(0,0) ore_diamond_medium/OreFeature tuff→deepslate_diamond_ore
+  差异格 (6,-9,3)：
+    重放A（观测顺序）：#122300 viewer(0,0) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    重放B（反事实顺序）：（无写入记录）
+    真实世界：#31338 viewer(0,0) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (12,-14,1)：
+    重放A（观测顺序）：#122314 viewer(0,0) ore_diamond_buried/OreFeature deepslate→deepslate_diamond_ore
+    重放B（反事实顺序）：#223671 viewer(1,0) ore_clay/OreFeature deepslate→clay
+    真实世界：#31352 viewer(0,0) ore_diamond_buried/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (7,-8,3)：
+    重放A（观测顺序）：#122042 viewer(0,0) ore_tuff/OreFeature deepslate→tuff → #122298 viewer(0,0) ore_diamond_medium/OreFeature tuff→deepslate_diamond_ore
+    重放B（反事实顺序）：#242302 viewer(0,0) ore_tuff/OreFeature deepslate→tuff
+    真实世界：#31080 viewer(0,0) ore_tuff/OreFeature deepslate→tuff → #31336 viewer(0,0) ore_diamond_medium/OreFeature tuff→deepslate_diamond_ore
+  差异格 (7,-9,2)：
+    重放A（观测顺序）：#122087 viewer(0,0) ore_tuff/OreFeature deepslate→tuff → #122301 viewer(0,0) ore_diamond_medium/OreFeature tuff→deepslate_diamond_ore
+    重放B（反事实顺序）：#242349 viewer(0,0) ore_tuff/OreFeature deepslate→tuff
+    真实世界：#31125 viewer(0,0) ore_tuff/OreFeature deepslate→tuff → #31339 viewer(0,0) ore_diamond_medium/OreFeature tuff→deepslate_diamond_ore
+  差异格 (6,-9,2)：
+    重放A（观测顺序）：#122299 viewer(0,0) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    重放B（反事实顺序）：（无写入记录）
+    真实世界：#31337 viewer(0,0) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (12,-13,1)：
+    重放A（观测顺序）：#122315 viewer(0,0) ore_diamond_buried/OreFeature deepslate→deepslate_diamond_ore
+    重放B（反事实顺序）：#223672 viewer(1,0) ore_clay/OreFeature deepslate→clay
+    真实世界：#31353 viewer(0,0) ore_diamond_buried/OreFeature deepslate→deepslate_diamond_ore
+目标 (-1,-1)：真值 29 / 重放A(观测顺序) 21 / 重放B(反事实) 29；真值 vs 重放A：真值 29 / 预测 21 / 匹配 21 / 漏报 8 / 错报 0 / 查全 72.41% / 查准 100.00%；重放A vs 重放B：真值 21 / 预测 29 / 匹配 21 / 漏报 0 / 错报 8 / 查全 100.00% / 查准 72.41%
+请求顺序：(-1,-1)＝目标
+新鲜度：驱动开始时目标 3x3 未生成=false（例外：(-1,-1) (-1,0) (0,-1) (0,0) ）；目标区 region 文件存在=false
+真实装饰批号（本台账自记，越小越先进入 decoration）：(-1,-2)=10、(0,-2)=11、(-2,-2)=12、(-2,-1)=13、(-2,0)=14、(1,1)=33、(1,0)=34、(1,-1)=35、(0,1)=36、(0,0)=37、(0,-1)=38、(-1,1)=39、(-1,0)=40、(-1,-1)=41
+真实最终钻石：29 格
+FEATURES 逐格写入台账：目标区块内真实侧 6605 条（全进程全局写序号到 270101）；按 viewer：(-1,-1)×11、(-1,0)×243、(-1,1)×105、(0,-1)×725、(0,0)×5595、(0,1)×301、(1,-1)×6、(1,0)×675、(1,1)×121
+  同格冲突位置合计：512 个（两次以上「真正改变了值」的写入碰过同一格）；其中「最终状态 = 最后一次写的后置状态」512 / 512
+  冲突位置 (-7,38,-15)：
+    #664 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59408 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59408 的后置状态，最后写者决定最终方块）
+  冲突位置 (-8,37,-15)：
+    #670 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59372 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59372 的后置状态，最后写者决定最终方块）
+  冲突位置 (-8,38,-15)：
+    #671 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59363 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59363 的后置状态，最后写者决定最终方块）
+  冲突位置 (-8,39,-15)：
+    #672 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59354 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59354 的后置状态，最后写者决定最终方块）
+  冲突位置 (-7,37,-15)：
+    #674 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59417 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59417 的后置状态，最后写者决定最终方块）
+  冲突位置 (-7,39,-15)：
+    #675 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59399 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59399 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6,38,-15)：
+    #676 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59453 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59453 的后置状态，最后写者决定最终方块）
+  冲突位置 (-8,38,-16)：
+    #677 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59362 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59362 的后置状态，最后写者决定最终方块）
+  冲突位置 (-7,38,-16)：
+    #678 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59407 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59407 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6,39,-15)：
+    #679 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59444 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59444 的后置状态，最后写者决定最终方块）
+  冲突位置 (-9,37,-15)：
+    #680 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59327 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59327 的后置状态，最后写者决定最终方块）
+  冲突位置 (-9,38,-16)：
+    #681 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59317 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59317 的后置状态，最后写者决定最终方块）
+  冲突位置 (-9,38,-15)：
+    #682 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59318 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59318 的后置状态，最后写者决定最终方块）
+  冲突位置 (-9,39,-16)：
+    #684 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59308 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59308 的后置状态，最后写者决定最终方块）
+  冲突位置 (-9,39,-15)：
+    #685 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59309 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59309 的后置状态，最后写者决定最终方块）
+  冲突位置 (-8,37,-16)：
+    #686 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59371 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59371 的后置状态，最后写者决定最终方块）
+  冲突位置 (-8,39,-16)：
+    #688 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59353 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59353 的后置状态，最后写者决定最终方块）
+  冲突位置 (-7,37,-16)：
+    #690 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59416 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59416 的后置状态，最后写者决定最终方块）
+  冲突位置 (-7,39,-16)：
+    #693 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59398 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59398 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6,37,-16)：
+    #696 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59461 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59461 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6,37,-15)：
+    #697 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59462 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cobblestone（跨区块）
+    FINAL：cobblestone（= 最后一次写 #59462 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6,38,-16)：
+    #698 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59452 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59452 的后置状态，最后写者决定最终方块）
+  冲突位置 (-6,39,-16)：
+    #699 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59443 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59443 的后置状态，最后写者决定最终方块）
+  冲突位置 (-9,37,-16)：
+    #703 viewer(-1,-1) ore_gravel/OreFeature 批1 stone → gravel（跨区块）
+    #59326 viewer(-1,-2) monster_room/MonsterRoomFeature 批10 gravel → cave_air（跨区块）
+    FINAL：cave_air（= 最后一次写 #59326 的后置状态，最后写者决定最终方块）
+  冲突位置 (-1,10,-16)：
+    #1072 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62792 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62792 的后置状态，最后写者决定最终方块）
+  冲突位置 (-1,11,-16)：
+    #1074 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62796 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62796 的后置状态，最后写者决定最终方块）
+  冲突位置 (-2,9,-16)：
+    #1133 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62753 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62753 的后置状态，最后写者决定最终方块）
+  冲突位置 (-2,10,-16)：
+    #1134 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62760 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62760 的后置状态，最后写者决定最终方块）
+  冲突位置 (-2,10,-15)：
+    #1135 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62761 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62761 的后置状态，最后写者决定最终方块）
+  冲突位置 (-1,9,-16)：
+    #1142 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62669 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62669 的后置状态，最后写者决定最终方块）
+  冲突位置 (-1,9,-15)：
+    #1143 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62670 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62670 的后置状态，最后写者决定最终方块）
+  冲突位置 (-1,10,-15)：
+    #1144 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62793 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62793 的后置状态，最后写者决定最终方块）
+  冲突位置 (-1,10,-14)：
+    #1174 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62794 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62794 的后置状态，最后写者决定最终方块）
+  冲突位置 (-4,9,-15)：
+    #1184 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62702 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62702 的后置状态，最后写者决定最终方块）
+  冲突位置 (-4,10,-16)：
+    #1187 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62905 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62905 的后置状态，最后写者决定最终方块）
+  冲突位置 (-3,8,-15)：
+    #1212 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #5307 viewer(-1,-1) ore_clay/OreFeature 批1 granite → clay（跨区块）
+    FINAL：clay（= 最后一次写 #5307 的后置状态，最后写者决定最终方块）
+  冲突位置 (-3,8,-14)：
+    #1213 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62718 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62718 的后置状态，最后写者决定最终方块）
+  冲突位置 (-3,9,-16)：
+    #1215 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62723 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62723 的后置状态，最后写者决定最终方块）
+  冲突位置 (-3,9,-15)：
+    #1216 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62724 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62724 的后置状态，最后写者决定最终方块）
+  冲突位置 (-3,9,-14)：
+    #1217 viewer(-1,-1) ore_granite_lower/OreFeature 批1 stone → granite（跨区块）
+    #62725 viewer(-1,-2) ore_andesite_lower/OreFeature 批10 granite → andesite（跨区块）
+    FINAL：andesite（= 最后一次写 #62725 的后置状态，最后写者决定最终方块）
+  （冲突位置过多，只列前 40 个；完整清单见落盘的 journal 文件）
+重放 A（观测顺序）：h=fffd575f n=21；顺序 (-1,-2) → (0,-2) → (-2,-2) → (-2,-1) → (-2,0) → (0,0) → (0,-1) → (-1,0) → (-1,-1)
+重放 C（正式 Predictor 固定顺序）：h=fffccf93 n=25；顺序 (-2,-2) → (-2,-1) → (-2,0) → (-1,-2) → (-1,0) → (0,-2) → (0,-1) → (0,0) → (-1,-1)
+对照③ 真值 vs 重放 C（Predictor 固定顺序）：真值 29 / 预测 25 / 匹配 16 / 漏报 13 / 错报 9 / 查全 55.17% / 查准 64.00%（这一行应当等于第六轮 Predictor 在该目标上的成绩）
+重放 B（反事实：观测顺序整体倒序）：h=fffcbbf3 n=29；顺序 (-1,-1) → (-1,0) → (0,-1) → (0,0) → (-2,0) → (-2,-1) → (-2,-2) → (0,-2) → (-1,-2)
+对照① 真值 vs 重放 A（观测顺序）：真值 29 / 预测 21 / 匹配 21 / 漏报 8 / 错报 0 / 查全 72.41% / 查准 100.00%
+对照② 重放 A vs 重放 B（只差执行先后）：真值 21 / 预测 29 / 匹配 21 / 漏报 0 / 错报 8 / 查全 100.00% / 查准 72.41% → **仅改变合法 FEATURES 执行先后就改变了最终钻石集合**（因果证据）
+  差集样本（重放 A 有 / 重放 B 无）：无
+  差集样本（重放 B 有 / 重放 A 无）：(-3,-18,-4) (-2,-17,-3) (-16,-15,-8) (-2,-18,-4) (-2,-16,-3) (-3,-18,-3) (-16,-16,-8) (-2,-17,-4)
+  差异格 (-3,-18,-4)：
+    重放A（观测顺序）：#310389 viewer(0,-1) ore_gravel/OreFeature deepslate→gravel
+    重放B（反事实顺序）：#395776 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4767 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (-2,-17,-3)：
+    重放A（观测顺序）：#322647 viewer(-1,0) ore_clay/OreFeature deepslate→clay
+    重放B（反事实顺序）：#395773 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4764 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (-16,-15,-8)：
+    重放A（观测顺序）：#295670 viewer(-2,-1) lush_caves_clay/RandomBooleanSelectorFeature deepslate→clay
+    重放B（反事实顺序）：#395772 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4763 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (-2,-18,-4)：
+    重放A（观测顺序）：#310395 viewer(0,-1) ore_gravel/OreFeature deepslate→gravel
+    重放B（反事实顺序）：#395778 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4769 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (-2,-16,-3)：
+    重放A（观测顺序）：#322637 viewer(-1,0) ore_clay/OreFeature deepslate→clay
+    重放B（反事实顺序）：#395774 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4765 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (-3,-18,-3)：
+    重放A（观测顺序）：（无写入记录）
+    重放B（反事实顺序）：#395777 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4768 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (-16,-16,-8)：
+    重放A（观测顺序）：#295671 viewer(-2,-1) lush_caves_clay/RandomBooleanSelectorFeature deepslate→clay
+    重放B（反事实顺序）：#395771 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4762 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+  差异格 (-2,-17,-4)：
+    重放A（观测顺序）：#310396 viewer(0,-1) ore_gravel/OreFeature deepslate→gravel
+    重放B（反事实顺序）：#395775 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+    真实世界：#4766 viewer(-1,-1) ore_diamond_medium/OreFeature deepslate→deepslate_diamond_ore
+目标 (-25,17)：真值 24 / 重放A(观测顺序) 24 / 重放B(反事实) 24；真值 vs 重放A：完全一致；重放A vs 重放B：完全一致（顺序不改变集合）
+请求顺序：(-25,17)＝目标
+新鲜度：驱动开始时目标 3x3 未生成=true；目标区 region 文件存在=false
+真实装饰批号（本台账自记，越小越先进入 decoration）：(1,1)=33、(1,0)=34、(1,-1)=35、(0,1)=36、(-1,1)=39、(-1,-1)=60、(-1,0)=61、(0,-1)=62、(0,0)=63、(-2,0)=64、(-2,-1)=65、(-2,-2)=66、(0,-2)=67、(-1,-2)=68、(-26,16)=69、(-26,17)=70、(-26,18)=71、(-25,16)=72、(-25,17)=73、(-25,18)=74、(-24,16)=75、(-24,17)=76、(-24,18)=77
+真实最终钻石：24 格
+FEATURES 逐格写入台账：目标区块内真实侧 5459 条（全进程全局写序号到 502291）；按 viewer：(-1,-1)×11、(-1,0)×243、(-1,1)×105、(0,-1)×725、(0,0)×5595、(0,1)×301、(1,-1)×6、(1,0)×675、(1,1)×121、(-26,17)×198、(-25,16)×409、(-25,17)×3988、(-25,18)×462、(-24,17)×402
+  同格冲突位置合计：163 个（两次以上「真正改变了值」的写入碰过同一格）；其中「最终状态 = 最后一次写的后置状态」163 / 163
+  冲突位置 (-399,12,283)：
+    #461163 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475383 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475383 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,12,284)：
+    #461334 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475389 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475389 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,12,285)：
+    #461335 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475391 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475391 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,13,284)：
+    #461336 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475390 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475390 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,13,285)：
+    #461337 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475392 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475392 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,11,284)：
+    #461343 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475381 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475381 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,12,284)：
+    #461344 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475363 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475363 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,13,283)：
+    #461345 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475385 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475385 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,13,284)：
+    #461346 viewer(-26,17) ore_andesite_lower/OreFeature 批70 stone → andesite
+    #475365 viewer(-25,17) ore_dirt/OreFeature 批73 andesite → dirt
+    FINAL：dirt（= 最后一次写 #475365 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,30,272)：
+    #471937 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477522 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477522 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,31,272)：
+    #471943 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477484 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477484 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,32,273)：
+    #471947 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477437 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477437 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,33,273)：
+    #471949 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477438 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477438 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,34,272)：
+    #471954 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477439 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477439 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,34,273)：
+    #471955 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477440 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477440 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,35,272)：
+    #471961 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477485 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477485 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,30,272)：
+    #471973 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477527 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477527 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,34,273)：
+    #471976 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477447 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477447 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,35,272)：
+    #471978 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477489 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477489 的后置状态，最后写者决定最终方块）
+  冲突位置 (-398,30,272)：
+    #471988 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477562 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477562 的后置状态，最后写者决定最终方块）
+  冲突位置 (-398,34,272)：
+    #471989 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477490 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477490 的后置状态，最后写者决定最终方块）
+  冲突位置 (-398,34,273)：
+    #471990 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477455 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477455 的后置状态，最后写者决定最终方块）
+  冲突位置 (-398,35,272)：
+    #471992 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477533 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477533 的后置状态，最后写者决定最终方块）
+  冲突位置 (-397,35,272)：
+    #471995 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477566 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477566 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,31,273)：
+    #472005 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477435 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477435 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,31,273)：
+    #472006 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477446 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477446 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,30,273)：
+    #472059 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477483 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477483 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,32,274)：
+    #472061 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477392 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477392 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,33,274)：
+    #472062 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477393 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477393 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,34,274)：
+    #472063 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477394 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477394 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,35,273)：
+    #472064 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477441 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477441 的后置状态，最后写者决定最终方块）
+  冲突位置 (-400,36,272)：
+    #472065 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477526 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477526 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,30,273)：
+    #472070 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477488 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477488 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,32,274)：
+    #472071 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477375 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477375 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,33,274)：
+    #472072 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477376 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477376 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,34,274)：
+    #472073 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477398 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477398 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,35,273)：
+    #472074 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477448 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477448 的后置状态，最后写者决定最终方块）
+  冲突位置 (-399,36,272)：
+    #472076 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477530 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477530 的后置状态，最后写者决定最终方块）
+  冲突位置 (-398,30,273)：
+    #472080 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477532 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477532 的后置状态，最后写者决定最终方块）
+  冲突位置 (-398,31,273)：
+    #472081 viewer(-25,16) ore_granite_lower/OreFeature 批72 stone → granite
+    #477454 viewer(-25,17) ore_diorite_lower/OreFeature 批73 granite → diorite
+    FINAL：diorite（= 最后一次写 #477454 的后置状态，最后写者决定最终方块）
+  （冲突位置过多，只列前 40 个；完整清单见落盘的 journal 文件）
+重放 A（观测顺序）：h=60ecd4 n=24；顺序 (-26,16) → (-26,17) → (-26,18) → (-25,16) → (-25,17) → (-25,18) → (-24,16) → (-24,17) → (-24,18)
+重放 C（正式 Predictor 固定顺序）：h=60ecd4 n=24；顺序 (-26,16) → (-26,17) → (-26,18) → (-25,16) → (-25,18) → (-24,16) → (-24,17) → (-24,18) → (-25,17)
+对照③ 真值 vs 重放 C（Predictor 固定顺序）：真值 24 / 预测 24 / 匹配 24 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00%（这一行应当等于第六轮 Predictor 在该目标上的成绩）
+重放 B（反事实：观测顺序整体倒序）：h=60ecd4 n=24；顺序 (-24,18) → (-24,17) → (-24,16) → (-25,18) → (-25,17) → (-25,16) → (-26,18) → (-26,17) → (-26,16)
+对照① 真值 vs 重放 A（观测顺序）：真值 24 / 预测 24 / 匹配 24 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 观测顺序重放复现了真实集合
+对照② 重放 A vs 重放 B（只差执行先后）：真值 24 / 预测 24 / 匹配 24 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 本目标上「换顺序不改变最终集合」
+目标 (120,-130)：真值 26 / 重放A(观测顺序) 26 / 重放B(反事实) 26；真值 vs 重放A：完全一致；重放A vs 重放B：完全一致（顺序不改变集合）
+请求顺序：(120,-130)＝目标
+新鲜度：驱动开始时目标 3x3 未生成=true；目标区 region 文件存在=false
+真实装饰批号（本台账自记，越小越先进入 decoration）：(1,1)=33、(1,0)=34、(1,-1)=35、(0,1)=36、(-1,1)=39、(-1,-1)=60、(-1,0)=61、(0,-1)=62、(0,0)=63、(-2,0)=64、(-2,-1)=65、(-2,-2)=66、(0,-2)=67、(-1,-2)=68、(-24,18)=96、(-24,17)=97、(-24,16)=98、(-25,18)=99、(-25,17)=100、(-25,16)=101、(-26,18)=102、(-26,17)=103、(-26,16)=104、(119,-131)=105、(119,-130)=106、(119,-129)=107、(120,-131)=108、(120,-130)=109、(120,-129)=110、(121,-131)=111、(121,-130)=112、(121,-129)=113
+真实最终钻石：26 格
+FEATURES 逐格写入台账：目标区块内真实侧 6246 条（全进程全局写序号到 713287）；按 viewer：(-1,-1)×11、(-1,0)×243、(-1,1)×105、(0,-1)×725、(0,0)×5595、(0,1)×301、(1,-1)×6、(1,0)×675、(1,1)×121、(-26,17)×198、(-25,16)×409、(-25,17)×3988、(-25,18)×462、(-24,17)×402、(119,-131)×4、(119,-130)×260、(119,-129)×3、(120,-131)×268、(120,-130)×5316、(120,-129)×139、(121,-130)×73、(121,-129)×183
+  同格冲突位置合计：673 个（两次以上「真正改变了值」的写入碰过同一格）；其中「最终状态 = 最后一次写的后置状态」673 / 673
+  冲突位置 (1922,57,-2078)：
+    #661886 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685071 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685071 的后置状态，最后写者决定最终方块）
+  冲突位置 (1923,56,-2075)：
+    #661899 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682464 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682464 的后置状态，最后写者决定最终方块）
+  冲突位置 (1923,57,-2074)：
+    #661904 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682466 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682466 的后置状态，最后写者决定最终方块）
+  冲突位置 (1924,56,-2075)：
+    #661915 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682415 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682415 的后置状态，最后写者决定最终方块）
+  冲突位置 (1924,57,-2075)：
+    #661919 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682477 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682477 的后置状态，最后写者决定最终方块）
+  冲突位置 (1924,57,-2074)：
+    #661920 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682417 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682417 的后置状态，最后写者决定最终方块）
+  冲突位置 (1925,57,-2075)：
+    #661932 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682487 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682487 的后置状态，最后写者决定最终方块）
+  冲突位置 (1920,56,-2078)：
+    #661937 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685074 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685074 的后置状态，最后写者决定最终方块）
+  冲突位置 (1920,56,-2077)：
+    #661938 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685075 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685075 的后置状态，最后写者决定最终方块）
+  冲突位置 (1920,57,-2078)：
+    #661941 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685076 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685076 的后置状态，最后写者决定最终方块）
+  冲突位置 (1920,57,-2077)：
+    #661942 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685077 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685077 的后置状态，最后写者决定最终方块）
+  冲突位置 (1921,56,-2078)：
+    #661958 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685072 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685072 的后置状态，最后写者决定最终方块）
+  冲突位置 (1921,56,-2077)：
+    #661959 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685078 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685078 的后置状态，最后写者决定最终方块）
+  冲突位置 (1921,57,-2078)：
+    #661963 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685073 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685073 的后置状态，最后写者决定最终方块）
+  冲突位置 (1921,57,-2077)：
+    #661964 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685079 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685079 的后置状态，最后写者决定最终方块）
+  冲突位置 (1922,55,-2075)：
+    #661982 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682570 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682570 的后置状态，最后写者决定最终方块）
+  冲突位置 (1922,56,-2078)：
+    #661984 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #685070 viewer(120,-130) ore_coal_lower/OreFeature 批109 andesite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685070 的后置状态，最后写者决定最终方块）
+  冲突位置 (1922,56,-2074)：
+    #661985 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682452 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682452 的后置状态，最后写者决定最终方块）
+  冲突位置 (1922,57,-2074)：
+    #661987 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682573 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682573 的后置状态，最后写者决定最终方块）
+  冲突位置 (1923,55,-2075)：
+    #662000 viewer(119,-130) ore_andesite_lower/OreFeature 批106 stone → andesite
+    #682393 viewer(120,-130) ore_diorite_lower/OreFeature 批109 andesite → diorite
+    FINAL：diorite（= 最后一次写 #682393 的后置状态，最后写者决定最终方块）
+  冲突位置 (1926,44,-2078)：
+    #673472 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #680004 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #680004 的后置状态，最后写者决定最终方块）
+  冲突位置 (1926,44,-2077)：
+    #673473 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #680005 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #680005 的后置状态，最后写者决定最终方块）
+  冲突位置 (1927,44,-2079)：
+    #673482 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679969 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679969 的后置状态，最后写者决定最终方块）
+  冲突位置 (1927,44,-2078)：
+    #673483 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #680012 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #680012 的后置状态，最后写者决定最终方块）
+  冲突位置 (1927,45,-2079)：
+    #673486 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679954 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679954 的后置状态，最后写者决定最终方块）
+  冲突位置 (1927,45,-2078)：
+    #673487 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679970 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679970 的后置状态，最后写者决定最终方块）
+  冲突位置 (1927,45,-2077)：
+    #673488 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679983 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679983 的后置状态，最后写者决定最终方块）
+  冲突位置 (1927,45,-2076)：
+    #673489 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #680020 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #680020 的后置状态，最后写者决定最终方块）
+  冲突位置 (1928,43,-2075)：
+    #673501 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #685134 viewer(120,-130) ore_coal_lower/OreFeature 批109 granite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685134 的后置状态，最后写者决定最终方块）
+  冲突位置 (1928,45,-2079)：
+    #673508 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679948 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679948 的后置状态，最后写者决定最终方块）
+  冲突位置 (1928,45,-2078)：
+    #673509 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679973 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679973 的后置状态，最后写者决定最终方块）
+  冲突位置 (1928,46,-2078)：
+    #673512 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679958 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679958 的后置状态，最后写者决定最终方块）
+  冲突位置 (1928,46,-2077)：
+    #673513 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #680014 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #680014 的后置状态，最后写者决定最终方块）
+  冲突位置 (1929,43,-2075)：
+    #673525 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #685132 viewer(120,-130) ore_coal_lower/OreFeature 批109 granite → coal_ore
+    FINAL：coal_ore（= 最后一次写 #685132 的后置状态，最后写者决定最终方块）
+  冲突位置 (1929,45,-2079)：
+    #673532 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679949 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679949 的后置状态，最后写者决定最终方块）
+  冲突位置 (1929,46,-2078)：
+    #673536 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679961 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679961 的后置状态，最后写者决定最终方块）
+  冲突位置 (1926,44,-2079)：
+    #673563 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #680003 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #680003 的后置状态，最后写者决定最终方块）
+  冲突位置 (1926,45,-2079)：
+    #673564 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679964 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679964 的后置状态，最后写者决定最终方块）
+  冲突位置 (1926,45,-2078)：
+    #673565 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679965 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679965 的后置状态，最后写者决定最终方块）
+  冲突位置 (1927,45,-2080)：
+    #673573 viewer(120,-131) ore_granite_lower/OreFeature 批108 stone → granite
+    #679944 viewer(120,-130) ore_gravel/OreFeature 批109 granite → gravel
+    FINAL：gravel（= 最后一次写 #679944 的后置状态，最后写者决定最终方块）
+  （冲突位置过多，只列前 40 个；完整清单见落盘的 journal 文件）
+重放 A（观测顺序）：h=fce9e4d3 n=26；顺序 (119,-131) → (119,-130) → (119,-129) → (120,-131) → (120,-130) → (120,-129) → (121,-131) → (121,-130) → (121,-129)
+重放 C（正式 Predictor 固定顺序）：h=fce9e4d3 n=26；顺序 (119,-131) → (119,-130) → (119,-129) → (120,-131) → (120,-129) → (121,-131) → (121,-130) → (121,-129) → (120,-130)
+对照③ 真值 vs 重放 C（Predictor 固定顺序）：真值 26 / 预测 26 / 匹配 26 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00%（这一行应当等于第六轮 Predictor 在该目标上的成绩）
+重放 B（反事实：观测顺序整体倒序）：h=fce9e4d3 n=26；顺序 (121,-129) → (121,-130) → (121,-131) → (120,-129) → (120,-130) → (120,-131) → (119,-129) → (119,-130) → (119,-131)
+对照① 真值 vs 重放 A（观测顺序）：真值 26 / 预测 26 / 匹配 26 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 观测顺序重放复现了真实集合
+对照② 重放 A vs 重放 B（只差执行先后）：真值 26 / 预测 26 / 匹配 26 / 漏报 0 / 错报 0 / 查全 100.00% / 查准 100.00% → 本目标上「换顺序不改变最终集合」
+【汇总】目标 4 个（重放=观测顺序）：真值 117 / 预测 109 / 匹配 109 / 漏报 8 / 错报 0 / 查全 93.16% / 查准 100.00%
+END 阶段=case 标签=R712345-1 耗时=17719 ms

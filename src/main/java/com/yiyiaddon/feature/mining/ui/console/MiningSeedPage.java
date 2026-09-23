@@ -1,10 +1,13 @@
 package com.yiyiaddon.feature.mining.ui.console;
 
+import com.yiyiaddon.feature.mining.AutoMinerModule;
+import com.yiyiaddon.feature.mining.target.MiningTargetProvider;
 import com.yiyiaddon.feature.mining.ui.MiningConsoleScreen;
 import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.render.SeedRenderSnapshot;
 import com.yiyiaddon.seed.runtime.SeedPredictionCoverageController;
 import com.yiyiaddon.seed.service.SeedMiningService;
+import com.yiyiaddon.seed.validation.SeedValidationSnapshot;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
@@ -56,10 +59,18 @@ public final class MiningSeedPage {
     private final MiningConsoleScreen owner;
 
     /**
-     * @param owner 控制台窗口（本页只用到它：登记 tooltip、开子窗口不需要、重建页面）
+     * 自动挖矿模块（235 新增）：只为「自动挖矿接入」区服务 —— 那一行开关与两行只读状态都属于
+     * 自动挖矿的目标来源，落盘在自动挖矿的设置里（按服务器隔离），不在种子模块另存一份。
      */
-    public MiningSeedPage(MiningConsoleScreen owner) {
+    private final AutoMinerModule module;
+
+    /**
+     * @param owner  控制台窗口（本页只用到它：登记 tooltip、开子窗口不需要、重建页面）
+     * @param module 自动挖矿模块（「自动挖矿接入」区的开关与读数来源）
+     */
+    public MiningSeedPage(MiningConsoleScreen owner, AutoMinerModule module) {
         this.owner = owner;
+        this.module = module;
     }
 
     /** 装配本页内容。 */
@@ -101,7 +112,7 @@ public final class MiningSeedPage {
 
         stack.add(new ConsoleRow(owner, () -> "显示预测钻石",
             "开启后，你附近的区块会按范围逐个送进本地世界生成计算器预测，并在世界里画出预测钻石。"
-                + "关闭会立即停止预测并清空全部预测框（缓存与观察状态一并清空）",
+                + "关闭只是不再画框（预测缓存与观察状态继续保留）—— 自动挖矿用种子目标时靠的正是这份预测",
             null,
             List.of(new Ctl(new SettingToggle(service::renderPrediction, service::setRenderPrediction)),
                 ConsoleWidgets.resetCtl(() -> {
@@ -140,6 +151,29 @@ public final class MiningSeedPage {
             + "本阶段只回答「预测」与「当前实际看到什么」，不做种子校验、不判定假矿", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
+        // ── 自动挖矿接入（正式化第七阶段 235） ──
+        stack.add(section("自动挖矿接入"));
+
+        stack.add(new ConsoleRow(owner, () -> "使用种子目标",
+            "开启后自动挖矿只按「已通过验证的钻石种子预测」逐颗精确挖：先寻路到预测坐标，到了再看实际方块，"
+                + "是钻石就交给秒破 / 连锁，不是钻石就换下一颗。它是硬开关 —— 验证没通过时不会开始挖矿，"
+                + "也绝不会退回「按钻石矿石类型在附近全局搜」",
+            null,
+            List.of(new Ctl(new SettingToggle(module::isSeedTargetMode, module::setSeedTargetMode)),
+                ConsoleWidgets.resetCtl(() -> {
+                    module.setSeedTargetMode(false);
+                    owner.reload();
+                }, "使用种子目标"))));
+
+        stack.add(dataRow("挖矿模式", () -> module.miningTargetProvider().modeNameCn()));
+        stack.add(dataRow("扫描方式", () -> module.miningTargetProvider().scanModeCn()));
+        stack.add(dataRow("目标状态", () -> module.miningTargetProvider().statusCn()));
+        stack.add(dataRow("验证闸门", () -> service.mayUseForAutomatedMining()
+            ? "已放行（验证通过）" : "未放行（不会启动种子挖矿）"));
+
+        stack.add(new Note(owner, this::seedReadinessCn, null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+
         // ── 附近覆盖（覆盖进度与归类统计；不含「可疑」这一项） ──
         stack.add(section("附近覆盖"));
         stack.add(dataRow("覆盖进度", () -> service.coveragePredictedCount() + " / "
@@ -156,6 +190,29 @@ public final class MiningSeedPage {
 
         stack.add(new Note(owner, "§8预测逐个区块到达、逐步出现在世界里，不是等全部算完才显示。"
             + "客户端只会读「服务器已经发给它的区块」，不会为了确认预测去请求加载任何区块", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+
+        // ── 服务器种子验证（正式化第六阶段 234；只读服务层验证快照，界面不自己算） ──
+        stack.add(section("服务器种子验证"));
+        stack.add(dataRow("验证状态", () -> validation().stateCn()));
+        stack.add(dataRow("有效样本区块", () -> validation().sampleChunks() + " 个"));
+        stack.add(dataRow("有效确认单元", () -> validation().confirmedUnits() + " 个"));
+        stack.add(dataRow("已确认候选", () -> validation().confirmedPositions() + " 个"));
+        stack.add(dataRow("当前缺失", () -> validation().missingPositions() + " 个"));
+
+        stack.add(new ConsoleRow(owner, () -> "重新开始验证",
+            "清空当前会话已经收集的验证证据，从此刻起重新收集。它不改种子、不清世界、"
+                + "也不清预测缓存；清空后需要产生新的观察样本（重新加载区块或方块发生变化）才会重新累积证据",
+            null,
+            List.of(new Ctl(new Button("§7重新开始验证", () -> service.restartValidation())))));
+
+        stack.add(new Note(owner, () -> "§8" + validation().reasonCn(), null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, () -> "§8" + validation().policyCn(), null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, () -> "§8" + validation().scopeNoteCn(), null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, () -> "§8" + unverifiedNoteCn(), null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
         // ── 环境 ──
@@ -262,6 +319,42 @@ public final class MiningSeedPage {
         }
     }
 
+    /**
+     * 种子验证快照（正式化第六阶段 234）。
+     *
+     * <p>界面<b>只读</b>它，绝不自己计算验证逻辑（口径第七十三节）；读取失败时退回空快照，
+     * 避免一帧异常把整页读数打崩。</p>
+     */
+    private SeedValidationSnapshot validation() {
+        try {
+            SeedValidationSnapshot snapshot = service.validationSnapshot();
+            return snapshot == null ? SeedValidationSnapshot.EMPTY : snapshot;
+        } catch (Throwable error) {
+            return SeedValidationSnapshot.EMPTY;
+        }
+    }
+
+    /**
+     * 「种子尚未验证」提示（口径第九、五十一节：预测框能显示 ≠ 预测已验证）。
+     *
+     * <p>文案里刻意不出现「种子已确认 / 真实 Seed / 100% 正确」这类措辞（口径第五十三节），
+     * 只说明「当前能不能作为可信依据」。验证通过时给出正式通过文案与范围声明。</p>
+     */
+    private String unverifiedNoteCn() {
+        SeedValidationSnapshot snapshot = validation();
+        return switch (snapshot.state()) {
+            case VERIFIED -> "种子验证通过（基于已观察样本）：允许作为后续自动化挖矿的前置条件；"
+                + "但它仍不是「服务器真实 Seed 已被唯一确定」的证明";
+            case COLLECTING -> "当前 Seed 尚未完成验证（正在收集样本）：预测框可以照常显示，"
+                + "但它现在还只是「按填写的种子算出来的结果」，不要当成已验证依据";
+            case UNVERIFIED -> "当前 Seed 尚未验证（还没有有效观察样本）：预测框可以照常显示，"
+                + "但它现在还只是「按填写的种子算出来的结果」，不要当成已验证依据";
+            case INCONCLUSIVE -> "当前 Seed 证据不足：已看到不少数据但不足以验证，"
+                + "可能因为区块被挖过、区块较旧或样本太少；这不等于种子填错";
+            case CONFLICTING -> "当前 Seed 与已观察样本存在冲突证据（本阶段该状态不可达）";
+        };
+    }
+
     private int scheduleSensitiveCount() {
         PredictionResult result = service.lastResult();
         return result == null ? 0 : result.scheduleSensitiveCount();
@@ -306,6 +399,24 @@ public final class MiningSeedPage {
         }
         return "现在不能预测（" + service.stateCn() + "）：需要「已启用 + 已进入世界 + "
             + "种子格式合法 + 当前维度为主世界」四项同时满足";
+    }
+
+    /**
+     * 「使用种子目标」那一行的状态说明（235）。
+     *
+     * <p>判据直接取自动挖矿模块的那一处（它内部转发给种子目标提供者），本页<b>不</b>自己判任何条件
+     * —— 与启动自检同源，避免出现「页面说可以、一启动却报不行」。</p>
+     */
+    private String seedReadinessCn() {
+        if (!module.isSeedTargetMode()) {
+            return "§8未开启种子目标模式：自动挖矿按原有方式工作（男中音按矿物类型扫描）";
+        }
+        String reason = module.seedTargetBlockReasonCn();
+        if (reason.isEmpty()) {
+            MiningTargetProvider provider = module.miningTargetProvider();
+            return "§8前置条件齐备：允许按种子预测挖矿（当前 §f" + provider.statusCn() + "§8）";
+        }
+        return "§8当前不会开始种子挖矿：§e" + reason;
     }
 
     private static String safe(Supplier<String> value) {

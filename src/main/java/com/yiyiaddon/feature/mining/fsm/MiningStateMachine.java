@@ -898,6 +898,27 @@ public final class MiningStateMachine {
             && mc.level.isLoaded(p.offset(0, 0, 16)) && mc.level.isLoaded(p.offset(0, 0, -16));
     }
 
+    /**
+     * 强制重新下发一次挖掘目标（235：目标来源切换后调用）。
+     *
+     * <p>「使用种子目标」开关一改，目标从哪来就变了；此时若不把 mine 启动流程退回起点，
+     * 状态机的看门狗会先把这一跳判成「mine 进程退出」，玩家就会看到一条与操作无关的
+     * 「挖矿进程已退出 ▸ 正在重启（1/3）」。这里把流程退回起点（重新走预热 + 等区块 + 下发），
+     * 与「区块未就绪时重启 mine」同一口径：改动后给 5 秒观察期。</p>
+     */
+    public void requestTargetReissue() {
+        // 只在「采掘中」生效：物流 / 进食 / 修补等态各自有寻路在跑，停 Baritone 会把它们打断
+        if (mc.player == null || state != MinerState.MINING) {
+            return;
+        }
+        module.getBaritone().stop();
+        mineStartIssued = false;
+        mineStartWait = MINE_START_WARMUP_TICKS;
+        mineStartWaited = 0;
+        mineRestartCount = 0;
+        mineRestartCooldown = 100;
+    }
+
     /** 每刻主干（旧 {@code tick}，{@code :172-201} 逐字） */
     public void tick() {
         if (mc.player == null || mc.level == null) return;
@@ -1101,6 +1122,9 @@ public final class MiningStateMachine {
                 MiningFastBreakController.instance().release(mc, true);
                 // 连锁队列一并清空（连锁只在采掘中成立；留着会带着旧坐标回到挖矿态）
                 module.getVeinMiner().reset();
+                // 235：目标提供者撤掉当前目标与寻路（种子模式；普通模式是空实现）。
+                // 只撤当前目标，已消费 / 暂时不可达记账保留 —— 回到挖矿态时不必把挖过的再挑一遍
+                module.miningTargetProvider().reset();
                 module.getBaritone().stop();
             }
         }
@@ -1245,11 +1269,16 @@ public final class MiningStateMachine {
             lowSpeedTicks = 0;
             // 宽限从「真正下发 mine」这一刻算起（进 MINING 到下发之间还有预热 + 等区块的时间）
             mineStartTick = mc.player.tickCount;
-            module.getBaritone().startMining(module.getMiningTargets());
+            // 235：目标来源交给提供者 —— 普通模式 = 男中音 mine 按矿物类型扫描（与旧调用点逐字等价）；
+            // 种子模式 = 从已验证的钻石种子预测里选精确坐标并寻路过去
+            module.issueMiningTargets(true);
             // 播放开始挖矿音效
             module.getSoundNotifier().notifyMiningStart();
             return;
         }
+
+        // 235：目标提供者每刻推进（普通模式是空实现；种子模式在这里选目标 / 寻路 / 到位后交给秒破）
+        module.miningTargetProvider().tick();
 
         // 耐久预警（旧 :343）
         checkToolDurabilityWarning();
@@ -1410,12 +1439,23 @@ public final class MiningStateMachine {
                 // 「刚放两个就提示『挖矿进程已退出 ▸ 正在重启（1/3）』然后重新寻路了」，就是这条看门狗误触发。
                 // 岩浆垫脚**不在**这条豁免里了（用户 2026-09-19 改「边走边放」）：垫脚期间 Baritone 全程不停，
                 // mine 真退出就该照常重启，否则人会站在原地不动
-            } else if (!module.getBaritone().isPathing() && !module.getBaritone().isMiningActive()) {
-                // 目标解析不出方块时重启永远不会成功：直接停机，否则 3 次重启→GO_WILD→回 MINING（计数清零）→
-                // 再 3 次重启，变成永不停止的 RTP 循环 + 「挖矿进程已退出」刷屏
-                if (module.getTargetBlocks().isEmpty()) {
-                    module.error("§c✗ 采掘目标解析不出方块 §8▸ 请在配置页重新选择目标");
+            } else if (!module.miningTargetProvider().engineActive()) {
+                // 235：这一档的判据整体交给目标提供者（普通模式 = 旧 isPathing || isMiningActive，
+                // 逐条等价；种子模式 = 有目标 / 秒破在跑 / 预测还在铺开）。
+                // 先问「现在到底能不能挖」：不能就停机并说明原因 —— 这是种子模式验证失效时的
+                // fail-closed 落点（绝不退回按矿物类型扫描）
+                if (!module.miningTargetProvider().ready()) {
+                    module.error("§c✗ " + module.miningTargetProvider().notReadyReasonCn());
                     if (module.isEnabled()) ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
+                    return;
+                }
+                // 附近已经没有可用目标（种子模式：覆盖已收敛且一颗候选都没有）→ 换区域重铺预测。
+                // 普通模式这一条恒不成立，仍走下面的「重启 3 次」兜底
+                if (module.miningTargetProvider().exhausted()) {
+                    module.info("§e⚠ 附近已无可用目标 §8▸ 重新前往野外换区域");
+                    mineRestartCount = 0;
+                    mineRestartCooldown = 0;
+                    transitionTo(MinerState.GO_WILD);
                     return;
                 }
                 // mine 进程真的退出了：重启并播报；连续 3 次仍退出判定附近无矿，RTP 换区
@@ -1505,13 +1545,16 @@ public final class MiningStateMachine {
         // 第三档（判据与速度无关，见 MINE_NO_BREAK_LIMIT_TICKS 注释）：人还在寻路、目标矿却永远到不了。
         // 前两档都要求「速度低」，这一档专抓「一直在走、一直没打穿任何方块」——
         // 就是用户复报的「幽冥脉络下面的钻石原矿挖不了，然后卡死」那种现场。
-        boolean mineAliveNoBreak = !mineNoProgress
+        // 235：这一档按提供者开关（种子模式关掉它 —— 导航到远端目标途中本来就不打方块，
+        // 够不到由种子提供者自己的「寻路反复失败」判据处理并换下一颗）
+        boolean mineAliveNoBreak = module.miningTargetProvider().progressWatchdogEnabled()
+            && !mineNoProgress
             && !uiOpen
             && mc.player.tickCount - mineStartTick > MINE_START_GRACE_TICKS
             && sinceLastBreak > MINE_NO_BREAK_LIMIT_TICKS
             && !MiningFastBreakController.instance().isActive()
             && !mc.gameMode.isDestroying()
-            && (module.getBaritone().isMiningActive() || module.getBaritone().isPathing());
+            && module.miningTargetProvider().engineActive();
         mineNoBreakTicks = mineAliveNoBreak ? mineNoBreakTicks + 1 : 0;
         if (mineNoBreakTicks >= MINE_NO_BREAK_CONFIRM_TICKS) {
             mineNoBreakTicks = 0;
@@ -1546,7 +1589,8 @@ public final class MiningStateMachine {
                 // 重下发等于一次新的 mine 启动：宽限重新计时，否则重下发后的「扫矿 + 算路径」空窗
                 // 会立刻把第二次判定顶到，直接跳到「换区」（保守优先：宁可多等，不乱换区）
                 mineStartTick = mc.player.tickCount;
-                module.getBaritone().startMining(module.getMiningTargets());
+                // 235：走提供者 —— 普通模式 = 重发同一个 mine（与旧一致）；种子模式 = 换下一颗目标
+                module.reissueMiningTargets();
             }
             return;
         }
@@ -1581,7 +1625,7 @@ public final class MiningStateMachine {
             } else {
                 // 先重置采掘目标脱困（换一个矿点），不急着传送
                 module.info("§e⚠ 原地抖动卡死 §8▸ 重置采掘目标脱困");
-                module.getBaritone().startMining(module.getMiningTargets());
+                module.reissueMiningTargets();
             }
             return;
         }
@@ -1646,7 +1690,7 @@ public final class MiningStateMachine {
             if (wasEscaping) {
                 module.getBaritone().stop();
                 module.info("§a✓ 已脱离水域 §8▸ 继续挖矿");
-                module.getBaritone().startMining(module.getMiningTargets());
+                module.issueMiningTargets(true);
                 return;
             }
         }
@@ -1674,7 +1718,7 @@ public final class MiningStateMachine {
                 waterEscapeTarget = null;
                 module.getBaritone().stop();
                 module.info("§a✓ 已脱离水域 §8▸ 继续挖矿");
-                module.getBaritone().startMining(module.getMiningTargets());
+                module.issueMiningTargets(true);
                 return;
             }
             if (waterEscapeTicks > 400) { // 20 秒仍未脱困，RTP 兜底
@@ -1744,7 +1788,7 @@ public final class MiningStateMachine {
                 module.info("§a✓ 已远离岩浆 §8▸ 继续挖矿");
                 // 恢复挖矿当刻就把主手换回镐：撤离路上可能为挖开挡路方块换了方块/工具
                 ensureMiningToolInHand();
-                module.getBaritone().startMining(module.getMiningTargets());
+                module.issueMiningTargets(true);
                 return;
             }
             if (lavaEscapeTicks > 400) { // 20 秒仍未脱困，RTP 兜底
@@ -1827,6 +1871,18 @@ public final class MiningStateMachine {
         ownTeleportPendingTicks = OWN_TELEPORT_PENDING_TICKS;
         ownTeleportSettleTicks = 0;
         module.getCmdManager().executeCommand(command, allowGuiClick);
+    }
+
+    /**
+     * <b>开发期回归装置专用</b>（235）：声明「接下来这一次位置大跳变是我方传送」，让手动传送守卫认领它。
+     *
+     * <p>正式流程一律由 {@link #executeOwnTeleport} 自行武装（模块自己发指令时）；回归装置为了构造
+     * 「玩家离预测目标很远」「换维度」这类现场，必须自己发传送指令 —— 不先声明的话，那一跳会被
+     * {@link #manualTeleportDetected()} 如实读成「玩家自己传送」并把模块停掉，装置要观测的
+     * 也就不是种子目标行为了。除本用途外没有任何调用点。</p>
+     */
+    public void armOwnTeleportGraceForDev() {
+        ownTeleportPendingTicks = Math.max(ownTeleportPendingTicks, OWN_TELEPORT_PENDING_TICKS);
     }
 
     /**
@@ -2510,7 +2566,8 @@ public final class MiningStateMachine {
         pickupTarget = null;
         pickupCooldownTicks = PICKUP_COOLDOWN_TICKS;
         module.getBaritone().stop();
-        module.getBaritone().startMining(module.getMiningTargets());
+        // 235：走目标提供者（普通模式重发 mine；种子模式继续按预测坐标走）
+        module.issueMiningTargets(true);
     }
 
     /** 旧 {@code addPickupBlacklist}，{@code :939-944} 逐字 */

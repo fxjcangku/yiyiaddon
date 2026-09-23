@@ -1,0 +1,34 @@
+﻿
+> Configure project :
+Fabric Loom: 1.17.20
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+
+> Task :seedWorkerLegacyProbe
+================================================================================
+[探针] 【非正式 Release Gate】本探针只用于「宿主能否启动 / 协议是否连通 / 负路径是否 fail-closed」这类连通性验收。
+[探针] 冻结数字的正式门禁是 WorkerParityRegression（runClientSeedWorkerParityTest）与生产冒烟（production-smoke.ps1）。
+[探针] 本探针在全新空会话里只做一次预测，与正式链路（同一会话内按序预测多个区块）口径不同，数字允许不同；
+[探针] 需要对照时用第六个参数指定预热区块表（例如 0,0），复现「先算邻居再算目标」的合法情形。
+================================================================================
+[探针] Worker 已拉起 PID=31572，等待宿主就绪（日志 D:\mcaddon\yiyiaddon\build\234-探针\missing-watch-warm\seed-worker-probe\probe-worker.log）...
+[探针] 仍在等待宿主就绪...
+[探针] 握手文件出现，耗时 4314 ms
+[探针] 已连接 127.0.0.1:53596
+[探针] HELLO：WorkerHelloDto[protocolVersion=1, minecraftVersion=26.1.2, modVersion=1.0-beta2, workerPid=31572, capabilities=[predict_diamond_overworld]]
+[探针] OPEN_SESSION：WorkerSessionDto[sessionId=s1-135283a, seed=20260922, dimension=minecraft:overworld, status=OPEN]
+[探针] 预热 PREDICT 区块 (-401,382) → 17 个，调度敏感 0，缓存区块 529
+[探针] 观察坐标 (-6417,-48,6123) → 不在候选集里（本次预测候选 17 个）
+[探针] PREDICT 种子 20260922 区块 (-402,382) → 成功=true 候选=18 调度敏感=0 未解析=18 确定性=0 预测器耗时=268 ms 端到端=274 ms 缓存区块=552 宿主 ChunkMap 查询=0
+    -6426,-60,6116 DIAMOND / UNRESOLVED / UNATTRIBUTED
+    -6427,-60,6117 DIAMOND / UNRESOLVED / UNATTRIBUTED
+    -6421,-57,6114 DIAMOND / UNRESOLVED / UNATTRIBUTED
+[探针] 观察坐标 (-6417,-48,6123) → 不在候选集里（本次预测候选 18 个）
+[探针] 判定：宿主可用 / 会话可用 / 正式预测器可用 → 通过
+[探针] Worker 已退出，退出码 0
+
+BUILD SUCCESSFUL in 10s
+3 actionable tasks: 1 executed, 2 up-to-date
+

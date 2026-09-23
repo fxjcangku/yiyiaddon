@@ -1,0 +1,1594 @@
+﻿[18:41:58] [main/INFO]: Loading Minecraft 26.1.2 with Fabric Loader 0.19.5
+[18:41:58] [main/INFO]: Mappings not present!
+[18:41:58] [main/INFO]: Loading 55 mods:
+	- fabric-api 0.155.2+26.1.2
+	   |-- fabric-api-base 2.0.3+ece063234c
+	   |-- fabric-api-lookup-api-v1 2.0.12+d5a053b64c
+	   |-- fabric-biome-api-v1 18.0.5+2fa62b4e4c
+	   |-- fabric-block-api-v1 3.0.2+ec56b6014c
+	   |-- fabric-block-getter-api-v2 2.0.6+ec56b6014c
+	   |-- fabric-command-api-v2 3.0.5+e2bdee784c
+	   |-- fabric-content-registries-v0 11.3.0+0082c9664c
+	   |-- fabric-convention-tags-v2 4.6.2+4f11f7994c
+	   |-- fabric-crash-report-info-v1 1.0.3+9f78a5a84c
+	   |-- fabric-creative-tab-api-v1 5.0.11+d871b99e4c
+	   |-- fabric-data-attachment-api-v1 2.2.9+44a0bd1d4c
+	   |-- fabric-data-generation-api-v1 24.3.3+cda368334c
+	   |-- fabric-debug-api-v1 1.0.1+c792624d4c
+	   |-- fabric-dimensions-v1 5.1.7+ad343a8d4c
+	   |-- fabric-entity-events-v1 5.0.2+e2bdee784c
+	   |-- fabric-events-interaction-v0 5.2.2+07b380be4c
+	   |-- fabric-game-rule-api-v1 4.0.5+d871b99e4c
+	   |-- fabric-item-api-v1 14.3.0+6d1aaa724c
+	   |-- fabric-key-mapping-api-v1 2.0.4+e2bdee784c
+	   |-- fabric-lifecycle-events-v1 4.1.1+df84eb3d4c
+	   |-- fabric-loot-api-v3 3.0.12+00a1fba64c
+	   |-- fabric-menu-api-v1 2.0.14+d871b99e4c
+	   |-- fabric-message-api-v1 7.0.5+dae8ce3e4c
+	   |-- fabric-model-loading-api-v1 8.0.11+c80601bb4c
+	   |-- fabric-networking-api-v1 6.3.1+554860db4c
+	   |-- fabric-object-builder-api-v1 23.1.0+abb459f14c
+	   |-- fabric-particles-v1 5.0.15+b61fef434c
+	   |-- fabric-permission-api-v1 1.0.2+7437387b4c
+	   |-- fabric-recipe-api-v1 9.0.16+be4b75ae4c
+	   |-- fabric-registry-sync-v0 7.1.0+2fa62b4e4c
+	   |-- fabric-renderer-api-v1 13.0.8+c80601bb4c
+	   |-- fabric-renderer-indigo 8.1.5+1403e82c4c
+	   |-- fabric-rendering-fluids-v1 6.0.1+d871b99e4c
+	   |-- fabric-rendering-v1 23.3.1+e9207d814c
+	   |-- fabric-resource-conditions-api-v1 6.1.0+83dd0ba34c
+	   |-- fabric-resource-loader-v0 3.3.17+4fc5413f4c
+	   |-- fabric-resource-loader-v1 2.0.10+7c44c7324c
+	   |-- fabric-screen-api-v1 5.1.0+981dd9b24c
+	   |-- fabric-serialization-api-v1 2.0.3+11a26f314c
+	   |-- fabric-sound-api-v1 2.0.4+11a26f314c
+	   |-- fabric-tag-api-v1 2.1.1+371cf5db4c
+	   |-- fabric-transfer-api-v1 8.0.6+357ea7334c
+	   \-- fabric-transitive-access-wideners-v1 8.1.3+3ff549fb4c
+	- fabricloader 0.19.5
+	   \-- mixinextras 0.5.5
+	- java 25
+	- minecraft 26.1.2
+	- yiyiaddon 1.0-beta2
+	   |-- baritone 1.18.0
+	   |    \-- dev_babbaj_nether-pathfinder 1.6
+	   |-- io_github_humbleui_skija-shared 0.143.16
+	   |-- io_github_humbleui_skija-windows-arm64 0.143.16
+	   |-- io_github_humbleui_skija-windows-x64 0.143.16
+	   \-- io_github_humbleui_types 0.2.0
+[18:41:58] [main/INFO]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/C:/Users/Administrator/Desktop/MC/.minecraft/libraries/net/fabricmc/sponge-mixin/0.17.4+mixin.0.8.7/sponge-mixin-0.17.4+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[18:41:59] [main/INFO]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.5).
+[18:41:59] [Datafixer Bootstrap/INFO]: 291 Datafixer optimizations took 186 milliseconds
+[18:42:01] [Render thread/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[18:42:01] [Render thread/INFO]: Setting user: SmokeTester
+[18:42:01] [Render thread/INFO]: yiyiaddon initialised (baritone localisation: on)
+[18:42:01] [Render thread/INFO]: [Indigo] Registering Indigo renderer!
+[18:42:02] [Render thread/INFO]: [STDOUT]: [nether-pathfinder] Created temp file at C:\Users\Administrator\AppData\Local\Temp\nether_pathfinder-x86_644080098756957707173.dll
+[18:42:02] [Render thread/INFO]: [STDERR]: [nether-pathfinder] Failed to delete temp file
+[18:42:02] [Render thread/INFO]: [STDOUT]: [nether-pathfinder] Loaded shared library
+[18:42:02] [Render thread/INFO]: 种子挖矿｜观察：已安装客户端区块加载 / 卸载监听（Fabric ClientChunkEvents）
+[18:42:02] [Render thread/INFO]: 种子挖矿：运行时服务已挂载（本地世界生成计算器 + 预测缓存 / 覆盖调度 / 实际区块观察 / 世界渲染；后台单线程；配置项 启用/种子/显示预测钻石/预测范围/显示当前缺失）
+[18:42:02] [Render thread/INFO]: 234验证回归：参数 正确种子 20260922 / 覆盖半径 3 / 逐批移除 20% / 错误种子矩阵 [12345, 2, 0, -7777] / 换服用例 关
+[18:42:02] [Render thread/INFO]: 234验证回归：验证阈值 验证阈值：独立确认样本 ≥ 8 组、覆盖 ≥ 3 个目标区块、解释比例 ≥ 50.00%（比例 = 曾经确认组 ÷ 已观察组）
+[18:42:02] [Render thread/INFO]: 234验证回归：可疑语义 —— 自动可疑判定保持禁用：只有先证明「当前候选宇宙覆盖了全部合法世界生成调度可能产生的钻石坐标」，才有资格判定某位置「不该出现钻石」。合法 FEATURES 顺序本身就会改变同一位置的最终结果，因此调度敏感候选永远不能当作可疑证据。
+[18:42:02] [Render thread/INFO]: 种子挖矿PoC：开发期实验已挂载，进单人世界后自动运行一次（系统属性 yiyiaddon.seedpoc.enabled=1）
+[18:42:02] [Render thread/INFO]: Backend library: LWJGL version 3.4.1-snapshot
+[18:42:02] [Render thread/INFO]: Using optional rendering extensions: GL_ARB_buffer_storage, GL_KHR_debug, GL_ARB_vertex_attrib_binding, GL_ARB_direct_state_access, GL_EXT_texture_filter_anisotropic
+[18:42:03] [Render thread/INFO]: Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, yiyiaddon
+[18:42:03] [Render thread/INFO]: [CHAT] [Baritone] 未找到 Baritone 设置文件，正在重置。
+[18:42:03] [Render thread/INFO]: 光影兼容兜底生效：已为缺失的原版采样器补绑 Sampler1(叠加纹理)、Sampler2(光照贴图)（上游 Iris 在 26.1.2 上偶发丢失绑定）
+[18:42:03] [Worker-Main-7/INFO]: Found unifont_all_no_pua-17.0.01.hex, loading
+[18:42:03] [Worker-Main-2/INFO]: Found unifont_pua-17.0.01.hex, loading
+[18:42:03] [Worker-Main-5/INFO]: Found unifont_jp_patch-17.0.01.hex, loading
+[18:42:03] [Render thread/INFO]: OpenAL initialized on device OpenAL Soft on SteelSeries Sonar - Gaming (SteelSeries Sonar Virtual Audio Device)
+[18:42:03] [Render thread/INFO]: Sound engine started
+[18:42:03] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/beds.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/signs.png-atlas
+[18:42:03] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[18:42:06] [Download-2/ERROR]: Failed to fetch user properties
+com.mojang.authlib.exceptions.AuthenticationUnavailableException
+	at knot//com.mojang.authlib.exceptions.MinecraftClientException.toAuthenticationException(MinecraftClientException.java:29)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.fetchProperties(YggdrasilUserApiService.java:154)
+	at knot//net.minecraft.client.Minecraft.lambda$new$1(Minecraft.java:459)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[18:42:06] [Download-1/WARN]: Couldn't look up profile properties for 00000000-0000-0000-0000-000000000001
+com.mojang.authlib.exceptions.MinecraftClientException: Failed to read from https://sessionserver.mojang.com/session/minecraft/profile/00000000000000000000000000000001?unsigned=false due to Connect timed out
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:111)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.get(MinecraftClient.java:56)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService.fetchProfileUncached(YggdrasilMinecraftSessionService.java:197)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService.fetchProfile(YggdrasilMinecraftSessionService.java:167)
+	at knot//net.minecraft.client.Minecraft.lambda$new$0(Minecraft.java:455)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketTimeoutException: Connect timed out
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:547)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at java.base/sun.security.ssl.SSLSocketImpl.connect(SSLSocketImpl.java:304)
+	at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:161)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:516)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:604)
+	at java.base/sun.net.www.protocol.https.HttpsClient.<init>(HttpsClient.java:206)
+	at java.base/sun.net.www.protocol.https.HttpsClient.New(HttpsClient.java:288)
+	at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.getNewHttpClient(AbstractDelegateHttpsURLConnection.java:193)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1008)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:899)
+	at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:179)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:1377)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:1302)
+	at java.base/java.net.HttpURLConnection.getResponseCode(HttpURLConnection.java:493)
+	at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.getResponseCode(HttpsURLConnectionImpl.java:307)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:82)
+	... 8 more
+[18:42:06] [Yggdrasil Key Fetcher/ERROR]: Failed to request yggdrasil public key
+com.mojang.authlib.exceptions.MinecraftClientException: Failed to read from https://api.minecraftservices.com/publickeys due to Read timed out
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:111)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.get(MinecraftClient.java:56)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilServicesKeyInfo.fetch(YggdrasilServicesKeyInfo.java:114)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilServicesKeyInfo$1.run(YggdrasilServicesKeyInfo.java:89)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/sun.nio.ch.NioSocketImpl.timedRead(NioSocketImpl.java:277)
+	at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:302)
+	at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:354)
+	at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:798)
+	at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:974)
+	at java.base/java.net.Socket$SocketInputStream.read(Socket.java:964)
+	at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489)
+	at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483)
+	at java.base/sun.security.ssl.SSLSocketInputRecord.decode(SSLSocketInputRecord.java:160)
+	at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:111)
+	at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1506)
+	at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1421)
+	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455)
+	at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+	at java.base/sun.net.www.protocol.https.HttpsClient.afterConnect(HttpsClient.java:483)
+	at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:187)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:1377)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:1302)
+	at java.base/java.net.HttpURLConnection.getResponseCode(HttpURLConnection.java:493)
+	at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.getResponseCode(HttpsURLConnectionImpl.java:307)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:82)
+	... 9 more
+[18:42:08] [Download-3/ERROR]: Failed to fetch Realms feature flags
+com.mojang.realmsclient.exception.RealmsServiceException: Realms service error (500) with message 'Could not connect to Realms: Remote host terminated the handshake'
+	at knot//com.mojang.realmsclient.client.RealmsClient.execute(RealmsClient.java:539)
+	at knot//com.mojang.realmsclient.client.RealmsClient.fetchFeatureFlags(RealmsClient.java:186)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[18:42:13] [IO-Worker-1/ERROR]: Couldn't connect to realms
+com.mojang.realmsclient.exception.RealmsServiceException: Realms service error (500) with message 'Could not connect to Realms: Remote host terminated the handshake'
+	at knot//com.mojang.realmsclient.client.RealmsClient.execute(RealmsClient.java:539)
+	at knot//com.mojang.realmsclient.client.RealmsClient.clientCompatible(RealmsClient.java:307)
+	at knot//com.mojang.realmsclient.RealmsAvailability.lambda$check$0(RealmsAvailability.java:48)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[18:43:55] [Render thread/INFO]: Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, yiyiaddon
+[18:43:56] [Worker-Main-8/INFO]: Found unifont_all_no_pua-17.0.01.hex, loading
+[18:43:56] [Worker-Main-11/INFO]: Found unifont_pua-17.0.01.hex, loading
+[18:43:56] [Worker-Main-12/INFO]: Found unifont_jp_patch-17.0.01.hex, loading
+[18:43:56] [Render thread/INFO]: OpenAL initialized on device OpenAL Soft on SteelSeries Sonar - Gaming (SteelSeries Sonar Virtual Audio Device)
+[18:43:56] [Render thread/INFO]: Sound engine started
+[18:43:56] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/beds.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/signs.png-atlas
+[18:43:56] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[18:44:58] [Render thread/INFO]: Found new data pack fabric-convention-tags-v2, loading it automatically
+[18:44:59] [Render thread/INFO]: Loaded 1515 recipes
+[18:44:59] [Render thread/INFO]: Loaded 1617 advancements
+[18:44:59] [Render thread/INFO]: Applied 0 biome modifications to 0 of 65 new biomes in 610.9 μs
+[18:44:59] [Server thread/INFO]: Starting integrated minecraft server version 26.1.2
+[18:44:59] [Server thread/INFO]: Generating keypair
+[18:44:59] [Server thread/INFO]: Loading 0 persistent chunks...
+[18:44:59] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:overworld
+[18:44:59] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_nether
+[18:44:59] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_end
+[18:44:59] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[18:44:59] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:44:59] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:44:59] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[18:44:59] [Server thread/INFO]: Loading 49 chunks for player spawn...
+[18:44:59] [Server thread/INFO]: 准备生成区域中：16%
+[18:45:00] [Server thread/INFO]: 准备生成区域中：16%
+[18:45:00] [Server thread/INFO]: Time elapsed: 589 ms
+[18:45:00] [Server thread/INFO]: SmokeTester[local:E:c801b854] logged in with entity id 18 at (-3.5, 74.0, -6.5)
+[18:45:00] [Server thread/INFO]: SmokeTester加入了游戏
+[18:45:00] [Render thread/INFO]: [STDOUT]: Baritone world data dir: D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384
+[18:45:00] [Render thread/INFO]: [STDOUT]: Cached world directory: D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[18:45:00] [Render thread/INFO]: [STDOUT]: Would save waypoints to D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\waypoints
+[18:45:00] [Server thread/INFO]: Changing view distance to 12, from 10
+[18:45:00] [Server thread/INFO]: Changing simulation distance to 12, from 0
+[18:45:00] [Render thread/INFO]: [System] [CHAT] §f§l[服务器检测]§r§l§c单人世界无需检测
+[18:45:00] [Render thread/INFO]: [System] [CHAT] §f§l[发包防踢]§r§l§c单人世界无需防踢
+[18:45:00] [Render thread/WARN]: Ignoring chat session from SmokeTester due to missing Services public key
+[18:45:00] [Render thread/INFO]: Loaded 2 advancements
+[18:45:00] [Render thread/INFO]: Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[18:45:00] [Render thread/INFO]: [星露谷] 界面观察：LevelLoadingScreen —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[18:45:00] [Render thread/INFO]: 种子挖矿：配置作用域切换为 singleplayer_seedpoc-known-seed
+[18:45:00] [Render thread/INFO]: 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[18:45:00] [Render thread/WARN]: 234验证回归：当前是单人世界；正确种子用例要求「服务器世界种子 = 20260922」，请改用 127.0.0.1:25565 的专用服务器
+[18:45:00] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[18:45:00] [Render thread/INFO]: 种子挖矿｜验证：重新开始验证（丢弃旧证据 0 条；预测缓存 / 观察层 / 种子 / 世界一律未动；需要产生新的观察样本 —— 重新加载区块或发生方块更新）
+[18:45:00] [Render thread/INFO]: 种子挖矿：显示预测钻石改为 开
+[18:45:00] [Render thread/INFO]: 234验证回归：第一段开跑 —— 客户端种子 20260922（服务器世界种子 20260922），范围 3（49 个目标区块）；预期：多个目标区块上的多个独立证据组被确认 → 进入「已验证」
+[18:45:00] [Render thread/INFO]: 种子挖矿：运行时身份已建立（世界 singleplayer:seedpoc-known-seed / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #2），预测缓存与渲染层已就绪
+[18:45:00] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：正在启动本地世界生成计算器（第 1 次，版本 26.1.2，模组 1.0-beta2）
+[18:45:00] [Render thread/INFO]: Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[18:45:00] [Render thread/INFO]: Resizing Chunk Sections UBO, capacity limit of 2 reached during a single frame. New capacity will be 8.
+[18:45:00] [yiyiaddon-seed-predict/INFO]: 本地世界生成计算器已拉起：PID 31996，运行目录 D:\mcaddon\种子 Worker Production Test\yiyiaddon\seed-worker\26.1.2，日志 D:\mcaddon\种子 Worker Production Test\yiyiaddon\seed-worker\26.1.2\seed-worker-26.1.2.log，宿主端口 55597
+[18:45:00] [Render thread/INFO]: Resizing Chunk Sections UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[18:45:00] [Render thread/INFO]: Resizing Chunk Sections UBO, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[18:45:00] [Render thread/INFO]: Resizing Chunk Sections UBO, capacity limit of 32 reached during a single frame. New capacity will be 64.
+[18:45:00] [Render thread/INFO]: Resizing Chunk Sections UBO, capacity limit of 64 reached during a single frame. New capacity will be 128.
+[18:45:01] [Render thread/INFO]: Resizing Dynamic Transforms UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[18:45:02] [Render thread/INFO]: Resizing Chunk Sections UBO, capacity limit of 128 reached during a single frame. New capacity will be 256.
+[18:45:06] [Render thread/INFO]: [派发表] 已读取生效资源包的物品派发关系：文件 2790 个，自定义模型 0 个，耗时 60 ms
+[18:45:10] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：已就绪（PID 31996，协议 1，Minecraft 26.1.2，模组 1.0-beta2，耗时 9878 ms，宿主监听 已停用（不接受任何外部连接））
+[18:45:10] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s1-135283a（种子 20260922，维度 minecraft:overworld）
+[18:45:12] [Render thread/INFO]: [星露谷] 界面观察：a —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[18:45:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 21 个（候选 21（未观察 0 / 已确认 21 / 当前缺失 0）），缓存 1 个区块 / 上限 256
+[18:45:12] [Render thread/INFO]: 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 4 组独立样本（独立确认 4 组），尚不足以给出结论）
+[18:45:12] [Render thread/INFO]: 234验证回归：验证状态 未验证 → 收集中（已收集 4 组独立样本（独立确认 4 组），尚不足以给出结论）
+[18:45:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 34 个（候选 55（未观察 0 / 已确认 55 / 当前缺失 0）），缓存 2 个区块 / 上限 256
+[18:45:12] [Render thread/INFO]: 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 11 组，但独立确认样本 11 组 / 覆盖 2 个目标区块 / 解释比例 100.00%，未达到验证阈值）
+[18:45:12] [Render thread/INFO]: 234验证回归：验证状态 收集中 → 证据不足（已观察 11 组，但独立确认样本 11 组 / 覆盖 2 个目标区块 / 解释比例 100.00%，未达到验证阈值）
+[18:45:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 12 个（候选 67（未观察 0 / 已确认 67 / 当前缺失 0）），缓存 3 个区块 / 上限 256
+[18:45:13] [Render thread/INFO]: 种子挖矿｜验证：验证状态 证据不足 → 已验证（已验证（锁存）：本次会话曾经满足全部验证阈值（独立确认样本 14 组（阈值 8），覆盖 3 个目标区块（阈值 3），解释比例 100.00%（阈值 50.00%）））
+[18:45:13] [Render thread/INFO]: 234验证回归：验证状态 证据不足 → 已验证（已验证（锁存）：本次会话曾经满足全部验证阈值（独立确认样本 14 组（阈值 8），覆盖 3 个目标区块（阈值 3），解释比例 100.00%（阈值 50.00%）））
+[18:45:13] [Render thread/INFO]: 234验证回归：已验证证据 #1 → 独立确认样本 14 组 / 覆盖 3 个目标区块 / 已观察 14 组 / 解释比例 100.00%；有效样本区块 3；当前已确认候选 67 / 缺失 0；证据条数 67，候选方块 67（渲染快照）
+[18:45:13] [Render thread/INFO]: 234验证回归：证据组样本 组 #2440045387489123140 目标区块(-2,-1) 成员 2（当前已确认 2 / 缺失 0）【曾确认】
+[18:45:13] [Render thread/INFO]: 234验证回归：证据组样本 组 #9131183181620261050 目标区块(-2,-1) 成员 2（当前已确认 2 / 缺失 0）【曾确认】
+[18:45:13] [Render thread/INFO]: 234验证回归：证据组样本 组 #-5425433083555309956 目标区块(-2,-1) 成员 3（当前已确认 3 / 缺失 0）【曾确认】
+[18:45:13] [Render thread/INFO]: 234验证回归：证据组样本 组 #-8757714892953549864 目标区块(-2,-1) 成员 5（当前已确认 5 / 缺失 0）【曾确认】
+[18:45:13] [Render thread/INFO]: 234验证回归：证据组样本 组 #594154390147510216 目标区块(-2,-1) 成员 6（当前已确认 6 / 缺失 0）【曾确认】
+[18:45:13] [Render thread/INFO]: 234验证回归：证据组样本 组 #-6304980303432710077 目标区块(-2,-1) 成员 8（当前已确认 8 / 缺失 0）【曾确认】
+[18:45:13] [Render thread/INFO]: 234验证回归：证据组总数 14（曾经确认 14 组），候选方块总数 67（证据条数）
+[18:45:13] [Render thread/INFO]: 234验证回归：AutoMiner 安全门 mayUseForAutomatedMining() = true（只有已验证才允许 true；本阶段仍未接 AutoMiner）
+[18:45:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,0) → 22 个（候选 89（未观察 0 / 已确认 89 / 当前缺失 0）），缓存 4 个区块 / 上限 256
+[18:45:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-1) → 27 个（候选 116（未观察 0 / 已确认 116 / 当前缺失 0）），缓存 5 个区块 / 上限 256
+[18:45:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 20 个（候选 136（未观察 0 / 已确认 136 / 当前缺失 0）），缓存 6 个区块 / 上限 256
+[18:45:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,0) → 25 个（候选 161（未观察 0 / 已确认 161 / 当前缺失 0）），缓存 7 个区块 / 上限 256
+[18:45:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-2) → 22 个（候选 183（未观察 0 / 已确认 183 / 当前缺失 0）），缓存 8 个区块 / 上限 256
+[18:45:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,0) → 45 个（候选 228（未观察 0 / 已确认 228 / 当前缺失 0）），缓存 9 个区块 / 上限 256
+[18:45:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 11 个（候选 239（未观察 0 / 已确认 239 / 当前缺失 0）），缓存 10 个区块 / 上限 256
+[18:45:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 17 个（候选 256（未观察 0 / 已确认 256 / 当前缺失 0）），缓存 11 个区块 / 上限 256
+[18:45:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,1) → 16 个（候选 272（未观察 0 / 已确认 272 / 当前缺失 0）），缓存 12 个区块 / 上限 256
+[18:45:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-1) → 21 个（候选 293（未观察 0 / 已确认 293 / 当前缺失 0）），缓存 13 个区块 / 上限 256
+[18:45:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 16 个（候选 309（未观察 0 / 已确认 309 / 当前缺失 0）），缓存 14 个区块 / 上限 256
+[18:45:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,0) → 20 个（候选 329（未观察 0 / 已确认 329 / 当前缺失 0）），缓存 15 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 12 个（候选 341（未观察 0 / 已确认 341 / 当前缺失 0）），缓存 16 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,1) → 23 个（候选 364（未观察 0 / 已确认 364 / 当前缺失 0）），缓存 17 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-3) → 37 个（候选 401（未观察 0 / 已确认 401 / 当前缺失 0）），缓存 18 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,1) → 29 个（候选 430（未观察 0 / 已确认 430 / 当前缺失 0）），缓存 19 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-2) → 21 个（候选 451（未观察 0 / 已确认 451 / 当前缺失 0）），缓存 20 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,0) → 9 个（候选 460（未观察 0 / 已确认 460 / 当前缺失 0）），缓存 21 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 43 个（候选 503（未观察 0 / 已确认 503 / 当前缺失 0）），缓存 22 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,1) → 21 个（候选 524（未观察 0 / 已确认 524 / 当前缺失 0）），缓存 23 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-3) → 34 个（候选 558（未观察 0 / 已确认 558 / 当前缺失 0）），缓存 24 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,1) → 21 个（候选 579（未观察 0 / 已确认 579 / 当前缺失 0）），缓存 25 个区块 / 上限 256
+[18:45:15] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 16 个（候选 595（未观察 0 / 已确认 595 / 当前缺失 0）），缓存 26 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-4) → 31 个（候选 626（未观察 0 / 已确认 626 / 当前缺失 0）），缓存 27 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,2) → 22 个（候选 648（未观察 0 / 已确认 648 / 当前缺失 0）），缓存 28 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-1) → 19 个（候选 667（未观察 0 / 已确认 667 / 当前缺失 0）），缓存 29 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 15 个（候选 682（未观察 0 / 已确认 682 / 当前缺失 0）），缓存 30 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,0) → 20 个（候选 702（未观察 0 / 已确认 702 / 当前缺失 0）），缓存 31 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-4) → 27 个（候选 729（未观察 0 / 已确认 729 / 当前缺失 0）），缓存 32 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,2) → 21 个（候选 750（未观察 0 / 已确认 750 / 当前缺失 0）），缓存 33 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-4) → 42 个（候选 792（未观察 0 / 已确认 792 / 当前缺失 0）），缓存 34 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,2) → 35 个（候选 827（未观察 0 / 已确认 827 / 当前缺失 0）），缓存 35 个区块 / 上限 256
+[18:45:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-2) → 33 个（候选 860（未观察 0 / 已确认 860 / 当前缺失 0）），缓存 36 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,0) → 28 个（候选 888（未观察 0 / 已确认 888 / 当前缺失 0）），缓存 37 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 38 个（候选 926（未观察 0 / 已确认 926 / 当前缺失 0）），缓存 38 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,1) → 15 个（候选 941（未观察 0 / 已确认 941 / 当前缺失 0）），缓存 39 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-4) → 35 个（候选 976（未观察 0 / 已确认 976 / 当前缺失 0）），缓存 40 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,2) → 25 个（候选 1001（未观察 0 / 已确认 1001 / 当前缺失 0）），缓存 41 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-4) → 29 个（候选 1030（未观察 0 / 已确认 1030 / 当前缺失 0）），缓存 42 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,2) → 7 个（候选 1037（未观察 0 / 已确认 1037 / 当前缺失 0）），缓存 43 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-3) → 28 个（候选 1065（未观察 0 / 已确认 1065 / 当前缺失 0）），缓存 44 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,1) → 22 个（候选 1087（未观察 0 / 已确认 1087 / 当前缺失 0）），缓存 45 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-4) → 16 个（候选 1103（未观察 0 / 已确认 1103 / 当前缺失 0）），缓存 46 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,2) → 27 个（候选 1130（未观察 0 / 已确认 1130 / 当前缺失 0）），缓存 47 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-4) → 10 个（候选 1140（未观察 0 / 已确认 1140 / 当前缺失 0）），缓存 48 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,2) → 18 个（候选 1158（未观察 0 / 已确认 1158 / 当前缺失 0）），缓存 49 个区块 / 上限 256
+[18:45:17] [Render thread/INFO]: 234验证回归：满覆盖读数 —— 目标区块 49 个 / 候选 1158 个；验证「已验证」：独立确认样本 286 组 / 覆盖 49 个目标区块 / 已观察 286 组 / 解释比例 100.00%；有效样本区块 49；当前已确认候选 1158 / 缺失 0
+[18:45:17] [Render thread/INFO]: 234验证回归：被挖矿容错 —— 先移除 20% 的已确认候选（232 / 1158 个，当前验证「已验证」，独立确认 286 组）
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-64, -49, 2的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-64, 0, 43的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-64, -49, 2的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-64, 0, 43的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-64, -20, -31的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-64, -46, -9的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-64, -20, -31的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-64, -46, -9的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-63, -1, 43的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-63, -20, -30的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-63, -1, 43的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-63, -20, -30的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-63, -46, -9的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-62, -42, 39的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-63, -46, -9的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-62, -42, 39的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-62, -37, -37的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-62, -61, -6的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-62, -37, -37的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-62, -61, -6的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-61, -44, -64的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-61, -43, -26的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-61, -44, -64的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-61, -43, -26的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-60, -21, 12的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-60, -44, -64的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-60, -21, 12的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-60, -44, -64的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-60, -43, -25的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -40, 13的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-60, -43, -25的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -40, 13的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -22, 16的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -48, 43的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -22, 16的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -48, 43的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -60, -36的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -22, 16的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -60, -36的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -22, 16的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -48, 42的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -36, -52的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -48, 42的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -36, -52的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -15, -41的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -60, -37的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -15, -41的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -60, -37的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-57, -20, 21的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-57, -15, -41的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-57, -20, 21的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-57, -15, -41的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-57, -14, -40的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-56, -20, 20的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-57, -14, -40的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-56, -20, 20的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-56, -46, -2的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-55, -52, 0的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-56, -46, -2的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-55, -52, 0的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-55, -20, -43的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-54, -62, -64的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-55, -20, -43的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-54, -62, -64的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-54, -21, -44的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-53, -38, 45的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-54, -21, -44的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-53, -38, 45的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-52, -13, -39的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-51, -15, -38的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-52, -13, -39的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-51, -15, -38的方块
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-51, -6, -18的方块]
+[18:45:18] [Server thread/INFO]: [SmokeTester: 已更改位于-48, -44, 35的方块]
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-51, -6, -18的方块
+[18:45:18] [Render thread/INFO]: [System] [CHAT] 已更改位于-48, -44, 35的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-48, -50, -61的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-48, -24, -28的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-48, -50, -61的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-48, -24, -28的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-47, -51, -61的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-46, 5, 11的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-47, -51, -61的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-46, 5, 11的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-46, -46, 20的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-45, -18, 3的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-46, -46, 20的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-45, -18, 3的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-45, 6, 12的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-45, -22, -46的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-45, 6, 12的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-45, -22, -46的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-44, -28, 28的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-44, -24, 38的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-44, -28, 28的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-44, -24, 38的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-44, -21, -47的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-43, -28, 27的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-44, -21, -47的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-43, -28, 27的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-43, -23, 38的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-43, -6, -48的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-43, -23, 38的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-43, -6, -48的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-42, -23, -55的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-41, -61, 37的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-42, -23, -55的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-41, -61, 37的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-41, -37, -52的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-40, 2, 13的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-41, -37, -52的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-40, 2, 13的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-40, -25, -11的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-39, -40, -64的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-40, -25, -11的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-39, -40, -64的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-39, -36, -38的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-39, -25, -10的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-39, -36, -38的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-39, -25, -10的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -20, 40的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -55, -57的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -20, 40的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -55, -57的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -58, -46的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -36, -38的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -58, -46的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -36, -38的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -42, -35的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -41, -34的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -42, -35的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -41, -34的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -18, 22的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -21, 40的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -18, 22的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -21, 40的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -44, 46的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -59, -45的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -44, 46的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -59, -45的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-37, 1, -34的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -9, -14的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, 1, -34的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -9, -14的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-36, -18, 23的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-36, -28, -18的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-36, -18, 23的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-36, -28, -18的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-35, -17, -52的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-35, -38, -28的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-35, -17, -52的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-35, -38, -28的方块
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-34, -17, -52的方块]
+[18:45:19] [Server thread/INFO]: [SmokeTester: 已更改位于-34, -21, -5的方块]
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-34, -17, -52的方块
+[18:45:19] [Render thread/INFO]: [System] [CHAT] 已更改位于-34, -21, -5的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-33, -40, 30的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-33, -38, -33的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-33, -40, 30的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-33, -38, -33的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-32, -34, 29的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-32, -29, 43的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-32, -34, 29的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-32, -29, 43的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-32, -57, -58的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-31, -55, -26的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-32, -57, -58的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-31, -55, -26的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-30, -60, 13的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-30, -48, 22的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-30, -60, 13的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-30, -48, 22的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-30, -55, -26的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-29, -47, 21的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-30, -55, -26的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-29, -47, 21的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-29, -13, -54的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-28, 10, 0的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-29, -13, -54的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-28, 10, 0的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-28, -9, -11的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-27, -13, 8的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-28, -9, -11的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-27, -13, 8的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-27, -40, -35的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-26, -13, 8的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-27, -40, -35的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-26, -13, 8的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-26, -31, -42的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-26, -44, -31的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-26, -31, -42的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-26, -44, -31的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -39, 1的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -54, 36的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -39, 1的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -54, 36的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -29, 38的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -33, -51的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -29, 38的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -33, -51的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -45, -30的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -39, 2的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -45, -30的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -39, 2的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -29, 37的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -36, -58的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -29, 37的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -36, -58的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -50, -5的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-23, -56, 28的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -50, -5的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-23, -56, 28的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-23, -26, 32的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-23, -54, -5的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-23, -26, 32的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-23, -54, -5的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-23, -50, -4的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -38, 22的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-23, -50, -4的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -38, 22的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -13, -57的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -46, -21的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -13, -57的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -46, -21的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -53, -5的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-21, -47, -22的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -53, -5的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-21, -47, -22的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-19, -25, 10的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-18, -58, -53的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-19, -25, 10的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-18, -58, -53的方块
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-18, -46, -9的方块]
+[18:45:20] [Server thread/INFO]: [SmokeTester: 已更改位于-18, -39, -4的方块]
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-18, -46, -9的方块
+[18:45:20] [Render thread/INFO]: [System] [CHAT] 已更改位于-18, -39, -4的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-17, -46, -10的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-17, -39, -5的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-17, -46, -10的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-17, -39, -5的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-16, -34, -64的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-16, -48, -32的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-16, -34, -64的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-16, -48, -32的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-15, -25, -50的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-15, -16, -42的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-15, -25, -50的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-15, -16, -42的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-15, -57, -9的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-14, -29, 15的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-15, -57, -9的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-14, -29, 15的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-14, -17, -42的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-14, -58, -8的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-14, -17, -42的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-14, -58, -8的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-13, -29, 15的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-13, -6, -52的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-13, -29, 15的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-13, -6, -52的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-12, -50, 16的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-12, -30, 17的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-12, -50, 16的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-12, -30, 17的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-12, -6, -51的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-11, -45, 44的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-12, -6, -51的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-11, -45, 44的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-10, -12, 41的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-10, -45, 45的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-10, -12, 41的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-10, -45, 45的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-9, -61, 7的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-9, -6, 40的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-9, -61, 7的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-9, -6, 40的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-9, -14, -53的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-8, -61, 8的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-9, -14, -53的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-8, -61, 8的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-8, -6, 41的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-8, -61, -14的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-8, -6, 41的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-8, -61, -14的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-7, -55, 11的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-7, -57, 21的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, -55, 11的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, -57, 21的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-7, 6, -44的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-7, -60, -14的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, 6, -44的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, -60, -14的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-6, -57, 22的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-6, -57, -63的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-6, -57, 22的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-6, -57, -63的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-6, 8, -43的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-5, -56, -64的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-6, 8, -43的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-5, -56, -64的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-4, -48, 47的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-4, -25, -9的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-4, -48, 47的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-4, -25, -9的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-3, -45, -23的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-3, -24, -10的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-3, -45, -23的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-3, -24, -10的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-1, -46, 13的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于-1, -49, -27的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-1, -46, 13的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于-1, -49, -27的方块
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于0, -45, 18的方块]
+[18:45:21] [Server thread/INFO]: [SmokeTester: 已更改位于1, -41, -4的方块]
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于0, -45, 18的方块
+[18:45:21] [Render thread/INFO]: [System] [CHAT] 已更改位于1, -41, -4的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于2, -31, 13的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于2, -35, -43的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于2, -31, 13的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于2, -35, -43的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于3, -55, 3的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于3, -55, 4的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -55, 3的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -55, 4的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于3, -51, 11的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于3, -31, 14的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -51, 11的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -31, 14的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于3, -55, 40的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于3, -14, -37的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -55, 40的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -14, -37的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于3, -55, -11的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于4, -48, 4的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -55, -11的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -48, 4的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于4, -54, -57的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于4, -14, -36的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -54, -57的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -14, -36的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于4, -27, -18的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于5, -16, 12的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -27, -18的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -16, 12的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于5, -34, -60的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于5, -36, -22的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -34, -60的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -36, -22的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于5, -28, -19的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于6, -16, 11的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -28, -19的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -16, 11的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于6, -36, 46的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于6, -34, -61的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -36, 46的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -34, -61的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于6, -36, -21的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于7, -35, 46的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -36, -21的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -35, 46的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于7, -35, 47的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于7, -57, -58的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -35, 47的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -57, -58的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于7, -56, -56的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于7, -36, -10的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -56, -56的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -36, -10的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于8, -5, 20的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于8, -61, 47的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于8, -5, 20的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于8, -61, 47的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于8, -56, -56的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于8, -24, -8的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于8, -56, -56的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于8, -24, -8的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于9, -57, 9的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于9, -5, 20的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于9, -57, 9的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于9, -5, 20的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于9, -30, 25的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于10, -58, 8的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于9, -30, 25的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -58, 8的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于10, -30, 26的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于10, -26, -36的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -30, 26的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -26, -36的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于10, -58, -11的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于11, -29, 22的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -58, -11的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于11, -29, 22的方块
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于11, -32, 46的方块]
+[18:45:22] [Server thread/INFO]: [SmokeTester: 已更改位于11, -54, -31的方块]
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于11, -32, 46的方块
+[18:45:22] [Render thread/INFO]: [System] [CHAT] 已更改位于11, -54, -31的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于11, -58, -11的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于12, -53, 43的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于11, -58, -11的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于12, -53, 43的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于12, -37, -30的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于13, -54, 42的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于12, -37, -30的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于13, -54, 42的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于13, -50, -45的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于14, -51, 11的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于13, -50, -45的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -51, 11的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于14, -30, 42的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于14, -61, -61的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -30, 42的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -61, -61的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于14, -40, -38的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -50, 12的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -40, -38的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -50, 12的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -30, 41的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -60, -61的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -30, 41的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -60, -61的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -39, -58的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -49, -43的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -39, -58的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -49, -43的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -50, -41的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -41, -38的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -50, -41的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -41, -38的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于15, -36, -3的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于16, -53, -52的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -36, -3的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -53, -52的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于16, -51, -42的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于16, -52, -40的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -51, -42的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -52, -40的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于16, -24, -15的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于16, -36, -3的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -24, -15的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -36, -3的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于17, -24, -15的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于18, -53, 3的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于17, -24, -15的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于18, -53, 3的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于18, -56, -63的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于18, -23, -19的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于18, -56, -63的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于18, -23, -19的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于19, -21, 21的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于19, -57, -64的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于19, -21, 21的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于19, -57, -64的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于19, -27, -33的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于19, -22, -18的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于19, -27, -33的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于19, -22, -18的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于21, -52, -14的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于21, -16, -4的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于21, -52, -14的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于21, -16, -4的方块
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于22, -58, 14的方块]
+[18:45:23] [Server thread/INFO]: [SmokeTester: 已更改位于22, -42, -23的方块]
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于22, -58, 14的方块
+[18:45:23] [Render thread/INFO]: [System] [CHAT] 已更改位于22, -42, -23的方块
+[18:45:28] [Render thread/INFO]: Resizing Chunk Sections UBO, capacity limit of 256 reached during a single frame. New capacity will be 512.
+[18:45:30] [ForkJoinPool.commonPool-worker-8/INFO]: [STDOUT]: Saving region -1,-1 to disk D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[18:45:30] [ForkJoinPool.commonPool-worker-7/INFO]: [STDOUT]: Saving region 0,-1 to disk D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[18:45:30] [ForkJoinPool.commonPool-worker-9/INFO]: [STDOUT]: Saving region 0,0 to disk D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[18:45:30] [Baritone-Worker-2/INFO]: [STDOUT]: Saving region -1,0 to disk D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[18:45:30] [Baritone-Worker-2/INFO]: [STDOUT]: Saved region successfully
+[18:45:30] [ForkJoinPool.commonPool-worker-7/INFO]: [STDOUT]: Saved region successfully
+[18:45:30] [ForkJoinPool.commonPool-worker-8/INFO]: [STDOUT]: Saved region successfully
+[18:45:30] [ForkJoinPool.commonPool-worker-9/INFO]: [STDOUT]: Saved region successfully
+[18:45:30] [Baritone-Worker-2/INFO]: [STDOUT]: World save took 46ms
+[18:45:33] [Server thread/INFO]: [SmokeTester: 已将自己的游戏模式设置为创造模式]
+[18:45:33] [Render thread/INFO]: [System] [CHAT] 已将自己的游戏模式设置为创造模式
+[18:45:33] [Render thread/INFO]: 234验证回归：被挖矿容错证据 #1（第一批）→ 已移除约 20% 已确认候选（232 条指令）：验证仍为「已验证」，独立确认样本 286 组（基线 286 组），当前已确认候选 926 / 缺失 232（基线缺失 0）
+[18:45:33] [Render thread/INFO]: 234验证回归：继续移除到累计 40%（本次再移除 232 个，累计 232 个；当前验证「已验证」，独立确认 286 组 / 已确认候选 926）
+[18:45:33] [Server thread/INFO]: [SmokeTester: 已更改位于-64, -39, 12的方块]
+[18:45:33] [Server thread/INFO]: [SmokeTester: 已更改位于-64, -1, 43的方块]
+[18:45:33] [Render thread/INFO]: [System] [CHAT] 已更改位于-64, -39, 12的方块
+[18:45:33] [Render thread/INFO]: [System] [CHAT] 已更改位于-64, -1, 43的方块
+[18:45:33] [Server thread/INFO]: [SmokeTester: 已更改位于-64, -27, -25的方块]
+[18:45:33] [Server thread/INFO]: [SmokeTester: 已更改位于-63, -42, 38的方块]
+[18:45:33] [Render thread/INFO]: [System] [CHAT] 已更改位于-64, -27, -25的方块
+[18:45:33] [Render thread/INFO]: [System] [CHAT] 已更改位于-63, -42, 38的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-63, 0, 44的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-63, -19, -30的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-63, 0, 44的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-63, -19, -30的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-63, -45, -9的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-62, -38, -42的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-63, -45, -9的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-62, -38, -42的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-62, -36, -37的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-61, -8, 27的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-62, -36, -37的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-61, -8, 27的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-61, -39, -42的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-61, -43, -25的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-61, -39, -42的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-61, -43, -25的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-60, -41, 13的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-60, -60, -37的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-60, -41, 13的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-60, -60, -37的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -41, 12的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -22, 13的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -41, 12的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -22, 13的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -23, 17的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -37, -53的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -23, 17的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -37, -53的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-59, -59, -36的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -23, 17的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-59, -59, -36的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -23, 17的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -37, -53的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -7, -47的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -37, -53的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -7, -47的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -14, -41的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-58, -59, -37的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -14, -41的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-58, -59, -37的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-57, -63, 22的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-57, -14, -41的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-57, -63, 22的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-57, -14, -41的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-56, -53, 0的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-56, -20, 21的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-56, -53, 0的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-56, -20, 21的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-56, -39, -2的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-55, -44, 37的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-56, -39, -2的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-55, -44, 37的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-55, -46, -3的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-54, -61, -64的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-55, -46, -3的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-54, -61, -64的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-54, -20, -43的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-53, -37, 45的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-54, -20, -43的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-53, -37, 45的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-52, -6, -19的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-51, -14, -38的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-52, -6, -19的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-51, -14, -38的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-49, -43, 34的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-48, -51, -62的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-49, -43, 34的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-48, -51, -62的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-48, -25, -29的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-47, -46, 20的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-48, -25, -29的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-47, -46, 20的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-47, -25, -29的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-46, 6, 11的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-47, -25, -29的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-46, 6, 11的方块
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-46, -46, 21的方块]
+[18:45:34] [Server thread/INFO]: [SmokeTester: 已更改位于-45, 5, 11的方块]
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-46, -46, 21的方块
+[18:45:34] [Render thread/INFO]: [System] [CHAT] 已更改位于-45, 5, 11的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-45, -42, 36的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-44, -20, 2的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-45, -42, 36的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-44, -20, 2的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-44, -41, 37的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-44, -23, 38的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-44, -41, 37的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-44, -23, 38的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-44, -41, -15的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-43, -24, 37的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-44, -41, -15的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-43, -24, 37的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-43, -23, -55的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-43, -5, -48的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-43, -23, -55的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-43, -5, -48的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-42, -37, -54的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-41, -38, -54的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-42, -37, -54的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-41, -38, -54的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-41, -48, -29的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-40, -38, -52的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-41, -48, -29的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-40, -38, -52的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-39, 2, 12的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-39, -55, -58的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-39, 2, 12的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-39, -55, -58的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-39, -35, -38的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -51, 33的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-39, -35, -38的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -51, 33的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -21, 41的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -55, -47的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -21, 41的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -55, -47的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -60, -45的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -35, -38的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -60, -45的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -35, -38的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-38, -41, -35的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-38, 1, -33的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, -41, -35的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-38, 1, -33的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -17, 22的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -20, 40的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -17, 22的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -20, 40的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -59, -46的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -58, -45的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -59, -46的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -58, -45的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -42, -34的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-37, -9, -13的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -42, -34的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-37, -9, -13的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-36, -17, 23的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-35, -42, 11的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-36, -17, 23的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-35, -42, 11的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-35, -18, -51的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-35, -37, -28的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-35, -18, -51的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-35, -37, -28的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-34, -18, -51的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-33, -40, 29的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-34, -18, -51的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-33, -40, 29的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-33, -33, 30的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-33, -21, -6的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-33, -33, 30的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-33, -21, -6的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-32, -40, 30的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-32, -38, -63的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-32, -40, 30的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-32, -38, -63的方块
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-31, -58, -59的方块]
+[18:45:35] [Server thread/INFO]: [SmokeTester: 已更改位于-31, -56, -25的方块]
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-31, -58, -59的方块
+[18:45:35] [Render thread/INFO]: [System] [CHAT] 已更改位于-31, -56, -25的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-30, -10, 14的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-30, -14, -54的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-30, -10, 14的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-30, -14, -54的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-30, -56, -25的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-29, -46, 21的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-30, -56, -25的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-29, -46, 21的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-29, -13, -53的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-28, -36, 42的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-29, -13, -53的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-28, -36, 42的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-28, 10, -1的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-27, -12, 8的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-28, 10, -1的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-27, -12, 8的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-26, -14, 7的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-26, -12, 8的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-26, -14, 7的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-26, -12, 8的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-26, -30, -42的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-26, -45, -30的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-26, -30, -42的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-26, -45, -30的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -39, 2的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -53, 36的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -39, 2的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -53, 36的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -37, -57的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -61, -50的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -37, -57的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -61, -50的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-25, -49, -12的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -25, 31的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-25, -49, -12的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -25, 31的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -45, -58的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -62, -50的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -45, -58的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -62, -50的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-24, -50, -4的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-23, -57, 29的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-24, -50, -4的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-23, -57, 29的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-23, -25, 32的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-23, -53, -5的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-23, -25, 32的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-23, -53, -5的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -34, 6的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -57, 29的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -34, 6的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -57, 29的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -47, -22的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-22, -54, -6的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -47, -22的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-22, -54, -6的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-21, -33, 7的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-21, -46, -22的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-21, -33, 7的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-21, -46, -22的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-19, -58, -53的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-18, -58, -52的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-19, -58, -53的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-18, -58, -52的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-18, -45, -9的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-18, -38, -4的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-18, -45, -9的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-18, -38, -4的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-17, -45, -10的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-17, -38, -5的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-17, -45, -10的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-17, -38, -5的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-16, -26, -51的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-15, -34, -64的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-16, -26, -51的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-15, -34, -64的方块
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-15, -24, -50的方块]
+[18:45:36] [Server thread/INFO]: [SmokeTester: 已更改位于-15, -49, -31的方块]
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-15, -24, -50的方块
+[18:45:36] [Render thread/INFO]: [System] [CHAT] 已更改位于-15, -49, -31的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-15, -58, -8的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-14, -63, -60的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-15, -58, -8的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-14, -63, -60的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-14, -63, -16的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-14, -57, -8的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-14, -63, -16的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-14, -57, -8的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-13, -28, 15的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-13, -5, -52的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-13, -28, 15的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-13, -5, -52的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-12, -49, 16的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-12, -29, 17的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-12, -49, 16的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-12, -29, 17的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-12, -5, -51的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-11, -46, 45的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-12, -5, -51的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-11, -46, 45的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-10, -46, 44的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-10, -22, -64的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-10, -46, 44的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-10, -22, -64的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-9, -61, 8的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-9, -6, 41的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-9, -61, 8的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-9, -6, 41的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-9, -53, -40的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-8, -54, 11的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-9, -53, -40的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-8, -54, 11的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-8, -28, -60的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-8, -60, -14的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-8, -28, -60的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-8, -60, -14的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-7, -55, 12的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-7, -56, 36的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, -55, 12的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, -56, 36的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-7, 7, -44的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-7, -61, -13的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, 7, -44的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-7, -61, -13的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-6, -56, 36的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-6, 7, -44的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-6, -56, 36的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-6, 7, -44的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-5, -59, 0的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-5, -57, -63的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-5, -59, 0的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-5, -57, -63的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-4, -45, -23的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-4, -24, -9的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-4, -45, -23的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-4, -24, -9的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-3, -46, -22的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-2, -48, -27的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-3, -46, -22的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-2, -48, -27的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于-1, -45, 17的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于0, -47, 12的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于-1, -45, 17的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于0, -47, 12的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于0, -39, -3的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于1, -40, -4的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于0, -39, -3的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于1, -40, -4的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于2, -30, 13的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于2, -35, -42的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于2, -30, 13的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于2, -35, -42的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于3, -54, 3的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于3, -54, 4的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -54, 3的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -54, 4的方块
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于3, -51, 12的方块]
+[18:45:37] [Server thread/INFO]: [SmokeTester: 已更改位于3, -30, 14的方块]
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -51, 12的方块
+[18:45:37] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -30, 14的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于3, -54, 41的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于3, -28, -18的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -54, 41的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于3, -28, -18的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于4, -55, 3的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于4, -51, 11的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -55, 3的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -51, 11的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于4, -57, -54的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于4, -28, -19的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -57, -54的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -28, -19的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于4, -35, -14的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于5, -15, 12的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于4, -35, -14的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -15, 12的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于5, -33, -60的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于5, -35, -22的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -33, -60的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -35, -22的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于5, -27, -19的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于6, -15, 11的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于5, -27, -19的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -15, 11的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于6, -35, 46的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于6, -33, -61的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -35, 46的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -33, -61的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于6, -61, -5的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于7, -61, 47的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于6, -61, -5的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -61, 47的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于7, -37, -63的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于7, -56, -58的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -37, -63的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -56, -58的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于7, -55, -56的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于7, -35, -10的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -55, -56的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于7, -35, -10的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于8, -4, 20的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于8, -60, 47的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于8, -4, 20的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于8, -60, 47的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于8, -55, -56的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于9, -58, 8的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于8, -55, -56的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于9, -58, 8的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于9, -58, 17的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于9, -4, 20的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于9, -58, 17的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于9, -4, 20的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于9, -29, 25的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于10, -57, 8的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于9, -29, 25的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -57, 8的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于10, -29, 26的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于10, -26, -35的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -29, 26的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -26, -35的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于10, -57, -11的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于11, -30, 23的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于10, -57, -11的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于11, -30, 23的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于11, -26, -36的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于11, -37, -30的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于11, -26, -36的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于11, -37, -30的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于12, -29, 22的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于12, -49, -46的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于12, -29, 22的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于12, -49, -46的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于12, -37, -29的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于13, -61, -61的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于12, -37, -29的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于13, -61, -61的方块
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于13, -20, -36的方块]
+[18:45:38] [Server thread/INFO]: [SmokeTester: 已更改位于14, -2, 20的方块]
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于13, -20, -36的方块
+[18:45:38] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -2, 20的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于14, -29, 42的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于14, -60, -61的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -29, 42的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -60, -61的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于14, -19, -36的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -3, 19的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于14, -19, -36的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -3, 19的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -29, 41的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -59, -61的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -29, 41的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -59, -61的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -38, -58的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -51, -42的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -38, -58的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -51, -42的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -52, -40的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -40, -38的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -52, -40的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -40, -38的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于15, -35, -3的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于16, -54, -51的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于15, -35, -3的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -54, -51的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于16, -50, -42的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于16, -51, -40的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -50, -42的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -51, -40的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于16, -24, -14的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于17, -54, -52的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于16, -24, -14的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于17, -54, -52的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于17, -45, -14的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于18, -21, 22的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于17, -45, -14的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于18, -21, 22的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于18, -55, -63的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于18, -24, -18的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于18, -55, -63的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于18, -24, -18的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于19, -22, 22的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于19, -25, -64的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于19, -22, 22的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于19, -25, -64的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于19, -24, -19的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于20, -27, -34的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于19, -24, -19的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于20, -27, -34的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于21, -52, -13的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于21, -33, -1的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于21, -52, -13的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于21, -33, -1的方块
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于22, -42, 30的方块]
+[18:45:39] [Server thread/INFO]: [SmokeTester: 已更改位于22, -41, -23的方块]
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于22, -42, 30的方块
+[18:45:39] [Render thread/INFO]: [System] [CHAT] 已更改位于22, -41, -23的方块
+[18:45:42] [Render thread/INFO]: [星露谷] 界面观察：a —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[18:45:49] [Render thread/INFO]: 234验证回归：被挖矿容错证据 #2（第二批）→ 已移除约 40% 已确认候选（464 条指令）：验证仍为「已验证」，独立确认样本 286 组（基线 286 组），当前已确认候选 694 / 缺失 464（基线缺失 0）
+[18:45:49] [Render thread/INFO]: 234验证回归：策略用例 —— 单区块 45/45 全部确认：证据 45 条 → 独立证据组 45 组 / 曾经确认 45 组 / 覆盖 1 个区块 / 解释比例 100.00%，判定「证据不足」，期望「不是已验证」（通过）
+[18:45:49] [Render thread/INFO]: 234验证回归：策略用例 —— 只有一个独立确认证据组：证据 3 条 → 独立证据组 1 组 / 曾经确认 1 组 / 覆盖 1 个区块 / 解释比例 100.00%，判定「收集中」，期望「不是已验证」（通过）
+[18:45:49] [Render thread/INFO]: 234验证回归：策略用例 —— 8 个独立组 / 3 个目标区块（正向对照）：证据 9 条 → 独立证据组 9 组 / 曾经确认 9 组 / 覆盖 3 个区块 / 解释比例 100.00%，判定「已验证」，期望「已验证」（通过）
+[18:45:49] [Render thread/INFO]: 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[18:45:49] [Render thread/INFO]: 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[18:45:49] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[18:45:49] [Render thread/INFO]: 234验证回归：清理证据 #1（改种子）→ 20260922 → 12345：状态「已验证」→「未验证」，独立确认 286 组 → 0 组，证据 1158 条 → 0 条
+[18:45:49] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话 s1-135283a 已关闭（Worker 侧离线世界缓存已释放）
+[18:45:49] [Render thread/INFO]: 种子挖矿：运行时身份已建立（世界 singleplayer:seedpoc-known-seed / 种子 12345 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #3），预测缓存与渲染层已就绪
+[18:45:49] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s2-3039（种子 12345，维度 minecraft:overworld）
+[18:45:50] [Render thread/INFO]: [星露谷] 界面观察：b —— 容器槽内物品 0 个 / 界面对象内物品栈 2 个
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 25 个（候选 25（未观察 0 / 已确认 0 / 当前缺失 25）），缓存 1 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 6 组独立样本（独立确认 0 组），尚不足以给出结论）
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 21 个（候选 46（未观察 0 / 已确认 0 / 当前缺失 46）），缓存 2 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 13 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 17 个（候选 63（未观察 0 / 已确认 0 / 当前缺失 63）），缓存 3 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,0) → 35 个（候选 98（未观察 0 / 已确认 0 / 当前缺失 98）），缓存 4 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-1) → 26 个（候选 124（未观察 0 / 已确认 0 / 当前缺失 124）），缓存 5 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 17 个（候选 141（未观察 0 / 已确认 0 / 当前缺失 141）），缓存 6 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,0) → 20 个（候选 161（未观察 0 / 已确认 0 / 当前缺失 161）），缓存 7 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-2) → 23 个（候选 184（未观察 0 / 已确认 0 / 当前缺失 184）），缓存 8 个区块 / 上限 256
+[18:45:51] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,0) → 38 个（候选 222（未观察 0 / 已确认 0 / 当前缺失 222）），缓存 9 个区块 / 上限 256
+[18:45:52] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 21 个（候选 243（未观察 0 / 已确认 0 / 当前缺失 243）），缓存 10 个区块 / 上限 256
+[18:45:52] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 15 个（候选 258（未观察 0 / 已确认 0 / 当前缺失 258）），缓存 11 个区块 / 上限 256
+[18:45:52] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,1) → 27 个（候选 285（未观察 0 / 已确认 0 / 当前缺失 285）），缓存 12 个区块 / 上限 256
+[18:45:52] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-1) → 34 个（候选 319（未观察 0 / 已确认 0 / 当前缺失 319）），缓存 13 个区块 / 上限 256
+[18:45:52] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 9 个（候选 328（未观察 0 / 已确认 0 / 当前缺失 328）），缓存 14 个区块 / 上限 256
+[18:45:52] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,0) → 34 个（候选 362（未观察 0 / 已确认 0 / 当前缺失 362）），缓存 15 个区块 / 上限 256
+[18:45:52] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 26 个（候选 388（未观察 0 / 已确认 0 / 当前缺失 388）），缓存 16 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,1) → 15 个（候选 403（未观察 0 / 已确认 0 / 当前缺失 403）），缓存 17 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-3) → 22 个（候选 425（未观察 0 / 已确认 0 / 当前缺失 425）），缓存 18 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,1) → 25 个（候选 450（未观察 0 / 已确认 0 / 当前缺失 450）），缓存 19 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-2) → 24 个（候选 474（未观察 0 / 已确认 0 / 当前缺失 474）），缓存 20 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,0) → 22 个（候选 496（未观察 0 / 已确认 0 / 当前缺失 496）），缓存 21 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 28 个（候选 524（未观察 0 / 已确认 0 / 当前缺失 524）），缓存 22 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,1) → 27 个（候选 551（未观察 0 / 已确认 0 / 当前缺失 551）），缓存 23 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-3) → 10 个（候选 561（未观察 0 / 已确认 0 / 当前缺失 561）），缓存 24 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,1) → 22 个（候选 583（未观察 0 / 已确认 0 / 当前缺失 583）），缓存 25 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 16 个（候选 599（未观察 0 / 已确认 0 / 当前缺失 599）），缓存 26 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-4) → 27 个（候选 626（未观察 0 / 已确认 0 / 当前缺失 626）），缓存 27 个区块 / 上限 256
+[18:45:53] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,2) → 24 个（候选 650（未观察 0 / 已确认 0 / 当前缺失 650）），缓存 28 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-1) → 25 个（候选 675（未观察 0 / 已确认 0 / 当前缺失 675）），缓存 29 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 14 个（候选 689（未观察 0 / 已确认 0 / 当前缺失 689）），缓存 30 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,0) → 27 个（候选 716（未观察 0 / 已确认 0 / 当前缺失 716）），缓存 31 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-4) → 26 个（候选 742（未观察 0 / 已确认 0 / 当前缺失 742）），缓存 32 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,2) → 31 个（候选 773（未观察 0 / 已确认 0 / 当前缺失 773）），缓存 33 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-4) → 28 个（候选 801（未观察 0 / 已确认 0 / 当前缺失 801）），缓存 34 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,2) → 36 个（候选 837（未观察 0 / 已确认 0 / 当前缺失 837）），缓存 35 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-2) → 17 个（候选 854（未观察 0 / 已确认 1 / 当前缺失 853）），缓存 36 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,0) → 9 个（候选 863（未观察 0 / 已确认 1 / 当前缺失 862）），缓存 37 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 32 个（候选 895（未观察 0 / 已确认 1 / 当前缺失 894）），缓存 38 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,1) → 18 个（候选 913（未观察 0 / 已确认 1 / 当前缺失 912）），缓存 39 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-4) → 24 个（候选 937（未观察 0 / 已确认 2 / 当前缺失 935）），缓存 40 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,2) → 33 个（候选 970（未观察 0 / 已确认 2 / 当前缺失 968）），缓存 41 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-4) → 17 个（候选 987（未观察 0 / 已确认 2 / 当前缺失 985）），缓存 42 个区块 / 上限 256
+[18:45:54] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,2) → 20 个（候选 1007（未观察 0 / 已确认 2 / 当前缺失 1005）），缓存 43 个区块 / 上限 256
+[18:45:55] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-3) → 32 个（候选 1039（未观察 0 / 已确认 2 / 当前缺失 1037）），缓存 44 个区块 / 上限 256
+[18:45:55] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,1) → 26 个（候选 1065（未观察 0 / 已确认 2 / 当前缺失 1063）），缓存 45 个区块 / 上限 256
+[18:45:55] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-4) → 12 个（候选 1077（未观察 0 / 已确认 2 / 当前缺失 1075）），缓存 46 个区块 / 上限 256
+[18:45:55] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,2) → 28 个（候选 1105（未观察 0 / 已确认 2 / 当前缺失 1103）），缓存 47 个区块 / 上限 256
+[18:45:55] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-4) → 24 个（候选 1129（未观察 0 / 已确认 2 / 当前缺失 1127）），缓存 48 个区块 / 上限 256
+[18:45:55] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,2) → 13 个（候选 1142（未观察 0 / 已确认 3 / 当前缺失 1139）），缓存 49 个区块 / 上限 256
+[18:45:55] [Render thread/INFO]: 234验证回归：错误种子证据 #1 → 客户端种子 12345：状态「证据不足」，候选 1142 个 / 已观察 303 组 / 曾经确认 3 组 / 覆盖 3 个目标区块 / 解释比例 0.99%；有效样本区块 49；当前确认候选 3 / 缺失 1139（已观察 303 组，但独立确认样本 3 组 / 覆盖 3 个目标区块 / 解释比例 0.99%，未达到验证阈值）
+[18:45:55] [Render thread/INFO]: 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[18:45:55] [Render thread/INFO]: 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[18:45:55] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[18:45:55] [Render thread/INFO]: 234验证回归：错误种子用例 —— 客户端种子改为 2（服务器世界种子仍是 20260922），等待样本积累
+[18:45:55] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话 s2-3039 已关闭（Worker 侧离线世界缓存已释放）
+[18:45:55] [Render thread/INFO]: 种子挖矿：运行时身份已建立（世界 singleplayer:seedpoc-known-seed / 种子 2 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #4），预测缓存与渲染层已就绪
+[18:45:55] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s3-2（种子 2，维度 minecraft:overworld）
+[18:45:56] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 25 个（候选 25（未观察 0 / 已确认 0 / 当前缺失 25）），缓存 1 个区块 / 上限 256
+[18:45:56] [Render thread/INFO]: 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 6 组独立样本（独立确认 0 组），尚不足以给出结论）
+[18:45:56] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 23 个（候选 48（未观察 0 / 已确认 0 / 当前缺失 48）），缓存 2 个区块 / 上限 256
+[18:45:56] [Render thread/INFO]: 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 13 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 15 个（候选 63（未观察 0 / 已确认 0 / 当前缺失 63）），缓存 3 个区块 / 上限 256
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,0) → 26 个（候选 89（未观察 0 / 已确认 0 / 当前缺失 89）），缓存 4 个区块 / 上限 256
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-1) → 20 个（候选 109（未观察 0 / 已确认 0 / 当前缺失 109）），缓存 5 个区块 / 上限 256
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 24 个（候选 133（未观察 0 / 已确认 0 / 当前缺失 133）），缓存 6 个区块 / 上限 256
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,0) → 22 个（候选 155（未观察 0 / 已确认 0 / 当前缺失 155）），缓存 7 个区块 / 上限 256
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-2) → 22 个（候选 177（未观察 0 / 已确认 0 / 当前缺失 177）），缓存 8 个区块 / 上限 256
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,0) → 25 个（候选 202（未观察 0 / 已确认 0 / 当前缺失 202）），缓存 9 个区块 / 上限 256
+[18:45:57] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 24 个（候选 226（未观察 0 / 已确认 0 / 当前缺失 226）），缓存 10 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 21 个（候选 247（未观察 0 / 已确认 0 / 当前缺失 247）），缓存 11 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,1) → 11 个（候选 258（未观察 0 / 已确认 0 / 当前缺失 258）），缓存 12 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-1) → 50 个（候选 308（未观察 0 / 已确认 0 / 当前缺失 308）），缓存 13 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 24 个（候选 332（未观察 0 / 已确认 0 / 当前缺失 332）），缓存 14 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,0) → 16 个（候选 348（未观察 0 / 已确认 0 / 当前缺失 348）），缓存 15 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 17 个（候选 365（未观察 0 / 已确认 0 / 当前缺失 365）），缓存 16 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,1) → 25 个（候选 390（未观察 0 / 已确认 0 / 当前缺失 390）），缓存 17 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-3) → 26 个（候选 416（未观察 0 / 已确认 0 / 当前缺失 416）），缓存 18 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,1) → 23 个（候选 439（未观察 0 / 已确认 0 / 当前缺失 439）），缓存 19 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-2) → 26 个（候选 465（未观察 0 / 已确认 0 / 当前缺失 465）），缓存 20 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,0) → 30 个（候选 495（未观察 0 / 已确认 0 / 当前缺失 495）），缓存 21 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 24 个（候选 519（未观察 0 / 已确认 0 / 当前缺失 519）），缓存 22 个区块 / 上限 256
+[18:45:58] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,1) → 15 个（候选 534（未观察 0 / 已确认 0 / 当前缺失 534）），缓存 23 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-3) → 33 个（候选 567（未观察 0 / 已确认 0 / 当前缺失 567）），缓存 24 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,1) → 26 个（候选 593（未观察 0 / 已确认 0 / 当前缺失 593）），缓存 25 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 29 个（候选 622（未观察 0 / 已确认 0 / 当前缺失 622）），缓存 26 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-4) → 28 个（候选 650（未观察 0 / 已确认 0 / 当前缺失 650）），缓存 27 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,2) → 26 个（候选 676（未观察 0 / 已确认 0 / 当前缺失 676）），缓存 28 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-1) → 36 个（候选 712（未观察 0 / 已确认 0 / 当前缺失 712）），缓存 29 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 21 个（候选 733（未观察 0 / 已确认 0 / 当前缺失 733）），缓存 30 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,0) → 17 个（候选 750（未观察 0 / 已确认 0 / 当前缺失 750）），缓存 31 个区块 / 上限 256
+[18:45:59] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-4) → 27 个（候选 777（未观察 0 / 已确认 0 / 当前缺失 777）），缓存 32 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,2) → 28 个（候选 805（未观察 0 / 已确认 0 / 当前缺失 805）），缓存 33 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-4) → 36 个（候选 841（未观察 0 / 已确认 0 / 当前缺失 841）），缓存 34 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,2) → 27 个（候选 868（未观察 0 / 已确认 0 / 当前缺失 868）），缓存 35 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-2) → 14 个（候选 882（未观察 0 / 已确认 0 / 当前缺失 882）），缓存 36 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,0) → 49 个（候选 931（未观察 0 / 已确认 0 / 当前缺失 931）），缓存 37 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 37 个（候选 968（未观察 0 / 已确认 0 / 当前缺失 968）），缓存 38 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,1) → 27 个（候选 995（未观察 0 / 已确认 0 / 当前缺失 995）），缓存 39 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-4) → 30 个（候选 1025（未观察 0 / 已确认 0 / 当前缺失 1025）），缓存 40 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,2) → 19 个（候选 1044（未观察 0 / 已确认 0 / 当前缺失 1044）），缓存 41 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-4) → 29 个（候选 1073（未观察 0 / 已确认 0 / 当前缺失 1073）），缓存 42 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,2) → 16 个（候选 1089（未观察 0 / 已确认 0 / 当前缺失 1089）），缓存 43 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-3) → 18 个（候选 1107（未观察 0 / 已确认 0 / 当前缺失 1107）），缓存 44 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,1) → 22 个（候选 1129（未观察 0 / 已确认 0 / 当前缺失 1129）），缓存 45 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-4) → 13 个（候选 1142（未观察 0 / 已确认 0 / 当前缺失 1142）），缓存 46 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,2) → 16 个（候选 1158（未观察 0 / 已确认 0 / 当前缺失 1158）），缓存 47 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-4) → 27 个（候选 1185（未观察 0 / 已确认 0 / 当前缺失 1185）），缓存 48 个区块 / 上限 256
+[18:46:00] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,2) → 25 个（候选 1210（未观察 0 / 已确认 0 / 当前缺失 1210）），缓存 49 个区块 / 上限 256
+[18:46:01] [Render thread/INFO]: 234验证回归：错误种子证据 #2 → 客户端种子 2：状态「证据不足」，候选 1210 个 / 已观察 314 组 / 曾经确认 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%；有效样本区块 49；当前确认候选 0 / 缺失 1210（已观察 314 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[18:46:01] [Render thread/INFO]: 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[18:46:01] [Render thread/INFO]: 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[18:46:01] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[18:46:01] [Render thread/INFO]: 234验证回归：错误种子用例 —— 客户端种子改为 0（服务器世界种子仍是 20260922），等待样本积累
+[18:46:01] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话 s3-2 已关闭（Worker 侧离线世界缓存已释放）
+[18:46:01] [Render thread/INFO]: 种子挖矿：运行时身份已建立（世界 singleplayer:seedpoc-known-seed / 种子 0 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #5），预测缓存与渲染层已就绪
+[18:46:01] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s4-0（种子 0，维度 minecraft:overworld）
+[18:46:02] [Render thread/INFO]: [星露谷] 界面观察：a —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[18:46:02] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 31 个（候选 31（未观察 0 / 已确认 0 / 当前缺失 31）），缓存 1 个区块 / 上限 256
+[18:46:02] [Render thread/INFO]: 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 6 组独立样本（独立确认 0 组），尚不足以给出结论）
+[18:46:02] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 11 个（候选 42（未观察 0 / 已确认 0 / 当前缺失 42）），缓存 2 个区块 / 上限 256
+[18:46:02] [Render thread/INFO]: 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 9 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[18:46:02] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 23 个（候选 65（未观察 0 / 已确认 0 / 当前缺失 65）），缓存 3 个区块 / 上限 256
+[18:46:02] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,0) → 25 个（候选 90（未观察 0 / 已确认 0 / 当前缺失 90）），缓存 4 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-1) → 29 个（候选 119（未观察 0 / 已确认 0 / 当前缺失 119）），缓存 5 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 18 个（候选 137（未观察 0 / 已确认 0 / 当前缺失 137）），缓存 6 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,0) → 17 个（候选 154（未观察 0 / 已确认 0 / 当前缺失 154）），缓存 7 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-2) → 28 个（候选 182（未观察 0 / 已确认 0 / 当前缺失 182）），缓存 8 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,0) → 22 个（候选 204（未观察 0 / 已确认 0 / 当前缺失 204）），缓存 9 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 27 个（候选 231（未观察 0 / 已确认 0 / 当前缺失 231）），缓存 10 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 23 个（候选 254（未观察 0 / 已确认 0 / 当前缺失 254）），缓存 11 个区块 / 上限 256
+[18:46:03] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,1) → 34 个（候选 288（未观察 0 / 已确认 0 / 当前缺失 288）），缓存 12 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-1) → 30 个（候选 318（未观察 0 / 已确认 0 / 当前缺失 318）），缓存 13 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 24 个（候选 342（未观察 0 / 已确认 0 / 当前缺失 342）），缓存 14 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,0) → 20 个（候选 362（未观察 0 / 已确认 0 / 当前缺失 362）），缓存 15 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 12 个（候选 374（未观察 0 / 已确认 0 / 当前缺失 374）），缓存 16 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,1) → 22 个（候选 396（未观察 0 / 已确认 0 / 当前缺失 396）），缓存 17 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-3) → 26 个（候选 422（未观察 0 / 已确认 0 / 当前缺失 422）），缓存 18 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,1) → 41 个（候选 463（未观察 0 / 已确认 0 / 当前缺失 463）），缓存 19 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-2) → 34 个（候选 497（未观察 0 / 已确认 2 / 当前缺失 495）），缓存 20 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,0) → 18 个（候选 515（未观察 0 / 已确认 2 / 当前缺失 513）），缓存 21 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 21 个（候选 536（未观察 0 / 已确认 2 / 当前缺失 534）），缓存 22 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,1) → 15 个（候选 551（未观察 0 / 已确认 2 / 当前缺失 549）），缓存 23 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-3) → 30 个（候选 581（未观察 0 / 已确认 2 / 当前缺失 579）），缓存 24 个区块 / 上限 256
+[18:46:04] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,1) → 22 个（候选 603（未观察 0 / 已确认 2 / 当前缺失 601）），缓存 25 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 32 个（候选 635（未观察 0 / 已确认 2 / 当前缺失 633）），缓存 26 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-4) → 26 个（候选 661（未观察 0 / 已确认 2 / 当前缺失 659）），缓存 27 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,2) → 20 个（候选 681（未观察 0 / 已确认 2 / 当前缺失 679）），缓存 28 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-1) → 30 个（候选 711（未观察 0 / 已确认 2 / 当前缺失 709）），缓存 29 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 30 个（候选 741（未观察 0 / 已确认 2 / 当前缺失 739）），缓存 30 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,0) → 24 个（候选 765（未观察 0 / 已确认 2 / 当前缺失 763）），缓存 31 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-4) → 8 个（候选 773（未观察 0 / 已确认 2 / 当前缺失 771）），缓存 32 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,2) → 31 个（候选 804（未观察 0 / 已确认 2 / 当前缺失 802）），缓存 33 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-4) → 9 个（候选 813（未观察 0 / 已确认 2 / 当前缺失 811）），缓存 34 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,2) → 29 个（候选 842（未观察 0 / 已确认 2 / 当前缺失 840）），缓存 35 个区块 / 上限 256
+[18:46:05] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-2) → 29 个（候选 871（未观察 0 / 已确认 2 / 当前缺失 869）），缓存 36 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,0) → 41 个（候选 912（未观察 0 / 已确认 3 / 当前缺失 909）），缓存 37 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 8 个（候选 920（未观察 0 / 已确认 3 / 当前缺失 917）），缓存 38 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,1) → 38 个（候选 958（未观察 0 / 已确认 3 / 当前缺失 955）），缓存 39 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-4) → 17 个（候选 975（未观察 0 / 已确认 3 / 当前缺失 972）），缓存 40 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,2) → 27 个（候选 1002（未观察 0 / 已确认 3 / 当前缺失 999）），缓存 41 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-4) → 2 个（候选 1004（未观察 0 / 已确认 3 / 当前缺失 1001）），缓存 42 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,2) → 36 个（候选 1040（未观察 0 / 已确认 3 / 当前缺失 1037）），缓存 43 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-3) → 19 个（候选 1059（未观察 0 / 已确认 3 / 当前缺失 1056）），缓存 44 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,1) → 30 个（候选 1089（未观察 0 / 已确认 3 / 当前缺失 1086）），缓存 45 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-4) → 29 个（候选 1118（未观察 0 / 已确认 3 / 当前缺失 1115）），缓存 46 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,2) → 21 个（候选 1139（未观察 0 / 已确认 4 / 当前缺失 1135）），缓存 47 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-4) → 18 个（候选 1157（未观察 0 / 已确认 4 / 当前缺失 1153）），缓存 48 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,2) → 13 个（候选 1170（未观察 0 / 已确认 4 / 当前缺失 1166）），缓存 49 个区块 / 上限 256
+[18:46:06] [Render thread/INFO]: 234验证回归：错误种子证据 #3 → 客户端种子 0：状态「证据不足」，候选 1170 个 / 已观察 300 组 / 曾经确认 3 组 / 覆盖 3 个目标区块 / 解释比例 1.00%；有效样本区块 49；当前确认候选 4 / 缺失 1166（已观察 300 组，但独立确认样本 3 组 / 覆盖 3 个目标区块 / 解释比例 1.00%，未达到验证阈值）
+[18:46:06] [Render thread/INFO]: 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[18:46:06] [Render thread/INFO]: 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[18:46:06] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[18:46:06] [Render thread/INFO]: 234验证回归：错误种子用例 —— 客户端种子改为 -7777（服务器世界种子仍是 20260922），等待样本积累
+[18:46:06] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话 s4-0 已关闭（Worker 侧离线世界缓存已释放）
+[18:46:06] [Render thread/INFO]: 种子挖矿：运行时身份已建立（世界 singleplayer:seedpoc-known-seed / 种子 -7777 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #6），预测缓存与渲染层已就绪
+[18:46:06] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s5-ffffffffffffe19f（种子 -7777，维度 minecraft:overworld）
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 31 个（候选 31（未观察 0 / 已确认 0 / 当前缺失 31）），缓存 1 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 7 组独立样本（独立确认 0 组），尚不足以给出结论）
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 13 个（候选 44（未观察 0 / 已确认 0 / 当前缺失 44）），缓存 2 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 13 组，但独立确认样本 0 组 / 覆盖 0 个目标区块 / 解释比例 0.00%，未达到验证阈值）
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 34 个（候选 78（未观察 0 / 已确认 0 / 当前缺失 78）），缓存 3 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,0) → 20 个（候选 98（未观察 0 / 已确认 0 / 当前缺失 98）），缓存 4 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-1) → 27 个（候选 125（未观察 0 / 已确认 0 / 当前缺失 125）），缓存 5 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-2) → 36 个（候选 161（未观察 0 / 已确认 0 / 当前缺失 161）），缓存 6 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,0) → 32 个（候选 193（未观察 0 / 已确认 0 / 当前缺失 193）），缓存 7 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-2) → 20 个（候选 213（未观察 0 / 已确认 0 / 当前缺失 213）），缓存 8 个区块 / 上限 256
+[18:46:08] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,0) → 34 个（候选 247（未观察 0 / 已确认 0 / 当前缺失 247）），缓存 9 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-1) → 24 个（候选 271（未观察 0 / 已确认 0 / 当前缺失 271）），缓存 10 个区块 / 上限 256
+[18:46:09] [Server thread/INFO]: Saving and pausing game...
+[18:46:09] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:overworld
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-3) → 25 个（候选 296（未观察 0 / 已确认 0 / 当前缺失 296）），缓存 11 个区块 / 上限 256
+[18:46:09] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_nether
+[18:46:09] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_end
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,1) → 24 个（候选 320（未观察 0 / 已确认 0 / 当前缺失 320）），缓存 12 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-1) → 16 个（候选 336（未观察 0 / 已确认 0 / 当前缺失 336）），缓存 13 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-2) → 33 个（候选 369（未观察 0 / 已确认 0 / 当前缺失 369）），缓存 14 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,0) → 24 个（候选 393（未观察 0 / 已确认 0 / 当前缺失 393）），缓存 15 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-3) → 22 个（候选 415（未观察 0 / 已确认 1 / 当前缺失 414）），缓存 16 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,1) → 33 个（候选 448（未观察 0 / 已确认 1 / 当前缺失 447）），缓存 17 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-3) → 21 个（候选 469（未观察 0 / 已确认 1 / 当前缺失 468）），缓存 18 个区块 / 上限 256
+[18:46:09] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,1) → 22 个（候选 491（未观察 0 / 已确认 1 / 当前缺失 490）），缓存 19 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-2) → 30 个（候选 521（未观察 0 / 已确认 1 / 当前缺失 520）），缓存 20 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,0) → 26 个（候选 547（未观察 0 / 已确认 1 / 当前缺失 546）），缓存 21 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-3) → 19 个（候选 566（未观察 0 / 已确认 1 / 当前缺失 565）），缓存 22 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,1) → 48 个（候选 614（未观察 0 / 已确认 1 / 当前缺失 613）），缓存 23 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: [星露谷] 界面观察：PauseScreen —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-3) → 22 个（候选 636（未观察 0 / 已确认 1 / 当前缺失 635）），缓存 24 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,1) → 35 个（候选 671（未观察 0 / 已确认 1 / 当前缺失 670）），缓存 25 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-1) → 11 个（候选 682（未观察 0 / 已确认 1 / 当前缺失 681）），缓存 26 个区块 / 上限 256
+[18:46:10] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-4) → 21 个（候选 703（未观察 0 / 已确认 1 / 当前缺失 702）），缓存 27 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,2) → 30 个（候选 733（未观察 0 / 已确认 1 / 当前缺失 732）），缓存 28 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-1) → 21 个（候选 754（未观察 0 / 已确认 1 / 当前缺失 753）），缓存 29 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-2) → 19 个（候选 773（未观察 0 / 已确认 1 / 当前缺失 772）），缓存 30 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,0) → 16 个（候选 789（未观察 0 / 已确认 1 / 当前缺失 788）），缓存 31 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-4) → 23 个（候选 812（未观察 0 / 已确认 1 / 当前缺失 811）），缓存 32 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,2) → 48 个（候选 860（未观察 0 / 已确认 1 / 当前缺失 859）），缓存 33 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,-4) → 29 个（候选 889（未观察 0 / 已确认 1 / 当前缺失 888）），缓存 34 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,2) → 26 个（候选 915（未观察 0 / 已确认 1 / 当前缺失 914）），缓存 35 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-2) → 21 个（候选 936（未观察 0 / 已确认 2 / 当前缺失 934）），缓存 36 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,0) → 14 个（候选 950（未观察 0 / 已确认 2 / 当前缺失 948）），缓存 37 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-3) → 6 个（候选 956（未观察 0 / 已确认 2 / 当前缺失 954）），缓存 38 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,1) → 31 个（候选 987（未观察 0 / 已确认 2 / 当前缺失 985）），缓存 39 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,-4) → 22 个（候选 1009（未观察 0 / 已确认 2 / 当前缺失 1007）），缓存 40 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-3,2) → 29 个（候选 1038（未观察 0 / 已确认 2 / 当前缺失 1036）），缓存 41 个区块 / 上限 256
+[18:46:11] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,-4) → 27 个（候选 1065（未观察 0 / 已确认 2 / 当前缺失 1063）），缓存 42 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (1,2) → 17 个（候选 1082（未观察 0 / 已确认 2 / 当前缺失 1080）），缓存 43 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-3) → 38 个（候选 1120（未观察 0 / 已确认 2 / 当前缺失 1118）），缓存 44 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,1) → 27 个（候选 1147（未观察 0 / 已确认 2 / 当前缺失 1145）），缓存 45 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,-4) → 30 个（候选 1177（未观察 0 / 已确认 2 / 当前缺失 1175）），缓存 46 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-4,2) → 28 个（候选 1205（未观察 0 / 已确认 2 / 当前缺失 1203）），缓存 47 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,-4) → 12 个（候选 1217（未观察 0 / 已确认 2 / 当前缺失 1215）），缓存 48 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (2,2) → 31 个（候选 1248（未观察 0 / 已确认 2 / 当前缺失 1246）），缓存 49 个区块 / 上限 256
+[18:46:12] [Render thread/INFO]: 234验证回归：错误种子证据 #4 → 客户端种子 -7777：状态「证据不足」，候选 1248 个 / 已观察 308 组 / 曾经确认 2 组 / 覆盖 2 个目标区块 / 解释比例 0.65%；有效样本区块 49；当前确认候选 2 / 缺失 1246（已观察 308 组，但独立确认样本 2 组 / 覆盖 2 个目标区块 / 解释比例 0.65%，未达到验证阈值）
+[18:46:12] [Render thread/INFO]: 种子挖矿｜验证：验证已清空（原因：种子已修改）→ 状态回到「未验证」
+[18:46:12] [Render thread/INFO]: 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[18:46:12] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[18:46:12] [Render thread/INFO]: 234验证回归：错误种子矩阵跑完，客户端种子改回正确值 20260922，等待它重新进入「已验证」（换服清理用例要求 A 侧此刻确实是已验证）
+[18:46:12] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话 s5-ffffffffffffe19f 已关闭（Worker 侧离线世界缓存已释放）
+[18:46:12] [Render thread/INFO]: 种子挖矿：运行时身份已建立（世界 singleplayer:seedpoc-known-seed / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #7），预测缓存与渲染层已就绪
+[18:46:12] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s6-135283a（种子 20260922，维度 minecraft:overworld）
+[18:46:13] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-1) → 21 个（候选 21（未观察 0 / 已确认 9 / 当前缺失 12）），缓存 1 个区块 / 上限 256
+[18:46:13] [Render thread/INFO]: 种子挖矿｜验证：验证状态 未验证 → 收集中（已收集 4 组独立样本（独立确认 3 组），尚不足以给出结论）
+[18:46:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-2,-1) → 34 个（候选 55（未观察 0 / 已确认 25 / 当前缺失 30）），缓存 2 个区块 / 上限 256
+[18:46:14] [Render thread/INFO]: 种子挖矿｜验证：验证状态 收集中 → 证据不足（已观察 11 组，但独立确认样本 10 组 / 覆盖 2 个目标区块 / 解释比例 90.91%，未达到验证阈值）
+[18:46:14] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (-1,-2) → 12 个（候选 67（未观察 0 / 已确认 30 / 当前缺失 37）），缓存 3 个区块 / 上限 256
+[18:46:14] [Render thread/INFO]: 种子挖矿｜验证：验证状态 证据不足 → 已验证（已验证（锁存）：本次会话曾经满足全部验证阈值（独立确认样本 13 组（阈值 8），覆盖 3 个目标区块（阈值 3），解释比例 92.86%（阈值 50.00%）））
+[18:46:14] [Render thread/INFO]: 234验证回归：恢复证据 → 种子改回 20260922 后重新「已验证」：独立确认样本 13 组 / 覆盖 3 个目标区块 / 已观察 14 组 / 解释比例 92.86%；当前已确认候选 30 / 缺失 37（此前已被移除约 40% 的矿）
+[18:46:14] [Render thread/INFO]: 234验证回归：未配置 B 服务器（-Dyiyiaddon.seedpoc.validation.serverB），跳过换服清理用例
+[18:46:14] [Render thread/INFO]: [STDOUT]: Baritone world data dir: D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\the_nether_128
+[18:46:14] [Render thread/INFO]: [STDOUT]: Cached world directory: D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\the_nether_128\cache
+[18:46:14] [Render thread/INFO]: [STDOUT]: Would save waypoints to D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\the_nether_128\waypoints
+[18:46:14] [Baritone-Worker-3/INFO]: [STDOUT]: Started saving the world in a new thread
+[18:46:14] [Baritone-Worker-3/INFO]: [STDOUT]: World save took 0ms
+[18:46:14] [Server thread/INFO]: SmokeTester取得了进度[勇往直下]
+[18:46:14] [Server thread/INFO]: [SmokeTester: 已将SmokeTester传送至0.500000, 70.000000, 0.500000]
+[18:46:14] [Render thread/INFO]: [System] [CHAT] SmokeTester取得了进度[勇往直下]
+[18:46:14] [Render thread/INFO]: [System] [CHAT] 已将SmokeTester传送至0.500000, 70.000000, 0.500000
+[18:46:14] [Render thread/INFO]: 种子挖矿｜验证：验证已清空（原因：进入世界 / 换服）→ 状态回到「未验证」
+[18:46:14] [Render thread/INFO]: 种子挖矿：运行时已失效（原因：进入世界 / 换服）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[18:46:14] [Render thread/INFO]: 种子挖矿：进入世界 维度=minecraft:the_nether（世界生成宿主由本地隔离计算器提供）
+[18:46:14] [Render thread/INFO]: 234验证回归：清理证据 #2（换维度）→ 下界中：验证状态「未验证」，证据 0 条，身份 未建立
+[18:46:14] [Render thread/INFO]: 种子挖矿：覆盖预测 区块 (-1,0) 返回时身份已变，结果丢弃
+[18:46:15] [Render thread/INFO]: Loaded 29 advancements
+[18:46:15] [Server thread/INFO]: [SmokeTester: 已将SmokeTester传送至0.500000, 100.000000, 0.500000]
+[18:46:15] [Render thread/INFO]: [STDOUT]: Baritone world data dir: D:\mcaddon\种子 Worker Production Test\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384
+[18:46:15] [Baritone-Worker-3/INFO]: [STDOUT]: Started saving the world in a new thread
+[18:46:15] [Baritone-Worker-3/INFO]: [STDOUT]: World save took 0ms
+[18:46:15] [Render thread/INFO]: [System] [CHAT] 已将SmokeTester传送至0.500000, 100.000000, 0.500000
+[18:46:15] [Render thread/INFO]: 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[18:46:15] [Render thread/INFO]: 种子挖矿：运行时身份已建立（世界 singleplayer:seedpoc-known-seed / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #9），预测缓存与渲染层已就绪
+[18:46:15] [Server thread/INFO]: Saving and pausing game...
+[18:46:15] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:overworld
+[18:46:15] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_nether
+[18:46:15] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_end
+[18:46:16] [Render thread/INFO]: 种子挖矿：覆盖预测已收录 区块 (0,0) → 45 个（候选 45（未观察 0 / 已确认 21 / 当前缺失 24）），缓存 1 个区块 / 上限 256
+[18:46:16] [Render thread/INFO]: 种子挖矿｜验证：验证状态 未验证 → 证据不足（已观察 9 组，但独立确认样本 8 组 / 覆盖 1 个目标区块 / 解释比例 88.89%，未达到验证阈值）
+[18:46:16] [Render thread/INFO]: 234验证回归：清理证据 #3（回主世界重建）→ 验证已重新开始收集：状态「证据不足」，已观察 9 组 / 曾经确认 8 组（种子 20260922）
+[18:46:16] [Render thread/INFO]: 234验证回归：====== 结果汇总 ======
+[18:46:16] [Render thread/INFO]: 234验证回归：已验证证据 1 条 / 被挖矿容错证据 2 条 / 策略合成用例 3 条 / 错误种子证据 4 条 / 清理证据 3 条
+[18:46:16] [Render thread/INFO]: 234验证回归：错误种子矩阵 [12345, 2, 0, -7777] 全部未通过验证：是
+[18:46:16] [Render thread/INFO]: 234验证回归：可疑语义 自动可疑判定保持禁用：只有先证明「当前候选宇宙覆盖了全部合法世界生成调度可能产生的钻石坐标」，才有资格判定某位置「不该出现钻石」。合法 FEATURES 顺序本身就会改变同一位置的最终结果，因此调度敏感候选永远不能当作可疑证据。
+[18:46:16] [Render thread/INFO]: 234验证回归：硬冲突判据 硬冲突判据不可达：硬冲突判据只接受「确定性（DETERMINISTIC）候选与实际方块不符」，而本阶段正式预测器不产出确定性候选（恒为 0）：合法 FEATURES 调度顺序本身就会改变同一位置最终是否为钻石，因此调度敏感候选永远不能当作冲突证据。证明不了安全，就不产出冲突结论。
+[18:46:16] [Render thread/INFO]: 234验证回归：最终读数 缓存目标区块 1 / 上限 256，累计淘汰 0，身份 世界 singleplayer:seedpoc-known-seed / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #9；覆盖半径 3（目标 49 个），中心 0,0，在跑 -1, 0，排队 47，累计提交 251 / 完成 249（移动丢弃排队 0，失败不再重试 0）；观察 候选 45（未观察 0 / 已确认 21 / 当前缺失 24）；已登记区块 1，绑定世界 有；渲染 目标区块 1 / 候选 45（未观察 0 / 已确认 21 / 当前缺失 24 / 调度敏感 0）；验证「证据不足」：独立样本组 9（曾经确认 8 组 / 覆盖 1 个目标区块 / 已观察 9 组 / 解释比例 88.89%）；有效样本区块 1；当前已确认候选 21 / 缺失 24；证据 45 条，身份 世界 singleplayer:seedpoc-known-seed / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #9，锁存 未锁定
+[18:46:16] [Render thread/INFO]: 234验证回归：全部判定：通过
+[18:46:16] [Render thread/INFO]: 种子挖矿：显示预测钻石改为 关
+[18:46:16] [Render thread/INFO]: 种子挖矿｜验证：验证已清空（原因：已关闭显示预测钻石）→ 状态回到「未验证」
+[18:46:16] [Render thread/INFO]: 种子挖矿：运行时已失效（原因：已关闭显示预测钻石）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空
+[18:46:16] [Render thread/INFO]: 234验证回归：已关闭显示预测钻石；缓存 0 个区块，验证证据 0 条
+[18:46:16] [Render thread/INFO]: 种子挖矿PoC：按系统属性要求退出客户端
+[18:46:16] [Render thread/INFO]: Stopping!
+[18:46:16] [Server thread/INFO]: Stopping server
+[18:46:16] [Server thread/INFO]: Saving players
+[18:46:16] [Server thread/INFO]: SmokeTester lost connection: 连接中断
+[18:46:16] [Server thread/INFO]: SmokeTester退出了游戏
+[18:46:16] [Server thread/INFO]: Stopping singleplayer server as player logged out
+[18:46:16] [Server thread/INFO]: Saving worlds
+[18:46:17] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:overworld
+[18:46:18] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_nether
+[18:46:19] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_end
+[18:46:19] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[18:46:19] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:46:19] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:46:19] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[18:46:19] [yiyiaddon-seed-calculator-shutdown/INFO]: 种子挖矿：客户端正在退出，开始回收本地世界生成计算器
+
