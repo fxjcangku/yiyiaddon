@@ -16,6 +16,17 @@ def work = layout.buildDirectory.dir('obfuscation')
 def libraries = work.map { it.file('libraries.txt') }
 def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.jdk_version as int) }
 
+// 加固的输入 jar。发布流水线（obfuscation.gradle）会把它设成 ProGuard 的产物 —— 顺序必须是
+// 「先混淆、后加固」：ProGuard 读不了加固产出的 CONSTANT_Dynamic（加密常量与加密分派键），
+// 会直接以 UnsupportedOperationException 中止；反过来加固处理已混淆的类完全正常。
+// 没有配置时退回本项目的普通 jar，保持这份脚本可单独使用。
+def hardeningInputJar = providers.provider {
+    def configured = project.findProperty('hardeningInputJar')
+    configured == null
+            ? tasks.named('jar', Jar).get().archiveFile.get().asFile
+            : project.file(configured.toString())
+}
+
 tasks.register('compileHardeningTool', JavaCompile) {
     dependsOn tasks.named('compileJava')
     source = fileTree('gradle/hardening/src') { include '**/*.java' }
@@ -37,18 +48,22 @@ tasks.register('prepareHardeningLibraries') {
 }
 
 tasks.register('hardenJar', JavaExec) {
-    dependsOn tasks.named('jar'), tasks.named('compileHardeningTool'), tasks.named('prepareHardeningLibraries')
+    dependsOn tasks.named('compileHardeningTool'), tasks.named('prepareHardeningLibraries')
+    // 发布流水线里输入是 obfuscateClasses 的产物；单独使用时没有这个任务，靠 jar 兜底。
+    if (tasks.findByName('obfuscateClasses') != null) {
+        dependsOn tasks.named('obfuscateClasses')
+    }
     classpath = files(toolClasses, sourceSets.main.output.classesDirs) + configurations.hardeningTool
     javaLauncher = launcher
     mainClass = 'com.yiyiaddon.build.HardeningTool'
     maxHeapSize = '2g'
-    inputs.file(tasks.named('jar', Jar).flatMap { it.archiveFile })
+    inputs.file(hardeningInputJar)
     inputs.file(libraries)
     inputs.dir(toolClasses)
     outputs.file(work.map { it.file('hardened.jar') })
     outputs.file(work.map { it.file('hardening-stats.json') })
     doFirst {
-        args = [tasks.named('jar', Jar).get().archiveFile.get().asFile.absolutePath,
+        args = [hardeningInputJar.get().absolutePath,
                 work.get().file('hardened.jar').asFile.absolutePath,
                 libraries.get().asFile.absolutePath, work.get().file('hardening-stats.json').asFile.absolutePath]
     }

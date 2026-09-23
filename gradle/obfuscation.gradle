@@ -20,7 +20,8 @@ def releaseLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(project.jdk_version as int)
 }
 
-apply from: 'gradle/hardening.gradle'
+// 加固脚本在文件末尾才 apply：发布顺序是「先混淆、后加固」，hardening.gradle 需要引用
+// 这里注册的 obfuscateClasses 产物（原因见文件末尾的说明）。
 def hardenedJar = privateDir.map { it.file('hardened.jar') }
 
 // ProGuard 的 -libraryjars 里那份 java.* 类库从哪来：优先工具链 JDK 自带的 jmods；
@@ -66,8 +67,8 @@ def javaLibraries = { File jdkHome, File exportDir ->
 
 // 每次从实际工具链与编译类路径生成配置，避免写死本机缓存路径。
 tasks.register('prepareObfuscation') {
-    dependsOn tasks.named('hardenJar')
-    inputs.file(hardenedJar)
+    dependsOn tasks.named('jar')
+    inputs.file(originalJar)
     inputs.file(rulesFile)
     inputs.files(configurations.compileClasspath)
     inputs.property('jdk', releaseLauncher.map { it.metadata.installationPath.asFile.absolutePath })
@@ -76,7 +77,9 @@ tasks.register('prepareObfuscation') {
         def quote = { File path -> "'" + path.absolutePath.replace('\\', '/') + "'" }
         def lines = [
             "-include ${quote(rulesFile)}",
-            "-injars ${quote(hardenedJar.get().asFile)}(**.class)",
+            // 输入是「未加固」的普通 jar：加固产出的加密常量（CONSTANT_Dynamic）ProGuard 读不了，
+            // 所以加固被排到 ProGuard 之后（见文件末尾）。
+            "-injars ${quote(originalJar.get().asFile)}(**.class)",
             "-outjars ${quote(protectedClasses.get().asFile)}",
             "-printmapping ${quote(mappingFile.get().asFile)}"
         ]
@@ -99,7 +102,6 @@ tasks.register('obfuscateClasses', JavaExec) {
     javaLauncher = releaseLauncher
     maxHeapSize = '2g'
     inputs.file(originalJar)
-    inputs.file(hardenedJar)
     inputs.file(rulesFile)
     inputs.file(generatedConfig)
     inputs.files(configurations.compileClasspath)
@@ -110,14 +112,15 @@ tasks.register('obfuscateClasses', JavaExec) {
 
 // 只替换 class；资源、Fabric 元数据、嵌套 Baritone / Skija JAR 原样复制。
 def releaseJar = tasks.register('obfuscatedJar', Jar) {
-    dependsOn tasks.named('obfuscateClasses')
+    // 类来自「混淆 → 加固」之后的产物（见文件末尾的顺序说明）。
+    dependsOn 'hardenJar'
     // 发布包名带 MC 版本（yiyiaddon-1.0-beta1-26.1.2.jar）：两条版本线的发布包
     // 版本号相同，不带 MC 版本会重名分不清谁能装；个人版反而是老名字不带（见 231 条）。
     archiveClassifier = project.minecraft_version
     destinationDirectory = layout.buildDirectory.dir('release')
     preserveFileTimestamps = false
     reproducibleFileOrder = true
-    from({ zipTree(protectedClasses.get().asFile) }) { include '**/*.class' }
+    from({ zipTree(hardenedJar.get().asFile) }) { include '**/*.class' }
     from({ zipTree(originalJar.get().asFile) }) {
         exclude '**/*.class', 'META-INF/MANIFEST.MF'
     }
@@ -126,7 +129,9 @@ def releaseJar = tasks.register('obfuscatedJar', Jar) {
 
 // 发布前失败即中止：核对入口、Mixin、原样资源及禁止进入产物的调试探针。
 tasks.register('verifyObfuscatedJar') {
-    dependsOn releaseJar, tasks.named('testHardening'), tasks.named('auditProtectedConstants')
+    // testHardening / auditProtectedConstants 由文件末尾 apply 进来的 hardening.gradle 注册，
+    // 这里只能用名字依赖（字符串），不能用 tasks.named。
+    dependsOn releaseJar, 'testHardening', 'auditProtectedConstants'
     inputs.file(releaseJar.flatMap { it.archiveFile })
     inputs.file(originalJar)
     inputs.file(mappingFile)
@@ -148,6 +153,19 @@ tasks.register('verifyObfuscatedJar') {
                     def mixin = new JsonSlurper().parse(read(after, config))
                     ((mixin.client ?: []) + (mixin.mixins ?: []) + (mixin.server ?: [])).each { name ->
                         read(after, (mixin.package + '.' + name).replace('.', '/') + '.class')
+                    }
+                }
+                // 跨进程入口：本地世界生成 Worker 由「第二个 JVM」按类名启动，不是 Fabric 入口点，
+                // 上面的 entrypoints 检查覆盖不到它 —— 一旦 ProGuard 改名，正式产物里该功能直接死掉，
+                // 而且只在真实用户机器上才暴露（开发 runClient 用的是未混淆类，永远看不见）。
+                // 这里把 worker 引导面按原名钉死（对应 rules 里的 -keep/-keepnames）。
+                ['com/yiyiaddon/seedworker/SeedWorkerMain.class',
+                 'com/yiyiaddon/seedworker/SeedWorkerHost.class',
+                 'com/yiyiaddon/seedworker/SeedWorkerIpcServer.class',
+                 'com/yiyiaddon/seedworker/SeedWorkerSessions.class',
+                 'com/yiyiaddon/seedworker/SeedWorkerArgs.class'].each { name ->
+                    if (after.getEntry(name) == null) {
+                        throw new GradleException("混淆产物缺少跨进程 Worker 入口（改名即功能失效）：${name}")
                     }
                 }
                 before.entries().each { entry ->
@@ -218,6 +236,9 @@ tasks.register('verifyObfuscatedJar') {
                     throw new GradleException("混淆后 Gson 字段契约失效：${name}")
                 }
             }
+            // 名字保住了还不够：跨进程启动靠的是「类名 + public static void main(String[])」两条契约，
+            // ProGuard 只保住类名而改了入口方法同样起不来。
+            loader.loadClass('com.yiyiaddon.seedworker.SeedWorkerMain').getMethod('main', String[].class)
         }
         def hash = MessageDigest.getInstance('SHA-256').digest(artifact.bytes).encodeHex().toString()
         new File(artifact.parentFile, artifact.name + '.sha256').setText(hash + '  ' + artifact.name + '\n', 'UTF-8')
@@ -278,3 +299,13 @@ tasks.register('buildRelease') {
     description = '构建并检查混淆发布包，映射自动保存到 05-混淆文件备份。'
     dependsOn tasks.named('build'), tasks.named('releaseZip')
 }
+
+// ── 发布顺序：先混淆、后加固 ─────────────────────────────────────────────────
+// 加固（字符串加密 + 加密分派键）会把常量换成 CONSTANT_Dynamic，而 ProGuard 7.9.1 / core 9.3.2
+// 在初始化阶段遇到它就抛 UnsupportedOperationException（DynamicClassReferenceInitializer），
+// 整条发布链直接失败；把加固放到 ProGuard 之后，两种保护的效果完全不变（产物依旧是
+// 「已改名 + 加密常量」），但 ProGuard 只见得到普通常量。
+// 代价：加固运行期类 com.yiyiaddon.utils.ReleaseProtection 必须在混淆后保持原名与
+// bootstrap 签名（构建期加固按类名写引导句柄，之后没人再帮它重映射），对应 proguard-rules.pro 的 keep。
+ext.hardeningInputJar = protectedClasses.get().asFile.absolutePath
+apply from: 'gradle/hardening.gradle'
