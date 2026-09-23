@@ -120,6 +120,21 @@ public final class SeedPocEntry {
             SeedRadius6Smoke.onClientTick(client);
             return;
         }
+        // 第七阶段（235）：钻石 Seed Target → AutoMiner 正式接入（A~L 十二项实机回归）
+        if (SeedPocFlags.targetRegression()) {
+            SeedTargetRegression.onClientTick(client);
+            return;
+        }
+        // 第八阶段（236）：多矿物 · 多维度实机矩阵（通用化零回归 + 其它 10 种矿物 + 下界）
+        if (SeedPocFlags.oreMatrix()) {
+            SeedOreMatrixRegression.onClientTick(client);
+            return;
+        }
+        // 第九阶段（237）：下界真正多人服务器验收（主世界 → 下界切换 + 远端未加载 + fail-closed）
+        if (SeedPocFlags.netherMultiplayer()) {
+            NetherMultiplayerRegression.onClientTick(client);
+            return;
+        }
         if (dispatched) {
             return;
         }

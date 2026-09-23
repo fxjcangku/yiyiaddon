@@ -1,6 +1,7 @@
 package com.yiyiaddon.feature.mining.target;
 
 import com.yiyiaddon.feature.mining.AutoMinerModule;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 
 import java.util.List;
@@ -40,8 +41,14 @@ public final class BlockTypeMiningTargetProvider implements MiningTargetProvider
     }
 
     @Override
+    public boolean usesBlockTypeScan() {
+        return true;
+    }
+
+    @Override
     public boolean ready() {
-        return !module.getMiningTargets().isEmpty();
+        // 与旧判据逐字同源：旧看门狗用的是 getTargetBlocks().isEmpty()
+        return !module.getTargetBlocks().isEmpty();
     }
 
     @Override
@@ -95,5 +102,11 @@ public final class BlockTypeMiningTargetProvider implements MiningTargetProvider
     @Override
     public String statusCn() {
         return "按矿物类型扫描（男中音 mine）";
+    }
+
+    @Override
+    public BlockPos lockedTargetOrNull() {
+        // 普通模式没有「精确坐标目标」这个概念：挖哪一格由男中音自己决定
+        return null;
     }
 }

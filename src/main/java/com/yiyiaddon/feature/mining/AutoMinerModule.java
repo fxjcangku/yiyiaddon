@@ -295,6 +295,44 @@ public final class AutoMinerModule extends Module {
         return "minecraft:overworld".equals(WorldIdentity.dimension());
     }
 
+    /** 「使用种子目标」开关（235：种子挖矿页那一行）。 */
+    public boolean isSeedTargetMode() {
+        return settings.seedTargetMode;
+    }
+
+    /**
+     * 设置「使用种子目标」（235）。
+     *
+     * <p>立刻落盘，并把两个目标提供者的会话整份复位（换模式时旧目标一律作废）；模块正在运行时
+     * 再强制状态机重新下发一次目标 —— 否则「mine 进程没了」会被看门狗判成一次进程退出，
+     * 玩家会看到一条与操作无关的「挖矿进程已退出 ▸ 正在重启」。</p>
+     */
+    public void setSeedTargetMode(boolean value) {
+        if (settings.seedTargetMode == value) {
+            return;
+        }
+        settings.seedTargetMode = value;
+        persistSettings();
+        normalTargetProvider.resetSession();
+        seedTargetProvider.resetSession();
+        if (isEnabled()) {
+            fsm.requestTargetReissue();
+        }
+        info(value
+            ? "§a✓ 已开启种子目标模式 §8▸ 按预测坐标挖钻石（需种子验证通过；验证未通过不会开始）"
+            : "§e已关闭种子目标模式 §8▸ 恢复按矿物类型扫描");
+    }
+
+    /**
+     * 「种子目标模式现在为什么不能挖」——未开启该模式时返回空串。
+     *
+     * <p>自检缺项与本页提示<b>共用这一处判据</b>（真正的判据在
+     * {@link SeedMiningTargetProvider#notReadyReasonCn()}），不另写第二份。</p>
+     */
+    public String seedTargetBlockReasonCn() {
+        return settings.seedTargetMode ? seedTargetProvider.notReadyReasonCn() : "";
+    }
+
     /**
      * 玩家自己敲的服务器指令 → 交给状态机做「按结果判」的手动传送判定（用户 2026-09-18 口径）。
      *
@@ -655,13 +693,11 @@ public final class AutoMinerModule extends Module {
         }
 
         // 种子目标模式（235）：把「为什么现在不能按种子挖」逐条报出来（总开关 / 维度 / 种子 /
-        // 验证闸门 / 目标是不是钻石 / 秒破）。判据与运行期<b>同一个来源</b>
+        // 验证闸门 / 目标是不是钻石 / 秒破）。判据与运行期、与种子挖矿页<b>同一个来源</b>
         // （SeedMiningTargetProvider#notReadyReasonCn），不在这里另写一套，避免两处走散。
-        if (settings.seedTargetMode) {
-            String seedBlockReason = seedTargetProvider.notReadyReasonCn();
-            if (!seedBlockReason.isEmpty()) {
-                missing.add("§b种子目标§f·" + seedBlockReason);
-            }
+        String seedBlockReason = seedTargetBlockReasonCn();
+        if (!seedBlockReason.isEmpty()) {
+            missing.add("§b种子目标§f·" + seedBlockReason);
         }
 
         // 点位绑定检测（旧 :938-943 的三条缺项）
@@ -791,6 +827,9 @@ public final class AutoMinerModule extends Module {
         // 秒破状态机复位：换服 / 重启模块后不带入上一个会话的目标、冷却与暂停计时
         MiningFastBreakController.instance().resetTimers();
         veinMiner.reset();
+        // 235：目标提供者整份复位（种子模式清空当前目标 / 已消费 / 暂时不可达 / 身份镜像），
+        // 新会话绝不允许带着上一次的目标与记账起来
+        miningTargetProvider().resetSession();
         resetSpawnerPriority();
         // 断线防重锁复位：上次会话靠断线退出后重新进服再开模块，必须能再次触发断线
         disconnecting = false;
@@ -846,6 +885,8 @@ public final class AutoMinerModule extends Module {
         MiningFastBreakController.instance().release(mc, true);
         // 连锁：清队列与「已接管 Baritone」标志（标志清了 mine 才会被状态机的自愈分支重新拉起）
         veinMiner.reset();
+        // 235：目标提供者整份复位（种子模式：撤目标 + 清记账，绝不留到下一次启用）
+        miningTargetProvider().resetSession();
         resetSpawnerPriority();
         // 断线防重锁复位：断线退出后本模块会被自动关闭，本次触发就此收尾
         disconnecting = false;
@@ -1190,7 +1231,11 @@ public final class AutoMinerModule extends Module {
      * @return true 表示优先级状态翻转（附近出现刷怪笼 / 刷怪笼已被清掉 / 尝试超时），调用方应重下发挖掘目标
      */
     public boolean refreshSpawnerPriority() {
-        if (!settings.breakSpawner || mc.player == null || mc.level == null) {
+        // 235：刷怪笼优先靠「把刷怪笼并进男中音的 mine 目标列表」实现，只有按方块类型扫描的
+        // 普通模式才有这件事。种子模式按精确坐标挖，这里整体让位（否则会把 mine 重新拉起来，
+        // 等于偷偷退回按类型扫描）
+        if (!settings.breakSpawner || !miningTargetProvider().usesBlockTypeScan()
+            || mc.player == null || mc.level == null) {
             boolean changed = spawnerPriority;
             spawnerPriority = false;
             spawnerPriorityTicks = 0;
@@ -1271,7 +1316,8 @@ public final class AutoMinerModule extends Module {
     private void onSpawnerPriorityChanged(boolean changed) {
         if (!changed) return;
         baritone.stop();
-        baritone.startMining(getMiningTargets(), false);
+        // 235：走目标提供者（本方法只在 usesBlockTypeScan 为真的普通模式里会被调到）
+        issueMiningTargets(false);
         if (spawnerPriority) {
             info("§e⚠ 附近发现刷怪笼 §8▸ 优先挖掉，避免持续刷怪");
         } else if (spawnerTimedOut) {
@@ -1333,10 +1379,10 @@ public final class AutoMinerModule extends Module {
      * 风险提醒，不把整个设置面板念一遍，否则聊天栏刷屏反而看不清。正文统一「标签 + 全角空格 +
      * {@code §8▸ } + 值」结构，行首标签宽度一致。</p>
      *
-     * <p><b>本轮与旧项目的唯一差异</b>：旧项目「扫描方式」与「挖矿模式」按种子模式（{@code OrePredictor}）
-     * 二选一，本轮种子模式留白，故 {@code §7挖矿模式} 固定为 {@code 普通模式}、
-     * {@code §7扫描方式} 只保留 {@code §f视野内所有目标矿} 这条（种子模式那条连同 {@code 渲染范围}
-     * 不写）。其余 7 行与末尾的条件行逐字照抄。</p>
+     * <p><b>本轮与旧项目的差异</b>：旧项目「扫描方式」与「挖矿模式」按种子模式（{@code OrePredictor}）
+     * 二选一；235 起本模块真的接上了种子目标路径，因此这两行改为<b>按当前目标提供者如实报</b>
+     * （普通模式 = {@code 普通模式 / 视野内所有目标矿}，种子模式 = {@code 种子模式 /
+     * 种子预测坐标（精确到方块）}），不再写死。</p>
      *
      * <p>取值口径逐条照旧源码：目标矿物取「已选产物的显示名」（矿石取物品悬停名，
      * 时运模式即粗铁/粗金这类掉落物名，普通方块走 {@link BaritoneChatTranslations#translateBlockId}，
@@ -1349,8 +1395,8 @@ public final class AutoMinerModule extends Module {
         report.append("\n§7目标矿物　§8▸ ").append(highlightText(getTargetDisplayName())).append("§r");
         report.append("\n§7采集模式　§8▸ ")
               .append(highlightText(isSilkTouchMode() ? "精准采集" : "时运")).append("§r");
-        report.append("\n§7挖矿模式　§8▸ ").append(highlightText("普通模式")).append("§r");
-        report.append("\n§7扫描方式　§8▸ §f视野内所有目标矿");
+        report.append("\n§7挖矿模式　§8▸ ").append(highlightText(miningTargetProvider().modeNameCn())).append("§r");
+        report.append("\n§7扫描方式　§8▸ §f").append(miningTargetProvider().scanModeCn());
 
         // 触发阈值：三项合并一行，高亮数值。满载那栏随模式取值 —— 自用模式「满载」的含义是
         // 「出发去卖」（触发组数 personalSellStacks），普通模式才是卸货阈值 unloadThreshold

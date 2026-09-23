@@ -300,7 +300,7 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
             case THRESHOLD -> new MiningThresholdPage(this, module).build(stack);
             case PERSONAL -> new MiningPersonalPage(this, module).build(stack);
             case BARITONE -> new MiningBaritonePage(this, module).build(stack);
-            case SEED -> new MiningSeedPage(this).build(stack);
+            case SEED -> new MiningSeedPage(this, module).build(stack);
         }
 
         buildFooter(stack);

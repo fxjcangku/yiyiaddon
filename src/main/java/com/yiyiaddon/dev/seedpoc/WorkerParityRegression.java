@@ -1,6 +1,6 @@
 package com.yiyiaddon.dev.seedpoc;
 
-import com.yiyiaddon.seed.prediction.DiamondSeedPredictor;
+import com.yiyiaddon.seed.prediction.SeedOrePredictor;
 import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionCertainty;
 import com.yiyiaddon.seed.prediction.PredictionResult;
@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  *   <li><b>Worker 侧</b>：从客户端线程调用 {@link SeedMiningService} 公开 API（与界面按钮同一条路径），
  *       由它拉起隔离 Worker 并完成预测；</li>
  *   <li><b>Oracle 侧</b>：同一个客户端进程里直接用集成服务端的 {@code ServerLevel} 构造
- *       {@link DiamondSeedPredictor}（这就是 229/230 一直用的那条「单人 Oracle」老路）；</li>
+ *       {@link SeedOrePredictor}（236 前叫 {@code DiamondSeedPredictor}）（这就是 229/230 一直用的那条「单人 Oracle」老路）；</li>
  *   <li>两侧比较<b>完整 PredictionResult</b>：候选数量、逐 BlockPos、矿物种类、确定性分类、来源分类、
  *       跨区块写入者（originViewer）与冲突写入者列表，<b>逐项</b>一致才算通过。</li>
  * </ul>
@@ -112,7 +112,7 @@ public final class WorkerParityRegression {
     private static boolean worldRequested;
 
     private static ServerLevel oracleHost;
-    private static DiamondSeedPredictor oraclePredictor;
+    private static SeedOrePredictor oraclePredictor;
     private static volatile PredictionResult oracleResult;
     private static volatile boolean oracleDone;
 
@@ -167,7 +167,7 @@ public final class WorkerParityRegression {
             abort("集成服务端的主世界不可用");
             return;
         }
-        oraclePredictor = new DiamondSeedPredictor(oracleHost);
+        oraclePredictor = new SeedOrePredictor(oracleHost);
         report("零、环境");
         report("  Oracle 宿主：集成服务端主世界（229/230 一直用的老路）");
         report("  Worker 宿主：本机隔离进程（服务层自动拉起，口径第三、五节）");
@@ -252,7 +252,7 @@ public final class WorkerParityRegression {
             if (waitTicks == 0) {
                 Thread runner = new Thread(() -> {
                     try {
-                        oracleResult = oraclePredictor.predict(target.seed(),
+                        oracleResult = oraclePredictor.predictDiamond(target.seed(),
                             new ChunkPos(target.chunkX(), target.chunkZ()));
                     } catch (Throwable error) {
                         LOGGER.error("{}：Oracle 预测异常", SeedPocConstants.LOG_KEY, error);

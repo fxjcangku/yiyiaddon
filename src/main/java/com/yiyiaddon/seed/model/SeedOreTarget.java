@@ -23,7 +23,12 @@ public record SeedOreTarget(long seed, ResourceKey<Level> dimension, ChunkPos ch
         Objects.requireNonNull(oreType, "oreType");
     }
 
-    /** 主世界钻石预测请求（本阶段唯一被支持的组合）。 */
+    /** 通用构造：任意（维度, 矿物）组合；是否被支持由 {@code SeedOreRegistry} 判定。 */
+    public static SeedOreTarget of(long seed, ResourceKey<Level> dimension, ChunkPos chunk, OreType oreType) {
+        return new SeedOreTarget(seed, dimension, chunk, oreType);
+    }
+
+    /** 主世界钻石预测请求（235 及以前的默认组合，保留以便既有调用点与报告口径不变）。 */
     public static SeedOreTarget diamond(long seed, ChunkPos chunk) {
         return new SeedOreTarget(seed, Level.OVERWORLD, chunk, OreType.DIAMOND);
     }

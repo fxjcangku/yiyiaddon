@@ -1,5 +1,6 @@
 package com.yiyiaddon.seed.worldgen;
 
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
@@ -8,7 +9,6 @@ import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSource;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterList;
-import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterLists;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.PalettedContainerFactory;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
@@ -20,20 +20,26 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
  * 种子挖矿正式模块 · 离线 worldgen 上下文（只由 种子 + 注册表 + 原版 worldgen 配置 决定）。
  *
  * <p><b>它解决什么</b>：预测必须在「与当前世界生成了什么无关」的独立世界里跑，
- * 否则真实世界的调度历史会从输入侧污染预测（正式化第一阶段口径第十四节）。因此这里自己持有一套
- * 种子相关的四件东西（迁移自 PoC 第四轮，算法一字未改）：</p>
+ * 否则真实世界的调度历史会从输入侧污染预测。因此这里自己持有一套种子相关的四件东西
+ * （迁移自 PoC 第四轮，算法一字未改）：</p>
  *
  * <ol>
- *     <li>{@link BiomeSource}：{@code MultiNoiseBiomeSource.createFromPreset(overworld 预设)}
+ *     <li>{@link BiomeSource}：{@code MultiNoiseBiomeSource.createFromPreset(预设)}
  *         （MultiNoiseBiomeSource.java:35）。生物群系源只由数据包预设决定，与种子、与世界都无关；</li>
- *     <li>{@link NoiseBasedChunkGenerator}：{@code new NoiseBasedChunkGenerator(生物群系源, NoiseGeneratorSettings.overworld)}
+ *     <li>{@link NoiseBasedChunkGenerator}：{@code new NoiseBasedChunkGenerator(生物群系源, 噪声设置)}
  *         （NoiseBasedChunkGenerator.java:62，public）；</li>
- *     <li>{@link RandomState}：{@code RandomState.create(注册表, NoiseGeneratorSettings.overworld, 种子)}
+ *     <li>{@link RandomState}：{@code RandomState.create(注册表, 噪声设置键, 种子)}
  *         （RandomState.java:28-34）——噪声地形、含水层、地表系统、矿脉随机全部由它派生；</li>
  *     <li>{@link ChunkGeneratorStructureState}：{@code ChunkGenerator#createState(结构集, RandomState, 种子)}
  *         （ChunkGenerator.java:109-111）——结构起点落在哪些区块由它派生，
  *         与原版 {@code ChunkMap} 构造时的入口相同。</li>
  * </ol>
+ *
+ * <p><b>236：预设与噪声设置按维度取，不再写死主世界</b>。这不是「换个 Y 范围」那么轻：
+ * 下界的 {@code NoiseGeneratorSettings.nether(...)} 里 {@code useLegacyRandomSource=true}，
+ * 也就是<b>随机算法都不是同一套</b> —— 用主世界设置去算下界会得到「看起来正常但整体错位」的结果。
+ * 因此这里改成查 {@link SeedDimensionProfile}，并且要求宿主的维度高度与该档案一致
+ * （不一致即拒绝，绝不用一份参数去凑另一份维度）。</p>
  *
  * <p><b>宿主（{@code host}）只当「环境宿主」</b>：只从它身上取维度类型 / 世界高度 / 注册表 /
  * 结构模板管理器 / 调色板工厂 / 世界是否开结构——这些都与种子无关、也与「这个世界的区块生成了什么」无关。
@@ -47,6 +53,9 @@ public final class OfflineWorldgenContext {
 
     /** 环境宿主（只取与种子无关的环境参数）。 */
     private final ServerLevel host;
+
+    /** 维度档案（预设 / 噪声设置 / 高度口径都来自它）。 */
+    private final SeedDimensionProfile profile;
 
     /** 被试种子。 */
     private final long seed;
@@ -75,12 +84,14 @@ public final class OfflineWorldgenContext {
     /** 方块状态调色板工厂（与种子无关）。 */
     private final PalettedContainerFactory containerFactory;
 
-    private OfflineWorldgenContext(ServerLevel host, long seed, RegistryAccess registries, BiomeSource biomeSource,
+    private OfflineWorldgenContext(ServerLevel host, SeedDimensionProfile profile, long seed,
+                                   RegistryAccess registries, BiomeSource biomeSource,
                                    NoiseBasedChunkGenerator generator, RandomState randomState,
                                    ChunkGeneratorStructureState structureState, StructureManager hostStructureManager,
                                    StructureTemplateManager templateManager,
                                    PalettedContainerFactory containerFactory) {
         this.host = host;
+        this.profile = profile;
         this.seed = seed;
         this.registries = registries;
         this.biomeSource = biomeSource;
@@ -93,30 +104,45 @@ public final class OfflineWorldgenContext {
     }
 
     /**
-     * 由注册表 + 种子独立构造离线生成上下文。
+     * 由注册表 + 种子独立构造离线生成上下文（维度由宿主的维度决定）。
+     *
+     * <p>宿主维度不在 {@link SeedDimensionProfile} 里，或维度高度与原版该维度不一致时，
+     * 一律抛异常（上层转成「预测失败」）—— 绝不退回主世界参数硬算。</p>
      *
      * @param host 环境宿主（只取与种子无关的环境参数，不读它的任何方块状态）
      * @param seed 被试种子
      */
     public static OfflineWorldgenContext create(ServerLevel host, long seed) {
+        SeedDimensionProfile profile = SeedDimensionProfile.requireOf(host.dimension());
+        if (!profile.matchesHost(host)) {
+            throw new IllegalStateException("宿主维度高度与原版该维度不一致（宿主 y "
+                    + host.getMinY() + "~" + host.getMaxY() + "，档案 " + profile.minY() + "~" + profile.maxY()
+                    + "）：离线 worldgen 的高度口径无法套用，拒绝预测");
+        }
         RegistryAccess registries = host.registryAccess();
 
         Holder<MultiNoiseBiomeSourceParameterList> preset = registries
                 .lookupOrThrow(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST)
-                .getOrThrow(MultiNoiseBiomeSourceParameterLists.OVERWORLD);
+                .getOrThrow(profile.biomeSourcePreset());
         BiomeSource source = MultiNoiseBiomeSource.createFromPreset(preset);
 
         Holder<NoiseGeneratorSettings> settings = registries
                 .lookupOrThrow(Registries.NOISE_SETTINGS)
-                .getOrThrow(NoiseGeneratorSettings.OVERWORLD);
+                .getOrThrow(profile.noiseSettings());
         NoiseBasedChunkGenerator generator = new NoiseBasedChunkGenerator(source, settings);
 
-        RandomState randomState = RandomState.create(registries, NoiseGeneratorSettings.OVERWORLD, seed);
+        // 注意：这里用的噪声设置键同时决定随机算法（下界走 LEGACY，见类注释），不能换成主世界的
+        RandomState randomState = RandomState.create(registries, profile.noiseSettings(), seed);
         ChunkGeneratorStructureState structureState = generator.createState(
                 registries.lookupOrThrow(Registries.STRUCTURE_SET), randomState, seed);
 
-        return new OfflineWorldgenContext(host, seed, registries, source, generator, randomState, structureState,
-                host.structureManager(), host.getStructureManager(), host.palettedContainerFactory());
+        return new OfflineWorldgenContext(host, profile, seed, registries, source, generator, randomState,
+                structureState, host.structureManager(), host.getStructureManager(), host.palettedContainerFactory());
+    }
+
+    /** 维度档案（预设 / 噪声设置 / 高度口径）。 */
+    public SeedDimensionProfile profile() {
+        return profile;
     }
 
     /** 环境宿主（只用于与种子无关的环境参数）。 */

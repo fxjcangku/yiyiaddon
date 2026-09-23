@@ -14,11 +14,11 @@ import com.google.gson.JsonObject;
  * @param token           启动时客户端生成的高熵令牌（每一次请求都要带）
  * @param protocolVersion 客户端协议版本
  * @param minecraftVersion 客户端 Minecraft 版本（HELLO 时必填）
- * @param seed            种子（OPEN_SESSION / PREDICT_DIAMOND）
- * @param dimension       维度标识（OPEN_SESSION / PREDICT_DIAMOND）
- * @param chunkX          目标区块 X（PREDICT_DIAMOND）
- * @param chunkZ          目标区块 Z（PREDICT_DIAMOND）
- * @param oreType         矿物种类枚举名（PREDICT_DIAMOND）
+ * @param seed            种子（OPEN_SESSION / PREDICT）
+ * @param dimension       维度标识（OPEN_SESSION / PREDICT）
+ * @param chunkX          目标区块 X（PREDICT）
+ * @param chunkZ          目标区块 Z（PREDICT）
+ * @param oreType         矿物种类枚举名（PREDICT）
  */
 public record WorkerRequest(long id, String op, String token, int protocolVersion, String minecraftVersion,
                             long seed, String dimension, int chunkX, int chunkZ, String oreType) {
@@ -41,10 +41,10 @@ public record WorkerRequest(long id, String op, String token, int protocolVersio
                 seed, dimension, 0, 0, null);
     }
 
-    /** 预测一个目标区块。 */
-    public static WorkerRequest predictDiamond(long id, String token, long seed, String dimension,
-                                              int chunkX, int chunkZ, String oreType) {
-        return new WorkerRequest(id, SeedWorkerProtocol.OP_PREDICT_DIAMOND, token, SeedWorkerProtocol.VERSION, "",
+    /** 预测一个目标区块里的指定矿物。 */
+    public static WorkerRequest predict(long id, String token, long seed, String dimension,
+                                        int chunkX, int chunkZ, String oreType) {
+        return new WorkerRequest(id, SeedWorkerProtocol.OP_PREDICT, token, SeedWorkerProtocol.VERSION, "",
                 seed, dimension, chunkX, chunkZ, oreType);
     }
 

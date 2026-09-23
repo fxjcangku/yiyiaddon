@@ -6,16 +6,20 @@ import com.yiyiaddon.core.event.ClientEventBus;
 import com.yiyiaddon.core.event.ClientEventType;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.seed.config.SeedMiningConfig;
+import com.yiyiaddon.seed.model.OreType;
 import com.yiyiaddon.seed.model.SeedOreTarget;
 import com.yiyiaddon.seed.observation.OreObservationState;
 import com.yiyiaddon.seed.observation.SeedObservationSnapshot;
 import com.yiyiaddon.seed.observation.SeedOreObservationTracker;
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
+import com.yiyiaddon.seed.ore.SeedOreRegistry;
 import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.render.SeedOreWorldRenderer;
 import com.yiyiaddon.seed.render.SeedRenderSnapshot;
 import com.yiyiaddon.seed.runtime.SeedPredictionCoverageController;
 import com.yiyiaddon.seed.runtime.SeedPredictionRepository;
 import com.yiyiaddon.seed.runtime.SeedRuntimeIdentity;
+import com.yiyiaddon.seed.runtime.TargetKey;
 import com.yiyiaddon.seed.validation.SeedValidationEvidence;
 import com.yiyiaddon.seed.validation.SeedValidationEvidenceGroup;
 import com.yiyiaddon.seed.validation.SeedValidationService;
@@ -23,6 +27,8 @@ import com.yiyiaddon.seed.validation.SeedValidationSnapshot;
 import com.yiyiaddon.seed.worker.client.SeedWorkerException;
 import com.yiyiaddon.seed.worker.client.SeedWorkerState;
 import com.yiyiaddon.seed.worker.client.SeedWorldgenWorkerClient;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -105,11 +111,17 @@ public final class SeedMiningService {
     /** 配置记录键（落进现有 {@code module-state.json} 的模块记录位；刻意不用真实模块 id）。 */
     private static final String RECORD_ID = "seed_mining";
 
-    /** 本阶段唯一被支持的维度（与正式预测器同源：主世界）。 */
-    private static final ResourceKey<Level> SUPPORTED_DIMENSION = Level.OVERWORLD;
+    /** 本阶段被支持的维度档案（236 起：主世界与下界，各自由 {@link SeedOreRegistry} 声明矿物）。 */
+    private static final List<SeedDimensionProfile> SUPPORTED_DIMENSIONS = List.of(
+            SeedDimensionProfile.OVERWORLD, SeedDimensionProfile.NETHER);
 
-    /** 维度的 IPC 文本形态（协议里传字符串，不传对象）。 */
-    private static final String SUPPORTED_DIMENSION_ID = Level.OVERWORLD.identifier().toString();
+    /**
+     * 下界自动挖矿闸门（<b>编译期常量，恒 false</b>，正式化第八阶段 236）。
+     *
+     * <p>写成常量而不是配置项，是为了让它<b>无法被界面或配置悄悄打开</b>：
+     * 要打开它必须改这里，而改这里就等于声明「已经建立下界专属验证证据」。</p>
+     */
+    private static final boolean NETHER_AUTOMINER_ENABLED = false;
 
     /** 本模组 id（取模组版本用）。 */
     private static final String MOD_ID = "yiyiaddon";
@@ -436,6 +448,96 @@ public final class SeedMiningService {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // 配置：要预测的矿物集合（正式化第八阶段 236）
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 当前维度支持的矿物清单（界面按它渲染多选；顺序即展示序）。
+     *
+     * <p>维度未支持时返回空表 —— 界面据此显示「当前维度暂未支持」。</p>
+     */
+    public List<OreType> supportedOres() {
+        SeedDimensionProfile profile = dimensionProfile();
+        return profile == null ? List.of() : SeedOreRegistry.oresOf(profile);
+    }
+
+    /**
+     * 当前维度下<b>真正生效</b>的矿物集合（覆盖调度就用它）。
+     *
+     * <p>两条规则：</p>
+     * <ol>
+     *     <li>取「用户勾选」与「本维度支持」的交集；</li>
+     *     <li>交集为空时回落到本维度的<b>第一种</b>矿物（主世界=钻石、下界=远古残骸）——
+     *         否则用户刚进下界会因为默认勾的是钻石而看不到任何预测，容易误判成「下界不支持」。</li>
+     * </ol>
+     */
+    public List<OreType> effectiveOres() {
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile == null) {
+            return List.of();
+        }
+        List<OreType> supported = SeedOreRegistry.oresOf(profile);
+        List<OreType> effective = config.effectiveOres(supported);
+        if (!effective.isEmpty()) {
+            return effective;
+        }
+        return List.of(supported.get(0));
+    }
+
+    /** 手动「测试当前区块预测」用的主矿物（生效集合里的第一个）。 */
+    public OreType primaryOre() {
+        List<OreType> effective = effectiveOres();
+        return effective.isEmpty() ? null : effective.get(0);
+    }
+
+    /** 该矿物此刻是否被勾选（界面勾选框读它）。 */
+    public boolean isOreSelected(OreType oreType) {
+        return config.isOreSelected(oreType);
+    }
+
+    /**
+     * 勾选 / 取消一个矿物。
+     *
+     * <p>切集合会改变覆盖调度的目标集合，但<b>不</b>清缓存、不换身份：下一个 tick 的
+     * {@code replan} 会重算目标顺序（已经算过的目标直接从缓存复用）。</p>
+     */
+    public void setOreSelected(OreType oreType, boolean selected) {
+        if (oreType == null) {
+            return;
+        }
+        boolean current = config.isOreSelected(oreType);
+        if (current == selected) {
+            return;
+        }
+        List<OreType> next = new ArrayList<>(config.selectedOres());
+        if (selected) {
+            next.add(oreType);
+        } else {
+            next.remove(oreType);
+        }
+        config.selectedOres(next);
+        persist();
+        LOGGER.info("{}：矿物勾选变化 {} → {}（当前生效集合 {}）", LOG_KEY, oreType.displayNameCn(),
+                selected ? "已选" : "未选", describeOresCn(effectiveOres()));
+        refreshState();
+    }
+
+    /** 矿物集合的中文清单。 */
+    public static String describeOresCn(List<OreType> ores) {
+        if (ores == null || ores.isEmpty()) {
+            return "无";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (OreType oreType : ores) {
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(oreType.displayNameCn());
+        }
+        return builder.toString();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // 读数：预测缓存 / 覆盖 / 观察（正式化第五阶段 233）
     // ────────────────────────────────────────────────────────────────────────
 
@@ -473,17 +575,17 @@ public final class SeedMiningService {
         return SeedPredictionRepository.MAX_TARGET_CHUNKS;
     }
 
-    /** 覆盖进度分子：已经拿到正式结果、且落在当前覆盖范围内的目标区块数。 */
+    /** 覆盖进度分子：已经拿到正式结果、且落在当前覆盖范围内的任务数（区块 × 矿物）。 */
     public int coveragePredictedCount() {
-        return coverage.predictedInCoverage(repository);
+        return coverage.predictedInCoverage(repository, effectiveOres());
     }
 
-    /** 覆盖进度分母：当前覆盖范围内的目标区块总数（{@code (2r+1)²}）。 */
+    /** 覆盖进度分母：当前覆盖范围内的任务总数（{@code (2r+1)² × 生效矿物数}）。 */
     public int coverageTargetCount() {
         return coverage.desiredCount();
     }
 
-    /** 排队中的目标区块数。 */
+    /** 排队中的任务数。 */
     public int coveragePendingCount() {
         return coverage.pendingCount();
     }
@@ -491,16 +593,16 @@ public final class SeedMiningService {
     /**
      * 覆盖调度是否还会产出新的预测（235：自动挖矿用它区分「再等等」与「这片区域没有目标了」）。
      *
-     * <p>{@code true} = 还有区块在排队或正在 Worker 上跑；{@code false} = 当前覆盖方框已经收敛
+     * <p>{@code true} = 还有任务在排队或正在 Worker 上跑；{@code false} = 当前覆盖方框已经收敛
      * （全部出结果，或剩下的都在失败态不再重试）。</p>
      */
     public boolean coverageStillWorking() {
-        return coverage.pendingCount() > 0 || coverage.activeChunk() != null;
+        return coverage.pendingCount() > 0 || coverage.activeTask() != null;
     }
 
-    /** 正在 Worker 上预测的目标区块显示文本（空闲为「—」）。 */
+    /** 正在 Worker 上预测的任务显示文本（空闲为「—」）。 */
     public String coverageActiveChunkCn() {
-        return coverage.activeChunkCn();
+        return coverage.activeTaskCn();
     }
 
     /** 运行时身份的一行摘要（界面诊断行；未成立时返回「未建立」）。 */
@@ -545,13 +647,92 @@ public final class SeedMiningService {
     }
 
     /**
-     * <b>未来 AutoMiner 的唯一正式安全门</b>（口径第十节）。
+     * <b>自动挖矿的唯一正式安全门</b>（口径第十节）。
      *
-     * <p>只有验证状态为「已验证」才返回 {@code true}；其余状态一律 {@code false}。
-     * 本阶段<b>不接</b> AutoMiner（口径第五十九节），本方法只是把门先定义好，供 235 消费。</p>
+     * <p>只有验证状态为「已验证」才返回 {@code true}；其余状态一律 {@code false}。</p>
+     *
+     * <p><b>236 追加的维度闸门</b>：本方法只在<b>主世界</b>成立。下界一律 {@code false}，
+     * 因为「主世界验证通过」不等于「下界 worldgen 也验证通过」—— 服务器完全可以是
+     * 主世界原版 + 下界自定义。下界专属证据建立之前，这条门不许开
+     * （见 {@link #netherAutoMiningAllowedCn()} 与 {@link #mayUseForAutomatedMining(OreType)}）。</p>
      */
     public boolean mayUseForAutomatedMining() {
-        return validation.mayUseForAutomatedMining();
+        return dimensionProfile() == SeedDimensionProfile.OVERWORLD && validation.mayUseForAutomatedMining();
+    }
+
+    /**
+     * 某个矿物能否进入自动挖矿（236）。
+     *
+     * <p>三道门同时成立才为真：</p>
+     * <ol>
+     *     <li><b>维度</b>：只有主世界（下界恒 false）；</li>
+     *     <li><b>矿物资格</b>：{@link SeedOreRegistry#autoMinerEligible} —— 236 只有钻石为 true
+     *         （235 已过 A~L 实机验证），其余矿物<b>尚未建立</b>「候选 ↔ 真实 BlockState」对照证据；</li>
+     *     <li><b>验证状态</b>：当前会话的种子验证为「已验证」。</li>
+     * </ol>
+     */
+    public boolean mayUseForAutomatedMining(OreType oreType) {
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile != SeedDimensionProfile.OVERWORLD || oreType == null) {
+            return false;
+        }
+        return SeedOreRegistry.autoMinerEligible(profile, oreType) && validation.mayUseForAutomatedMining();
+    }
+
+    /**
+     * 下界自动挖矿闸门的中文说明（<b>恒为关闭</b>）。
+     *
+     * <p>236 的口径：下界只开放 预测 / 观察 / ESP，自动挖矿一律 fail-closed。
+     * 理由不是「下界算法没实现」（算法已实现并用真实 26.1.2 参数验证过预测链路），
+     * 而是<b>验证证据</b>层面：某一台服务器的主世界是原版、下界被替换是完全可能的，
+     * 而当前还没有任何「下界候选 ↔ 下界真实 BlockState」的实机对照证据。</p>
+     */
+    public String netherAutoMiningAllowedCn() {
+        return NETHER_AUTOMINER_ENABLED
+                ? "已开启（存在下界专属验证证据）"
+                : "关闭（fail-closed）：尚未建立下界专属验证证据；下界当前只提供预测 / 观察 / ESP";
+    }
+
+    /**
+     * 自动挖矿（235 的第二个消费者）此刻应当追的矿物。
+     *
+     * <p>规则：生效集合里第一个<b>允许进自动挖矿</b>的矿物；一个都没有返回 {@code null}
+     * （调用方必须 fail-closed，不许退回「按矿物类型全局搜」）。</p>
+     *
+     * <p>236 的实际效果：主世界默认（只勾钻石）⇒ 返回钻石，与 235 逐字一致；
+     * 若用户只勾了红石等尚未开放自动挖矿的矿物 ⇒ 返回 {@code null}，自动挖矿如实停机并说明原因。</p>
+     */
+    public OreType autoMiningTargetOre() {
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile == null) {
+            return null;
+        }
+        for (OreType oreType : effectiveOres()) {
+            if (SeedOreRegistry.autoMinerEligible(profile, oreType)) {
+                return oreType;
+            }
+        }
+        return null;
+    }
+
+    /** 当前验证证据属于哪个维度（开发诊断 / 报告用；未绑定返回空串）。 */
+    public String validationDimensionId() {
+        return validation.evidenceDimensionId();
+    }
+
+    /** 本阶段允许进自动挖矿的矿物清单（失败原因文案 / 报告用；236 在主世界是「钻石」）。 */
+    public String autoMinerEligibleOresCn() {
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile == null) {
+            return "无";
+        }
+        List<OreType> eligible = new ArrayList<>();
+        for (OreType oreType : SeedOreRegistry.oresOf(profile)) {
+            if (SeedOreRegistry.autoMinerEligible(profile, oreType)) {
+                eligible.add(oreType);
+            }
+        }
+        return describeOresCn(eligible);
     }
 
     /**
@@ -666,33 +847,47 @@ public final class SeedMiningService {
         return "自定义维度".equals(name) ? name + "：" + id : name;
     }
 
-    /** 当前维度的支持状态文案（本阶段正式预测器只支持「26.1.2 主世界 + 钻石」）。 */
+    /** 当前维度的支持状态文案（236：按当前维度的真实矿物清单给出，不再写死一句「只支持主世界钻石」）。 */
     public String dimensionSupportCn() {
-        String id = dimensionId();
-        if (id.isEmpty()) {
-            return "等待进入世界";
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile == null) {
+            return dimensionId().isEmpty() ? "等待进入世界" : "当前维度的世界生成规则暂未支持";
         }
-        return switch (id) {
-            case "minecraft:overworld" -> "支持：钻石预测";
-            case "minecraft:the_nether" -> "当前版本暂未支持下界矿物预测";
-            case "minecraft:the_end" -> "当前维度暂无支持矿物";
-            default -> "当前维度的世界生成规则暂未支持";
-        };
+        return "支持：" + SeedOreRegistry.describeSupportedOresCn(profile) + " 预测";
     }
 
-    /** 本阶段被支持的维度是否就是当前维度。 */
+    /** 当前维度是否被支持（主世界 / 下界）。 */
     public boolean dimensionSupported() {
-        return SUPPORTED_DIMENSION.equals(dimensionKey);
+        return dimensionProfile() != null;
+    }
+
+    /** 当前维度档案；未进世界 / 不支持的维度返回 {@code null}。 */
+    public SeedDimensionProfile dimensionProfile() {
+        if (!worldReady) {
+            return null;
+        }
+        String id = dimensionId;
+        for (SeedDimensionProfile profile : SUPPORTED_DIMENSIONS) {
+            if (profile.dimensionId().equals(id)) {
+                return profile;
+            }
+        }
+        return null;
     }
 
     /**
-     * 「预测模型」声明（口径第五十四、五十五节）。
+     * 「预测模型」声明。
      *
      * <p>它回答的是「我们按哪一套世界生成规则算的」，<b>不是</b>「服务器一定用了这套规则」。
-     * 本阶段没有 SeedValidation、没有 worldgen 校验，因此不能把「能跑预测」说成「服务器世界生成已验证」。</p>
+     * 236 起按当前维度给出：主世界与下界是两套预设、两套噪声设置（下界还换随机算法，
+     * 见 {@code SeedDimensionProfile}）。</p>
      */
     public String predictModelCn() {
-        return "Minecraft " + minecraftVersion() + " 原版主世界";
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile == null) {
+            return "Minecraft " + minecraftVersion() + "（当前维度未支持）";
+        }
+        return "Minecraft " + minecraftVersion() + " 原版" + profile.displayNameCn();
     }
 
     /** 「预测模型」的适用范围小字（界面与报告同源，避免把「能跑」误读成「已验证」）。 */
@@ -820,7 +1015,9 @@ public final class SeedMiningService {
             return;
         }
         Long seed = parsedSeed;
-        if (seed == null) {
+        SeedDimensionProfile profile = dimensionProfile();
+        OreType oreType = primaryOre();
+        if (seed == null || profile == null || oreType == null) {
             return;
         }
         ChunkPos chunk = new ChunkPos(chunkX, chunkZ);
@@ -830,9 +1027,9 @@ public final class SeedMiningService {
         lastResult = null;
         predicting = true;
         refreshState();
-        LOGGER.info("{}：提交预测 种子 {} 区块 ({},{})（后台线程 + 本地隔离计算器，渲染线程不参与）",
-                LOG_KEY, seed, chunk.x(), chunk.z());
-        submitQuietly(() -> runPredict(id, seed, chunk));
+        LOGGER.info("{}：提交预测 种子 {} {} 区块 ({},{})（后台线程 + 本地隔离计算器，渲染线程不参与）",
+                LOG_KEY, seed, oreType.displayNameCn(), chunk.x(), chunk.z());
+        submitQuietly(() -> runPredict(id, seed, profile, oreType, chunk));
     }
 
     /** 客户端退出时收尾（JVM 关闭钩子调用；有上界，绝不无限阻塞退出）。 */
@@ -858,12 +1055,13 @@ public final class SeedMiningService {
      * <p>三段都会重新校验任务代号：期间发生「换种子 / 换维度 / 退世界 / 关功能」时，
      * 后面的步骤直接放弃，结果也不回写（口径第二十一、二十九节）。</p>
      */
-    private void runPredict(long id, long seed, ChunkPos chunk) {
+    private void runPredict(long id, long seed, SeedDimensionProfile profile, OreType oreType, ChunkPos chunk) {
         if (id != generation) {
-            LOGGER.info("{}：排队中的预测已被取消，直接丢弃（种子 {} 区块 ({},{}))",
-                    LOG_KEY, seed, chunk.x(), chunk.z());
+            LOGGER.info("{}：排队中的预测已被取消，直接丢弃（种子 {} {} 区块 ({},{}))",
+                    LOG_KEY, seed, oreType.displayNameCn(), chunk.x(), chunk.z());
             return;
         }
+        String dimensionId = profile.dimensionId();
         long startedAt = System.currentTimeMillis();
         PredictionResult result;
         try {
@@ -873,18 +1071,19 @@ public final class SeedMiningService {
                         LOG_KEY, seed, chunk.x(), chunk.z());
                 return;
             }
-            calculator.ensureSession(seed, SUPPORTED_DIMENSION_ID);
+            calculator.ensureSession(seed, dimensionId);
             if (id != generation) {
                 LOGGER.info("{}：会话就绪时该请求已被取消，丢弃（种子 {} 区块 ({},{}))",
                         LOG_KEY, seed, chunk.x(), chunk.z());
                 return;
             }
-            result = calculator.predict(seed, SUPPORTED_DIMENSION_ID, chunk);
+            result = calculator.predict(seed, dimensionId, oreType, chunk);
         } catch (Throwable error) {
             // 异常绝不外泄到客户端主线程：转成正式层的失败结果（失败 ≠ 没有矿）
-            LOGGER.error("{}：预测失败（种子 {} 区块 ({},{}))", LOG_KEY, seed, chunk.x(), chunk.z(), error);
-            result = PredictionResult.failure(SeedOreTarget.diamond(seed, chunk), describeFailure(error),
-                    System.currentTimeMillis() - startedAt);
+            LOGGER.error("{}：预测失败（种子 {} {} 区块 ({},{}))", LOG_KEY, seed,
+                    oreType.displayNameCn(), chunk.x(), chunk.z(), error);
+            result = PredictionResult.failure(SeedOreTarget.of(seed, profile.levelKey(), chunk, oreType),
+                    describeFailure(error), System.currentTimeMillis() - startedAt);
         }
         deliver(id, result, seed, chunk);
     }
@@ -981,7 +1180,10 @@ public final class SeedMiningService {
             validation.update(repository.results(), observer);
             renderer.markDirty();
         }
-        if (renderer.dirty()) {
+        // 快照只在渲染层真的挂着时才重建（235）：关掉「显示预测钻石」后自动挖矿仍在消费预测，
+        // 但那一层一个框都不画 —— 再每刻重建 O(候选数) 的快照纯属白做（重开时会由
+        // applyRendererAttachment 标脏并立刻补建一次，世界里不会因此空着）
+        if (renderer.attached() && renderer.dirty()) {
             long buildStart = System.nanoTime();
             SeedRenderSnapshot built = SeedRenderSnapshot.build(repository, observer);
             long buildCost = System.nanoTime() - buildStart;
@@ -1072,7 +1274,8 @@ public final class SeedMiningService {
      * 同步运行时身份与渲染开关（每刻一次，全部是 O(1) 判断）。
      *
      * <p>覆盖是否工作的条件（235 起为七个）：种子挖矿已启用 + 已进入世界 + 种子合法 +
-     * 维度为主世界 + <b>至少有一个消费者</b>（「显示预测钻石」打开，或自动挖矿在要种子目标）。
+     * 维度受支持（236 起为主世界或下界）+ <b>至少有一个消费者</b>（「显示预测钻石」打开，
+     * 或自动挖矿在要种子目标）。
      * 任一不满足：不提交任何预测，并让已经建立的身份整体失效。</p>
      *
      * <p>注意最后一条是<b>或</b>关系：自动挖矿要目标时，即使「显示预测钻石」关着，
@@ -1177,6 +1380,14 @@ public final class SeedMiningService {
         if (!config.renderPrediction() && !autoMiningConsumerDemand()) {
             return;
         }
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile == null) {
+            return;
+        }
+        List<OreType> ores = effectiveOres();
+        if (ores.isEmpty()) {
+            return;
+        }
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return;
@@ -1185,18 +1396,19 @@ public final class SeedMiningService {
             return;
         }
         ChunkPos playerChunk = ChunkPos.containing(client.player.blockPosition());
-        coverage.tick(playerChunk, repository, this::submitCoverage);
+        coverage.tick(playerChunk, profile.dimensionId(), ores, repository, this::submitCoverage);
     }
 
-    /** 把覆盖调度选出的目标交给后台单线程（真正的 worldgen 只在 Worker 里跑）。 */
-    private void submitCoverage(ChunkPos target) {
+    /** 把覆盖调度选出的任务交给后台单线程（真正的 worldgen 只在 Worker 里跑）。 */
+    private void submitCoverage(SeedPredictionCoverageController.Task task) {
         SeedRuntimeIdentity current = identity;
-        if (current == null) {
-            coverage.onFailed(target);
+        SeedDimensionProfile profile = dimensionProfile();
+        if (current == null || profile == null) {
+            coverage.onFailed(task);
             return;
         }
         long epoch = current.epoch();
-        submitQuietly(() -> runCoverage(epoch, current, target));
+        submitQuietly(() -> runCoverage(epoch, current, profile, task));
     }
 
     /**
@@ -1205,7 +1417,8 @@ public final class SeedMiningService {
      * <p>三段（启动 / 会话 / 预测）各自复核身份代号：期间发生换种子 / 换维度 / 换服 / 退世界 /
      * 关功能时，后面的步骤直接放弃，结果也不回写（口径第二十二节）。</p>
      */
-    private void runCoverage(long epoch, SeedRuntimeIdentity snapshot, ChunkPos target) {
+    private void runCoverage(long epoch, SeedRuntimeIdentity snapshot, SeedDimensionProfile profile,
+                             SeedPredictionCoverageController.Task task) {
         if (epoch != identityEpoch) {
             return;
         }
@@ -1216,36 +1429,36 @@ public final class SeedMiningService {
             if (epoch != identityEpoch) {
                 return;
             }
-            calculator.ensureSession(snapshot.seed(), SUPPORTED_DIMENSION_ID);
+            calculator.ensureSession(snapshot.seed(), profile.dimensionId());
             if (epoch != identityEpoch) {
                 return;
             }
-            result = calculator.predict(snapshot.seed(), SUPPORTED_DIMENSION_ID, target);
+            result = calculator.predict(snapshot.seed(), profile.dimensionId(), task.oreType(), task.chunk());
         } catch (Throwable error) {
             failure = error;
         }
-        deliverCoverage(epoch, target, result, failure);
+        deliverCoverage(epoch, task, result, failure);
     }
 
     /** 覆盖结果的回投（客户端主线程）：身份已变一律丢弃，成功结果写缓存 + 观察 + 标脏。 */
-    private void deliverCoverage(long epoch, ChunkPos target, PredictionResult result, Throwable failure) {
+    private void deliverCoverage(long epoch, SeedPredictionCoverageController.Task task,
+                                 PredictionResult result, Throwable failure) {
         try {
             Minecraft.getInstance().execute(() -> {
                 if (epoch != identityEpoch) {
                     // 身份已变：连覆盖队列都不必通知（它已经 reset 过）
-                    LOGGER.info("{}：覆盖预测 区块 ({},{}) 返回时身份已变，结果丢弃",
-                            LOG_KEY, target.x(), target.z());
+                    LOGGER.info("{}：覆盖预测 {} 返回时身份已变，结果丢弃", LOG_KEY, task.describeCn());
                     return;
                 }
                 if (failure != null || result == null) {
-                    LOGGER.warn("{}：覆盖预测失败 区块 ({},{}) — {}", LOG_KEY, target.x(), target.z(),
+                    LOGGER.warn("{}：覆盖预测失败 {} — {}", LOG_KEY, task.describeCn(),
                             describeFailure(failure));
-                    coverage.onFailed(target);
+                    coverage.onFailed(task);
                     refreshState();
                     return;
                 }
                 acceptPrediction(result, "覆盖");
-                coverage.onCompleted(target, true);
+                coverage.onCompleted(task, true);
                 renderer.markDirty();
             });
         } catch (Throwable error) {
@@ -1266,14 +1479,17 @@ public final class SeedMiningService {
         observer.trackChunk(result);
         ChunkPos playerChunk = playerChunkOrNull();
         if (playerChunk != null) {
-            for (ChunkPos evicted : repository.evict(playerChunk, coverageRadius())) {
-                observer.untrackChunk(evicted);
+            for (TargetKey evicted : repository.evict(playerChunk, coverageRadius())) {
+                observer.untrackTarget(evicted);
             }
         }
         renderer.markDirty();
-        LOGGER.info("{}：{}预测已收录 区块 ({},{}) → {} 个（{}），缓存 {} 个区块 / 上限 {}",
-                LOG_KEY, source, result.request().chunk().x(), result.request().chunk().z(), result.count(),
-                observer.snapshot().describeCn(), repository.size(), SeedPredictionRepository.MAX_TARGET_CHUNKS);
+        LOGGER.info("{}：{}预测已收录 {} → {} 个（{}），缓存 {} 条 / 每矿物上限 {}",
+                LOG_KEY, source,
+                result.request().oreType().displayNameCn() + " 区块 ("
+                        + result.request().chunk().x() + "," + result.request().chunk().z() + ")",
+                result.count(), observer.snapshot().describeCn(), repository.size(),
+                SeedPredictionRepository.MAX_TARGET_CHUNKS);
     }
 
     /**

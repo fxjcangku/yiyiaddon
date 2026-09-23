@@ -1,6 +1,7 @@
 package com.yiyiaddon.seed.render;
 
 import com.yiyiaddon.seed.observation.OreObservationState;
+import com.yiyiaddon.seed.ore.SeedOrePalette;
 import com.yiyiaddon.ui.render.world.EspRenderer;
 import com.yiyiaddon.ui.render.world.ShapeMode;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
@@ -39,20 +40,6 @@ public final class SeedOreWorldRenderer {
 
     /** 世界渲染层所有者标识（重复注册会覆盖，注销即整层消失）。 */
     public static final String LAYER_ID = "seed.prediction";
-
-    /** 预测（未观察）色：青蓝线 + 淡青面。 */
-    private static final int PREDICTED_LINE = 0xEB4FA8FF;
-    private static final int PREDICTED_SIDE = 0x2D2F6FD0;
-
-    /** 已确认色：绿色线 + 淡绿面（与「预测」一眼可分的冷暖对比）。 */
-    private static final int CONFIRMED_LINE = 0xF53FE07A;
-    private static final int CONFIRMED_SIDE = 0x3721A34A;
-
-    /** 当前缺失色：灰色细线、不填充（只在「显示当前缺失」打开时出现）。 */
-    private static final int MISSING_LINE = 0x789AA0A6;
-
-    /** 调度敏感标记色：琥珀（只画内缩细框，不改外边语义色）。 */
-    private static final int SCHEDULE_LINE = 0xF5FFB020;
 
     /** 外框线宽（GUI 缩放坐标；比自动挖矿点位框 3.0 细，避免抢视觉）。 */
     private static final float THICKNESS = 2.0f;
@@ -183,15 +170,18 @@ public final class SeedOreWorldRenderer {
             int x = entry.position().getX();
             int y = entry.position().getY();
             int z = entry.position().getZ();
-            if (state == OreObservationState.CONFIRMED) {
-                renderer.blockBox(x, y, z, CONFIRMED_SIDE, CONFIRMED_LINE, ShapeMode.Both, THICKNESS);
-            } else if (state == OreObservationState.MISSING) {
-                renderer.blockBox(x, y, z, 0, MISSING_LINE, ShapeMode.Lines, THICKNESS);
+            if (state == OreObservationState.MISSING) {
+                // 「预测里有、现在实际不是矿」：用统一灰细线，不填充（见 SeedOrePalette 的通道划分）
+                renderer.blockBox(x, y, z, 0, SeedOrePalette.MISSING_LINE, ShapeMode.Lines, THICKNESS);
             } else {
-                renderer.blockBox(x, y, z, PREDICTED_SIDE, PREDICTED_LINE, ShapeMode.Both, THICKNESS);
+                // 236：色相 = 矿物种类，明亮度 + 是否填充 = 观察状态（预测 / 已确认）
+                int[] palette = state == OreObservationState.CONFIRMED
+                        ? SeedOrePalette.confirmed(entry.oreType())
+                        : SeedOrePalette.predicted(entry.oreType());
+                renderer.blockBox(x, y, z, palette[1], palette[0], ShapeMode.Both, THICKNESS);
             }
             if (entry.scheduleSensitive()) {
-                renderer.box(markerBox(x, y, z), 0, SCHEDULE_LINE, ShapeMode.Lines, MARKER_THICKNESS);
+                renderer.box(markerBox(x, y, z), 0, SeedOrePalette.SCHEDULE_LINE, ShapeMode.Lines, MARKER_THICKNESS);
             }
         }
     }

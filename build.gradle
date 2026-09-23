@@ -8,6 +8,10 @@ base {
     group = project.maven_group
 }
 
+// 237 下界多人验收的端口（可在 25865 / 25866 / 25867 里任选未占用端口；
+// 客户端与服务端必须用同一个值，驱动器 gradle/nether-mp.ps1 会同时传 -PnetherMpPort）。
+def netherMpPort = (project.findProperty('netherMpPort') ?: '25865').toString()
+
 loom {
     // 将包私有的 GlDevice 提升为可访问（Skija 取主 Framebuffer 名字所需）
     accessWidenerPath = file('src/main/resources/yiyiaddon.accesswidener')
@@ -299,7 +303,90 @@ loom {
             vmArg '-Dyiyiaddon.seedpoc.exit=1'
         }
 
-        // ⑭ 专用服务器（26.1.2，level-seed=20260922，不加载任何改 worldgen 的 Mod）。
+        // ⑭ 目标接入实机回归（235）：钻石 Seed Target → AutoMiner 正式接入的 A~L 十二项。
+        //    单人夹具世界（自动新建，固定种子 20260922，自带指令权限），因此不需要专用服务器。
+        //    装置自己摆玩家位置、自己置空气口袋，全部指令只落在本运行目录下的存档里。
+        //    用法：.\gradlew.bat runClientSeedTargetTest
+        clientSeedTargetTest {
+            client()
+            runDir = file(".dev-runs/${project.minecraft_version}/seed/target")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.target=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑮ 多矿物 · 多维度实机矩阵（236）：主世界 8 种 + 下界 3 种矿物逐个取
+        //    「Worker ↔ Oracle 逐项一致 / 候选 ↔ 真实方块 / 观察 + ESP + 缓存隔离」三类证据，
+        //    并在中途真实传送进下界（核对身份切换清空与下界自动挖矿 fail-closed）。
+        //    单人夹具世界（自动新建，固定种子 20260922，与世界种子相同 ⇒ 可与真实区块逐个对照）。
+        //    用法：.\gradlew.bat runClientSeedOreMatrixTest
+        clientSeedOreMatrixTest {
+            client()
+            runDir = file(".dev-runs/${project.minecraft_version}/seed/ore-matrix")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.oreMatrix=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑯ 下界真正多人验收（237）：客户端自动连到本机专用服务器（见 ⑰）。
+        //    为什么必须另起一台服务器：本用例要真的进下界（allow-nether=true）且跨维度传送不致死
+        //    （gamemode=creative），这两条与既有测试服的配置不同，改既有那几台会污染 232/233/234 的复现口径。
+        //    服务端不加载 yiyiaddon：本模组 fabric.mod.json 声明 environment=client，专用服务端由
+        //    Fabric Loader 直接不加载它（不是「装了但不用」）。
+        //    端口可覆盖：-PnetherMpPort=25866（口径允许在 25865/25866/25867 里任选未占用端口，驱动器会传）。
+        //    前置：.\gradlew.bat runSeedNetherMultiplayerServer
+        //    再跑：.\gradlew.bat runClientSeedNetherMultiplayerTest
+        clientSeedNetherMultiplayerTest {
+            client()
+            runDir = file(".dev-runs/${project.minecraft_version}/seed/nether-mp/client")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            programArgs '--quickPlayMultiplayer', "127.0.0.1:${netherMpPort}"
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.netherMultiplayer=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑰ 下界多人验收专用服务器（237）：端口 25865（备选 25866 / 25867，任选未占用端口）。
+        //    运行目录与配置由 prepareSeedNetherMultiplayerServer 生成（allow-nether=true / 创造模式）。
+        seedNetherMultiplayerServer {
+            server()
+            runDir = file(".dev-runs/${project.minecraft_version}/seed/nether-mp/server")
+            programArgs '--nogui'
+        }
+
+        // ⑱ 真实用户环境兼容 smoke（237）：把 run-26.2 的 mods / config / shaderpacks / options
+        //    <b>只读复制</b>到本目录后再跑（复制由 gradle/final-user-env.ps1 做），
+        //    验证 100+ Mods + Iris / Sodium 下「能启动 / Seed ESP 正常 / 维度切换不崩 / Worker 正常退出」。
+        //    为什么必须另起运行目录：run-26.2 是开发者自己的客户端，任何自动化任务都不得在里面运行
+        //    （本任务会注入 seedpoc 开关、自动建世界、自动退出）；同时那个目录禁止被写入。
+        clientSeedFinalUserEnvTest {
+            client()
+            runDir = file(".dev-runs/${project.minecraft_version}/seed/final-user-env")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.oreMatrix=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑲ 专用服务器（level-seed=20260922，不加载任何改 worldgen 的 Mod）。
         //    运行目录与配置由 prepareSeedWorkerServer 生成（含 eula.txt），不要手工改。
         seedWorkerServer {
             server()
@@ -307,7 +394,7 @@ loom {
             programArgs '--nogui'
         }
 
-        // ⑮ Server A→B 用例的 B 服务器（端口 25566，种子 12345）。
+        // ⑳ Server A→B 用例的 B 服务器（端口 25566，种子 12345）。
         //    运行目录与配置由 prepareSeedWorkerServerB 生成；与 ⑤ 可同时运行。
         seedWorkerServerB {
             server()
@@ -456,7 +543,7 @@ tasks.register('seedWorkerLegacyProbe', JavaExec) {
 //
 // 233 追加：同一份生成逻辑被两台测试服务器复用（A = 25565 / seed 20260922，
 // B = 25566 / seed 12345）—— Server A→B 换服残留用例需要两台地址不同的服务器。
-def writeDedicatedServerDir = { File dir, int port, String seed, String motd ->
+def writeDedicatedServerDir = { File dir, int port, String seed, String motd, Map<String, String> overrides ->
     dir.mkdirs()
     new File(dir, 'eula.txt').setText('eula=true\n', 'UTF-8')
     // 233 观察回归要用 /setblock 与 /tp 造「方块被改掉 / 被恢复 / 区块卸载」三种情形，
@@ -475,29 +562,34 @@ def writeDedicatedServerDir = { File dir, int port, String seed, String motd ->
               }
             ]
             """.stripIndent(), 'UTF-8')
-    new File(dir, 'server.properties').setText("""\
-            # 由 yiyiaddon 构建脚本生成（232/233 验收用）：请勿手工修改。
-            server-ip=127.0.0.1
-            server-port=${port}
-            online-mode=false
-            max-players=8
-            motd=${motd}
-            level-name=world
-            level-seed=${seed}
-            level-type=minecraft:normal
-            generate-structures=true
-            spawn-protection=0
-            difficulty=peaceful
-            gamemode=survival
-            pvp=false
-            view-distance=8
-            simulation-distance=6
-            enable-status=true
-            enable-rcon=false
-            enable-query=false
-            sync-chunk-writes=false
-            allow-nether=false
-            """.stripIndent(), 'UTF-8')
+    // server.properties 按「键 → 值」写；overrides 用来覆盖个别条目（例如 237 下界多人要
+    // allow-nether=true 与 gamemode=creative），不传覆盖时输出与 232/233/234 逐字节相同。
+    Map<String, String> properties = new LinkedHashMap<>()
+    properties.put('server-ip', '127.0.0.1')
+    properties.put('server-port', String.valueOf(port))
+    properties.put('online-mode', 'false')
+    properties.put('max-players', '8')
+    properties.put('motd', motd)
+    properties.put('level-name', 'world')
+    properties.put('level-seed', seed)
+    properties.put('level-type', 'minecraft:normal')
+    properties.put('generate-structures', 'true')
+    properties.put('spawn-protection', '0')
+    properties.put('difficulty', 'peaceful')
+    properties.put('gamemode', 'survival')
+    properties.put('pvp', 'false')
+    properties.put('view-distance', '8')
+    properties.put('simulation-distance', '6')
+    properties.put('enable-status', 'true')
+    properties.put('enable-rcon', 'false')
+    properties.put('enable-query', 'false')
+    properties.put('sync-chunk-writes', 'false')
+    properties.put('allow-nether', 'false')
+    properties.putAll(overrides)
+    StringBuilder text = new StringBuilder(
+            '# 由 yiyiaddon 构建脚本生成（232/233 验收用）：请勿手工修改。\n')
+    properties.each { String key, String value -> text.append(key).append('=').append(value).append('\n') }
+    new File(dir, 'server.properties').setText(text.toString(), 'UTF-8')
     println "专用服务器目录已准备：${dir.absolutePath}（端口 ${port}，种子 ${seed}）"
 }
 
@@ -507,7 +599,7 @@ tasks.register('prepareSeedWorkerServer') {
     outputs.upToDateWhen { false }
     doLast {
         writeDedicatedServerDir(file(".dev-runs/${project.minecraft_version}/seed/worker-server"),
-                25565, '20260922', 'yiyiaddon 232 dedicated server')
+                25565, '20260922', 'yiyiaddon 232 dedicated server', [:])
         println "先跑 .\\gradlew.bat runSeedWorkerServer，看到 Done 后再跑 .\\gradlew.bat runClientSeedWorkerMultiplayerTest"
     }
 }
@@ -519,7 +611,7 @@ tasks.register('prepareSeedWorkerServerB') {
     outputs.upToDateWhen { false }
     doLast {
         writeDedicatedServerDir(file(".dev-runs/${project.minecraft_version}/seed/worker-server-b"),
-                25566, '12345', 'yiyiaddon 233 server B')
+                25566, '12345', 'yiyiaddon 233 server B', [:])
         println "先跑 .\\gradlew.bat runSeedWorkerServerB，看到 Done 后再跑 .\\gradlew.bat runClientSeedObservationTest"
     }
 }
@@ -533,6 +625,25 @@ tasks.matching { it.name == 'runSeedWorkerServerB' }.configureEach {
     dependsOn 'prepareSeedWorkerServerB'
 }
 
+// 237 下界真正多人验收服务器（端口 25865，种子 20260922）：
+// 与前几台测试服务器同一套生成逻辑，只覆盖两条 —— allow-nether=true（本用例真的要进下界）
+// 与 gamemode=creative（跨维度传送落点不致死；创造模式不影响预测 / 观察 / ESP / fail-closed 判据）。
+tasks.register('prepareSeedNetherMultiplayerServer') {
+    group = 'verification'
+    description = '生成 237 下界多人验收专用服务器的运行目录（端口 25865，allow-nether=true，创造模式）。'
+    outputs.upToDateWhen { false }
+    doLast {
+        writeDedicatedServerDir(file(".dev-runs/${project.minecraft_version}/seed/nether-mp/server"),
+                netherMpPort as int, '20260922', 'yiyiaddon 237 nether multiplayer server',
+                ['allow-nether': 'true', 'gamemode': 'creative'])
+        println "先跑 .\\gradlew.bat runSeedNetherMultiplayerServer，看到 Done 后再跑 .\\gradlew.bat runClientSeedNetherMultiplayerTest"
+    }
+}
+
+tasks.matching { it.name == 'runSeedNetherMultiplayerServer' }.configureEach {
+    dependsOn 'prepareSeedNetherMultiplayerServer'
+}
+
 // 234 种子验证回归专用服务器（端口 25567，种子 20260922）：
 // 独立世界目录，因为该用例会 dev-only 移除已确认钻石，不能污染 233/232 共用的测试服世界。
 tasks.register('prepareSeedValidationServer') {
@@ -541,7 +652,7 @@ tasks.register('prepareSeedValidationServer') {
     outputs.upToDateWhen { false }
     doLast {
         writeDedicatedServerDir(file(".dev-runs/${project.minecraft_version}/seed/validation-server"),
-                25567, '20260922', 'yiyiaddon 234 seed validation server')
+                25567, '20260922', 'yiyiaddon 234 seed validation server', [:])
         println "先跑 .\\gradlew.bat runSeedValidationServer，看到 Done 后再跑 .\\gradlew.bat runClientSeedValidationTest"
     }
 }
@@ -579,6 +690,10 @@ tasks.register('prepareSeedWorkerClientRun') {
                 ".dev-runs/${project.minecraft_version}/seed/visual-mined",
                 ".dev-runs/${project.minecraft_version}/seed/visual-shader",
                 ".dev-runs/${project.minecraft_version}/seed/radius6",
+                ".dev-runs/${project.minecraft_version}/seed/target",
+                ".dev-runs/${project.minecraft_version}/seed/ore-matrix",
+                ".dev-runs/${project.minecraft_version}/seed/nether-mp/client",
+                ".dev-runs/${project.minecraft_version}/seed/final-user-env",
         ]
         runDirs.each { String name ->
             File dir = file(name)
@@ -615,6 +730,10 @@ tasks.matching {
             || it.name == 'runClientSeedVisualTest'
             || it.name == 'runClientSeedVisualMinedTest'
             || it.name == 'runClientSeedVisualShaderTest'
+            || it.name == 'runClientSeedTargetTest'
+            || it.name == 'runClientSeedOreMatrixTest'
+            || it.name == 'runClientSeedNetherMultiplayerTest'
+            || it.name == 'runClientSeedFinalUserEnvTest'
 }.configureEach {
     dependsOn 'prepareSeedWorkerClientRun'
 }

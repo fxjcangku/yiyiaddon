@@ -676,4 +676,77 @@ public final class SeedPocFlags {
     public static boolean radius6Smoke() {
         return "1".equals(prop("radius6", "0"));
     }
+
+    // ── 正式化第七阶段（报告 235：钻石 Seed Target → AutoMiner 正式接入）────────
+
+    /**
+     * 目标接入回归开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link SeedTargetRegression}：在真实客户端 + 固定种子夹具世界上，
+     * 把「种子目标模式」真正接进现有自动挖矿并逐条核对 A~L 十二项（普通模式零回归 / 未验证
+     * fail-closed / 选定真实候选 / 目标未加载能导航 / 到位真挖掉 / MISSING 立刻换颗 /
+     * 手动 setblock air 不卡死 / 关 ESP 不影响 / 重开 ESP 恢复 / 换维度清空 / 寻路失败不无限重试 /
+     * 挖掉一颗换下一颗）。</p>
+     */
+    public static boolean targetRegression() {
+        return "1".equals(prop("target", "0"));
+    }
+
+    /** 目标接入回归的被试种子（默认 20260922，与冻结回归同一颗）。 */
+    public static long targetSeed() {
+        String raw = prop("target.seed", "20260922");
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return 20260922L;
+        }
+    }
+
+    /** 目标接入回归的覆盖半径（默认 3：与出厂默认一致）。 */
+    public static int targetRadius() {
+        String raw = prop("target.radius", "3");
+        try {
+            return Math.max(1, Math.min(6, Integer.parseInt(raw)));
+        } catch (NumberFormatException ignored) {
+            return 3;
+        }
+    }
+
+    // ── 正式化第八阶段（报告 236：Seed Ore Engine 通用化 + 其它矿物 + Nether）────
+
+    /**
+     * 多矿物 · 多维度实机矩阵开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link SeedOreMatrixRegression}：在真实客户端 + 固定种子的单人夹具世界上，
+     * 对「主世界 8 种 + 下界 3 种」共 11 种矿物逐个取三类证据 —— Worker ↔ 单人 Oracle 逐项一致、
+     * 候选 ↔ 真实方块（把目标区块推到 FULL 后逐格扫描）、以及观察 / ESP / 缓存隔离读数；
+     * 并在中途真实传送进下界，核对身份切换清空与「下界自动挖矿 fail-closed」。</p>
+     */
+    public static boolean oreMatrix() {
+        return "1".equals(prop("oreMatrix", "0"));
+    }
+
+    /** 矩阵回归的被试种子（默认 20260922：与世界种子相同，因此预测可与真实区块逐个对照）。 */
+    public static long oreMatrixSeed() {
+        String raw = prop("oreMatrix.seed", "20260922");
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return 20260922L;
+        }
+    }
+
+    // ── 正式化第九阶段（报告 237：双版本合流与下界多人）──────────────────────────
+
+    /**
+     * 下界真正多人（Dedicated Multiplayer）验收开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link NetherMultiplayerRegression}：连到本机专用服务器
+     * （端口 25865 / 种子 20260922 / allow-nether=true，服务端不加载 yiyiaddon），
+     * 核对「主世界 → 下界身份切换清空 / 下界三种矿物预测 / 下界观察与 ESP /
+     * 远端未加载区块可预测且不会导致客户端加载 / 下界自动挖矿 fail-closed / Worker 无孤儿」。</p>
+     */
+    public static boolean netherMultiplayer() {
+        return "1".equals(prop("netherMultiplayer", "0"));
+    }
 }

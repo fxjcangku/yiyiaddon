@@ -1,5 +1,7 @@
 package com.yiyiaddon.feature.mining.target;
 
+import net.minecraft.core.BlockPos;
+
 /**
  * 自动挖矿 · <b>挖掘目标提供者</b>（正式化第七阶段 235 新增的唯一抽象）。
  *
@@ -37,6 +39,14 @@ public interface MiningTargetProvider {
 
     /** 扫描方式中文名（启动报告 / 控制台「扫描方式」行）。 */
     String scanModeCn();
+
+    /**
+     * 本提供者是否走「男中音按方块类型 mine」这条通道。
+     *
+     * <p>模块里少数几个把<b>额外方块类型</b>塞进 mine 目标列表的机制（例如「刷怪笼优先」）只对
+     * 类型扫描有意义；种子模式按精确坐标挖，这些机制必须整体让位，否则会重新拉起一次 mine。</p>
+     */
+    boolean usesBlockTypeScan();
 
     /**
      * 现在能不能按本模式挖矿。
@@ -85,4 +95,13 @@ public interface MiningTargetProvider {
 
     /** 控制台一行只读状态（不足一行也要能看懂「现在在干什么」）。 */
     String statusCn();
+
+    /**
+     * 当前锁定的<b>精确坐标</b>目标（没有则 {@code null}）。
+     *
+     * <p>普通模式恒 {@code null}：那一档把「矿物类型」交给男中音，模块自己并不知道它下一刻会挖哪一格。
+     * 种子模式返回正在追的那一颗钻石坐标，供控制台与开发期回归装置读取（装置要核对「锁定的这一格
+     * 是不是预测集里的钻石」「挖掉之后有没有换下一颗」）。</p>
+     */
+    BlockPos lockedTargetOrNull();
 }

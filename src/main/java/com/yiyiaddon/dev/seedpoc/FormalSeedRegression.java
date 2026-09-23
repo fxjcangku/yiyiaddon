@@ -1,6 +1,6 @@
 package com.yiyiaddon.dev.seedpoc;
 
-import com.yiyiaddon.seed.prediction.DiamondSeedPredictor;
+import com.yiyiaddon.seed.prediction.SeedOrePredictor;
 import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionCertainty;
 import com.yiyiaddon.seed.prediction.PredictionResult;
@@ -26,7 +26,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>它回答四件事</b>（对应正式化第一阶段口径第三十五、四十八节）：</p>
  * <ol>
- *     <li><b>A 迁移一致性</b>：同一 种子 / 维度 / 目标下，正式 {@code DiamondSeedPredictor} 与
+ *     <li><b>A 迁移一致性</b>：同一 种子 / 维度 / 目标下，正式 {@code SeedOrePredictor}（236 前的
+ *         {@code DiamondSeedPredictor}）与
  *         PoC 固定顺序预测器是否<b>逐 BlockPos</b> 一致（固定集 10 目标 + Seed 12345 四区块）；</li>
  *     <li><b>B 分类正确性</b>：Seed 2 的已知调度争议位置 {@code (-6385,-59,6085)}
  *         <b>不得</b>被标成确定性；</li>
@@ -78,11 +79,11 @@ public final class FormalSeedRegression {
         List<PredictionResult> formalResults = new ArrayList<>();
         List<PredictionResult> failureResults = new ArrayList<>();
         List<BlockPosDiff> diffs = new ArrayList<>();
-        DiamondSeedPredictor predictor = new DiamondSeedPredictor(level);
+        SeedOrePredictor predictor = new SeedOrePredictor(level);
         OfflinePredictionSession pocSession = OfflinePredictionSession.open(level, seed);
         try {
             for (ChunkPos target : targets) {
-                PredictionResult formal = predictor.predict(seed, target);
+                PredictionResult formal = predictor.predictDiamond(seed, target);
                 formalResults.add(formal);
                 if (formal.failed()) {
                     failureResults.add(formal);
@@ -143,10 +144,10 @@ public final class FormalSeedRegression {
         boolean disputedNotDeterministic = true;
         long conflictSeed = SeedPocFlags.formalConflictSeed();
         List<ChunkPos> conflictTargets = PredictionRegressionSuite.chunksOf(SeedPocFlags.formalConflictTargets());
-        DiamondSeedPredictor conflictPredictor = new DiamondSeedPredictor(level);
+        SeedOrePredictor conflictPredictor = new SeedOrePredictor(level);
         try {
             for (ChunkPos target : conflictTargets) {
-                PredictionResult result = conflictPredictor.predict(conflictSeed, target);
+                PredictionResult result = conflictPredictor.predictDiamond(conflictSeed, target);
                 sectionB.add("Seed " + conflictSeed + " 目标 (" + target.x() + "," + target.z() + ")："
                         + (result.failed() ? "预测失败：" + result.failureReason() : result.count() + " 个"
                         + "（调度敏感 " + result.scheduleSensitiveCount() + " / 未解析 "
@@ -188,12 +189,12 @@ public final class FormalSeedRegression {
         List<String> sectionC = new ArrayList<>();
         ChunkPos isolationTarget = targets.isEmpty() ? new ChunkPos(0, 0) : targets.get(0);
         long seedB = seed == 12345L ? 20260922L : 12345L;
-        DiamondSeedPredictor isolationPredictor = new DiamondSeedPredictor(level);
+        SeedOrePredictor isolationPredictor = new SeedOrePredictor(level);
         boolean isolationOk;
         try {
-            PredictionResult first = isolationPredictor.predict(seed, isolationTarget);
-            PredictionResult other = isolationPredictor.predict(seedB, isolationTarget);
-            PredictionResult second = isolationPredictor.predict(seed, isolationTarget);
+            PredictionResult first = isolationPredictor.predictDiamond(seed, isolationTarget);
+            PredictionResult other = isolationPredictor.predictDiamond(seedB, isolationTarget);
+            PredictionResult second = isolationPredictor.predictDiamond(seed, isolationTarget);
             sectionC.add("实验目标区块：(" + isolationTarget.x() + "," + isolationTarget.z()
                     + ")；种子 A=" + seed + " / B=" + seedB);
             if (first.failed() || other.failed() || second.failed()) {

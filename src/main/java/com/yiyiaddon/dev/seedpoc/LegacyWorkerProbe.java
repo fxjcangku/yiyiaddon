@@ -233,7 +233,7 @@ public final class LegacyWorkerProbe {
         int warmId = 100;
         for (int[] warm : warmChunks) {
             WorkerResponse warmed = exchange(in, out, buffer,
-                    WorkerRequest.predictDiamond(warmId++, token, seed, "minecraft:overworld", warm[0], warm[1],
+                    WorkerRequest.predict(warmId++, token, seed, "minecraft:overworld", warm[0], warm[1],
                             "DIAMOND"), PREDICT_TIMEOUT_MILLIS);
             WorkerPredictionDto warmPrediction = warmed.prediction();
             String summary = warmPrediction == null
@@ -245,7 +245,7 @@ public final class LegacyWorkerProbe {
         }
 
         long predictStart = System.currentTimeMillis();
-        WorkerResponse predicted = exchange(in, out, buffer, WorkerRequest.predictDiamond(3L, token, seed,
+        WorkerResponse predicted = exchange(in, out, buffer, WorkerRequest.predict(3L, token, seed,
                 "minecraft:overworld", chunkX, chunkZ, "DIAMOND"), PREDICT_TIMEOUT_MILLIS);
         long predictMillis = System.currentTimeMillis() - predictStart;
         WorkerPredictionDto prediction = predicted.prediction();

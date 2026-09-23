@@ -3,6 +3,7 @@ package com.yiyiaddon.seed.worker.client;
 import com.yiyiaddon.seed.model.OreSource;
 import com.yiyiaddon.seed.model.OreType;
 import com.yiyiaddon.seed.model.SeedOreTarget;
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
 import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionCertainty;
 import com.yiyiaddon.seed.prediction.PredictionResult;
@@ -35,14 +36,19 @@ public final class SeedWorkerPredictionMapper {
     /**
      * 把 Worker 返回的预测还原成正式结果。
      *
-     * @param dto           传输载荷
-     * @param expectedSeed  本次请求的种子（用于交叉校验）
-     * @param expectedChunk 本次请求的目标区块（用于交叉校验）
+     * @param dto              传输载荷
+     * @param expectedSeed     本次请求的种子（用于交叉校验）
+     * @param expectedDimension 本次请求的维度标识（用于交叉校验）
+     * @param expectedOreType  本次请求的矿物（用于交叉校验）
+     * @param expectedChunk    本次请求的目标区块（用于交叉校验）
      * @throws WorkerProtocolException 载荷与请求不一致或含不认识的枚举
      */
-    public static PredictionResult toResult(WorkerPredictionDto dto, long expectedSeed, ChunkPos expectedChunk) {
-        requireMatch(dto, expectedSeed, expectedChunk);
-        SeedOreTarget request = SeedOreTarget.diamond(expectedSeed, expectedChunk);
+    public static PredictionResult toResult(WorkerPredictionDto dto, long expectedSeed,
+                                           String expectedDimension, OreType expectedOreType,
+                                           ChunkPos expectedChunk) {
+        requireMatch(dto, expectedSeed, expectedDimension, expectedOreType, expectedChunk);
+        ResourceKey<Level> dimensionKey = dimensionKeyOf(expectedDimension);
+        SeedOreTarget request = SeedOreTarget.of(expectedSeed, dimensionKey, expectedChunk, expectedOreType);
         if (!dto.success()) {
             String reason = dto.failureReason() == null || dto.failureReason().isBlank()
                     ? "本地世界生成计算器报告预测不成立" : dto.failureReason();
@@ -85,7 +91,8 @@ public final class SeedWorkerPredictionMapper {
     }
 
     /** 载荷必须与本次请求同种子 / 同区块 / 同维度 / 同矿物。 */
-    private static void requireMatch(WorkerPredictionDto dto, long expectedSeed, ChunkPos expectedChunk) {
+    private static void requireMatch(WorkerPredictionDto dto, long expectedSeed, String expectedDimension,
+                                     OreType expectedOreType, ChunkPos expectedChunk) {
         if (dto.seed() != expectedSeed) {
             throw new WorkerProtocolException(SeedWorkerProtocol.ERROR_MALFORMED_RESPONSE,
                     "返回的种子与请求不一致（请求 " + expectedSeed + "，返回 " + dto.seed() + "）");
@@ -95,23 +102,23 @@ public final class SeedWorkerPredictionMapper {
                     "返回的目标区块与请求不一致（请求 " + expectedChunk.x() + "," + expectedChunk.z()
                             + "，返回 " + dto.chunkX() + "," + dto.chunkZ() + "）");
         }
-        if (!Level.OVERWORLD.identifier().toString().equals(dto.dimension())) {
+        if (expectedDimension == null || !expectedDimension.equals(dto.dimension())) {
             throw new WorkerProtocolException(SeedWorkerProtocol.ERROR_MALFORMED_RESPONSE,
-                    "返回的维度不受支持：" + dto.dimension());
+                    "返回的维度与请求不一致（请求 " + expectedDimension + "，返回 " + dto.dimension() + "）");
         }
-        if (!OreType.DIAMOND.name().equals(dto.oreType())) {
+        if (expectedOreType == null || !expectedOreType.name().equals(dto.oreType())) {
             throw new WorkerProtocolException(SeedWorkerProtocol.ERROR_MALFORMED_RESPONSE,
-                    "返回的矿物种类不受支持：" + dto.oreType());
+                    "返回的矿物与请求不一致（请求 " + expectedOreType + "，返回 " + dto.oreType() + "）");
         }
     }
 
     private static OreType parseOreType(String name) {
-        try {
-            return OreType.valueOf(name);
-        } catch (IllegalArgumentException | NullPointerException unknown) {
+        OreType parsed = OreType.parse(name);
+        if (parsed == null) {
             throw new WorkerProtocolException(SeedWorkerProtocol.ERROR_MALFORMED_RESPONSE,
                     "不认识的矿物种类：" + name);
         }
+        return parsed;
     }
 
     private static PredictionCertainty parseCertainty(String name) {
@@ -144,8 +151,18 @@ public final class SeedWorkerPredictionMapper {
         return positions;
     }
 
-    /** 维度键（IPC 里只传标识字符串，业务侧需要键时用它还原）。 */
-    public static ResourceKey<Level> overworldKey() {
-        return Level.OVERWORLD;
+    /**
+     * 维度标识 → 维度键。
+     *
+     * <p>只接受 {@code SeedDimensionProfile} 里声明过的维度：IPC 载荷是纯字符串，
+     * 不认识的维度一律当作协议错误（fail-closed），绝不当成「主世界」继续算。</p>
+     */
+    public static ResourceKey<Level> dimensionKeyOf(String dimensionId) {
+        SeedDimensionProfile profile = SeedDimensionProfile.of(dimensionId);
+        if (profile == null) {
+            throw new WorkerProtocolException(SeedWorkerProtocol.ERROR_MALFORMED_RESPONSE,
+                    "不认识的维度：" + dimensionId);
+        }
+        return profile.levelKey();
     }
 }

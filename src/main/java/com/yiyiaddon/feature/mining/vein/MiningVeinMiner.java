@@ -911,7 +911,9 @@ public final class MiningVeinMiner {
             // 静默重启（用户 2026-09-18：「Baritone 已启动挖掘…狂刷屏」——连锁默认开，每挖完
             // 一条矿脉都要把 mine 拉回来一次，每次都播「已启动挖掘」就是刷屏主源）：
             // 连锁结束已有「连锁完成」播报，mine 的重启用户不需要知道
-            module.getBaritone().startMining(module.getMiningTargets(), false);
+            // 235：改走目标提供者 —— 普通模式与旧 startMining(..., false) 等价；
+            // 种子模式在这里挑下一颗精确坐标并寻路（绝不允许退回按矿物类型 mine）
+            module.issueMiningTargets(false);
         }
     }
 
