@@ -316,7 +316,25 @@ loom {
             vmArg '-Dyiyiaddon.seedpoc.exit=1'
         }
 
-        // ⑮ 专用服务器（26.1.2，level-seed=20260922，不加载任何改 worldgen 的 Mod）。
+        // ⑮ 多矿物 · 多维度实机矩阵（236）：主世界 8 种 + 下界 3 种矿物逐个取
+        //    「Worker ↔ Oracle 逐项一致 / 候选 ↔ 真实方块 / 观察 + ESP + 缓存隔离」三类证据，
+        //    并在中途真实传送进下界（核对身份切换清空与下界自动挖矿 fail-closed）。
+        //    单人夹具世界（自动新建，固定种子 20260922，与世界种子相同 ⇒ 可与真实区块逐个对照）。
+        //    用法：.\gradlew.bat runClientSeedOreMatrixTest
+        clientSeedOreMatrixTest {
+            client()
+            runDir = file(".dev-runs/${project.minecraft_version}/seed/ore-matrix")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.oreMatrix=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑯ 专用服务器（26.1.2，level-seed=20260922，不加载任何改 worldgen 的 Mod）。
         //    运行目录与配置由 prepareSeedWorkerServer 生成（含 eula.txt），不要手工改。
         seedWorkerServer {
             server()
@@ -596,6 +614,7 @@ tasks.register('prepareSeedWorkerClientRun') {
                 ".dev-runs/${project.minecraft_version}/seed/visual-shader",
                 ".dev-runs/${project.minecraft_version}/seed/radius6",
                 ".dev-runs/${project.minecraft_version}/seed/target",
+                ".dev-runs/${project.minecraft_version}/seed/ore-matrix",
         ]
         runDirs.each { String name ->
             File dir = file(name)
@@ -633,6 +652,7 @@ tasks.matching {
             || it.name == 'runClientSeedVisualMinedTest'
             || it.name == 'runClientSeedVisualShaderTest'
             || it.name == 'runClientSeedTargetTest'
+            || it.name == 'runClientSeedOreMatrixTest'
 }.configureEach {
     dependsOn 'prepareSeedWorkerClientRun'
 }

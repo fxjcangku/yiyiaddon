@@ -225,7 +225,7 @@ public final class SeedWorkerIpcServer implements AutoCloseable {
             case SeedWorkerProtocol.OP_OPEN_SESSION -> submit(request,
                     () -> WorkerResponse.session(request.id(), sessions.openSession(request.seed(),
                             request.dimension())));
-            case SeedWorkerProtocol.OP_PREDICT_DIAMOND -> submit(request,
+            case SeedWorkerProtocol.OP_PREDICT -> submit(request,
                     () -> WorkerResponse.prediction(request.id(), sessions.predict(request.seed(),
                             request.dimension(), request.chunkX(), request.chunkZ(), request.oreType())));
             case SeedWorkerProtocol.OP_CLOSE_SESSION -> submit(request,
@@ -255,10 +255,10 @@ public final class SeedWorkerIpcServer implements AutoCloseable {
             return;
         }
         WorkerHelloDto hello = new WorkerHelloDto(SeedWorkerProtocol.VERSION, workerMinecraft, modVersion,
-                ProcessHandle.current().pid(),
-                List.of(SeedWorkerProtocol.CAPABILITY_PREDICT_DIAMOND_OVERWORLD));
-        LOGGER.info("握手成功：协议 {}，Minecraft {}，模组 {}，PID {}",
-                hello.protocolVersion(), hello.minecraftVersion(), hello.modVersion(), hello.workerPid());
+                ProcessHandle.current().pid(), sessions.capabilities());
+        LOGGER.info("握手成功：协议 {}，Minecraft {}，模组 {}，PID {}，能力 {}",
+                hello.protocolVersion(), hello.minecraftVersion(), hello.modVersion(), hello.workerPid(),
+                hello.capabilities());
         send(WorkerResponse.hello(request.id(), hello));
     }
 
@@ -271,6 +271,10 @@ public final class SeedWorkerIpcServer implements AutoCloseable {
                     response = handler.handle();
                 } catch (WorkerProtocolException protocol) {
                     rejectedRequests++;
+                    // 拒绝原因必须留痕：否则「预测失败」在 Worker 日志里一句证据都没有，
+                    // 只能从客户端那句通用文案反推（236 实机吃过一次这个亏）。
+                    LOGGER.warn("拒绝请求 {}（{}）：{}", request.op(), protocol.errorCode(),
+                            protocol.getMessage());
                     response = WorkerResponse.error(request.id(), protocol.errorCode(), protocol.getMessage());
                 } catch (Throwable error) {
                     LOGGER.error("处理请求 {} 时出现异常", request.op(), error);

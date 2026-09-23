@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * （口径第七、八、九节）。</p>
  *
  * <p><b>它只做一件事</b>：在这个进程里造出一个真正的 Vanilla {@code ServerLevel}，并按 IPC 协议
- * 用正式 {@code DiamondSeedPredictor} 回答「种子 + 维度 + 目标区块 → 钻石预测结果」
+ * 用正式 {@code SeedOrePredictor} 回答「种子 + 维度 + 目标区块 + 矿物 → 预测结果」
  * （口径第五、十一节）。它不是游戏、不是给玩家连接的服务器、不连接任何远程服务器。</p>
  *
  * <p><b>退出路径</b>（口径第三十二、七十七节）：① 收到 SHUTDOWN；② 客户端连接断开（EOF）；

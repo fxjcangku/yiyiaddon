@@ -1,7 +1,12 @@
 package com.yiyiaddon.seed.config;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.yiyiaddon.seed.model.OreType;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 种子挖矿正式模块 · <b>可持久化配置</b>（正式化第二阶段）。
@@ -50,6 +55,70 @@ public final class SeedMiningConfig {
 
     /** 是否把「当前缺失」也画到世界里（默认关；口径第三十七节第一版建议）。 */
     private boolean showMissing;
+
+    /**
+     * 要预测的矿物集合（正式化第八阶段 236）。
+     *
+     * <p><b>默认只有钻石</b>：这样「没碰过矿物多选的用户」行为与 235 逐字一致
+     * （覆盖调度只跑钻石，界面读数与耗时都不变）。用户勾上其它矿物之后，
+     * 覆盖调度会按「近→远、同距离按矿物声明序」逐个交给 Worker。</p>
+     *
+     * <p>存的是<b>枚举名</b>；界面只展示当前维度支持的那些，因此这里可以放心存全集
+     * （切维度后没用到的那些条目不会生效，切回来还在）。</p>
+     */
+    private final List<OreType> selectedOres = new ArrayList<>();
+
+    /** 出厂默认矿物集合（钻石；与 235 行为一致）。 */
+    private static final List<OreType> DEFAULT_ORES = List.of(OreType.DIAMOND);
+
+    /**
+     * 矿物集合是否被<b>显式改写过</b>。
+     *
+     * <p>没有这个标志就无法区分「用户还没碰过多选」与「用户把所有矿物都取消勾选」：
+     * 只看集合是否为空，会把后者静默当成前者、把钻石重新勾回来（进而让取消勾选这个动作失效）。
+     * 因此：没改写过 = 出厂默认钻石；改写过 = 以用户写的为准，<b>包括空集</b>。
+     * 空集在服务层由 {@code effectiveOres()} 回落到本维度第一种矿物，不会出现「什么都不预测」。</p>
+     */
+    private boolean oresExplicitlySet;
+
+    /** 要预测的矿物集合（未改写过时 = 出厂默认钻石）。 */
+    public List<OreType> selectedOres() {
+        return oresExplicitlySet ? List.copyOf(selectedOres) : DEFAULT_ORES;
+    }
+
+    /** 是否勾选了这个矿物。 */
+    public boolean isOreSelected(OreType oreType) {
+        return oreType != null && selectedOres().contains(oreType);
+    }
+
+    /**
+     * 改写矿物集合（自动去重、按枚举声明序排列）。
+     *
+     * <p>空集是合法输入（= 用户全部取消勾选）；按声明序排列让覆盖调度的同距离优先级稳定可复现。</p>
+     */
+    public void selectedOres(Collection<OreType> values) {
+        List<OreType> ordered = new ArrayList<>();
+        for (OreType oreType : OreType.values()) {
+            if (values != null && values.contains(oreType)) {
+                ordered.add(oreType);
+            }
+        }
+        oresExplicitlySet = true;
+        selectedOres.clear();
+        selectedOres.addAll(ordered);
+    }
+
+    /** 当前维度下真正生效的矿物集合（与维度支持集合求交，保持声明序）。 */
+    public List<OreType> effectiveOres(List<OreType> supported) {
+        List<OreType> out = new ArrayList<>();
+        List<OreType> selected = selectedOres();
+        for (OreType oreType : supported) {
+            if (selected.contains(oreType)) {
+                out.add(oreType);
+            }
+        }
+        return out;
+    }
 
     /** 「启用种子挖矿」开关。 */
     public boolean enabled() {
@@ -154,6 +223,11 @@ public final class SeedMiningConfig {
         json.addProperty("renderPrediction", renderPrediction);
         json.addProperty("coverageRadius", coverageRadius);
         json.addProperty("showMissing", showMissing);
+        JsonArray ores = new JsonArray();
+        for (OreType oreType : selectedOres()) {
+            ores.add(oreType.name());
+        }
+        json.add("selectedOres", ores);
     }
 
     /** 读取 JSON；缺项 / 类型不符保留默认值，绝不抛异常。 */
@@ -166,6 +240,28 @@ public final class SeedMiningConfig {
         renderPrediction = boolOf(json, "renderPrediction", renderPrediction);
         coverageRadius = intOf(json, "coverageRadius", coverageRadius);
         showMissing = boolOf(json, "showMissing", showMissing);
+        loadOres(json);
+    }
+
+    /** 读矿物集合：只认枚举名，陌生条目跳过（配置被手改坏了也不影响启动）。 */
+    private void loadOres(JsonObject json) {
+        JsonElement element = json.get("selectedOres");
+        if (element == null || !element.isJsonArray()) {
+            return;
+        }
+        List<OreType> parsed = new ArrayList<>();
+        for (JsonElement item : element.getAsJsonArray()) {
+            if (!item.isJsonPrimitive()) {
+                continue;
+            }
+            OreType oreType = OreType.parse(item.getAsString());
+            if (oreType != null) {
+                parsed.add(oreType);
+            }
+        }
+        // 键存在即视为「用户改写过」——包括空数组，这样 save/load 往返一致
+        // （空集在服务层回落到本维度第一种矿物，不会出现「什么都不预测」）
+        selectedOres(parsed);
     }
 
     private static boolean boolOf(JsonObject json, String key, boolean fallback) {

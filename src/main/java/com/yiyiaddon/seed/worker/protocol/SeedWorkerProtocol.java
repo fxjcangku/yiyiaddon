@@ -20,8 +20,15 @@ package com.yiyiaddon.seed.worker.protocol;
  */
 public final class SeedWorkerProtocol {
 
-    /** 协议版本（业务协议）；与 Minecraft 版本无关，可跨版本共用。 */
-    public static final int VERSION = 1;
+    /**
+     * 协议版本（业务协议）；与 Minecraft 版本无关，可跨版本共用。
+     *
+     * <p><b>236 起为 2</b>：预测请求从「只认主世界钻石」扩成「任意受支持 (维度, 矿物)」，
+     * 操作码 {@code PREDICT_DIAMOND} 随之改名为 {@code PREDICT}。
+     * 客户端与 Worker 来自同一个 jar，因此版本不一致只可能来自「旧进程没退干净」，
+     * 那种情况必须拒绝（见客户端握手校验）。</p>
+     */
+    public static final int VERSION = 2;
 
     /** 单行 JSON 的字节上限（1 MiB）。超限即视为协议错误并断开连接。 */
     public static final int MAX_LINE_BYTES = 1 << 20;
@@ -40,8 +47,8 @@ public final class SeedWorkerProtocol {
     /** 打开会话：绑定「种子 + 维度」，旧的其它种子会话一律失效。 */
     public static final String OP_OPEN_SESSION = "OPEN_SESSION";
 
-    /** 预测一个目标区块的钻石。 */
-    public static final String OP_PREDICT_DIAMOND = "PREDICT_DIAMOND";
+    /** 预测一个目标区块里的指定矿物（236 起通用；请求里带维度与矿物枚举名）。 */
+    public static final String OP_PREDICT = "PREDICT";
 
     /** 关闭会话并释放离线世界缓存。 */
     public static final String OP_CLOSE_SESSION = "CLOSE_SESSION";
@@ -76,8 +83,14 @@ public final class SeedWorkerProtocol {
     /** 客户端与 Worker 之间的传输故障。 */
     public static final String ERROR_TRANSPORT = "TRANSPORT";
 
-    /** 能力声明（HELLO 返回；本阶段只有一项，用于将来扩展时不破坏旧客户端）。 */
-    public static final String CAPABILITY_PREDICT_DIAMOND_OVERWORLD = "predict_diamond_overworld";
+    /**
+     * 能力声明（HELLO 返回）。
+     *
+     * <p>按<b>维度</b>声明：Worker 只有在宿主真的具备那一层世界时才会声明对应能力，
+     * 因此客户端可以据此提前判断「这个本地计算器能不能算下界」，而不是等预测时报错。</p>
+     */
+    public static final String CAPABILITY_PREDICT_OVERWORLD = "predict_overworld";
+    public static final String CAPABILITY_PREDICT_NETHER = "predict_nether";
 
     private SeedWorkerProtocol() {
     }

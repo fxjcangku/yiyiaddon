@@ -17,6 +17,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.Services;
@@ -81,6 +82,14 @@ public final class SeedWorkerHost implements AutoCloseable {
     /** 等待 ServerLevel 就绪的上限（毫秒）；超时即视为启动失败并写清楚。 */
     private static final long LEVEL_READY_TIMEOUT_MILLIS = 300_000L;
 
+    /**
+     * 可选维度（下界）的耐心上限（毫秒）。
+     *
+     * <p>见 {@code awaitLevelOrNull} 的注释：同一批建世界里就已经决定它存不存在，
+     * 因此这里只给一个远小于启动超时的值。</p>
+     */
+    private static final long OPTIONAL_LEVEL_TIMEOUT_MILLIS = 30_000L;
+
     /** 宿主监听端口（仅回环；由客户端选一个空闲端口传进来，避免与别的 Worker 撞车）。 */
     private final int hostPort;
 
@@ -93,6 +102,7 @@ public final class SeedWorkerHost implements AutoCloseable {
     private String levelId;
     private MinecraftServer server;
     private ServerLevel overworld;
+    private ServerLevel nether;
     private boolean listenerStopped;
 
     public SeedWorkerHost(Path runtimeDir, int hostPort) {
@@ -160,11 +170,17 @@ public final class SeedWorkerHost implements AutoCloseable {
         // ── 4. Vanilla 服务端（DedicatedServer 等价物；起来后立即停用对外监听）──
         this.server = MinecraftServer.spin(thread -> new WorkerServer(thread, access, packRepository, stem,
                 Optional.empty(), settings, DataFixers.getDataFixer(), services));
-        this.overworld = awaitOverworld(server);
+        this.overworld = awaitLevel(server, Level.OVERWORLD);
+        // 236：下界那一层同样由世界预设创建（原版 normal 预设含 the_nether；26.1.2 的
+        // DedicatedServerProperties 已无 allow-nether 字段，见 :249-251 的 createDimensions），
+        // 因此这里能直接拿到它。拿不到就是环境的真实限制，如实记为「下界不可用」而不是假装能算。
+        this.nether = awaitLevelOrNull(server, Level.NETHER, OPTIONAL_LEVEL_TIMEOUT_MILLIS);
         stopNetworkListener();
-        LOGGER.info("宿主初始化：完成（维度 {}，世界高度 {} ~ {}，总耗时 {} ms）",
+        LOGGER.info("宿主初始化：完成（主世界 {}，世界高度 {} ~ {}；下界 {}；总耗时 {} ms）",
                 overworld.dimension().identifier(),
-                overworld.getMinY(), overworld.getMaxY(), System.currentTimeMillis() - startedAt);
+                overworld.getMinY(), overworld.getMaxY(),
+                nether == null ? "不可用" : nether.getMinY() + " ~ " + nether.getMaxY(),
+                System.currentTimeMillis() - startedAt);
     }
 
     /** 环境宿主（主世界那一层）。 */
@@ -173,6 +189,36 @@ public final class SeedWorkerHost implements AutoCloseable {
             throw new IllegalStateException("宿主尚未就绪");
         }
         return overworld;
+    }
+
+    /**
+     * 下界那一层；不可用返回 {@code null}（调用方据此 fail-closed，而不是拿主世界顶替）。
+     */
+    public ServerLevel netherOrNull() {
+        return nether;
+    }
+
+    /** 取某一层宿主；不可用抛异常（调用方应先用 {@link #levelOrNull} 判）。 */
+    public ServerLevel level(ResourceKey<Level> dimension) {
+        ServerLevel level = levelOrNull(dimension);
+        if (level == null) {
+            throw new IllegalStateException("宿主不具备该维度：" + (dimension == null ? "null" : dimension.identifier()));
+        }
+        return level;
+    }
+
+    /** 取某一层宿主；不具备返回 {@code null}。 */
+    public ServerLevel levelOrNull(ResourceKey<Level> dimension) {
+        if (dimension == null) {
+            return null;
+        }
+        if (Level.OVERWORLD.equals(dimension)) {
+            return overworld;
+        }
+        if (Level.NETHER.equals(dimension)) {
+            return nether;
+        }
+        return null;
     }
 
     /** 宿主是否已就绪。 */
@@ -239,7 +285,6 @@ public final class SeedWorkerHost implements AutoCloseable {
                 player-idle-timeout=0
                 rate-limit=0
                 allow-flight=false
-                allow-nether=false
                 level-name=%s
                 level-seed=0
                 level-type=minecraft:normal
@@ -308,20 +353,39 @@ public final class SeedWorkerHost implements AutoCloseable {
                 complete.dimensionsRegistryAccess());
     }
 
-    /** 等主世界那一层出现（服务端在它自己的线程里建世界，这里只轮询）。 */
-    private static ServerLevel awaitOverworld(MinecraftServer server) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + LEVEL_READY_TIMEOUT_MILLIS;
+    /** 等指定的那一层出现（服务端在它自己的线程里建世界，这里只轮询）。 */
+    private static ServerLevel awaitLevel(MinecraftServer server, ResourceKey<Level> dimension)
+            throws InterruptedException {
+        ServerLevel level = awaitLevelOrNull(server, dimension, LEVEL_READY_TIMEOUT_MILLIS);
+        if (level == null) {
+            throw new IllegalStateException("等待 " + dimension.identifier() + " 就绪超时或服务端提前停止（"
+                    + LEVEL_READY_TIMEOUT_MILLIS + " ms）");
+        }
+        return level;
+    }
+
+    /**
+     * 等指定的那一层出现；超时 / 服务端提前停止返回 {@code null}。
+     *
+     * <p>可选维度（下界）用短耐心：三层世界是<b>在同一轮建世界循环里</b>依次建立的
+     * （{@code MinecraftServer#createLevels} 遍历 level stem 注册表），因此主世界一旦就绪、
+     * 下界要么同批已出现、要么永远不会出现；用启动超时那种长耐心去等，只会在
+     * 「这个环境确实没有下界」时白等几分钟。</p>
+     */
+    private static ServerLevel awaitLevelOrNull(MinecraftServer server, ResourceKey<Level> dimension,
+                                                long timeoutMillis) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMillis;
         while (System.currentTimeMillis() < deadline) {
-            ServerLevel level = server.getLevel(Level.OVERWORLD);
+            ServerLevel level = server.getLevel(dimension);
             if (level != null) {
                 return level;
             }
             if (server.isStopped()) {
-                throw new IllegalStateException("Vanilla 宿主在建立主世界之前就停了");
+                return null;
             }
             TimeUnit.MILLISECONDS.sleep(100L);
         }
-        throw new IllegalStateException("等待主世界就绪超时（" + LEVEL_READY_TIMEOUT_MILLIS + " ms）");
+        return null;
     }
 
     /**

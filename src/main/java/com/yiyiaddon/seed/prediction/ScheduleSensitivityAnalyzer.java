@@ -160,6 +160,6 @@ public final class ScheduleSensitivityAnalyzer {
         if (chunk == null) {
             throw new IllegalStateException("复核世界里目标区块未跑到 FEATURES：(" + target.x() + "," + target.z() + ")");
         }
-        return OreChunkReader.collect(chunk, oreType);
+        return OreChunkReader.collect(chunk, oreType, context.profile());
     }
 }

@@ -5,6 +5,9 @@ import com.yiyiaddon.feature.mining.fastbreak.MiningFastBreakController;
 import com.yiyiaddon.seed.model.OreType;
 import com.yiyiaddon.seed.observation.OreObservationState;
 import com.yiyiaddon.seed.observation.SeedOreObservationTracker;
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
+import com.yiyiaddon.seed.ore.SeedOreDefinition;
+import com.yiyiaddon.seed.ore.SeedOreRegistry;
 import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.runtime.SeedRuntimeIdentity;
@@ -17,7 +20,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,7 +191,7 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
             return "种子挖矿未开启 §8▸ 请在「种子挖矿」页打开总开关";
         }
         if (!service.dimensionSupported()) {
-            return "种子目标只支持主世界 §8▸ 当前：" + service.dimensionDisplayCn();
+            return "种子目标只支持主世界 / 下界 §8▸ 当前：" + service.dimensionDisplayCn();
         }
         if (service.seedValue() == null) {
             return "服务器种子未填写或格式无效 §8▸ 请在「种子挖矿」页填写";
@@ -197,12 +200,19 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
             return "种子验证未通过（当前：" + service.validationSnapshot().stateCn()
                 + "）§8▸ 不启动种子自动挖矿";
         }
+        OreType oreType = service.autoMiningTargetOre();
+        if (oreType == null) {
+            // 236：所选矿物里没有一种获得自动挖矿资格（当前只有钻石有实机验证证据）。
+            // 这里如实停机，绝不退回「按矿物类型全局搜」——那会挖到预测之外的矿。
+            return "所选矿物尚未开放自动挖矿 §8▸ 当前只允许"
+                + service.autoMinerEligibleOresCn() + "（其余矿物仅提供预测 / 观察 / ESP）";
+        }
         if (service.state() == SeedMiningRuntimeState.CALCULATOR_FAILED) {
             // 没有预测就没有目标：如实停机，不做「先正常挖着」这种偷偷 fallback
             return "本地世界生成计算器异常 §8▸ 预测暂时不可用（详见「种子挖矿」页）";
         }
-        if (!targetsDiamondOre()) {
-            return "目标需选择钻石矿 §8▸ 种子预测当前只覆盖钻石（时运 / 精准均可）";
+        if (!targetsAutoMinerOre(oreType)) {
+            return "目标需选择" + oreType.displayNameCn() + "矿 §8▸ 种子预测当前追的是这个矿物（时运 / 精准均可）";
         }
         if (!module.getFastBreak()) {
             return "种子目标依赖秒破 §8▸ 请先在设置里打开「秒破」";
@@ -210,10 +220,17 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
         return "";
     }
 
-    /** 当前目标选择是不是钻石矿（时运与精准两种模式解析出来的锚点都是钻石矿方块）。 */
-    private boolean targetsDiamondOre() {
+    /**
+     * 当前目标选择是不是「种子模式正在追的那种矿」。
+     *
+     * <p>判据用 {@code SeedOreRegistry} 的方块集合（钻石含深层变种），因此时运与精准两种模式解析出来的
+     * 锚点都能对上；换矿物时这里不需要改代码，只跟着矿物定义走。</p>
+     */
+    private boolean targetsAutoMinerOre(OreType oreType) {
         Block anchor = module.getTargetBlock();
-        return anchor == Blocks.DIAMOND_ORE || anchor == Blocks.DEEPSLATE_DIAMOND_ORE;
+        SeedDimensionProfile profile = seed().dimensionProfile();
+        SeedOreDefinition definition = SeedOreRegistry.of(profile, oreType);
+        return definition != null && definition.matches(anchor.defaultBlockState());
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -286,7 +303,7 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
         if (currentTarget != null && !isStillUsable(currentTarget)) {
             BlockPos gone = currentTarget;
             consume(gone);
-            abandon(gone, "目标位置实际不是钻石矿（已被挖走或已改变）");
+            abandon(gone, "目标位置实际不是" + targetOreNameCn() + "（已被挖走或已改变）");
         }
 
         // 3) 没有目标 → 选下一颗（选不到就等；是否「换区域」由状态机问 exhausted()）
@@ -306,14 +323,14 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
             pathIssues = 0;
             LOGGER.info("{}：选定目标 ({},{},{})，已消费 {} 颗 / 暂时不可达 {} 颗", LOG_KEY,
                 next.getX(), next.getY(), next.getZ(), consumed.size(), unreachableUntil.size());
-            module.info("§b种子挖矿 §8▸ 已锁定预测钻石目标 §f"
+            module.info("§b种子挖矿 §8▸ 已锁定预测" + targetOreNameCn() + "目标 §f"
                 + next.getX() + " " + next.getY() + " " + next.getZ());
         }
 
         BlockPos target = currentTarget;
 
-        // 4) 已经在目标旁、且实际方块确实是钻石 → 交给现有秒破（矿脉由现有连锁承接）
-        if (player.isWithinBlockInteractionRange(target, REACH_SLACK) && confirmedDiamond(level, target)) {
+        // 4) 已经在目标旁、且实际方块确实是目标矿 → 交给现有秒破（矿脉由现有连锁承接）
+        if (player.isWithinBlockInteractionRange(target, REACH_SLACK) && confirmedTargetOre(level, target)) {
             if (pathIssued) {
                 // 到位即收起寻路：男中音的自定义目标与秒破同时活着会抢服务端唯一的破坏槽位
                 module.getBaritone().stop();
@@ -448,21 +465,26 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
     // ────────────────────────────────────────────────────────────────────────
 
     /**
-     * 按「已确认 → 未观察 → 最近」选出下一颗钻石；一个都没有返回 {@code null}。
+     * 按「已确认 → 未观察 → 最近」选出下一颗目标矿；一个都没有返回 {@code null}。
      */
     private BlockPos selectNext(LocalPlayer player) {
+        SeedMiningService service = seed();
+        OreType oreType = service.autoMiningTargetOre();
+        if (oreType == null) {
+            return null;
+        }
         BlockPos playerPos = player.blockPosition();
         ChunkPos playerChunk = ChunkPos.containing(playerPos);
-        int radius = seed().coverageRadius();
+        int radius = service.coverageRadius();
         BlockPos best = null;
         int bestRank = Integer.MAX_VALUE;
         double bestDistance = Double.MAX_VALUE;
-        for (PredictionResult result : seed().cachedPredictions()) {
+        for (PredictionResult result : service.cachedPredictions()) {
             if (result == null || result.failed()) {
                 continue; // 失败 ≠ 没有矿：失败结果根本不进缓存，这里只做防御
             }
             for (PredictedOre ore : result.ores()) {
-                if (ore.oreType() != OreType.DIAMOND) {
+                if (ore.oreType() != oreType) {
                     continue;
                 }
                 BlockPos pos = ore.position();
@@ -529,13 +551,25 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
         if (!level.isLoaded(pos)) {
             return true;
         }
-        return SeedOreObservationTracker.isOreBlock(OreType.DIAMOND, level.getBlockState(pos));
+        return matchesTargetOre(level.getBlockState(pos));
     }
 
-    /** 实际方块状态确认：这一格现在真的是钻石矿（含深层变种）。 */
-    private boolean confirmedDiamond(ClientLevel level, BlockPos pos) {
-        return level.isLoaded(pos)
-            && SeedOreObservationTracker.isOreBlock(OreType.DIAMOND, level.getBlockState(pos));
+    /** 实际方块状态确认：这一格现在真的是目标矿（含该矿在本维度定义里的全部方块形态）。 */
+    private boolean confirmedTargetOre(ClientLevel level, BlockPos pos) {
+        return level.isLoaded(pos) && matchesTargetOre(level.getBlockState(pos));
+    }
+
+    /** 该方块状态是否满足「种子模式正在追的那种矿」（维度 + 矿物定义判定，fail-closed）。 */
+    private boolean matchesTargetOre(BlockState state) {
+        SeedMiningService service = seed();
+        return SeedOreObservationTracker.isOreBlock(service.dimensionProfile(),
+            service.autoMiningTargetOre(), state);
+    }
+
+    /** 目标矿的中文名（播报文案用；取不到时退回「目标矿」）。 */
+    private String targetOreNameCn() {
+        OreType oreType = seed().autoMiningTargetOre();
+        return oreType == null ? "目标矿" : oreType.displayNameCn();
     }
 
     // ────────────────────────────────────────────────────────────────────────

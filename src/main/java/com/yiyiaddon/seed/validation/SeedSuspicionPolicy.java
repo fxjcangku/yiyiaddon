@@ -27,7 +27,8 @@ import java.util.List;
  * </ol>
  *
  * <h2>三、本阶段的正式结论：自动 SUSPICIOUS <b>继续禁用</b>（口径第二十三、二十四、二十六节）</h2>
- * <p>第 8 条<b>没有证据</b>：当前的 {@code DiamondSeedPredictor} 只能给出<b>当前离线调度模型下</b>
+ * <p>第 8 条<b>没有证据</b>：当前的 {@code SeedOrePredictor}（236 前叫 {@code DiamondSeedPredictor}）
+ * 只能给出<b>当前离线调度模型下</b>
  * 的候选，无法证明它覆盖了「所有合法 FEATURES 细粒度 interleaving」可能产生的最终钻石坐标。
  * 更关键的是 228 已实测：同一 Seed / 版本 / worldgen / 目标区块下，
  * <b>只改变合法的 Chunk 请求顺序</b>，真实最终钻石 BlockPos 就会变 —— 因此

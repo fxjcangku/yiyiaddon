@@ -5,7 +5,7 @@ import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.ui.MiningConsoleScreen;
 import com.yiyiaddon.feature.mining.ui.console.MiningSeedPage;
 import com.yiyiaddon.platform.network.ConnectionCloser;
-import com.yiyiaddon.seed.prediction.DiamondSeedPredictor;
+import com.yiyiaddon.seed.prediction.SeedOrePredictor;
 import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionCertainty;
 import com.yiyiaddon.seed.prediction.PredictionResult;
@@ -134,7 +134,7 @@ public final class ServiceRegression {
     private static final List<PredictionResult> SERVICE_RESULTS = new ArrayList<>();
 
     /** 直连正式预测器（只在 ORACLE 阶段使用，仅用于「服务包装没改结果」的逐 BlockPos 对照）。 */
-    private static DiamondSeedPredictor oraclePredictor;
+    private static SeedOrePredictor oraclePredictor;
 
     /** ORACLE 阶段后台跑一次直连预测（避免在客户端线程上同步跑世界生成）。 */
     private static volatile Set<BlockPos> oraclePositions;
@@ -416,13 +416,13 @@ public final class ServiceRegression {
                 waitTicks = 0;
                 return;
             }
-            oraclePredictor = new DiamondSeedPredictor(host);
+            oraclePredictor = new SeedOrePredictor(host);
             oraclePositions = null;
             oracleDone = false;
             oracleSubmitted = true;
             Thread worker = new Thread(() -> {
                 try {
-                    PredictionResult direct = oraclePredictor.predict(oreCase.seed(),
+                    PredictionResult direct = oraclePredictor.predictDiamond(oreCase.seed(),
                         new ChunkPos(oreCase.chunkX(), oreCase.chunkZ()));
                     oraclePositions = positionsOf(direct);
                 } catch (Throwable error) {
@@ -457,7 +457,7 @@ public final class ServiceRegression {
             + extra.size() + " / 直连有服务没有 " + missing.size() + " → " + (exact ? "逐 BlockPos 完全一致" : "**不一致**"));
         VERDICTS.add("【判定】服务层结果 vs 直连正式 Predictor 逐 BlockPos 一致：" + verdict(exact));
         if (oraclePredictor != null) {
-            final DiamondSeedPredictor closing = oraclePredictor;
+            final SeedOrePredictor closing = oraclePredictor;
             Thread closer = new Thread(closing::close, "yiyiaddon-seedpoc-oracle-close");
             closer.setDaemon(true);
             closer.start();

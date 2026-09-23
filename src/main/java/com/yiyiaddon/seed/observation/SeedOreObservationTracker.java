@@ -1,8 +1,12 @@
 package com.yiyiaddon.seed.observation;
 
 import com.yiyiaddon.seed.model.OreType;
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
+import com.yiyiaddon.seed.ore.SeedOreDefinition;
+import com.yiyiaddon.seed.ore.SeedOreRegistry;
 import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionResult;
+import com.yiyiaddon.seed.runtime.TargetKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,7 +20,6 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
@@ -80,8 +83,13 @@ public final class SeedOreObservationTracker {
 
     // ── 候选索引（由服务层在预测结果落地时维护） ──
 
-    /** 区块键 → 该区块内的候选位置键（卸载 / 淘汰时按区块成批清理）。 */
-    private final Map<Long, List<Long>> candidatesByChunk = new HashMap<>();
+    /**
+     * 缓存键（维度 + 矿物 + 区块）→ 该目标内的候选位置键。
+     *
+     * <p><b>236 起键里必须带矿物</b>：同一区块的钻石与红石是两条独立预测，
+     * 若仍按区块成批注销，红石结果落地时会把钻石的候选一起清掉（而且不会报错）。</p>
+     */
+    private final Map<TargetKey, List<Long>> candidatesByKey = new HashMap<>();
 
     /** 候选位置键 → 矿物种类（判断「这个坐标是不是候选」只需一次查表）。 */
     private final Map<Long, OreType> candidateTypes = new HashMap<>();
@@ -117,6 +125,15 @@ public final class SeedOreObservationTracker {
     /** 当前绑定的客户端世界；{@code null} = 未绑定（此时所有观察入口一律直接返回）。 */
     private ClientLevel boundLevel;
 
+    /**
+     * 当前世界的维度档案（236 新增）。
+     *
+     * <p>「什么方块算命中这种矿」是按 {@code (维度, 矿物)} 定义的：主世界金是 {@code gold_ore}，
+     * 下界金是 {@code nether_gold_ore}，两者<b>绝不能混</b>。因此观察层也必须在绑定世界时
+     * 确定维度，而不是拿一个全局方块表去判所有维度。</p>
+     */
+    private SeedDimensionProfile boundProfile;
+
     private SeedOreObservationTracker() {
     }
 
@@ -151,17 +168,24 @@ public final class SeedOreObservationTracker {
     /** 绑定当前客户端世界（身份重建时调用）；绑定后才会响应区块与方块更新。 */
     public void bind(ClientLevel level) {
         boundLevel = level;
+        boundProfile = level == null ? null : SeedDimensionProfile.of(level.dimension());
     }
 
     /** 解除绑定并清空全部状态（换种子 / 换维度 / 换服 / 退世界 / 关功能）。 */
     public void unbind() {
         boundLevel = null;
+        boundProfile = null;
         clear();
+    }
+
+    /** 当前绑定的维度档案（未绑定返回 {@code null}）。 */
+    public SeedDimensionProfile boundProfile() {
+        return boundProfile;
     }
 
     /** 清空全部候选与观察状态（不改绑定）。 */
     public void clear() {
-        candidatesByChunk.clear();
+        candidatesByKey.clear();
         candidateTypes.clear();
         states.clear();
         lastObservedBlockIds.clear();
@@ -182,46 +206,49 @@ public final class SeedOreObservationTracker {
     // ────────────────────────────────────────────────────────────────────────
 
     /**
-     * 登记一个目标区块的预测候选；若该区块此刻已加载，<b>立即观察一次</b>（口径第二十八节 A）。
+     * 登记一个目标（矿物 + 区块）的预测候选；若该区块此刻已加载，<b>立即观察一次</b>。
+     *
+     * <p>只注销并重建<b>这一个（矿物 + 区块）</b>的候选：同区块的其它矿物不受影响。</p>
      *
      * @return 新登记的候选数
      */
     public int trackChunk(PredictionResult result) {
-        if (result == null || result.failed()) {
+        if (result == null || result.failed() || boundProfile == null) {
             return 0;
         }
-        ChunkPos chunk = result.request().chunk();
-        untrackChunk(chunk);
+        TargetKey key = TargetKey.of(boundProfile.dimensionId(), result.request().oreType(),
+                result.request().chunk());
+        untrackTarget(key);
         List<Long> keys = new ArrayList<>(result.ores().size());
         for (PredictedOre ore : result.ores()) {
-            long key = ore.position().asLong();
-            candidateTypes.put(key, ore.oreType());
-            keys.add(key);
+            long positionKey = ore.position().asLong();
+            candidateTypes.put(positionKey, ore.oreType());
+            keys.add(positionKey);
             candidateCount++;
         }
         if (!keys.isEmpty()) {
-            candidatesByChunk.put(chunk.pack(), keys);
+            candidatesByKey.put(key, keys);
         }
         markChanged();
-        observeChunk(chunk);
+        observeChunk(key.chunk());
         return keys.size();
     }
 
-    /** 注销一个目标区块的候选（缓存淘汰时调用）：候选移除，观察状态一并丢弃。 */
-    public void untrackChunk(ChunkPos chunk) {
-        if (chunk == null) {
+    /** 注销一个目标的候选（缓存淘汰时调用）：候选移除，观察状态一并丢弃。 */
+    public void untrackTarget(TargetKey key) {
+        if (key == null) {
             return;
         }
-        List<Long> keys = candidatesByChunk.remove(chunk.pack());
+        List<Long> keys = candidatesByKey.remove(key);
         if (keys == null) {
             return;
         }
-        for (long key : keys) {
-            candidateTypes.remove(key);
+        for (long positionKey : keys) {
+            candidateTypes.remove(positionKey);
             candidateCount--;
-            transitionTo(key, null);
-            lastObservedBlockIds.remove(key);
-            lastObservedAtMillis.remove(key);
+            transitionTo(positionKey, null);
+            lastObservedBlockIds.remove(positionKey);
+            lastObservedAtMillis.remove(positionKey);
         }
         markChanged();
     }
@@ -267,22 +294,23 @@ public final class SeedOreObservationTracker {
         return true;
     }
 
-    /** 观察某区块内的全部候选（区块刚加载 / 预测结果刚落地时调用）。 */
+    /** 观察某区块内的全部候选（区块刚加载 / 预测结果刚落地时调用；同区块的多种矿物一起观察）。 */
     public void observeChunk(ChunkPos chunk) {
         ClientLevel level = boundLevel;
         if (level == null || chunk == null) {
             return;
         }
-        List<Long> keys = candidatesByChunk.get(chunk.pack());
-        if (keys == null || keys.isEmpty()) {
-            return;
-        }
-        for (long key : keys) {
-            OreType oreType = candidateTypes.get(key);
-            if (oreType == null) {
+        for (Map.Entry<TargetKey, List<Long>> entry : candidatesByKey.entrySet()) {
+            if (!entry.getKey().chunk().equals(chunk)) {
                 continue;
             }
-            applyObservation(key, oreType, readLoadedBlock(level, BlockPos.of(key)));
+            for (long positionKey : entry.getValue()) {
+                OreType oreType = candidateTypes.get(positionKey);
+                if (oreType == null) {
+                    continue;
+                }
+                applyObservation(positionKey, oreType, readLoadedBlock(level, BlockPos.of(positionKey)));
+            }
         }
     }
 
@@ -291,12 +319,13 @@ public final class SeedOreObservationTracker {
         if (chunk == null) {
             return;
         }
-        List<Long> keys = candidatesByChunk.get(chunk.pack());
-        if (keys == null || keys.isEmpty()) {
-            return;
-        }
-        for (long key : keys) {
-            transitionTo(key, null);
+        for (Map.Entry<TargetKey, List<Long>> entry : candidatesByKey.entrySet()) {
+            if (!entry.getKey().chunk().equals(chunk)) {
+                continue;
+            }
+            for (long positionKey : entry.getValue()) {
+                transitionTo(positionKey, null);
+            }
         }
     }
 
@@ -360,8 +389,9 @@ public final class SeedOreObservationTracker {
 
     /** 一行诊断（日志 / 报告用）。 */
     public String describeCn() {
-        return snapshot().describeCn() + "；已登记区块 " + candidatesByChunk.size()
-                + "，绑定世界 " + (boundLevel == null ? "无" : "有");
+        return snapshot().describeCn() + "；已登记目标 " + candidatesByKey.size()
+                + "（维度 " + (boundProfile == null ? "未绑定" : boundProfile.displayNameCn())
+                + "），绑定世界 " + (boundLevel == null ? "无" : "有");
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -393,7 +423,7 @@ public final class SeedOreObservationTracker {
         }
         lastObservedBlockIds.put(key, blockIdOf(state));
         lastObservedAtMillis.put(key, System.currentTimeMillis());
-        transitionTo(key, isOreBlock(oreType, state)
+        transitionTo(key, isOreBlock(boundProfile, oreType, state)
                 ? OreObservationState.CONFIRMED : OreObservationState.MISSING);
     }
 
@@ -428,19 +458,20 @@ public final class SeedOreObservationTracker {
     }
 
     /**
-     * 方块是否满足该矿物目标（口径第三十一节）。
+     * 方块是否满足该矿物目标（按 {@code (维度, 矿物)} 定义判定）。
      *
-     * <p>当前模型粒度是 {@link OreType#DIAMOND}，不区分石质变体，因此
-     * {@code diamond_ore} 与 {@code deepslate_diamond_ore} <b>都算 CONFIRMED</b> ——
-     * 绝不能因为「模型没分石质」就把深板岩钻石矿误判成当前缺失。</p>
+     * <p>模型粒度是 {@link OreType}，不区分石质变体，因此 {@code diamond_ore} 与
+     * {@code deepslate_diamond_ore} <b>都算 CONFIRMED</b> —— 绝不能因为「模型没分石质」就把
+     * 深板岩钻石矿误判成当前缺失。方块集合本身来自
+     * {@link com.yiyiaddon.seed.ore.SeedOreRegistry}（同矿不同维度的方块不同：
+     * 主世界金是 {@code gold_ore}，下界金是 {@code nether_gold_ore}）。</p>
+     *
+     * @param dimension 维度档案；{@code null} 或该维度不支持该矿物时一律返回 {@code false}
+     *                  （fail-closed：不认识就不确认，绝不猜）
      */
-    public static boolean isOreBlock(OreType oreType, BlockState state) {
-        if (oreType == null || state == null) {
-            return false;
-        }
-        return switch (oreType) {
-            case DIAMOND -> state.is(Blocks.DIAMOND_ORE) || state.is(Blocks.DEEPSLATE_DIAMOND_ORE);
-        };
+    public static boolean isOreBlock(SeedDimensionProfile dimension, OreType oreType, BlockState state) {
+        SeedOreDefinition definition = SeedOreRegistry.of(dimension, oreType);
+        return definition != null && definition.matches(state);
     }
 
     /** 方块注册名（开发诊断用；取不到时退回类名）。 */

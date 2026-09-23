@@ -3,6 +3,9 @@ package com.yiyiaddon.feature.mining.ui.console;
 import com.yiyiaddon.feature.mining.AutoMinerModule;
 import com.yiyiaddon.feature.mining.target.MiningTargetProvider;
 import com.yiyiaddon.feature.mining.ui.MiningConsoleScreen;
+import com.yiyiaddon.seed.model.OreType;
+import com.yiyiaddon.seed.ore.SeedOreDefinition;
+import com.yiyiaddon.seed.ore.SeedOreRegistry;
 import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.render.SeedRenderSnapshot;
 import com.yiyiaddon.seed.runtime.SeedPredictionCoverageController;
@@ -44,7 +47,8 @@ import java.util.function.ToIntFunction;
  *   <li>「未解析」只说明算法尚未证明，绝不写成「假矿 / 低可信 / 错误矿」；</li>
  *   <li>「确定性」本阶段恒为 0，如实显示，不藏；</li>
  *   <li>种子状态只有「未填写 / 格式无效 / 已填写」，<b>没有</b>「种子已验证」；</li>
- *   <li>本页不出现矿物选择、精准采集、时运、食物、回家、背包、Baritone 等属于自动挖矿的设置项。</li>
+ *   <li>本页的矿物勾选属于「种子预测要算什么」，<b>不是</b>自动挖矿的目标设置：精准采集 / 时运 / 食物 /
+ *       回家 / 背包 / Baritone 等仍然只在自动挖矿自己的页面里（236 起本页新增矿物多选）。</li>
  * </ul>
  */
 public final class MiningSeedPage {
@@ -147,9 +151,24 @@ public final class MiningSeedPage {
             + "§a绿框§8 = 已确认钻石（当前实际就是钻石矿）；§7灰框§8 = 当前缺失（默认不画）；"
             + "§6内圈琥珀细框§8 = 调度敏感（原版世界生成顺序可能影响该位置）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, "§8其余矿物各自一种色相（红=红石 / 靛蓝=青金石 / 亮黄=金 / 米白=铁 / "
+            + "铜橙=铜 / 灰黑=煤 / 翠绿=绿宝石 / 暗紫褐=远古残骸 / 冷白=石英 / 橙金=下界金）；"
+            + "同一种矿的「已确认」比「预测」更亮更实", null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
         stack.add(new Note(owner, "§8调度敏感不等于假矿：真实世界里它同样可能出现。"
             + "本阶段只回答「预测」与「当前实际看到什么」，不做种子校验、不判定假矿", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+
+        // ── 预测矿物（正式化第八阶段 236：多矿物选择） ──
+        stack.add(section("预测矿物"));
+
+        stack.add(new Note(owner, () -> service.supportedOres().isEmpty()
+            ? "§8当前维度暂无可预测矿物"
+            : "§8当前维度可预测：§f" + SeedMiningService.describeOresCn(service.supportedOres())
+                + "§8；生效：" + SeedMiningService.describeOresCn(service.effectiveOres()),
+            null, ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+
+        addOreToggles(stack);
 
         // ── 自动挖矿接入（正式化第七阶段 235） ──
         stack.add(section("自动挖矿接入"));
@@ -170,8 +189,11 @@ public final class MiningSeedPage {
         stack.add(dataRow("目标状态", () -> module.miningTargetProvider().statusCn()));
         stack.add(dataRow("验证闸门", () -> service.mayUseForAutomatedMining()
             ? "已放行（验证通过）" : "未放行（不会启动种子挖矿）"));
+        stack.add(dataRow("可自动挖矿矿物", service::autoMinerEligibleOresCn));
 
         stack.add(new Note(owner, this::seedReadinessCn, null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, () -> "§8下界自动挖矿：" + service.netherAutoMiningAllowedCn(), null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
         // ── 附近覆盖（覆盖进度与归类统计；不含「可疑」这一项） ──
@@ -254,11 +276,47 @@ public final class MiningSeedPage {
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
         stack.add(new Note(owner, "§8确定性：本阶段算法尚不具备证明能力，因此恒为 0 —— 这是如实结果，不是故障。", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
-        stack.add(new Note(owner, "§8本阶段只支持：主世界 + 钻石。下界 / 末地 / 自定义维度不会调用主世界预测器。", null,
+        stack.add(new Note(owner, () -> "§8本阶段支持：" + service.dimensionSupportCn()
+            + "。末地与自定义维度不会调用离线预测器；下界与主世界是两套独立的世界生成参数"
+            + "（预设 / 噪声设置都不同，下界还换随机算法）", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
     }
 
     // ── 行构件 ──
+
+    /**
+     * 当前维度支持的矿物逐个加一行勾选（正式化第八阶段 236）。
+     *
+     * <p>每行的悬停说明直接来自 {@code SeedOreRegistry} 的 vanilla 定义（配置尺寸 / 频率 / 高度区间 /
+     * 生物群系范围 / 扫描窗口 / 写入路径与源码出处），因此「这个矿物按哪套规则算的」在界面上就能核对，
+     * 不需要翻报告 —— 而界面上<b>不</b>出现源码行号这类开发细节，那部分只进报告。</p>
+     */
+    private void addOreToggles(CompactStack stack) {
+        for (OreType oreType : service.supportedOres()) {
+            stack.add(new ConsoleRow(owner, oreType::displayNameCn,
+                oreTooltipCn(oreType),
+                null,
+                List.of(new Ctl(new SettingToggle(() -> service.isOreSelected(oreType),
+                        value -> service.setOreSelected(oreType, value))))));
+        }
+    }
+
+    /** 某个矿物的悬停说明（来自定义表；未取到定义时如实说明）。 */
+    private String oreTooltipCn(OreType oreType) {
+        SeedOreDefinition definition = SeedOreRegistry.of(service.dimensionProfile(), oreType);
+        if (definition == null) {
+            return "当前维度不支持该矿物";
+        }
+        return "方块：" + definition.blocksCn()
+            + "；来源：" + definition.writePathsCn()
+            + "；每区块生成：" + definition.frequencyCn()
+            + "；高度：" + definition.heightCn()
+            + "；生物群系：" + definition.biomeScopeCn()
+            + "；空气暴露丢弃：" + definition.discardChanceMaxCn()
+            + "；预测扫描窗口：" + definition.scanWindowCn()
+            + (definition.autoMinerEligible()
+                ? "；自动挖矿：已开放" : "；自动挖矿：未开放（仅预测 / 观察 / ESP）");
+    }
 
     /** 分区标题（与控制台其余页同一套样式）。 */
     private Note section(String title) {
@@ -394,11 +452,12 @@ public final class MiningSeedPage {
     /** 按钮的悬停说明：不能点的时候直接说清是哪一个条件没满足。 */
     private String predictHint() {
         if (service.canPredict()) {
-            return "预测你当前所在区块的钻石（本机自动启动「本地世界生成计算器」，"
-                + "画面不卡、不寻路、不破坏方块）";
+            return "预测你当前所在区块的" + SeedMiningService.describeOresCn(
+                service.primaryOre() == null ? List.of() : List.of(service.primaryOre()))
+                + "（本机自动启动「本地世界生成计算器」，画面不卡、不寻路、不破坏方块）";
         }
         return "现在不能预测（" + service.stateCn() + "）：需要「已启用 + 已进入世界 + "
-            + "种子格式合法 + 当前维度为主世界」四项同时满足";
+            + "种子格式合法 + 当前维度受支持」四项同时满足";
     }
 
     /**

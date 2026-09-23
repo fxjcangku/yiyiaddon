@@ -711,4 +711,28 @@ public final class SeedPocFlags {
             return 3;
         }
     }
+
+    // ── 正式化第八阶段（报告 236：Seed Ore Engine 通用化 + 其它矿物 + Nether）────
+
+    /**
+     * 多矿物 · 多维度实机矩阵开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link SeedOreMatrixRegression}：在真实客户端 + 固定种子的单人夹具世界上，
+     * 对「主世界 8 种 + 下界 3 种」共 11 种矿物逐个取三类证据 —— Worker ↔ 单人 Oracle 逐项一致、
+     * 候选 ↔ 真实方块（把目标区块推到 FULL 后逐格扫描）、以及观察 / ESP / 缓存隔离读数；
+     * 并在中途真实传送进下界，核对身份切换清空与「下界自动挖矿 fail-closed」。</p>
+     */
+    public static boolean oreMatrix() {
+        return "1".equals(prop("oreMatrix", "0"));
+    }
+
+    /** 矩阵回归的被试种子（默认 20260922：与世界种子相同，因此预测可与真实区块逐个对照）。 */
+    public static long oreMatrixSeed() {
+        String raw = prop("oreMatrix.seed", "20260922");
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return 20260922L;
+        }
+    }
 }

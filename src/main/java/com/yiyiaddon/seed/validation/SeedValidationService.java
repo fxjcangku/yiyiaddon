@@ -1,5 +1,6 @@
 package com.yiyiaddon.seed.validation;
 
+import com.yiyiaddon.seed.model.OreType;
 import com.yiyiaddon.seed.observation.OreObservationState;
 import com.yiyiaddon.seed.observation.SeedOreObservationTracker;
 import com.yiyiaddon.seed.prediction.PredictedOre;
@@ -178,6 +179,36 @@ public final class SeedValidationService {
     /** 当前是否已绑定运行时身份（未绑定时不产出任何结论）。 */
     public boolean bound() {
         return identity != null;
+    }
+
+    /**
+     * 当前证据所属的维度标识（236；未绑定返回空串）。
+     *
+     * <p><b>它是「证据范围」的唯一取值来源</b>：验证结论永远只对<b>这一个维度</b>成立。
+     * 主世界的证据不能推出下界成立（服务器可以主世界原版 + 下界自定义），
+     * 因此下界的自动挖矿门在服务层被恒定为 false，直到建立下界专属证据。</p>
+     */
+    public String evidenceDimensionId() {
+        return identity == null ? "" : identity.dimensionId();
+    }
+
+    /**
+     * 当前证据里出现过的矿物种类（236；按枚举声明序；未绑定时为空表）。
+     *
+     * <p>它回答「这份证据支持的是哪些矿」——同一会话里只算了钻石，就不能拿它给红石背书。</p>
+     */
+    public List<OreType> evidenceOreTypes() {
+        java.util.Set<OreType> present = new java.util.LinkedHashSet<>();
+        for (SeedValidationEvidence evidence : evidences.values()) {
+            present.add(evidence.oreType());
+        }
+        List<OreType> ordered = new ArrayList<>();
+        for (OreType oreType : OreType.values()) {
+            if (present.contains(oreType)) {
+                ordered.add(oreType);
+            }
+        }
+        return ordered;
     }
 
     // ────────────────────────────────────────────────────────────────────────

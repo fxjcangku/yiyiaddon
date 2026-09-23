@@ -2,6 +2,7 @@ package com.yiyiaddon.seed.worker.client;
 
 import com.google.gson.JsonObject;
 import com.yiyiaddon.seed.model.OreType;
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
 import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.worker.protocol.SeedWorkerProtocol;
 import com.yiyiaddon.seed.worker.protocol.WorkerJson;
@@ -94,6 +95,9 @@ public final class SeedWorldgenWorkerClient {
 
     // ── 握手信息 ──
     private SeedWorkerProcess.Handshake handshake;
+
+    /** 最近一次握手拿到的能力清单（诊断与「该维度能不能算」的判据）。 */
+    private volatile java.util.List<String> lastCapabilities = java.util.List.of();
 
     // ── 会话 ──
     private String sessionId;
@@ -218,6 +222,8 @@ public final class SeedWorldgenWorkerClient {
                 return;
             }
             requireUsable("打开会话");
+            // 236：先看 Worker 声明了没有这个维度的能力，避免「会话开了一半才发现宿主缺那一层」
+            requireDimensionCapability(dimension);
             WorkerResponse response = exchange(WorkerRequest.openSession(++nextRequestId,
                     process.token(), seed, dimension));
             if (response.session() == null) {
@@ -257,19 +263,19 @@ public final class SeedWorldgenWorkerClient {
     }
 
     /**
-     * 预测一个目标区块。
+     * 预测一个目标区块里的指定矿物。
      *
      * @throws SeedWorkerException 传输 / 协议 / 超时 / Worker 内部错误
      */
-    public PredictionResult predict(long seed, String dimension, ChunkPos target) {
+    public PredictionResult predict(long seed, String dimension, OreType oreType, ChunkPos target) {
         synchronized (requestLock) {
             requireUsable("预测");
             state = SeedWorkerState.BUSY;
             try {
                 long startedAt = System.currentTimeMillis();
                 long requestId = ++nextRequestId;
-                WorkerResponse response = exchange(WorkerRequest.predictDiamond(requestId, process.token(),
-                        seed, dimension, target.x(), target.z(), OreType.DIAMOND.name()));
+                WorkerResponse response = exchange(WorkerRequest.predict(requestId, process.token(),
+                        seed, dimension, target.x(), target.z(), oreType.name()));
                 lastPredictMillis = System.currentTimeMillis() - startedAt;
                 predictCount++;
                 WorkerPredictionDto prediction = response.prediction();
@@ -277,7 +283,8 @@ public final class SeedWorldgenWorkerClient {
                     throw new SeedWorkerException(SeedWorkerProtocol.ERROR_MALFORMED_RESPONSE,
                             "预测应答缺少预测结果");
                 }
-                PredictionResult result = SeedWorkerPredictionMapper.toResult(prediction, seed, target);
+                PredictionResult result = SeedWorkerPredictionMapper.toResult(prediction, seed, dimension,
+                        oreType, target);
                 lastHostChunkSourceQueries = result.stats().hostChunkSourceQueries();
                 if (lastHostChunkSourceQueries != 0) {
                     LOGGER.error("{}：宿主 ChunkMap 查询增量 {} ≠ 0，预测主链正在向真实世界取数据（架构回归）",
@@ -331,6 +338,7 @@ public final class SeedWorldgenWorkerClient {
         // 旧连接也一并关掉：崩溃现场留下的 socket 已经没用了，但文件描述符还在
         closeSocket();
         handshake = null;
+        lastCapabilities = java.util.List.of();
         LOGGER.info("{}：正在启动本地世界生成计算器（第 {} 次，版本 {}，模组 {}）",
                 LOG_KEY, startCount, minecraftVersion, modVersion);
         SeedWorkerProcess created;
@@ -391,10 +399,12 @@ public final class SeedWorldgenWorkerClient {
         if (hello.hello() == null) {
             throw new SeedWorkerException(SeedWorkerProtocol.ERROR_MALFORMED_RESPONSE, "HELLO 应答缺少握手信息");
         }
-        if (!hello.hello().hasCapability(SeedWorkerProtocol.CAPABILITY_PREDICT_DIAMOND_OVERWORLD)) {
+        if (!hello.hello().hasCapability(SeedWorkerProtocol.CAPABILITY_PREDICT_OVERWORLD)
+                && !hello.hello().hasCapability(SeedWorkerProtocol.CAPABILITY_PREDICT_NETHER)) {
             throw new SeedWorkerException(SeedWorkerProtocol.ERROR_UNSUPPORTED,
-                    "本地世界生成计算器未声明主世界钻石预测能力");
+                    "本地世界生成计算器没有声明任何维度预测能力；已声明：" + hello.hello().capabilities());
         }
+        lastCapabilities = hello.hello().capabilities();
         lastStartupMillis = System.currentTimeMillis() - startedAt;
         consecutiveFailures = 0;
         state = SeedWorkerState.READY;
@@ -427,7 +437,7 @@ public final class SeedWorldgenWorkerClient {
         if (current == null || socketOut == null || socketIn == null) {
             throw new SeedWorkerException(SeedWorkerProtocol.ERROR_WORKER_GONE, "本地世界生成计算器未连接");
         }
-        long timeoutMillis = request.op().equals(SeedWorkerProtocol.OP_PREDICT_DIAMOND)
+        long timeoutMillis = request.op().equals(SeedWorkerProtocol.OP_PREDICT)
                 ? PREDICT_TIMEOUT_MILLIS : CONNECT_TIMEOUT_MILLIS;
         long deadline = System.currentTimeMillis() + timeoutMillis;
         try {
@@ -595,6 +605,35 @@ public final class SeedWorldgenWorkerClient {
             throw new SeedWorkerException(SeedWorkerException.ERROR_NOT_READY,
                     "本地世界生成计算器当前不可用（状态：" + state.displayNameCn() + "），无法" + action);
         }
+    }
+
+    /**
+     * 该维度本地计算器能不能算（fail-closed）。
+     *
+     * <p>能力来自 Worker 的 HELLO（它按「宿主真的具备哪一层世界」逐条声明）。
+     * 客户端在这里提前拒绝，而不是把请求发过去等 Worker 报错 —— 后者会把失败原因
+     * 混进预测链路，让「环境不支持」看起来像「预测失败」。</p>
+     */
+    private void requireDimensionCapability(String dimension) {
+        SeedDimensionProfile profile = SeedDimensionProfile.of(dimension);
+        if (profile == null) {
+            throw new SeedWorkerException(SeedWorkerProtocol.ERROR_UNSUPPORTED,
+                    "本版本不支持该维度：" + dimension);
+        }
+        String required = switch (profile) {
+            case OVERWORLD -> SeedWorkerProtocol.CAPABILITY_PREDICT_OVERWORLD;
+            case NETHER -> SeedWorkerProtocol.CAPABILITY_PREDICT_NETHER;
+        };
+        if (!lastCapabilities.contains(required)) {
+            throw new SeedWorkerException(SeedWorkerProtocol.ERROR_UNSUPPORTED,
+                    "本地世界生成计算器不支持" + profile.displayNameCn() + "（能力："
+                            + (lastCapabilities.isEmpty() ? "无" : String.join(" / ", lastCapabilities)) + "）");
+        }
+    }
+
+    /** 最近一次握手的能力清单（诊断用）。 */
+    public java.util.List<String> capabilities() {
+        return lastCapabilities;
     }
 
     private void closeSocket() {

@@ -164,7 +164,7 @@ public final class SeedTargetRegression {
         I_CHECK,
         /** J：换维度。 */
         J_NETHER,
-        /** J：核对（身份清空 / 闸门关闭 / 目标清空 / fail-closed）。 */
+        /** J：核对（旧身份作废并换成下界身份 / 闸门关闭 / 目标清空 / fail-closed）。 */
         J_CHECK,
         /** J：换回主世界。 */
         J_BACK,
@@ -1174,7 +1174,7 @@ public final class SeedTargetRegression {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  十四、J：换维度 → 目标清空 + 闸门关闭（fail-closed）
+    //  十四、J：换维度 → 旧身份作废 + 目标清空 + 闸门关闭（fail-closed）
     // ════════════════════════════════════════════════════════════════════════
 
     private static void tickJNether(Minecraft client) {
@@ -1202,22 +1202,33 @@ public final class SeedTargetRegression {
         if (++stageTick < 40) {
             return;
         }
-        boolean identityGone = "未建立".equals(SERVICE.runtimeIdentityCn());
+        // 236 口径修正：下界不再「不受支持」，而是换成了另一个受支持维度。
+        // 因此本项要核对的实质没有变 ——「旧身份必须整批作废、旧维度的结果一条都不许带过来」——
+        // 只是判据换成 236 的形态：身份必须是下界身份（≠ 切换前的主世界身份），
+        // 且预测缓存里不允许残留主世界条目。
+        String identity = SERVICE.runtimeIdentityCn();
+        boolean identitySwitched = identity.contains("minecraft:the_nether");
         boolean gateClosed = !SERVICE.mayUseForAutomatedMining();
         boolean targetCleared = module.miningTargetProvider().lockedTargetOrNull() == null;
-        boolean cacheCleared = SERVICE.cachedChunkCount() == 0;
+        boolean noOverworldLeft = SERVICE.cachedPredictions().stream().allMatch(result ->
+                "minecraft:the_nether".equals(result.request().dimension().identifier().toString()));
         String reason = module.seedTargetBlockReasonCn();
         boolean stopped = !module.isEnabled();
-        report("  下界：维度 " + SERVICE.dimensionDisplayCn() + " / 运行时身份 " + SERVICE.runtimeIdentityCn()
-                + verdict(identityGone));
+        report("  下界：维度 " + SERVICE.dimensionDisplayCn() + " / 运行时身份 " + identity
+                + verdict(identitySwitched));
         report("  闸门 mayUseForAutomatedMining：" + SERVICE.mayUseForAutomatedMining() + "（应关）"
                 + verdict(gateClosed));
-        report("  当前目标是否清空：" + targetCleared + " / 预测缓存是否清空：" + cacheCleared);
+        report("  当前目标是否清空：" + targetCleared + " / 预测缓存里是否还有主世界条目："
+                + !noOverworldLeft + "（缓存 " + SERVICE.cachedChunkCount() + " 个区块，"
+                + "全部属于下界 " + verdict(noOverworldLeft) + "）");
         report("  模块是否被 fail-closed 停掉：" + stopped + "；停机原因：" + reason);
         report("    （口径：换维度 ⇒ 旧身份整批作废 ⇒ 验证随之清空 ⇒ 提供者报「未验证」并停机，"
-                + "绝不退回按矿物类型扫描）");
-        VERDICTS.add("【判定】J 换维度：身份清空 " + verdict(identityGone) + " / 闸门关闭 " + verdict(gateClosed)
-                + " / 目标清空 " + verdict(targetCleared) + " / 缓存清空 " + verdict(cacheCleared)
+                + "绝不退回按矿物类型扫描；236 起下界也是受支持维度，因此预测 / 观察 / ESP 会以"
+                + "「下界身份」重新开始，而自动挖矿仍恒为 fail-closed）");
+        VERDICTS.add("【判定】J 换维度：身份换成下界（主世界身份作废）" + verdict(identitySwitched)
+                + " / 闸门关闭 " + verdict(gateClosed)
+                + " / 目标清空 " + verdict(targetCleared)
+                + " / 无主世界残留条目 " + verdict(noOverworldLeft)
                 + " / fail-closed 停机 " + verdict(stopped));
         advance(Stage.J_BACK);
     }

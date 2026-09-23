@@ -3,6 +3,8 @@ package com.yiyiaddon.seed.prediction;
 import com.yiyiaddon.seed.model.OreSource;
 import com.yiyiaddon.seed.model.OreType;
 import com.yiyiaddon.seed.model.SeedOreTarget;
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
+import com.yiyiaddon.seed.ore.SeedOreRegistry;
 import com.yiyiaddon.seed.worldgen.OfflineChunkCache;
 import com.yiyiaddon.seed.worldgen.OfflineChunkPipeline;
 import com.yiyiaddon.seed.worldgen.OfflineWorldgenContext;
@@ -159,8 +161,10 @@ public final class PredictionSession implements AutoCloseable {
                     "维度与会话不一致（会话维度 " + dimension.identifier() + "）", 0);
         }
         OreType oreType = request.oreType();
-        if (oreType != OreType.DIAMOND) {
-            return PredictionResult.failure(request, "本阶段只支持" + OreType.DIAMOND.displayNameCn() + "预测", 0);
+        SeedDimensionProfile profile = context.profile();
+        if (!SeedOreRegistry.supports(profile, oreType)) {
+            return PredictionResult.failure(request, profile.displayNameCn() + "不支持"
+                    + oreType.displayNameCn() + "预测", 0);
         }
         ChunkPos target = request.chunk();
         try {
@@ -218,7 +222,7 @@ public final class PredictionSession implements AutoCloseable {
             pipeline.decorate(viewer);
             ChunkAccess chunk = latestChunkOrFail(target);
             long fingerprint = blockFingerprint(chunk);
-            Set<BlockPos> after = OreChunkReader.collect(chunk, oreType);
+            Set<BlockPos> after = OreChunkReader.collect(chunk, oreType, context.profile());
             if (!viewer.equals(target) && fingerprint != currentFingerprint) {
                 foreignWriters.add(viewer);
             }
@@ -296,7 +300,7 @@ public final class PredictionSession implements AutoCloseable {
 
     /** 读某区块当前的矿物集合。 */
     private Set<BlockPos> readOres(ChunkPos pos, OreType oreType) {
-        return OreChunkReader.collect(latestChunkOrFail(pos), oreType);
+        return OreChunkReader.collect(latestChunkOrFail(pos), oreType, context.profile());
     }
 
     /**

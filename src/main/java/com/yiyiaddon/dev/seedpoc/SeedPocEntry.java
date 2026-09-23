@@ -125,6 +125,11 @@ public final class SeedPocEntry {
             SeedTargetRegression.onClientTick(client);
             return;
         }
+        // 第八阶段（236）：多矿物 · 多维度实机矩阵（通用化零回归 + 其它 10 种矿物 + 下界）
+        if (SeedPocFlags.oreMatrix()) {
+            SeedOreMatrixRegression.onClientTick(client);
+            return;
+        }
         if (dispatched) {
             return;
         }
