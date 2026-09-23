@@ -52,6 +52,7 @@
 | 客户端主线程 | 读 `ClientLevel` 必须在主线程；Renderer 只读不可变快照 | 观察与快照重建都在 `SeedMiningService.onTick()`（客户端主线程）；`render(EspRenderer)` 只遍历快照里的 `BlockPos` |
 | 模块边界 | `seed/observation/`、`seed/runtime/`、`seed/render/` 三包，复用已有模型，禁止第二套 PredictionResult / PredictedOre / ObservationState | 三包各就各位；`PredictionResult` / `PredictedOre` / `PredictionCertainty` / `OreObservationState` / `OreObservation` / `OreType` 全部**复用** 229 阶段建立的模型，没有第二套 |
 | UI 限制 | 只允许新增种子预测渲染器设置；不显示「可疑矿 / 假矿 / 种子已验证」 | 新增仅三项：显示预测钻石（开关）、预测范围（1~6，默认 3）、显示当前缺失（开关，默认关）；界面文案全量核对见第九节 |
+| 世界渲染基础设施 | 优先复用现有 ESP / Box 绘制工具 / 事件入口 / 深度处理，禁止新建第二套世界渲染框架 | **全部复用**，零新建（逐项审计见第十六节附录 A） |
 | 禁止项 | 不接 AutoMiner、不接 SeedValidation、不做其它矿物、不上 26.2、不重写 Predictor / Worker / 发布流水线 | 全部未触碰；`AutoMinerPage.java` 最后修改时间 `2026-09-23 11:21`（232 窗口），233 窗口内零写入 |
 
 ---
@@ -479,7 +480,66 @@ C2ME / Lithium / Krypton / ModernFix）：五条证据同样全过，候选 37 �
 
 ---
 
-## 十六、停止说明
+## 十六、附录 A · 现有 ESP / 世界渲染基础设施复用审计
+
+口径要求：233 实现世界渲染前必须**先审计**并优先复用现有 ESP / 渲染基础设施、Box 绘制工具、
+事件入口与深度处理；**除非现有接口明确不满足需求，否则禁止新建第二套世界渲染框架**。
+本节是实现完成后回填的审计结论，逐条对照实际代码（不是设计意图）。
+
+### A.1 逐项对照
+
+| 审计项 | 现有基础设施 | 233 实际用法 | 判定 |
+| --- | --- | --- | --- |
+| 世界几何事件入口 | `WorldOverlay.collectGeometry()`，由 Fabric `LevelRenderEvents.BEFORE_GIZMOS` 驱动（`WorldOverlay` 静态块注册一次，全局唯一） | 只调用 `WorldOverlay.register("seed.prediction", this::render)` | **复用**；233 未新增任何事件注册 |
+| 2D 叠加事件入口 | `WorldOverlay.renderOverlay()`，由 `GuiRendererMixin` 固定在 `GuiRenderer.render` 的 HEAD | 未使用（种子层没有字牌 / 屏幕空间元素） | 同一入口，无需 2D |
+| 层注册与生命周期 | `WorldOverlay.register / unregister / isRegistered / clear`（并发安全、重复注册覆盖、逐层 try/catch 隔离） | `SeedOreWorldRenderer.attach()` / `detach()` 直接使用 | **复用** |
+| 方块框绘制 | `EspRenderer.blockBox(int x,int y,int z, side, line, ShapeMode, thickness)` 与 `box(AABB, …)` | 三色外框（`Both`）+ 当前缺失灰线框（`Lines`）+ 调度敏感内缩框（`Lines`） | **复用** |
+| 线框 / 填充模式 | `ShapeMode.Both / Lines / Sides` | `Both`、`Lines` | **复用** |
+| 线宽口径 | `EspRenderer.pixelWidth()`：GUI 缩放坐标 × `guiScale` → 原版 gizmo 物理像素 | 传 `2.0` / `1.2`（GUI 缩放坐标） | **复用** |
+| 深度处理 | `EspRenderer.occlusion(boolean)` → `effectiveOcclusion()`（全局覆盖优先）→ `GizmoProperties#setAlwaysOnTop()` | `renderer.occlusion(false)`（透墙显示） | **复用** |
+| 投影与相机 | `RenderCamera.capture()` / `WorldProjector` / `project()` / `shouldDraw()` | 只提供世界坐标 AABB，投影由渲染器内部完成 | **复用** |
+| 全局外观设置 | `EspGlobalSettings`：总开关、遮挡口径覆盖、最远距离、淡出、线宽倍率、渲染模式覆盖、图元预算、透明度倍率 | 未新增任何全局项 | **复用**（自动继承） |
+| 层异常隔离 | `WorldOverlay` 逐层捕获，单层异常只上报一次且不影响其它层 | — | **复用**（233 出问题不会带崩自动挖矿等层） |
+| 同一入口的既有使用者 | 20+ 层：自动挖矿（2 层）、自动箱子、自动农场、星露谷（3 层）、透视、水平面 ESP、传送、自动附魔、自动骨粉、发包秒破、管理员检测、村民交易、瞄准方块描边、Baritone 覆盖、ESP 测试层 | 种子预测层是同一入口下的新一层 | 同一入口 |
+
+### A.2 为什么没有复用 `BlockOutlineRenderer` / `EspColor` / `ColorPresets`（逐条说明）
+
+1. **`BlockOutlineRenderer`（瞄准方块描边）明确不满足需求**：它是**单个**方块、由 `mc.hitResult` 驱动、
+   颜色取全局设置里的单色，语义是「瞄准辅助」；233 需要的是**成批**（默认 49 区块、实测 1100 个候选）、
+   按**观察状态**分色、带**调度敏感**叠加标记、由不可变快照驱动。二者语义不同，无法复用 ——
+   但它用的绘制原语（`EspRenderer.blockBox` + `ShapeMode.Lines`）正是 233 也在用的同一条路径，
+   代码形态与它完全一致。
+2. **`EspColor` / `ColorPresets` 不适用**：那是「模块色可自定义 / 可彩虹」的动态颜色体系；
+   种子的青（预测未观察）/ 绿（已确认）/ 灰（当前缺失）/ 琥珀（调度敏感）是**语义色**，
+   必须恒定，且 233 的界面口径只允许新增三个开关、不允许加配色项。语义色一旦跟随彩虹或用户预设，
+   就会破坏「确定性 × 观察」两维独立的视觉表达（第七节 7.2）。因此 233 用整数 ARGB 常量，
+   **但仍走 `EspRenderer` 的 int 重载**，没有绕过渲染器，也没有另立颜色体系。
+3. **`EspGlobalSettings.Layer` 的按模块层开关没有加种子挖矿**：该枚举当前是挖矿 / 星露谷 / 自动箱子 /
+   村民容器 / 管理员检测 / 透视 / 传送 / 发包秒破 / 自动骨粉。种子层的外观开关属于**种子挖矿页**
+   （口径第三十七节「新增设置只允许属于种子预测渲染器」），不往 ESP 全局设置里加新入口。
+
+### A.3 反证：没有第二套世界渲染框架
+
+233 新增的 `seed/render/` 只有三个类：`SeedRenderEntry`（数据记录）、`SeedRenderSnapshot`（不可变快照）、
+`SeedOreWorldRenderer`（唯一绘制类，206 行）。
+
+在 `com.yiyiaddon.seed` 全包内检索 `net.minecraft.gizmos` / `Gizmos.` / `LevelRenderEvents` /
+`WorldRenderEvents` / `RenderType` / `BufferBuilder` / `VertexConsumer` / `PoseStack` / `poseStack` ——
+**0 命中**。即：没有自有 GL / 顶点缓冲 / 着色器、没有自有事件注册、没有自有深度处理、
+没有自有层管理与异常隔离、没有自有投影数学。
+
+### A.4 复用带来的既有耦合（如实记录，非 233 引入）
+
+| 耦合点 | 表现 | 说明 |
+| --- | --- | --- |
+| ESP 全局总开关 | `EspGlobalSettings.enabled()` 关闭后 `WorldOverlay.collectGeometry()` 直接短路，所有层（含种子预测层）一起停 | 对 20+ 层一视同仁的既有语义；种子层另受「显示预测钻石 + 身份闸门」两级开关串联 |
+| 全局外观覆盖 | 遮挡口径覆盖、最远距离、淡出、线宽倍率、渲染模式覆盖、透明度倍率同样作用于种子框 | 复用的收益（与其它 ESP 观感一致）与代价（不是种子专属） |
+| 全局图元预算 | `EspRenderer.affordable()` 会按 `primitiveBudget` 截断图元；默认 `0` = 不限 | 若玩家把预算调小，范围 3 的 1100 个框会被截断显示；默认值下无影响 |
+| GUI 缩放 | 线宽按 `guiScale` 换算为物理像素 | `EspRenderer` 既有口径，观感与旧实现一致 |
+
+---
+
+## 十七、停止说明
 
 233 的口径全部落地，验证全部通过，冻结数字一个未变，发布产物已生成并完成生产实机冒烟。
 
