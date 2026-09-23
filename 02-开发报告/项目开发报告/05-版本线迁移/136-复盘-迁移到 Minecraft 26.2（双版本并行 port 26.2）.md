@@ -112,6 +112,14 @@ Baritone 26.2 构件正常加载并写世界缓存，**用户实机确认界面�
 | `Connection#isEncrypted()` | 见下 | `AutoLoginModule` |
 | `Minecraft#getVersionType()` | 见下 | `ClientIdentity` |
 
+**2026-09-23 追加登记（种子挖矿正式移植时发现，只在 `port/26.2`）**：
+
+| 26.1.2 | 26.2 | 落点 |
+| --- | --- | --- |
+| `DedicatedServer` 构造器 8 参 | 尾部新增 `@Nullable ManagementServer` + `NotificationManager`（后者非空，`MinecraftServer` 会直接调 `serverStarted()`） | `seedworker/SeedWorkerHost$WorkerServer`：传 `null`（不开管理端口，与「Worker 禁止开放对外通道」同一口径）+ `new NotificationManager()`（空通知出口）。依据 `server/Main.java:202-207` 与 `server/dedicated/DedicatedServer.java:92-116/271-274` |
+
+补充口径（同一轮）：`gradle/production-smoke.ps1` 的 `-VersionId` 默认 `LunarFox`（26.1.2 实例），在 26.2 上必须显式传 `-VersionId 26.2`，否则取到 26.1.2 的 `fabric-api` 会以「没有观察到任何 Worker 进程」判不通过；另该脚本的 `-SeedPocJvmArgs` 数组**不可跨进程传**（会把多个 `-D` 合成一个逗号连接的参数），须在同一会话内直接调用。
+
 **两处没有 1:1 替代物，按「同源同义」重建**（第 167 条：先取证再动手）：
 
 1. **`Connection#isEncrypted()`（判断是否正版验证服）**：26.2 的 `Connection` 里已**不存在**
