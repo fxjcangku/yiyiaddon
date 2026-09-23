@@ -185,7 +185,7 @@ public final class ServiceRegression {
         }
         // 与 SeedPocEntry 同一时机口径：只在「无界面」或「原版标题界面」动手，
         // 免得把实验塞进启动期的加载界面或登录流程里
-        boolean atTitle = client.screen == null || client.screen instanceof net.minecraft.client.gui.screens.TitleScreen;
+        boolean atTitle = client.gui.screen() == null || client.gui.screen() instanceof net.minecraft.client.gui.screens.TitleScreen;
         if (!atTitle || titleChecksDone) {
             return;
         }

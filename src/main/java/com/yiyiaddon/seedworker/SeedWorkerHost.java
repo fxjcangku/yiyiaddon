@@ -26,6 +26,7 @@ import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.dedicated.DedicatedServerProperties;
 import net.minecraft.server.dedicated.DedicatedServerSettings;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.notifications.NotificationManager;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.repository.ServerPacksSource;
 import net.minecraft.util.Util;
@@ -353,7 +354,12 @@ public final class SeedWorkerHost implements AutoCloseable {
         WorkerServer(Thread thread, LevelStorageSource.LevelStorageAccess access, PackRepository repository,
                      WorldStem stem, Optional<GameRules> gameRules, DedicatedServerSettings settings,
                      DataFixer fixer, Services services) {
-            super(thread, access, repository, stem, gameRules, settings, fixer, services);
+            // 26.2 差异（第 237 条）：DedicatedServer 构造器尾部新增两个参数 ——
+            // 管理用 JSON-RPC 服务端（@Nullable）与通知管理器（不可为空，MinecraftServer 会直接调它）。
+            // Worker 是最小化宿主：不开管理端口（传 null，与「禁止开放对外通道」同一口径），
+            // 通知管理器只用作空实现（不注册任何 NotificationService，等价于没有通知出口）。
+            super(thread, access, repository, stem, gameRules, settings, fixer, services,
+                    null, new NotificationManager());
         }
 
         @Override

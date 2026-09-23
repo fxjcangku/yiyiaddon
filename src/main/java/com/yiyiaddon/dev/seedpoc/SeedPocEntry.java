@@ -127,7 +127,7 @@ public final class SeedPocEntry {
             // 还没进世界：按需自动建一个固定种子的测试世界，保证实验可重复。
             // 允许在「无界面」或「原版标题界面」两种时机触发——正常启动后停在的就是标题界面；
             // 其它界面（登录提示、错误弹窗等）一律不抢占，避免把实验塞进用户正在操作的流程里。
-            boolean atTitle = client.screen == null || client.screen instanceof TitleScreen;
+            boolean atTitle = client.gui.screen() == null || client.gui.screen() instanceof TitleScreen;
             if (!worldRequested && SeedPocFlags.autoCreateWorld() && atTitle) {
                 worldRequested = true;
                 SeedPocWorldFactory.createFreshWorld(client, SeedPocFlags.fixedTestSeed());

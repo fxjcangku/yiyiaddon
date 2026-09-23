@@ -236,13 +236,13 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new MiningConsoleScreen(client.screen, module));
+        client.gui.setScreen(new MiningConsoleScreen(client.gui.screen(), module));
     }
 
     /** 打开配置记录窗（一键保存 / 读取 / 替换 / 详情 / 删除）；父屏是当前模块页，ESC 回来 */
     private void openRecords() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.setScreen(new MiningRecordScreen(client.screen, module));
+        client.gui.setScreen(new MiningRecordScreen(client.gui.screen(), module));
     }
 }

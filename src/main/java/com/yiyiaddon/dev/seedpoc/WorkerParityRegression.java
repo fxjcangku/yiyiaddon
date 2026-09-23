@@ -150,7 +150,7 @@ public final class WorkerParityRegression {
 
     private static void tickEnterWorld(Minecraft client) {
         if (client.level == null || client.player == null) {
-            boolean atTitle = client.screen == null || client.screen instanceof net.minecraft.client.gui.screens.TitleScreen;
+            boolean atTitle = client.gui.screen() == null || client.gui.screen() instanceof net.minecraft.client.gui.screens.TitleScreen;
             if (!worldRequested && SeedPocFlags.autoCreateWorld() && atTitle) {
                 worldRequested = true;
                 SeedPocWorldFactory.createFreshWorld(client, SeedPocFlags.fixedTestSeed());
