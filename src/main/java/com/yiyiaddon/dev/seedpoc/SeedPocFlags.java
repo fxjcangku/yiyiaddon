@@ -1,5 +1,6 @@
 package com.yiyiaddon.dev.seedpoc;
 
+import com.yiyiaddon.seed.model.OreType;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -712,6 +713,19 @@ public final class SeedPocFlags {
         }
     }
 
+    /**
+     * 目标接入回归<b>追哪一种矿物</b>（238；默认 {@code DIAMOND}，与 235 逐字一致）。
+     *
+     * <p>多了这个开关，同一套 A~L 装置就能逐个矿物跑一遍 —— 238 把自动挖矿放开到全部受支持矿物，
+     * 「除了钻石以外还能不能真的挖到」只能靠实机同一套用例去证。</p>
+     *
+     * <p>不认识的值一律回落钻石：装置的一次手误不该让整轮回归指向别的矿物。</p>
+     */
+    public static OreType targetRegressionOre() {
+        OreType parsed = OreType.parse(System.getProperty(PREFIX + "target.ore", "DIAMOND").trim());
+        return parsed == null ? OreType.DIAMOND : parsed;
+    }
+
     // ── 正式化第八阶段（报告 236：Seed Ore Engine 通用化 + 其它矿物 + Nether）────
 
     /**
@@ -720,7 +734,7 @@ public final class SeedPocFlags {
      * <p>开着时整轮实验换成 {@link SeedOreMatrixRegression}：在真实客户端 + 固定种子的单人夹具世界上，
      * 对「主世界 8 种 + 下界 3 种」共 11 种矿物逐个取三类证据 —— Worker ↔ 单人 Oracle 逐项一致、
      * 候选 ↔ 真实方块（把目标区块推到 FULL 后逐格扫描）、以及观察 / ESP / 缓存隔离读数；
-     * 并在中途真实传送进下界，核对身份切换清空与「下界自动挖矿 fail-closed」。</p>
+     * 并在中途真实传送进下界，核对身份切换清空与「下界自动挖矿 238 口径（下界专属验证）」。</p>
      */
     public static boolean oreMatrix() {
         return "1".equals(prop("oreMatrix", "0"));
@@ -744,7 +758,7 @@ public final class SeedPocFlags {
      * <p>开着时整轮实验换成 {@link NetherMultiplayerRegression}：连到本机专用服务器
      * （端口 25865 / 种子 20260922 / allow-nether=true，服务端不加载 yiyiaddon），
      * 核对「主世界 → 下界身份切换清空 / 下界三种矿物预测 / 下界观察与 ESP /
-     * 远端未加载区块可预测且不会导致客户端加载 / 下界自动挖矿 fail-closed / Worker 无孤儿」。</p>
+     * 远端未加载区块可预测且不会导致客户端加载 / 下界自动挖矿 238 口径 / Worker 无孤儿」。</p>
      */
     public static boolean netherMultiplayer() {
         return "1".equals(prop("netherMultiplayer", "0"));

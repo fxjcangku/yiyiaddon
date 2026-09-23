@@ -82,7 +82,7 @@ public final class SeedOreRegistry {
                 // 上界 16 是 aboveBottom(80)（主世界 minY −64）加 ±4 半径
                 OVERWORLD_BOTTOM, 16,
                 Set.of(SeedOreWritePath.ORE_FEATURE, SeedOreWritePath.FOSSIL),
-                // 235 已通过实机验证并正式接入自动挖矿，因此它是本阶段唯一 eligible 的矿物
+                // 238 起：受支持的矿物一律可进自动挖矿（见 autoMinerEligible 的类注释）
                 true,
                 "OreFeatures（尺寸 4/8/12/8 与丢弃率 0.5/0.5/0.7/1.0）；"
                         + "OrePlacements（count 7 / 2 / rarity 9 / 4，三角 −144~16、均匀 −64~−4）；"
@@ -98,7 +98,7 @@ public final class SeedOreRegistry {
                 "0（两段都不带空气暴露丢弃）",
                 OVERWORLD_BOTTOM, 19,
                 Set.of(SeedOreWritePath.ORE_FEATURE),
-                false,
+                true,
                 "OreFeatures（尺寸 8，无丢弃率）；"
                         + "OrePlacements（count 4 uniform(bottom,15)；count 8 triangle(aboveBottom(−32), aboveBottom(32))）；"
                         + "BiomeDefaultFeatures addDefaultOres"));
@@ -112,7 +112,7 @@ public final class SeedOreRegistry {
                 "浅层 0 / 埋藏 1.0",
                 OVERWORLD_BOTTOM, 68,
                 Set.of(SeedOreWritePath.ORE_FEATURE),
-                false,
+                true,
                 "OreFeatures（尺寸 7；埋藏型丢弃率 1.0）；"
                         + "OrePlacements（count 2 triangle(−32,32)；count 4 uniform(bottom,64)）；"
                         + "BiomeDefaultFeatures addDefaultOres"));
@@ -126,7 +126,7 @@ public final class SeedOreRegistry {
                 "主 0.5 / 深部 0.5 / 恶地额外 0",
                 OVERWORLD_BOTTOM, 260,
                 Set.of(SeedOreWritePath.ORE_FEATURE),
-                false,
+                true,
                 "OreFeatures（尺寸 9；埋藏型丢弃率 0.5）；"
                         + "OrePlacements（count 4 triangle(−64,32)；CountPlacement.of(UniformInt 0..1) uniform(−64,−48)；"
                         + "count 50 uniform(32,256)）；"
@@ -143,7 +143,7 @@ public final class SeedOreRegistry {
                 // 矿脉：主世界 oreVeinsEnabled=true（NoiseGeneratorSettings.overworld），
                 // 类型表 IRON → DEEPSLATE_IRON_ORE，y −60 ~ −8（OreVeinifier 类型表）
                 Set.of(SeedOreWritePath.ORE_FEATURE, SeedOreWritePath.ORE_VEIN),
-                false,
+                true,
                 "OreFeatures（尺寸 9 / 4）；"
                         + "OrePlacements（count 90 / 10 / 10）；"
                         + "BiomeDefaultFeatures addDefaultOres；"
@@ -158,7 +158,7 @@ public final class SeedOreRegistry {
                 "0（两簇都不带空气暴露丢弃）",
                 OVERWORLD_BOTTOM, 116,
                 Set.of(SeedOreWritePath.ORE_FEATURE, SeedOreWritePath.ORE_VEIN),
-                false,
+                true,
                 "OreFeatures（尺寸 10 / 20；小簇键名原生拼写 ORE_COPPPER_SMALL）；"
                         + "OrePlacements（count 16 / 16）；"
                         + "BiomeDefaultFeatures addDefaultOres；"
@@ -173,7 +173,7 @@ public final class SeedOreRegistry {
                 "上层 0 / 下层 0.5（下层用的是埋藏型配置）",
                 OVERWORLD_BOTTOM, OVERWORLD_TOP,
                 Set.of(SeedOreWritePath.ORE_FEATURE),
-                false,
+                true,
                 "OreFeatures（尺寸 17；埋藏型丢弃率 0.5）；"
                         + "OrePlacements（count 30 uniform(absolute(136), top())；count 20 triangle(0,192)）；"
                         + "BiomeDefaultFeatures addDefaultOres"));
@@ -187,7 +187,7 @@ public final class SeedOreRegistry {
                 "0",
                 OVERWORLD_BOTTOM, OVERWORLD_TOP,
                 Set.of(SeedOreWritePath.ORE_FEATURE),
-                false,
+                true,
                 "OreFeatures（尺寸 3）；"
                         + "OrePlacements（count 100 triangle(−16,480)）；"
                         + "BiomeDefaultFeatures#addExtraEmeralds；"
@@ -204,7 +204,7 @@ public final class SeedOreRegistry {
                 "1.0（两种尺寸都是全丢弃：暴露在空气里的候选直接放弃）",
                 NETHER_BOTTOM, NETHER_TOP,
                 Set.of(SeedOreWritePath.SCATTERED_ORE),
-                false,
+                true,
                 "OreFeatures（Feature.SCATTERED_ORE，尺寸 3 / 2，丢弃率 1.0）；"
                         + "OrePlacements（大簇 InSquare+triangle(8,24)+BiomeFilter，无 CountPlacement；"
                         + "小簇 InSquare+RANGE_8_8+BiomeFilter）；"
@@ -220,7 +220,7 @@ public final class SeedOreRegistry {
                 "0",
                 5, 250,
                 Set.of(SeedOreWritePath.ORE_FEATURE),
-                false,
+                true,
                 "OreFeatures（netherrack 目标，尺寸 14）；"
                         + "OrePlacements（count 32 / 16，RANGE_10_10）；"
                         + "PlacementUtils RANGE_10_10 = uniform(aboveBottom(10), belowTop(10))；"
@@ -235,7 +235,7 @@ public final class SeedOreRegistry {
                 "0",
                 5, 250,
                 Set.of(SeedOreWritePath.ORE_FEATURE),
-                false,
+                true,
                 "OreFeatures（netherrack 目标，尺寸 10）；"
                         + "OrePlacements（count 20 / 10，RANGE_10_10）；"
                         + "PlacementUtils RANGE_10_10；"
@@ -303,11 +303,23 @@ public final class SeedOreRegistry {
     }
 
     /**
-     * 该矿物是否可以在本维度进入自动挖矿。
+     * 该矿物是否可以在本维度进入自动挖矿（<b>静态资格</b>）。
      *
-     * <p>236 的口径：<b>只有钻石为 true</b>（235 已经过 A~L 实机验证并正式接入）。
-     * 其余矿物即便预测 / 观察 / ESP 全部可用，也一律 {@code false} —— 它们还没有建立
-     * 「候选 ↔ 真实 BlockState」的实机对照证据，不许进自动挖矿。</p>
+     * <p><b>238 的口径（用户 2026-09-24 指令）</b>：与自动挖矿的设置口径一致 ——
+     * <b>本维度受支持的矿物一律可进自动挖矿</b>，一次只追一种（该矿的深层变种算同一种）。
+     * 因此 11 条定义全部为 {@code true}，本方法等于「该（维度, 矿物）组合是否受支持」。</p>
+     *
+     * <p><b>为什么静态全开不会失去安全性</b>：真正决定「此刻能不能挖」的不是这张静态表，
+     * 而是运行期两道门（{@link com.yiyiaddon.seed.service.SeedMiningService#mayUseForAutomatedMining(OreType)}）：</p>
+     * <ol>
+     *     <li><b>种子验证</b>：当前会话的验证必须是「已验证」（证据绑定世界 / 种子 / 维度 / 会话，
+     *         换服换维度立刻作废）；</li>
+     *     <li><b>证据覆盖该矿物</b>：本次会话的验证证据里必须出现过<b>正要追的那种矿</b>
+     *         （只算过钻石的会话不能给红石背书）。</li>
+     * </ol>
+     *
+     * <p>236/237 时期这两道门之一被写死在维度上（下界恒 false），238 一并解除：
+     * 下界与主世界同口径，是否放行由<b>下界自己的验证证据</b>决定。</p>
      */
     public static boolean autoMinerEligible(SeedDimensionProfile dimension, OreType oreType) {
         SeedOreDefinition definition = of(dimension, oreType);

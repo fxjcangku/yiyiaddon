@@ -12,6 +12,10 @@ base {
 // 客户端与服务端必须用同一个值，驱动器 gradle/nether-mp.ps1 会同时传 -PnetherMpPort）。
 def netherMpPort = (project.findProperty('netherMpPort') ?: '25865').toString()
 
+// 238 目标接入回归追哪一种矿物（默认 DIAMOND，与 235 逐字一致；换矿物：-PseedTargetOre=COAL）。
+// 装置侧读 -Dyiyiaddon.seedpoc.target.ore，这里把 Gradle 属性转成它认的系统属性。
+def seedTargetOre = (project.findProperty('seedTargetOre') ?: 'DIAMOND').toString()
+
 loom {
     // 将包私有的 GlDevice 提升为可访问（Skija 取主 Framebuffer 名字所需）
     accessWidenerPath = file('src/main/resources/yiyiaddon.accesswidener')
@@ -317,6 +321,7 @@ loom {
             vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
             vmArg '-Dyiyiaddon.seedpoc.enabled=1'
             vmArg '-Dyiyiaddon.seedpoc.target=1'
+            vmArg "-Dyiyiaddon.seedpoc.target.ore=${seedTargetOre}"
             vmArg '-Dyiyiaddon.seedpoc.exit=1'
         }
 

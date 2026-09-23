@@ -174,9 +174,10 @@ public final class MiningSeedPage {
         stack.add(section("自动挖矿接入"));
 
         stack.add(new ConsoleRow(owner, () -> "使用种子目标",
-            "开启后自动挖矿只按「已通过验证的钻石种子预测」逐颗精确挖：先寻路到预测坐标，到了再看实际方块，"
-                + "是钻石就交给秒破 / 连锁，不是钻石就换下一颗。它是硬开关 —— 验证没通过时不会开始挖矿，"
-                + "也绝不会退回「按钻石矿石类型在附近全局搜」",
+            "开启后自动挖矿只按「已通过验证的种子预测」逐颗精确挖：先寻路到预测坐标，到了再看实际方块，"
+                + "是目标矿就交给秒破 / 连锁，不是就换下一颗。追哪种矿由上面的勾选决定（一次一种，"
+                + "深层变种算同一种）。它是硬开关 —— 验证或证据不满足时不会开始挖矿，"
+                + "也绝不会退回「按矿物类型在附近全局搜」",
             null,
             List.of(new Ctl(new SettingToggle(module::isSeedTargetMode, module::setSeedTargetMode)),
                 ConsoleWidgets.resetCtl(() -> {
@@ -187,8 +188,15 @@ public final class MiningSeedPage {
         stack.add(dataRow("挖矿模式", () -> module.miningTargetProvider().modeNameCn()));
         stack.add(dataRow("扫描方式", () -> module.miningTargetProvider().scanModeCn()));
         stack.add(dataRow("目标状态", () -> module.miningTargetProvider().statusCn()));
-        stack.add(dataRow("验证闸门", () -> service.mayUseForAutomatedMining()
-            ? "已放行（验证通过）" : "未放行（不会启动种子挖矿）"));
+        stack.add(dataRow("当前追的矿物", () -> {
+            OreType chased = service.autoMiningTargetOre();
+            return chased == null ? "无" : chased.displayNameCn() + "矿（含深层变种）";
+        }));
+        stack.add(dataRow("验证闸门", () -> {
+            String reason = service.automatedMiningBlockReasonCn(service.autoMiningTargetOre());
+            return reason.isEmpty() ? "已放行（验证通过且证据覆盖该矿）" : "未放行 ▸ " + reason;
+        }));
+        stack.add(dataRow("验证证据覆盖", () -> SeedMiningService.describeOresCn(service.validationEvidenceOres())));
         stack.add(dataRow("可自动挖矿矿物", service::autoMinerEligibleOresCn));
 
         stack.add(new Note(owner, this::seedReadinessCn, null,

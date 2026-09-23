@@ -94,6 +94,9 @@ if ($serverReady) {
 # ── 2. 客户端 ─────────────────────────────────────────────────────────────────
 $clientOut = Join-Path $logDir 'client-stdout.txt'
 if ($serverReady) {
+    # 报告新鲜度：先删掉上一轮的报告 —— 否则「本轮没写出报告」会被读成上一轮的 PASS（实测踩过）。
+    $staleReport = Join-Path $clientDir 'seedpoc-237-下界多人验收.txt'
+    if (Test-Path -LiteralPath $staleReport) { Remove-Item -LiteralPath $staleReport -Force }
     Write-Step "start client"
     $clientProc = Start-Process -FilePath (Join-Path $repoRoot 'gradlew.bat') `
         -ArgumentList '--offline', "-PnetherMpPort=$ServerPort", 'runClientSeedNetherMultiplayerTest' `

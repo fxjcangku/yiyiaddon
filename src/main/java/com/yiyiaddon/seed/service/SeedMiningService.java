@@ -116,12 +116,21 @@ public final class SeedMiningService {
             SeedDimensionProfile.OVERWORLD, SeedDimensionProfile.NETHER);
 
     /**
-     * 下界自动挖矿闸门（<b>编译期常量，恒 false</b>，正式化第八阶段 236）。
+     * 下界自动挖矿闸门（<b>238 起为 true</b>：允许下界进入种子自动挖矿）。
      *
-     * <p>写成常量而不是配置项，是为了让它<b>无法被界面或配置悄悄打开</b>：
-     * 要打开它必须改这里，而改这里就等于声明「已经建立下界专属验证证据」。</p>
+     * <p><b>为什么改</b>（用户 2026-09-24 指令）：自动挖矿的设置里本来就是「主世界一种矿 /
+     * 下界一种矿」，种子模式要与这套口径一致 —— <b>受支持的矿物都能挖</b>，一次只追一种
+     * （该矿的深层变种算同一种）。</p>
+     *
+     * <p><b>但这个常量本身不是下界的放行条件</b>（用户明确要求不许把 fail-closed 粗暴打开）：
+     * 下界必须<b>先建立下界专属验证</b>才可能放行，见 {@link #netherValidationEstablished()}
+     * —— 证据绑定世界 / 种子 / <b>维度</b> / 会话，进下界时主世界的证据已按身份作废，
+     * 所以「主世界已验证」绝不会给下界背书，刚进下界一定是拦下的。</p>
+     *
+     * <p>保留这个常量：它仍是「是否允许下界进入种子自动挖矿」的单一开关点，
+     * 要整体关掉下界线只需改这里一处。</p>
      */
-    private static final boolean NETHER_AUTOMINER_ENABLED = false;
+    private static final boolean NETHER_AUTOMINER_ENABLED = true;
 
     /** 本模组 id（取模组版本用）。 */
     private static final String MOD_ID = "yiyiaddon";
@@ -649,48 +658,115 @@ public final class SeedMiningService {
     /**
      * <b>自动挖矿的唯一正式安全门</b>（口径第十节）。
      *
-     * <p>只有验证状态为「已验证」才返回 {@code true}；其余状态一律 {@code false}。</p>
+     * <p>两个条件同时成立才返回 {@code true}：</p>
+     * <ol>
+     *     <li>当前维度允许（主世界恒允许；下界看 {@link #NETHER_AUTOMINER_ENABLED}）；</li>
+     *     <li>当前会话的种子验证为「已验证」——证据绑定世界 / 种子 / 维度 / 会话，
+     *         换世界 / 换服 / 换维度 / 改种子都会立刻归零。</li>
+     * </ol>
      *
-     * <p><b>236 追加的维度闸门</b>：本方法只在<b>主世界</b>成立。下界一律 {@code false}，
-     * 因为「主世界验证通过」不等于「下界 worldgen 也验证通过」—— 服务器完全可以是
-     * 主世界原版 + 下界自定义。下界专属证据建立之前，这条门不许开
-     * （见 {@link #netherAutoMiningAllowedCn()} 与 {@link #mayUseForAutomatedMining(OreType)}）。</p>
+     * <p><b>238 起不再把维度写死在主世界上</b>：下界与主世界同口径，放行与否由
+     * <b>下界自己的</b>验证证据决定（身份一换证据就清空，所以主世界的结论天然不能给下界背书）。
+     * 想同时知道「某种矿物能不能挖」请用 {@link #mayUseForAutomatedMining(OreType)}。</p>
      */
     public boolean mayUseForAutomatedMining() {
-        return dimensionProfile() == SeedDimensionProfile.OVERWORLD && validation.mayUseForAutomatedMining();
+        return dimensionAllowsAutomatedMining(dimensionProfile()) && validation.mayUseForAutomatedMining();
     }
 
     /**
-     * 某个矿物能否进入自动挖矿（236）。
+     * 某个矿物能否进入自动挖矿（<b>界面 / 自检 / 目标提供者的唯一判据</b>）。
      *
-     * <p>三道门同时成立才为真：</p>
+     * <p>四道门同时成立才为真（判定顺序与文案见 {@link #automatedMiningBlockReasonCn(OreType)}）：</p>
      * <ol>
-     *     <li><b>维度</b>：只有主世界（下界恒 false）；</li>
-     *     <li><b>矿物资格</b>：{@link SeedOreRegistry#autoMinerEligible} —— 236 只有钻石为 true
-     *         （235 已过 A~L 实机验证），其余矿物<b>尚未建立</b>「候选 ↔ 真实 BlockState」对照证据；</li>
-     *     <li><b>验证状态</b>：当前会话的种子验证为「已验证」。</li>
+     *     <li><b>维度</b>：当前维度受支持且允许自动挖矿（下界见 {@link #NETHER_AUTOMINER_ENABLED}）；</li>
+     *     <li><b>矿物资格</b>：{@link SeedOreRegistry#autoMinerEligible} —— 238 起本维度受支持的矿物一律通过；</li>
+     *     <li><b>验证状态</b>：当前会话的种子验证为「已验证」；</li>
+     *     <li><b>证据覆盖</b>：本次会话的验证证据里出现过<b>这个矿物</b> ——
+     *         「只算过钻石的会话」不能给红石背书（{@code evidenceOreTypes()} 的原始口径）。</li>
      * </ol>
      */
     public boolean mayUseForAutomatedMining(OreType oreType) {
-        SeedDimensionProfile profile = dimensionProfile();
-        if (profile != SeedDimensionProfile.OVERWORLD || oreType == null) {
-            return false;
-        }
-        return SeedOreRegistry.autoMinerEligible(profile, oreType) && validation.mayUseForAutomatedMining();
+        return automatedMiningBlockReasonCn(oreType).isEmpty();
     }
 
     /**
-     * 下界自动挖矿闸门的中文说明（<b>恒为关闭</b>）。
+     * 该矿物此刻不能进自动挖矿的中文原因（能挖返回空串）。
      *
-     * <p>236 的口径：下界只开放 预测 / 观察 / ESP，自动挖矿一律 fail-closed。
-     * 理由不是「下界算法没实现」（算法已实现并用真实 26.1.2 参数验证过预测链路），
-     * 而是<b>验证证据</b>层面：某一台服务器的主世界是原版、下界被替换是完全可能的，
-     * 而当前还没有任何「下界候选 ↔ 下界真实 BlockState」的实机对照证据。</p>
+     * <p>界面状态行、启动自检与运行期看门狗三条路径共用这一处判据与文案，
+     * 避免「三处各判一次、文案各写一份」的老问题（口径第 169 条）。</p>
+     */
+    public String automatedMiningBlockReasonCn(OreType oreType) {
+        SeedDimensionProfile profile = dimensionProfile();
+        if (profile == null) {
+            return "当前维度不受支持（种子预测只支持主世界 / 下界）";
+        }
+        if (oreType == null) {
+            return "未选择要追的矿物";
+        }
+        if (!dimensionAllowsAutomatedMining(profile)) {
+            return "本维度未开放种子自动挖矿";
+        }
+        if (!SeedOreRegistry.autoMinerEligible(profile, oreType)) {
+            return "该矿物在当前维度不受支持";
+        }
+        if (profile == SeedDimensionProfile.NETHER && !netherValidationEstablished()) {
+            // 下界专属验证（238）：Overworld VERIFIED 绝不等于 Nether VERIFIED
+            return "下界专属验证尚未建立（当前证据维度："
+                    + (validationDimensionId().isEmpty() ? "无" : validationDimensionId()) + "）";
+        }
+        if (!validation.mayUseForAutomatedMining()) {
+            return "种子验证未通过（当前：" + validation.snapshot().stateCn() + "）";
+        }
+        if (!validation.evidenceOreTypes().contains(oreType)) {
+            return "种子验证证据尚未覆盖" + oreType.displayNameCn() + "矿";
+        }
+        return "";
+    }
+
+    /**
+     * <b>下界专属验证是否成立</b>（238：下界自动挖矿的唯一放行依据）。
+     *
+     * <p>判据两条：</p>
+     * <ol>
+     *     <li>{@link SeedValidationService#evidenceDimensionId() 当前证据的维度}必须就是下界
+     *         —— 主世界收的证据不能给下界背书（两个维度的 worldgen 可以是两套）；</li>
+     *     <li>当前会话的验证必须是「已验证」。</li>
+     * </ol>
+     *
+     * <p>再叠加 {@link #automatedMiningBlockReasonCn(OreType)} 里的「证据必须覆盖该矿物」，
+     * 就得到完整口径：<b>只有在下界亲自证明过「这个种子算出来的这种矿在下界真实存在」之后，
+     * 这种下界矿物才允许进自动挖矿</b>。远古残骸 / 下界石英 / 下界金各自独立判定。</p>
+     */
+    public boolean netherValidationEstablished() {
+        return SeedDimensionProfile.NETHER.dimensionId().equals(validation.evidenceDimensionId())
+                && validation.mayUseForAutomatedMining();
+    }
+
+    /** 当前验证证据覆盖的矿物清单（界面读数 / 报告用；未绑定时为空表）。 */
+    public List<OreType> validationEvidenceOres() {
+        return validation.evidenceOreTypes();
+    }
+
+    /** 该维度是否允许进入种子自动挖矿（主世界恒允许；下界看编译期开关）。 */
+    private boolean dimensionAllowsAutomatedMining(SeedDimensionProfile profile) {
+        if (profile == null) {
+            return false;
+        }
+        return profile != SeedDimensionProfile.NETHER || NETHER_AUTOMINER_ENABLED;
+    }
+
+    /**
+     * 下界自动挖矿闸门的中文说明。
+     *
+     * <p>238 口径：下界<b>允许</b>进入种子自动挖矿，但放行的唯一依据是
+     * {@link #netherValidationEstablished() 下界专属验证} —— 进下界时主世界的证据已按身份作废，
+     * 所以刚进去一定是「未验证」，必须在下界重新积累观察样本，并且样本要覆盖到<b>要挖的那种矿</b>。</p>
      */
     public String netherAutoMiningAllowedCn() {
         return NETHER_AUTOMINER_ENABLED
-                ? "已开启（存在下界专属验证证据）"
-                : "关闭（fail-closed）：尚未建立下界专属验证证据；下界当前只提供预测 / 观察 / ESP";
+                ? "开放（下界线已允许；放行依据＝下界专属验证：" + (netherValidationEstablished()
+                        ? "已建立，按矿物逐项判定" : "尚未建立，当前拦下") + "）"
+                : "关闭（fail-closed）：未建立下界专属验证证据；下界只提供预测 / 观察 / ESP";
     }
 
     /**
@@ -699,8 +775,10 @@ public final class SeedMiningService {
      * <p>规则：生效集合里第一个<b>允许进自动挖矿</b>的矿物；一个都没有返回 {@code null}
      * （调用方必须 fail-closed，不许退回「按矿物类型全局搜」）。</p>
      *
-     * <p>236 的实际效果：主世界默认（只勾钻石）⇒ 返回钻石，与 235 逐字一致；
-     * 若用户只勾了红石等尚未开放自动挖矿的矿物 ⇒ 返回 {@code null}，自动挖矿如实停机并说明原因。</p>
+     * <p><b>与自动挖矿设置口径一致（238）</b>：自动挖矿本来就是「一次一种矿」，
+     * 所以这里也<b>只返回一种</b> —— 你勾了多种时追生效集合里的第一种
+     * （该矿的深层变种算同一种，不需要分别勾选）。生效集合的构造见 {@link #effectiveOres()}：
+     * 勾选 ∩ 本维度支持，交集为空时回落到本维度第一种矿物。</p>
      */
     public OreType autoMiningTargetOre() {
         SeedDimensionProfile profile = dimensionProfile();
@@ -720,7 +798,7 @@ public final class SeedMiningService {
         return validation.evidenceDimensionId();
     }
 
-    /** 本阶段允许进自动挖矿的矿物清单（失败原因文案 / 报告用；236 在主世界是「钻石」）。 */
+    /** 本维度允许进自动挖矿的矿物清单（失败原因文案 / 报告用；238 起等于本维度全部受支持矿物）。 */
     public String autoMinerEligibleOresCn() {
         SeedDimensionProfile profile = dimensionProfile();
         if (profile == null) {
@@ -808,7 +886,7 @@ public final class SeedMiningService {
     }
 
     /**
-     * 当前运行时身份；未建立（未启用 / 未进世界 / 种子不合法 / 非主世界 / 已失效）返回 {@code null}。
+     * 当前运行时身份；未建立（未启用 / 未进世界 / 种子不合法 / 当前维度不受支持 / 已失效）返回 {@code null}。
      *
      * <p>235 的自动挖矿目标提供者用它做生命周期判据：身份对象一变（改种子 / 换服 / 换维度 / 退世界
      * 都会在 {@link #invalidateRuntime(String)} 里换号并重建），旧选出来的目标必须<b>立刻</b>作废。</p>

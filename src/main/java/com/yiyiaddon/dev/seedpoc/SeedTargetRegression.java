@@ -12,6 +12,9 @@ import com.yiyiaddon.feature.mining.model.MiningPointType;
 import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.seed.model.OreType;
 import com.yiyiaddon.seed.observation.OreObservationState;
+import com.yiyiaddon.seed.ore.SeedDimensionProfile;
+import com.yiyiaddon.seed.ore.SeedOreDefinition;
+import com.yiyiaddon.seed.ore.SeedOreRegistry;
 import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.service.SeedMiningService;
@@ -26,6 +29,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -36,14 +40,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 种子挖矿正式化第七阶段（235）· <b>钻石 Seed Target → AutoMiner 接入回归装置</b>（开发期）。
+ * 种子挖矿正式化第七阶段（235）· <b>种子目标 → AutoMiner 接入回归装置</b>（开发期）。
  *
- * <p><b>它回答什么</b>：把已经 VERIFIED 的钻石种子预测正式接进现有自动挖矿之后，用户口径里的
+ * <p><b>它回答什么</b>：把已经 VERIFIED 的种子预测正式接进现有自动挖矿之后，用户口径里的
  * A~L 十二项是否逐条成立 —— 而<b>不是</b>重新研究预测 / 观察 / 验证本身（那三件事由 229~234 冻结）。</p>
+ *
+ * <p><b>238 起可换矿物</b>：默认钻石（与 235 逐字一致），用
+ * {@code -Dyiyiaddon.seedpoc.target.ore=COAL} 换成主世界其它矿物即可用<b>同一套用例</b>
+ * 复核「非钻石也能被自动挖」。本装置只覆盖主世界 8 种矿物；下界 3 种由
+ * 「多矿物矩阵」与「下界真正多人」装置负责（那里才有真实下界身份）。</p>
  *
  * <h2>环境</h2>
  * <p>单人夹具世界：{@link SeedPocWorldFactory} 用固定种子（默认 20260922）新建，因此
- * 「Worker 按种子算出来的钻石坐标」与「这个世界的真实钻石」可比 —— 这正是验证闸门能到达
+ * 「Worker 按种子算出来的候选坐标」与「这个世界的真实矿物」可比 —— 这正是验证闸门能到达
  * 「已验证」的前提。测试用的指令（{@code give / spreadplayers / forceload / fill / setblock / tp}）
  * 走玩家自己的发包入口，单人存档自带指令权限，因此不需要专用服务器与 ops.json。</p>
  *
@@ -230,7 +239,42 @@ public final class SeedTargetRegression {
     /** 背包真值探针（同上）。 */
     private static volatile boolean invProbeDone = true;
     private static volatile String invProbeText = "";
-    private static volatile int invProbeDiamonds;
+    private static volatile int invProbeTargetCount;
+
+    /**
+     * 本轮追的矿物（238；{@code -Dyiyiaddon.seedpoc.target.ore=COAL} 可换，默认钻石）。
+     *
+     * <p>同一套 A~L 用例因此可以逐个矿物复用：装置里凡是「钻石」字样的判据与文案都改成跟着它走，
+     * 锚点设置也按它换算成自动挖矿认的产物物品 id。</p>
+     */
+    private static final OreType TARGET_ORE = SeedPocFlags.targetRegressionOre();
+
+    /** 本轮被追矿物的中文名（报告用）。 */
+    private static String oreNameCn() {
+        return TARGET_ORE.displayNameCn();
+    }
+
+    /**
+     * 把「追哪种矿」换算成自动挖矿设置里的锚点（<b>时运模式存的是产物物品 id</b>）。
+     *
+     * <p>装置只在开发期用这张表：正式层是自己从锚点反查矿石家族（{@code blockForTarget}），
+     * 装置需要的是反方向 —— 从矿物得到锚点。表里没有的矿物一律抛错，避免装置悄悄跑成别的矿物。</p>
+     */
+    private static String anchorTargetId(OreType oreType) {
+        return switch (oreType) {
+            case DIAMOND -> "minecraft:diamond";
+            case REDSTONE -> "minecraft:redstone";
+            case LAPIS -> "minecraft:lapis_lazuli";
+            case GOLD -> "minecraft:raw_gold";
+            case IRON -> "minecraft:raw_iron";
+            case COPPER -> "minecraft:raw_copper";
+            case COAL -> "minecraft:coal";
+            case EMERALD -> "minecraft:emerald";
+            case NETHER_QUARTZ -> "minecraft:quartz";
+            case NETHER_GOLD -> "minecraft:gold_nugget";
+            case ANCIENT_DEBRIS -> "minecraft:ancient_debris";
+        };
+    }
 
     private static final List<String> REPORT = new ArrayList<>();
     private static final List<String> VERDICTS = new ArrayList<>();
@@ -330,6 +374,17 @@ public final class SeedTargetRegression {
         report("  夹具世界：" + SeedPocWorldFactory.LEVEL_ID + "（种子 " + SeedPocFlags.targetSeed()
                 + "，与「预测用的种子」同一颗 ⇒ 真值可比）");
         report("  覆盖半径：" + SeedPocFlags.targetRadius() + " 区块（出厂默认 3，本装置不改默认值）");
+        report("  本轮追的矿物：" + oreNameCn() + "矿（" + TARGET_ORE + "；"
+                + "-Dyiyiaddon.seedpoc.target.ore=<矿物> 可换，默认钻石）");
+        if (!SeedOreRegistry.supports(SeedDimensionProfile.OVERWORLD, TARGET_ORE)) {
+            // 下界矿物在本装置里跑不了（本装置全程主世界，J 才切一次维度且只验身份作废）：
+            // 如实报「不适用」并停，绝不拿主世界的用例去冒充下界的验收。
+            report("  **本轮矿物在主世界不受支持：本装置只覆盖主世界 8 种矿物；"
+                    + "下界 3 种见「多矿物矩阵」与「下界真正多人」装置**");
+            VERDICTS.add("【判定】本轮矿物 " + oreNameCn() + " 不适用于目标接入装置（主世界专用）");
+            finish();
+            return;
+        }
         report("  复位：种子挖矿关闭 / 显示预测钻石关闭 / 种子原文清空 / 种子目标模式关闭");
         if (SeedPocFlags.autoCreateWorld()) {
             SeedPocWorldFactory.createFreshWorld(client, SeedPocFlags.targetSeed());
@@ -459,7 +514,7 @@ public final class SeedTargetRegression {
         farSpotDistance = Math.max(Math.abs(farSpotX - target.getX()), Math.abs(farSpotZ - target.getZ()));
     }
 
-    /** 把自动挖矿配置成「普通模式 + 秒破 + 钻石」的可运行最小集（只为装置服务，不改出厂默认）。 */
+    /** 把自动挖矿配置成「普通模式 + 秒破 + 本轮矿物」的可运行最小集（只为装置服务，不改出厂默认）。 */
     private static void configureMining() {
         AutoMinerModule module = module();
         MiningSettings settings = module.settings();
@@ -467,7 +522,14 @@ public final class SeedTargetRegression {
         // 这里再压一次 —— 于是 B~G、K 全都在「ESP 关闭」下跑，H 再单独验一遍开关两侧的行为
         SERVICE.setRenderPrediction(false);
         settings.personalMode = false;
-        settings.overworldOreTarget = "minecraft:diamond";
+        // 238：本轮追哪种矿由启动参数决定 ——
+        //   ① 种子页只勾这一种（一次只追一种，优先级因此无歧义，也不会串到别的矿物缓存上）；
+        //   ② 自动挖矿的锚点换成该矿的产物 id（时运模式存产物）。
+        // 钻石轮次因此与 235 逐字一致。
+        for (OreType oreType : SERVICE.supportedOres()) {
+            SERVICE.setOreSelected(oreType, oreType == TARGET_ORE);
+        }
+        settings.overworldOreTarget = anchorTargetId(TARGET_ORE);
         settings.netherOreTarget = "";
         settings.blockTarget = "";
         settings.lootMode = LootMode.FORTUNE;
@@ -542,7 +604,7 @@ public final class SeedTargetRegression {
         report("  目标提供者：" + module.miningTargetProvider().modeNameCn() + " / 扫描方式："
                 + module.miningTargetProvider().scanModeCn() + "（应为「普通模式 / 视野内所有目标矿」）"
                 + verdict(normalProvider));
-        report("  目标方块：" + targetId + "（应为钻石矿家族）");
+        report("  目标方块：" + targetId + "（应为" + oreNameCn() + "矿家族）");
         report("  类型扫描 mine 是否真的下发了：" + mineSeen + verdict(mineSeen));
         report("  种子运行时是否完全没被牵动：" + seedRuntimeOff
                 + "（计算器运行 " + SERVICE.calculatorRunning() + " / 缓存区块 " + SERVICE.cachedChunkCount()
@@ -679,7 +741,7 @@ public final class SeedTargetRegression {
     private static void tickCCheck(Minecraft client) {
         AutoMinerModule module = module();
         boolean seedProvider = !module.miningTargetProvider().usesBlockTypeScan();
-        boolean targetIsPredictedDiamond = isPredictedDiamond(phaseTarget);
+        boolean targetIsPredictedDiamond = isPredictedTarget(phaseTarget);
         boolean inCoverage = inCoverage(phaseTarget);
         boolean noTypeScan = !mineSeen;
         boolean navigating = pathSeen || withinReach(client, phaseTarget);
@@ -689,7 +751,7 @@ public final class SeedTargetRegression {
                 + module.miningTargetProvider().scanModeCn() + verdict(seedProvider));
         report("  锁定目标：" + posText(phaseTarget) + "（玩家 " + playerPosText(client) + "，区块距离 "
                 + chunkDistance(client, phaseTarget) + "）");
-        report("  该坐标属于正式预测集里的钻石：" + targetIsPredictedDiamond + verdict(targetIsPredictedDiamond));
+        report("  该坐标属于正式预测集里的" + oreNameCn() + "：" + targetIsPredictedDiamond + verdict(targetIsPredictedDiamond));
         report("  落在当前覆盖方框内：" + inCoverage + verdict(inCoverage));
         report("  期间是否出现过「按矿物类型 mine」（不许偷偷 fallback）：" + mineSeen + verdict(noTypeScan));
         report("  是否按精确坐标工作（自定义目标 / 已在交互距离内）：" + navigating + verdict(navigating));
@@ -781,7 +843,7 @@ public final class SeedTargetRegression {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  七、E：加载后实际是钻石 → 交给现有挖矿链
+    //  七、E：加载后实际是本轮矿物 → 交给现有挖矿链
     // ════════════════════════════════════════════════════════════════════════
 
     private static void tickESetup(Minecraft client) {
@@ -823,14 +885,14 @@ public final class SeedTargetRegression {
         if (!blockProbeDone) {
             return;
         }
-        if (!isDiamondOreId(blockProbeText)) {
-            // 真值不是钻石：这一颗按 MISSING 处理（换下一颗再试），最多三次
+        if (!isTargetOreId(blockProbeText)) {
+            // 真值不是本轮矿物：这一颗按 MISSING 处理（换下一颗再试），最多三次
             retries++;
             report("  目标 " + posText(phaseTarget) + " 的真值是 " + blockProbeText
-                    + "（不是钻石矿）—— 换下一颗重试（" + retries + "/3）");
+                    + "（不是" + oreNameCn() + "矿）—— 换下一颗重试（" + retries + "/3）");
             sendCommand(client, "forceload remove " + phaseTarget.getX() + " " + phaseTarget.getZ());
             if (retries >= 3) {
-                VERDICTS.add("【判定】E：不执行（三个目标的真值都不是钻石矿）");
+                VERDICTS.add("【判定】E：不执行（三个目标的真值都不是" + oreNameCn() + "矿）");
                 finish();
                 return;
             }
@@ -898,7 +960,7 @@ public final class SeedTargetRegression {
         report("  背包读数（服务端）：" + invProbeText);
         // 松手：撤掉强制加载（玩家就在旁边，区块照常是加载的）
         sendCommand(client, "forceload remove " + phaseTarget.getX() + " " + phaseTarget.getZ());
-        VERDICTS.add("【判定】E 加载后实际钻石走现有挖矿链：目标被挖掉 " + verdict(broken)
+        VERDICTS.add("【判定】E 加载后实际" + oreNameCn() + "矿走现有挖矿链：目标被挖掉 " + verdict(broken)
                 + " / 秒破通道 " + verdict(fastBreakSeen));
         advance(Stage.L_CHECK);
     }
@@ -937,7 +999,7 @@ public final class SeedTargetRegression {
     private static void tickFRun(Minecraft client) {
         AutoMinerModule module = module();
         BlockPos target = module.miningTargetProvider().lockedTargetOrNull();
-        if (target == null || withinReach(client, target) || !isPredictedDiamond(target)) {
+        if (target == null || withinReach(client, target) || !isPredictedTarget(target)) {
             if (++stageTick > WAIT_TARGET_TICKS) {
                 report("  **F 等待可用目标超时（当前 " + posText(target) + "）**");
                 VERDICTS.add("【判定】F：不通过（没有可用目标）");
@@ -989,7 +1051,7 @@ public final class SeedTargetRegression {
     private static void tickGRun(Minecraft client) {
         AutoMinerModule module = module();
         BlockPos target = module.miningTargetProvider().lockedTargetOrNull();
-        if (target == null || withinReach(client, target) || !isPredictedDiamond(target)) {
+        if (target == null || withinReach(client, target) || !isPredictedTarget(target)) {
             if (++stageTick > WAIT_TARGET_TICKS) {
                 report("  **G 等待可用目标超时（当前 " + posText(target) + "）**");
                 VERDICTS.add("【判定】G：不通过（没有可用目标）");
@@ -1224,7 +1286,8 @@ public final class SeedTargetRegression {
         report("  模块是否被 fail-closed 停掉：" + stopped + "；停机原因：" + reason);
         report("    （口径：换维度 ⇒ 旧身份整批作废 ⇒ 验证随之清空 ⇒ 提供者报「未验证」并停机，"
                 + "绝不退回按矿物类型扫描；236 起下界也是受支持维度，因此预测 / 观察 / ESP 会以"
-                + "「下界身份」重新开始，而自动挖矿仍恒为 fail-closed）");
+                + "「下界身份」重新开始；238 起下界的自动挖矿由「下界专属验证 + 证据覆盖该矿」放行，"
+                + "刚切过去必然是未验证 ⇒ 本装置此处仍应看到 fail-closed 停机）");
         VERDICTS.add("【判定】J 换维度：身份换成下界（主世界身份作废）" + verdict(identitySwitched)
                 + " / 闸门关闭 " + verdict(gateClosed)
                 + " / 目标清空 " + verdict(targetCleared)
@@ -1349,8 +1412,8 @@ public final class SeedTargetRegression {
         return Math.max(dx, dz);
     }
 
-    /** 该坐标是不是正式预测集里的钻石。 */
-    private static boolean isPredictedDiamond(BlockPos pos) {
+    /** 该坐标是不是正式预测集里的本轮矿物。 */
+    private static boolean isPredictedTarget(BlockPos pos) {
         if (pos == null) {
             return false;
         }
@@ -1359,7 +1422,7 @@ public final class SeedTargetRegression {
                 continue;
             }
             for (PredictedOre ore : result.ores()) {
-                if (ore.oreType() == OreType.DIAMOND && ore.position().equals(pos)) {
+                if (ore.oreType() == TARGET_ORE && ore.position().equals(pos)) {
                     return true;
                 }
             }
@@ -1367,8 +1430,26 @@ public final class SeedTargetRegression {
         return false;
     }
 
-    private static boolean isDiamondOreId(String blockId) {
-        return "minecraft:diamond_ore".equals(blockId) || "minecraft:deepslate_diamond_ore".equals(blockId);
+    /**
+     * 该方块 id 是不是本轮被追矿物的任一形态（含深层变种）。
+     *
+     * <p>判定直接走正式层的矿物定义（{@code SeedOreDefinition#matches}），装置不另写一份方块名单
+     * —— 否则 238 放开多矿物后，装置会拿旧名单把「煤 / 红石也都是目标矿」判成 MISSING。</p>
+     */
+    private static boolean isTargetOreId(String blockId) {
+        if (blockId == null || blockId.isBlank()) {
+            return false;
+        }
+        Identifier id = Identifier.tryParse(blockId);
+        if (id == null) {
+            return false;
+        }
+        Block block = BuiltInRegistries.BLOCK.getOptional(id).orElse(null);
+        if (block == null) {
+            return false;
+        }
+        SeedOreDefinition definition = SeedOreRegistry.of(SeedDimensionProfile.OVERWORLD, TARGET_ORE);
+        return definition != null && definition.matches(block.defaultBlockState());
     }
 
     private static String targetBlockId(AutoMinerModule module) {
@@ -1437,19 +1518,21 @@ public final class SeedTargetRegression {
 
     private static void probeInventory(Minecraft client) {
         invProbeDone = false;
-        invProbeDiamonds = 0;
+        invProbeTargetCount = 0;
         IntegratedServer server = client.getSingleplayerServer();
         if (server == null) {
             invProbeDone = true;
             invProbeText = "（无集成服务端）";
             return;
         }
+        // 计数的产物物品跟着本轮矿物走（时运 / 精准两种模式的产物 id 由正式层给出）
+        String dropItemId = module().getTargetDropItemId();
         server.execute(() -> {
             try {
                 int picks = 0;
                 int swords = 0;
                 int food = 0;
-                int diamonds = 0;
+                int oreCount = 0;
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
                         ItemStack stack = player.getInventory().getItem(slot);
@@ -1466,13 +1549,14 @@ public final class SeedTargetRegression {
                         if (id.equals("minecraft:cooked_beef")) {
                             food += stack.getCount();
                         }
-                        if (id.equals("minecraft:diamond")) {
-                            diamonds += stack.getCount();
+                        if (id.equals(dropItemId)) {
+                            oreCount += stack.getCount();
                         }
                     }
                 }
-                invProbeText = "镐=" + picks + ",剑=" + swords + ",食物=" + food + ",钻石=" + diamonds;
-                invProbeDiamonds = diamonds;
+                invProbeText = "镐=" + picks + ",剑=" + swords + ",食物=" + food
+                        + "," + oreNameCn() + "=" + oreCount;
+                invProbeTargetCount = oreCount;
             } catch (Throwable error) {
                 invProbeText = "异常：" + error;
             } finally {
@@ -1505,7 +1589,7 @@ public final class SeedTargetRegression {
         stage = Stage.FINISHED;
 
         List<String> lines = new ArrayList<>();
-        lines.add("《235 · 钻石 Seed Target → AutoMiner 正式接入 · 目标接入回归结果》");
+        lines.add("《238 · 种子目标（本轮：" + oreNameCn() + "矿）→ AutoMiner 正式接入 · 目标接入回归结果》");
         lines.add("装置：单人夹具世界（固定种子，与预测种子同一颗）+ 现有自动挖矿模块（未另造第二套）");
         lines.add("测试世界：" + SeedPocWorldFactory.LEVEL_ID + "；种子 " + SeedPocFlags.targetSeed()
                 + "；覆盖半径 " + SeedPocFlags.targetRadius() + " 区块");
@@ -1519,7 +1603,11 @@ public final class SeedTargetRegression {
         lines.addAll(VERDICTS);
         boolean allPass = !VERDICTS.isEmpty() && VERDICTS.stream().noneMatch(line -> line.contains("不通过"));
         lines.add("全部判定：" + (allPass ? "通过" : "**存在不通过项，见上**"));
-        SeedPocReport.output(lines, REPORT_FILE);
+        // 238：报告文件名带上本轮矿物 —— 同一套装置要逐个矿物跑，文件名不带就会互相覆盖，
+        // 钻石轮次沿用 235 的老文件名（证据索引里的历史路径不动）。
+        SeedPocReport.output(lines, TARGET_ORE == OreType.DIAMOND
+                ? REPORT_FILE
+                : REPORT_FILE.replace(".txt", "-" + TARGET_ORE.name().toLowerCase(java.util.Locale.ROOT) + ".txt"));
         SeedPocEntry.onExperimentFinished();
     }
 }
