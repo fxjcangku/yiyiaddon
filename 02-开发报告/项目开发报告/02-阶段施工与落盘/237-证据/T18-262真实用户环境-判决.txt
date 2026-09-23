@@ -1,0 +1,12 @@
+﻿《237 · 真实用户环境（100+ Mods + Iris / Sodium）兼容 smoke 判决（26.2 线）》
+源目录（只读）：D:\mcaddon\yiyiaddon\run-26.2
+源目录最新写入：09/23/2026 19:35:36 → 09/23/2026 19:35:36
+复制到：D:\mcv\wt-262\.dev-runs\26.2\seed\final-user-env
+mods jar：103 个；客户端报告已加载 mods：295
+Iris=True；Sodium=True；装置挂载=True；崩溃痕迹=False
+ModernFix devenv 混入：按该 Mod 自带开关关闭（False；26.2 下该 dev 专用混入与 MinecraftServer 签名不兼容）
+yiyiaddon ERROR 行：0
+残留 Worker 进程：0
+装置报告：D:\mcv\wt-262\.dev-runs\26.2\seed\final-user-env\seedpoc-236-矿物矩阵.txt
+装置全部判定：全部判定：通过
+判决：通过

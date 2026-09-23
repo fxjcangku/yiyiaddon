@@ -1,0 +1,7 @@
+﻿《237 · 下界真正多人验收 · 驱动器判决》
+端口：25865（备选 25866, 25867）
+服务器就绪：True
+残留 Worker 进程：0
+装置报告：D:\mcv\wt-236\.dev-runs\26.1.2\seed\nether-mp\client\seedpoc-237-下界多人验收.txt
+装置全部判定：PASS
+判决：通过
