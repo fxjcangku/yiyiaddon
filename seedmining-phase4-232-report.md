@@ -3,7 +3,10 @@
 
 > 项目：`D:/mcaddon/yiyiaddon` ｜ 分支：`master` ｜ Minecraft：`26.1.2` ｜ 模组版本：`1.0-beta2`
 > 本报告全部数字均为**本机实机运行实测值**（每一条都注明了产出文件 / 日志位置）；
-> 凡未实机验证的项，一律在【二十一、已知限制】里显式标注「未实机」。
+> 凡未实机验证的项，一律在【二十、已知限制】里显式标注「未实机」。
+> **配套报告**：《232-P · 真实用户生产发行验收》（`seedmining-phase4p-232p-report.md`）——
+> 它把本报告里标着「未实机 / 推断」的三项（生产实例、超时实触发、含空格路径）全部补成了实机证据，
+> 并新增低内存 Heap 矩阵与发行门槛验收；本报告已同步标注。口径第 102 节六十七项逐条对照见【二十一·补】。
 
 ---
 
@@ -507,12 +510,18 @@ com/yiyiaddon/seed/worker/protocol/           ← 传输层（版本化、fail-c
 
 1. **生产实例验收未实机**：本阶段的实机证据全部来自 Fabric `Knot` 开发运行时（也就是真实客户端进程，
    但模组以目录形态挂载）。生产形态（模组 jar 装进整合包）**没有实机验证**。
-   为什么仍判断成立：启动只依赖 `java.home`、`java.class.path`、`FabricLoader` 模组容器路径与
+   ~~为什么仍判断成立：启动只依赖 `java.home`、`java.class.path`、`FabricLoader` 模组容器路径与
    `Class.forName` 可达性探测；26.1.2 无 remap 差异；`seedworker` 类确实在产物 jar 内；
-   26.1.2 client jar 内含 server 类且 Fabric 安装器会把库与客户端 jar 放进 `-cp`。
-   **该结论属推断，未实机，必须在下一阶段或发版前补（例如：真实整合包环境跑一次 `seedWorkerProbe` 等价流程）。**
+   26.1.2 client jar 内含 server 类且 Fabric 安装器会把库与客户端 jar 放进 `-cp`。~~
+   → **已由《232-P · 真实用户生产发行验收》补齐（实机，不再推断）**：在正式发布产物
+   `yiyiaddon-1.0-beta2-26.1.2.jar`（SHA-256 `3CD0B463…`）的 jar-only 生产 Fabric 环境里，
+   Worker 真实启动、建出 Vanilla `ServerLevel`、完成 `OPEN_SESSION` / `PREDICT_DIAMOND`，数字与开发环境一致；
+   并在真实用户的 103-Mod 环境下复现同样数字。
 2. **启动超时 / 预测超时的实际触发未实机**（只做了代码路径与常量核对）。
+   → **已由 232-P 用 fault injection 实机触发**（`startupTimeoutMillis=1` / `predictTimeoutMillis=1`），
+   状态不会停在 STARTING/PREDICTING，请求被清理，Worker 被回收。
 3. **路径含空格未单独构造用例**（仅验证了含中文路径）。
+   → **已由 232-P 补齐**：三个含空格 + 中文的实例（`D:\mcaddon\种子 Worker Production Test*`）全部通过。
 4. **换服 A→B 未单独实机**（与「退出服务器」共用同一收口，由断线用例覆盖）。
 5. 多人验收的远端目标用的是 Seed 20260922 的 (-400,380)，不是 Seed 2 的受控样本；Seed 2 的远端形态在 parity 里覆盖。
 6. 本阶段只支持 26.1.2 主世界钻石；Worker 与客户端版本不匹配会**拒绝预测**（这是设计，不是缺陷）。
@@ -558,6 +567,83 @@ com/yiyiaddon/seed/worker/protocol/           ← 传输层（版本化、fail-c
 
 ---
 
+## 二十一·补：口径第 102 节「报告至少包含」六十七项逐条对照
+
+下表把用户口径第 102 节列出的 67 项逐条对齐到出处；标注 **【232-P】** 的项是生产发行阶段
+（《232-P · 真实用户生产发行验收》，链接见文末）补齐的实机证据 —— 232 主报告当时把它们写进了【二十】已知限制。
+
+| # | 口径要求 | 结论 | 出处 |
+| --- | --- | --- | --- |
+| 1 | 231 失败结论复核 | 已复核并接受，旧路线停止 | 【二】 |
+| 2 | 231 遗留代码处理 | 保留 / 删除 / 修改逐类给出，删除项为「无」 | 【三】 |
+| 3 | 为什么不继续纯 Client Environment | 硬依赖 `WorldGenRegion → ServerLevel`，不改 Vanilla 调用模型无法替代 | 【四】 |
+| 4 | Worker 最终架构 | Client → Service → WorkerClient → 隔离 Worker → Vanilla ServerLevel → Predictor | 【五】 |
+| 5 | 为什么选择独立 JVM 或同 JVM | 独立 JVM：隔离崩溃 / 内存生命周期清晰 / 版本隔离；同 JVM 分支未启用 | 【六】 |
+| 6 | 生产 runtime 启动机制 | `java.home/bin/java` + `java.class.path` + 模组容器路径，`ProcessBuilder(List)` | 【七】 |
+| 7 | Fabric Loader / classpath / remap 审计 | 开发期已审计；**【232-P】在生产 jar-only 环境实测通过**（无 remap 崩溃） | 【七】+ 232-P §二.6 |
+| 8 | Worker package tree | `seed/worker/{client,protocol,dto}` + `seedworker/` | 【八】 |
+| 9 | IPC 协议 | `127.0.0.1` 回环 TCP、一行一条 JSON、`requestId` 端到端 | 【九】 |
+| 10 | Protocol Version | `1`（握手三元组：协议 / Minecraft / 模组版本） | 【九】 |
+| 11 | 认证 token | `SecureRandom` 24 字节 = **192 位**，启动参数传递，定长比较 | 【九】 |
+| 12 | 端口绑定 | 仅 `127.0.0.1`，端口由系统分配 | 【九】【十】 |
+| 13 | Process lifecycle | 懒启动 → READY → BUSY → 停机阶梯 → STOPPED | 【十二】【15.4】 |
+| 14 | Worker ServerLevel 创建方式 | 独立 `DedicatedServer` 形态的最小宿主，就绪后停用监听 | 【十】 |
+| 15 | Worker Storage | `<gameDir>/yiyiaddon/seed-worker/<版本>/`，自带 host/universe/logs | 【十】 |
+| 16 | 是否使用玩家存档 | **不使用**（与 `saves/` 完全分离，512 MB 上限自动重建） | 【十】 |
+| 17 | 是否打开 Minecraft 服务端公网端口 | 否：仅回环且就绪后停用；**【232-P】套接字采样证实监听消失** | 【十】+ 232-P §二.15 |
+| 18 | 是否连接目标服务器 | 否：协议无地址字段、代码无出站；**【232-P】断网模拟下仍全通** | 【十六】+ 232-P §二.15 |
+| 19 | Predictor 是否读 Worker 真实 Chunk | 否：沿用 229 的离线管线边界 | 【十一】 |
+| 20 | Host ChunkMap Query | 恒 **0**（15 + 6 + 2 个用例） | 【十一】 |
+| 21 | Worker Session 模型 | 以 版本 + Seed + 维度 为会话身份，换一项即失效 | 【十二】 |
+| 22 | Seed 切换 | 取消旧请求、旧结果不回写、旧会话清理、可安全重启 | 【十二】 |
+| 23 | Dimension 切换 | 下界不支持 → 会话关闭；返回主世界重新开合法会话 | 【12】【15.3】 |
+| 24 | 服务器切换 | 与「退出服务器」同一收口；A→B 不复用旧会话 | 【十二】+【二十】限制 4 |
+| 25 | Client 退出 | SHUTDOWN → destroy → destroyForcibly，无孤儿 | 【十二】【十七】 |
+| 26 | Worker 崩溃恢复 | 看门狗 500 ms 发现 → FAILED → 下一次点击自动重启一次 | 【15.4】+ **【232-P】R5** |
+| 27 | 启动超时 | 有超时且失败可诊断；**【232-P】用 fault injection 实机触发** | 232-P §二.12（R6） |
+| 28 | 预测超时 | 同上，UI 不会永久停在「正在预测」 | 232-P §二.12（R7） |
+| 29 | Worker 内存 | 运行期 537~627 MB 且不随目标数单调增长；**【232-P】给出 768/1024/1536/2048/256 Heap 矩阵** | 【14.2】+ 232-P §二.10 |
+| 30 | Worker 启动耗时 | 冷 10448~11651 ms、宿主已存在 3846~6622 ms；**【232-P】生产形态冷启动 11251 ms** | 【14.1】+ 232-P §二.11 |
+| 31 | 首次预测耗时 | 4010~4416 ms（冷，含离线管线构建） | 【14.1】 |
+| 32 | 相邻 Target 耗时 | 19~20 ms（已缓存） | 【14.1】 |
+| 33 | Singleplayer Oracle parity 架构 | 同进程集成服务端 `ServerLevel` 直连正式 Predictor | 【15.1】 |
+| 34 | 20260922 十目标完整结果 | 45/9/29/21/22/27/21/18/18/33，合计 **243** | 【15.1】 |
+| 35 | 20260922 (0,0) = 45 | 通过 | 【15.1】+ **【232-P】R1/R9/R12–R14** |
+| 36 | 12345 四目标结果 | 31 / 29(7 敏感) / 24 / 26，合计 **110** | 【15.1】 |
+| 37 | Seed2 冲突结果 | 23 / 1 敏感 / 22 未解析 / 0 确定，争议格调度敏感 | 【15.1】 |
+| 38 | PredictedOre certainty/source parity | `OreType / PredictionCertainty / OreSource / originViewer / conflictingWriters` 逐项一致 | 【15.1】 |
+| 39 | 正式 Predictor 是否改算法 | **未改**（`seed/prediction`、`seed/worldgen` 零改动） | 【三】【十八】 |
+| 40 | Dedicated Server 环境 | 本机 26.1.2 专用服务器，无改 worldgen 的 Mod | 【15.2】 |
+| 41 | Dedicated Server Seed | `level-seed=20260922` | 【15.2】 |
+| 42 | Client `getSingleplayerServer()` 实测 | **null** | 【15.2】 |
+| 43 | Dedicated 下 Worker READY | `状态=已就绪` | 【15.2】 |
+| 44 | Dedicated 下 (0,0) 结果 | **45** | 【15.2】 |
+| 45 | 未加载远端 Chunk 测试 | (-400,380) 预测成功且预测后仍未加载 | 【15.2】 |
+| 46 | ClientChunkCache 是否含目标 | 近端「有」/远端「**没有**」（运行时观测） | 【15.2】 |
+| 47 | 是否读取远端 BlockState | 否：静态审计零命中 + 远端无该区块仍预测成功（运行时反证） | 【十六】 |
+| 48 | UI Worker 状态 | 正在启动 → 已就绪 → 正在预测 → 异常（不显示「服务器不支持」） | 【十三】 |
+| 49 | 230 输入矩阵回归 | 10 项全通过 | 【15.3】 |
+| 50 | 230 生命周期回归 | 未进世界 / 进世界 / 开启 / 预测 / 改 Seed / 关闭 / 维度往返 / 退服 全通过 | 【15.3】 |
+| 51 | personalMode 回归 | 开/关两种模式界面装配均通过 | 【15.3】 |
+| 52 | Worker PID 生命周期 | 基线 → 强杀 → 重启 PID 更换、启动次数 +1；**【232-P】生产形态同样记录** | 【15.4】+ 232-P §二.14 |
+| 53 | 是否有孤儿进程 | **0**（232 两次全量扫描 + **【232-P】14 次冒烟**） | 【十七】+ 232-P §二.14 |
+| 54 | 生产式启动是否依赖 Gradle | 232 为推断（【二十】限制 1）；**【232-P】已在 jar-only 生产环境实机否定依赖** | 232-P §二.3–2.6 |
+| 55 | Windows 路径测试 | 中文路径通过；**含空格路径【232-P】用三个实例补齐** | 【二十】限制 3 + 232-P §二.9 |
+| 56 | `compileJava` | `EXIT=0` | 【二十一】21 |
+| 57 | `build` | `EXIT=0`；正式产物流水线 `buildRelease` 在【232-P】修复后产出可用 jar | 【二十一】21 + 232-P §二.7 |
+| 58 | `runClient` | 正常启动；Seed Mining OFF 时 Worker 不启动 | 【二十一】22 |
+| 59 | AutoMiner 零变化证明 | 相关文件零改动（`git status`）+ 控制台仅新增「种子挖矿」页 | 【十八】【十九】 |
+| 60 | 未做 Observation | 是（无 `CONFIRMED/MISSING/SUSPICIOUS` 接入） | 【十八】 |
+| 61 | 未做 Renderer | 是 | 【十八】 |
+| 62 | 未做 SeedValidation | 是 | 【十八】 |
+| 63 | 未扩矿物 | 是（仅主世界钻石） | 【十八】 |
+| 64 | 未做 26.2 | 是 | 【十八】 |
+| 65 | 所有新增/修改/删除文件 | 逐文件列出（删除项：无） | 【十九】 |
+| 66 | 已知限制 | 7 条 + **【232-P】新增 6 条**（启动器覆盖、干净新机、`maxHeapMb<256` 边界、出网、短暂监听、整包实测） | 【二十】+ 232-P §六 |
+| 67 | 最终是否满足 232 验收 | **满足**：28 条通过标准全通过 + **【232-P】14 条发行门槛全通过** | 【二十一】+ 232-P §三 |
+
+---
+
 ## 二十二、人工体验验收（很短，不需要看日志）
 
 1. 进入一个多人测试服（普通服务器，**不需要装任何插件**）。
@@ -589,3 +675,5 @@ com/yiyiaddon/seed/worker/protocol/           ← 传输层（版本化、fail-c
 | 协议负路径 | `build/seed-worker-probe-neg-*/seed-worker-probe/probe-report.txt` |
 | Worker 自身日志 | `run-26.1.2-seed-worker-*/yiyiaddon/seed-worker/26.1.2/seed-worker-26.1.2.log` |
 | 内存采样 | `build/seed-memory-samples.txt` |
+| 配套：生产发行验收（jar-only / 真实 Mod 环境 / Heap 矩阵 / 超时注入） | `seedmining-phase4p-232p-report.md`（同内容落盘于 `02-开发报告/…/232P-追加-种子挖矿真实用户生产发行验收报告.md`） |
+| 配套：生产冒烟脚本与证据 | `gradle/production-smoke.ps1`、`02-开发报告/…/232P-证据/`（57 个文件） |
