@@ -1,6 +1,10 @@
 # 232-P · 真实用户生产发行验收报告
 ## （种子挖矿 · 大量真实用户单 Mod / 零配置发行门槛）
 
+> **⚠ 历史过程报告**：最新基线与**唯一优先参考**是
+> 《232-FINAL · 种子挖矿多人 Worker 与生产发行最终收口报告》（`232-FINAL-report.md`）。
+> 本文件保留为过程证据（含 14 次冒烟逐次记录与证据索引）。
+
 > 本阶段唯一目的：证明 232 的**独立 JVM Worker** 不只成立在 Loom / Gradle / Knot 开发运行环境，
 > 而是同样成立在「**普通用户拿到正式 `yiyiaddon.jar` 后的生产 Fabric 环境**」。
 > 架构（Multiplayer Worker / Predictor parity / Dedicated 测试）**一行未改**，全部结论保留。
