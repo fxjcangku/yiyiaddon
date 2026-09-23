@@ -1,0 +1,404 @@
+# 232-P · 真实用户生产发行验收报告
+## （种子挖矿 · 大量真实用户单 Mod / 零配置发行门槛）
+
+> **⚠ 历史过程报告**：最新基线与**唯一优先参考**是
+> 《232-FINAL · 种子挖矿多人 Worker 与生产发行最终收口报告》（`232-FINAL-report.md`）。
+> 本文件保留为过程证据（含 14 次冒烟逐次记录与证据索引）。
+
+> 本阶段唯一目的：证明 232 的**独立 JVM Worker** 不只成立在 Loom / Gradle / Knot 开发运行环境，
+> 而是同样成立在「**普通用户拿到正式 `yiyiaddon.jar` 后的生产 Fabric 环境**」。
+> 架构（Multiplayer Worker / Predictor parity / Dedicated 测试）**一行未改**，全部结论保留。
+
+- 验收产物：`build/libs` → 发布流水线 → `build/release/yiyiaddon-1.0-beta2-26.1.2.jar`
+  - 大小 46,894,432 字节（44.7 MB）
+  - **SHA-256 = `3CD0B46332CD21F0296BBC7BA61EFA35B499A7724BAAA31706F96C168BCB0905`**
+- 验收脚本：`gradle/production-smoke.ps1`（**不用 Gradle / 不用 Loom / 不用 runClient**，
+  按版本 JSON 自行组装「启动器等价命令」，只用官方运行时 `java.exe` + 真实 `libraries` + 真实 assets）
+- 证据目录：`02-开发报告/项目开发报告/02-阶段施工与落盘/232P-证据/`（57 个文件，逐次冒烟的命令行 / PID 生命周期 / RSS 采样 / 装置报告 / Worker 日志）
+- 冒烟实例（真实路径含**中文 + 空格**）：`D:\mcaddon\种子 Worker Production Test`
+  、`D:\mcaddon\种子 Worker Production Test MP`、`D:\mcaddon\种子 Worker Production Test RealMods`
+
+---
+
+## 一、本阶段实测清单（14 次生产冒烟，全部在正式产物上）
+
+| 编号 | 场景 | 触发方式 | 结论 |
+| --- | --- | --- | --- |
+| R1 | 生产 **Worker vs 单人 Oracle parity（15 目标）** | `-Dyiyiaddon.seedpoc.workerParity=1` | 全通过（逐项一致） |
+| R2 | 同上，`-Xmx768m` | `-Dyiyiaddon.seedworker.maxHeapMb=768` | 全通过 |
+| R3 | 同上，`-Xmx1536m` | 同上 `=1536` | 全通过 |
+| R4 | 同上，`-Xmx2048m` | 同上 `=2048` | 全通过 |
+| R5 | **崩溃恢复**（强杀 → 自动失败态 → 重启一次 → 再预测成功） | `-Dyiyiaddon.seedpoc.workerLifecycle=1` | 全通过 |
+| R6 | **启动超时负路径**（Fault Injection） | `-Dyiyiaddon.seedworker.startupTimeoutMillis=1` | 见【五】+【二.12】 |
+| R7 | **预测超时负路径**（Fault Injection） | `-Dyiyiaddon.seedworker.predictTimeoutMillis=1` | 见【五】+【二.12】 |
+| R8 | **内存不可满足优雅失败** | `-Dyiyiaddon.seedworker.maxHeapMb=64` | 见【五】 |
+| R9 | **生产多人冒烟**（Dedicated Server） | `-Dyiyiaddon.seedpoc.workerMultiplayer=1` + `--quickPlayMultiplayer` | 全通过 |
+| R10 | 最终确认 + **套接字取证** | `service` + 并行 `Get-NetTCPConnection` | 全通过 |
+| R11 | **断网模拟**（对 Worker 的 `javaw.exe` 出站 Block） | Windows 防火墙出站规则 | 全通过 |
+| R12 | **冷启动**（删除 Worker 运行目录后首启） | `service` | 全通过 |
+| R13 | 极小堆真实运行（`-Xmx256m`，非仅参数拒绝） | `maxHeapMb=256` | 全通过 |
+| R14 | **真实用户 103 个 Mod 环境**（照抄其 `mods` 目录） | `-ExtraModsDir` + `service` | 全通过 |
+
+14 次冒烟累计启动 Worker 30+ 次；**退出后残留 Worker 进程一律为 0**。
+
+> 表外还有两次不计入编号的运行（原始日志在 `build/`）：
+> **A2** = 修复「界面文案与技术原因分离」之前的一次先行冷启动运行（其数字已被 R12 取代，报告只用 R12）；
+> **R8b** = 与 R13 同配置（`-Xmx256m`）的一次先行运行，结论一致，R13 是带完整归档的复跑。
+
+---
+
+## 二、【口径第 22 节】真实发行方案问答
+
+### 1. 普通用户最终需要下载几个文件？
+**1 个**：`yiyiaddon-xxx+26.1.2.jar`，放进 `mods`，正常启动游戏即可。
+
+`build/release/` 里另有：
+- `yiyiaddon-1.0-beta2-26.1.2.zip` —— 打包容器，**内部只有那一个 jar**（已解包核对）；
+- `yiyiaddon-1.0-beta2-26.1.2.jar.sha256` —— 校验文件，可选，不是运行所需。
+
+### 2. 用户是否需要额外 Java / Worker / bat / 环境变量 / 服务端插件 / 单人世界？
+| 项目 | 是否需要 | 实测依据 |
+| --- | --- | --- |
+| 第二个 `seed-worker.jar` | **不需要** | Worker 类全部来自正式 Mod jar（`SeedWorkerMain/Host/IpcServer/Sessions/Args` 均在该 jar 内，且发布校验断言存在） |
+| 额外安装 Java / JRE | **不需要** | Worker 用**当前游戏进程的 `java.home`**：实测命令行首参为 `…\runtime\java-runtime-epsilon\bin\javaw.exe`（正是该客户端自己的运行时，见 `R1-parity-xmx1024-worker-command.txt`） |
+| 配 `JAVA_HOME` / PATH | **不需要** | 启动器代码不读 PATH，只读 `java.home` |
+| 手开 CMD / BAT | **不需要** | Worker 由 Mod 内部 `ProcessBuilder` 拉起 |
+| 手动启动 Worker / 配端口 | **不需要** | 端口由宿主 `ServerSocket(0)` 与 Worker 自身分配，客户端读握手文件 |
+| 创建单人世界 | **不需要** | R9 生产多人冒烟：`getSingleplayerServer() == null` 下预测成立 |
+| 本地 Minecraft Server / 服务端插件 | **不需要** | 同上（Worker 自带隔离宿主） |
+| 改启动器 JVM 参数 | **不需要** | R1–R14 全部**未加任何 JVM 参数**即可用（诊断属性只用于本阶段验收） |
+| 拥有源码 / Gradle / `build/classes` | **不需要** | 见第 3、4 条 |
+
+### 3. 正式 Worker 从哪里取得 Java / Minecraft classes / Fabric libraries / yiyiaddon classes？
+取自 `R1-parity-xmx1024-worker-command.txt`（10,607 字符真实命令行，节选结构性部分）：
+
+```
+C:\Users\Administrator\AppData\Roaming\.minecraft\runtime\java-runtime-epsilon\bin\javaw.exe
+  -Xms256m -Xmx1024m -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 …
+  -Dlog4j2.configurationFile=D:\mcaddon\种子 Worker Production Test\yiyiaddon\seed-worker\26.1.2\log4j2.xml
+  -Djava.library.path=C:\Users\Administrator\Desktop\MC\.minecraft\versions\LunarFox\LunarFox-natives
+  -cp "<82 条 libraries>;…\versions\LunarFox\LunarFox.jar;…\种子 Worker Production Test\mods\yiyiaddon-1.0-beta2-26.1.2.jar"
+  com.yiyiaddon.seedworker.SeedWorkerMain
+  --runtime-dir "…\yiyiaddon\seed-worker\26.1.2" --handshake-file "…\handshake\worker-ready.json"
+  --token <192 位> --protocol-version 1 --minecraft-version 26.1.2 --mod-version 1.0-beta2
+  --host-port 59006 --parent-pid 20516
+```
+
+| 来源 | 实际取得物 |
+| --- | --- |
+| Java | 当前游戏 JVM 的 `java.home\bin\javaw.exe`（Windows 优先 `javaw.exe`，回退 `java.exe`） |
+| Minecraft classes | 启动器版本目录里的游戏 jar（`versions\LunarFox\LunarFox.jar`，客户端 jar 内含 `net.minecraft.server.**`） |
+| Fabric libraries | 启动器 `libraries\**` 的 82 条（`fabric-loader-0.19.5`、`sponge-mixin`、`asm 9.10.1`、`log4j`、`jna`、`joml`、`lwjgl` …） |
+| yiyiaddon classes | **正式产物 jar**：`<gameDir>\mods\yiyiaddon-1.0-beta2-26.1.2.jar`（由 `FabricLoader` 的 `ModContainer#getOrigin().getPaths()` 取得） |
+
+> 参数一律 `ProcessBuilder(List<String>)`，无整条命令字符串拼接（口径第十二节）；
+> 含中文与空格的路径在命令行里以带引号独立实参出现，实测可用。
+
+### 4. 正式 Jar-only Smoke 是否通过？
+**通过**（R1–R14）。其中「只依赖最终 jar」这一点有两条硬证据：
+1. 所有冒烟实例的 `mods` 目录里只有正式产物（或真实用户 mods 目录 + 正式产物），**没有** `src`、`build/classes`、Gradle dev mod 目录；
+2. Worker 实际命令行断言（脚本内置，命中即判失败）逐条为负：
+
+```
+forbidden = \build\classes  \build\resources  \build\devlaunch  \src\main\java
+            \src\main\resources  fabric-loom  \run-26.1.2      → 全部未命中
+必须包含正式产物名 yiyiaddon-1.0-beta2-26.1.2.jar              → 命中
+```
+
+### 5. 实际 Worker command 是否包含开发目录？
+**不含**（14 次冒烟，每次都在 Worker 命令行的完整 10.6k 字符上做断言，`evidence\worker-command.txt` 存档）。
+
+### 6. production mapping / classloading 是否实测通过？
+**是，全部实测通过**（不是推断）：在正式 jar + 正式 Fabric 运行时下实际启动 Worker 进程：
+
+| 断言项 | 实测证据 |
+| --- | --- |
+| `SeedWorkerMain` 可加载 | Worker 进程真实启动并写入日志首行「本地世界生成计算器启动：PID …」 |
+| `SeedWorkerHost` 可加载 | 日志「宿主初始化：开始…完成（维度 minecraft:overworld，世界高度 -64 ~ 319）」 |
+| `net.minecraft.server.**` 可加载 | 同上（原版 `DedicatedServer` 真实起过一次：`Starting minecraft server version 26.1.2`） |
+| Vanilla Bootstrap 成功 | 日志「Vanilla 注册表已就绪」「Loaded 1515 recipes / 1617 advancements」 |
+| `ServerLevel` 创建成功 | 日志「宿主初始化：完成（…）」+ 世界目录落盘（`host\universe\host\level.dat` 等） |
+| `OPEN_SESSION` 成功 | 日志「会话已打开 s1-135283a（种子 20260922，维度 minecraft:overworld）」 |
+| `PREDICT_DIAMOND` 成功 | 日志「预测完成：s1-135283a 种子 20260922 区块 (0,0) → 45 个」 |
+
+**没有出现** `ClassNotFoundException` / `NoClassDefFoundError` / `NoSuchMethodError` / mapping 不一致。
+
+### 7. 生产环境实际暴露并修掉的两个「只在生产出现」缺陷
+本阶段的价值正在这里 —— 这两个问题在 `runClient` 里**永远不会出现**：
+
+1. **模组版本读取命中 Loader 元数据（致命：预测恒 0 候选）**
+   - 现象：客户端日志「模组版本不一致：客户端 1.0-beta2，Worker **0.19.5**」，随后所有预测候选 0；
+   - 根因：Worker 用 `getResourceAsStream("/fabric.mod.json")` 取类路径**第一个**命中项；正式 Fabric 环境里那正是 **Loader 自己**的元数据（0.19.5），开发环境则先命中模组资源目录；
+   - 修复：优先读「本类所在 jar」的 `CodeSource` 元数据（`java.security.CodeSource`），并校验 `"id":"yiyiaddon"` 回退扫描类路径条目。
+
+2. **发布流水线会把跨进程入口类改名（致命：Worker 永远起不来）**
+   - 根因：ProGuard 会重命名 `com.yiyiaddon.seedworker.**`，而客户端是按**类名字符串** fork 子进程的；
+   - 修复：`-keep class com.yiyiaddon.seedworker.SeedWorkerMain { public static void main(java.lang.String[]); }` + `-keepnames class com.yiyiaddon.seedworker.**`，并在发布校验里断言这些类**必须存在于混淆产物**且 `getMethod("main", String[].class)` 可反射取得；
+   - 顺带修掉发布顺序（加固 → 混淆）导致的 `CONSTANT_Dynamic` 让 ProGuard 必挂的问题（改为**先混淆、后加固**），此前 `buildRelease` 从来没能成功产出过。
+
+### 8. 实际测试了哪些启动器 / 哪些仅做静态审计
+| 启动器 | 状态 | 说明 |
+| --- | --- | --- |
+| **PCL（Plain Craft Launcher 2）** | **已实测（等价命令）** | 冒烟用的版本 JSON、`libraries`、官方 runtime **全部取自 PCL 构建的真实实例** `versions\LunarFox`（Fabric Loader 0.19.5、103 个 Mod）；未点击 PCL 的启动按钮（GUI 不在自动化范围） |
+| 官方启动器 | **仅静态审计** | 本机装有官方 runtime（`…\.minecraft\runtime\java-runtime-epsilon`）并被真实使用，但未用官方启动器 GUI 实测 |
+| HMCL | **仅静态审计** | 本机未安装 |
+| Prism | **仅静态审计** | 本机未安装 |
+
+**静态审计结论（启动器无关性）**：启动器差异只影响 4 个输入，而代码对这 4 个都没有「只适用于 Gradle/Knot dev」的假设：
+
+| 输入 | 开发环境（Loom/Knot） | 生产环境 | 处理方式 |
+| --- | --- | --- | --- |
+| `java.class.path` | 含 `build/classes`、`build/resources`、dev libs | 仅 `libraries\**` + 游戏 jar | 原样透传（相对路径按当前工作目录绝对化） |
+| `ModContainer#getOrigin().getPaths()` | `build/classes` + `build/resources` 目录 | `mods\<正式 jar>` | 目录与 jar 都作为类路径条目追加 |
+| `FabricLoader#getGameDir()` | `run-26.1.2` | 真实 `.minecraft` | 只用于落运行目录 |
+| `java.home` | 开发 JDK 25 | 启动器自带 runtime | 只在该目录下找 `javaw.exe` / `java.exe` |
+
+> 结论：**不能宣称「四套启动器全部支持」**——只实测了 PCL 产物（等价命令），其余三套为静态审计。
+> 但 Worker 的落盘路径、Java 来源、模组来源都不依赖任何启动器私有机制。
+
+### 9. 路径（中文 / 空格）是否通过？
+**通过**。三次含空格 + 中文的实例：`D:\mcaddon\种子 Worker Production Test`（R1–R8、R10–R13）、
+`…Production Test MP`（R9）、`…Production Test RealMods`（R14）。
+硬证据是 Worker 命令行里的带引号实参（`--runtime-dir "D:\mcaddon\种子 Worker Production Test\…"`）
+以及运行目录、日志、世界数据全部正常落盘。
+
+### 10. 低内存 Heap 矩阵
+统一条件：同一正式 jar、同一台机、同一组 15 个目标（parity），只改 `-Xmx`：
+
+| `-Xmx` | 15 目标 parity | 启动耗时 | Worker RSS 峰值 | 末次 RSS | 采样 |
+| --- | --- | --- | --- | --- | --- |
+| 768m | 全通过 | 11,848 ms | 653 MB | 643 MB | 31 |
+| **1024m（最终默认）** | 全通过 | 11,841 ms | 695 MB | 634 MB | 33 |
+| 1536m | 全通过 | 12,467 ms | 690 MB | 645 MB | 31 |
+| 2048m | 全通过 | 10,841 ms | 683 MB | 536 MB | 32 |
+| 256m（额外下限探测，6 目标） | 全通过（45 / 23） | 11,644 ms（R8b 同配置记录；R13 用的是服务层装置，它不打印启动耗时行） | 559 MB | 480 MB | 22 |
+
+**最终采用 `-Xmx1024m`**（此前 232 为 2048m）：
+- 768m 也能过 15 目标，但峰值 RSS 已达 653 MB ≈ 上限的 85%，没有余量；
+- 256m 能过短回归，说明「堆」不是瓶颈（RSS 主要来自 Metaspace / code cache / 映射的 jar），
+  但**会话级离线缓存会随连续预测增长**（实测持有区块数 529 → 1632），长会话需要余量；
+- 因此取 1024m：**比原默认减半**，低内存用户受益明确，同时保留长会话与 GC 余量。
+  没有任何一次运行 OOM；`-XX:+ExitOnOutOfMemoryError` 保证万一 OOM 也是明确退出而不是卡死。
+
+### 11. 生产冷启动时间 / 生产预测时间 / 生产 Worker RSS
+| 指标 | 生产实测值 | 证据 |
+| --- | --- | --- |
+| 冷启动（Worker 运行目录已删除后再首启） | **11,251 ms**（`已拉起` → `已就绪`；含 JVM 启动 + Vanilla Bootstrap + 宿主建世界 + 握手） | R12，`R12-cold-final-worker.log` |
+| 已有宿主时启动 | 4,823 ms（崩溃重启那次）/ 6,117 ms（103-Mod 环境）/ 6,425 ms（多人互联） | R5 / R14 / R9 |
+| 首个目标预测 | 2,429 ~ 3,184 ms（含会话打开与预热） | R13 / R14 |
+| 后续目标预测 | 96 ~ 1,616 ms（缓存越大首次越慢，随后 100~350 ms） | R1 报告逐目标耗时 |
+| Worker RSS | 冷启动峰值 778 MB（旧构建）/ 峰值 517~695 MB（`-Xmx1024m`，14 次采样区间）；末次 480~689 MB | 各次 `worker-rss-summary.txt` |
+
+**首次启动体验**：期间客户端持续显示状态「**正在启动本地世界生成计算器…**」（`SeedMiningRuntimeState.CALCULATOR_STARTING` 的中文显示名），
+渲染线程不参与世界生成（提交控制在 60~840 微秒），界面不会被认为无响应；
+`canPredict()` 在预测/启动期间为 `false`，按钮不可重复点击，**不可能连点拉起多个 Worker**（`ensureStarted` 亦对同一把锁串行化）。
+
+### 12. 实际 timeout fault injection（真实触发，非改正式超时）
+| 用例 | 注入方式 | 实测结果 |
+| --- | --- | --- |
+| 启动超时 | `-Dyiyiaddon.seedworker.startupTimeoutMillis=1` | 6 个用例全部立刻进入「**本地世界生成计算器异常**」，**从未停在「正在启动…」**；结果为 fail-closed 失败（候选 0 且 `success=false`，不是静默空矿物表）；共 4 次进程尝试后触发「连续启动失败 3 次 / 5 秒内不重试」的退避保护，**没有无限重启**；退出后残留 0 |
+| 预测超时 | `-Dyiyiaddon.seedworker.predictTimeoutMillis=1` | 宿主正常启动、会话正常打开，预测应答超时 → 停机阶梯（SHUTDOWN → destroy → destroyForcibly）回收进程；界面文案为短中文，技术原因只进日志；退出后残留 0 |
+
+（正式超时值未被改动：启动 120 s、预测 180 s，均只由诊断属性覆盖，且仅用于验收。）
+
+### 13. 生产 Worker crash recovery
+R5（正式 jar，独立实例）：基线 `Seed 20260922 (0,0) = 45` → 按正式层自报 PID `destroyForcibly()` 强杀 →
+**无需任何点击**自动进入「本地世界生成计算器异常」（进程已回收、客户端存活）→ 再点一次自动重启 →
+`PID 20236 ≠ 18720`、`累计启动次数 1 → 2`、候选仍为 **45**、宿主 ChunkMap 查询 0 → 退世界后新旧进程都已退出。
+**结论：崩溃恢复不依赖任何开发运行环境。**
+
+### 14. 生产退出后孤儿进程
+14 次冒烟全部检查：**残留 Worker 进程 = 0**。
+另记录 PID 生命周期（示例 R5）：`t=13s 出现 PID=18720 → t=26s 消失（强杀）→ t=34s 出现 PID=20236 → 退出前消失`。
+
+### 15. Worker 网络行为（套接字级取证，R10）
+并行用 `Get-NetTCPConnection -OwningProcess <Worker PID>` 采样，套接字变化（`R10-netstat-套接字变化.txt`）：
+
+```
+t=7s  Listen|127.0.0.1:56442            （Vanilla 宿主监听：仅回环）
+      Established|198.18.0.1:56525 → 198.18.0.87:443   （宿主初始化期一次出网 HTTPS，见下）
+t=9s  Listen|127.0.0.1:56529            （IPC 监听：仅回环）
+      Established|127.0.0.1:56529 → 127.0.0.1:56530    （客户端 ↔ Worker 的 IPC 连接，全回环）
+t=18s （Vanilla 宿主监听 56442 已消失；出网 HTTPS 也已消失）
+      只剩 Listen|127.0.0.1:56529 + Established 回环 IPC
+```
+
+- **IPC 只监听回环**：`127.0.0.1`，随机端口，令牌 192 位，一行一条 JSON。
+- **不向目标服务器建立连接**：Worker 的命令行参数里没有任何服务器地址（只有 runtime-dir / handshake / token / 协议 / 版本 / 宿主端口 / 父 PID）；
+  R9 多人冒烟里 Worker 也只在回环上与客户端通信。
+- **Vanilla 宿主监听**：只在初始化期**短暂**开启，绑定 `server-ip=127.0.0.1`（写死在 Worker 生成的 `server.properties`），
+  就绪后**确实停用**（握手字段自报「已停用（不接受任何外部连接）」，套接字采样证实 18 s 后该监听已消失）。
+  本阶段**未**为了去掉这段短暂监听去改世界创建路径（那会动到已验证的 ServerLevel/worldgen）。
+- **一次出网连接**：宿主初始化期出现一次 `…:443` 出网（本机代理把它伪装成 `198.18.0.87`，套接字层看不到域名）。
+  它来自 Vanilla 专用服务器初始化路径（authlib / Mojang 服务），不是 yiyiaddon 代码；它**不阻塞就绪**
+  （宿主在 11.6 s 就绪时该连接仍在，属后台使用）。
+- **断网模拟（R11）**：用 Windows 防火墙对 Worker 的 `javaw.exe` 加**出站 Block** 后重跑，
+  Worker 仍正常启动、`45 / 23` 全部通过、无残留 → **离线/受限网络用户的可用性得到实测支持**。
+- **防火墙弹窗**：本机所有 profile 的 `NotifyOnListen=False`，且已存在 `javaw.exe` 入站放行规则，
+  因此本机不会弹提示；**这是本机配置，不构成对所有用户的保证**（真实影响面取决于用户自身防火墙设置）。
+
+### 16. 发行文件数量
+`build/release/`：`yiyiaddon-1.0-beta2-26.1.2.jar`（唯一运行所需文件）
+、`…zip`（只装那一个 jar）、`…jar.sha256`（校验）。
+**普通用户需要人工管理的文件 = 1 个**。内部 runtime 目录（`<gameDir>/yiyiaddon/seed-worker/<版本>/`）由程序运行期自动创建与管理，用户无需碰。
+
+### 17. 是否适合「直接发给现有大量用户」
+**适合**（在第十八节所列残留风险知情的前提下）。最强证据是 **R14**：把真实用户那 103 个 Mod（含 `c2me`、`modernfix`、`sodium`、`iris`、`vmp`、`bobby`、`lithium` 等会改客户端世界生成/渲染的 Mod）整体照抄进冒烟实例，只把 `yiyiaddon` 换成正式产物：
+
+- Fabric 实际加载 **286 个 mod**（含内嵌），客户端正常进入世界；
+- Worker 启动成功，`Seed 20260922 (0,0) = 45`、`Seed 2 (-400,380) = 23 / 1 敏感 / 22 未解析 / 0 确定`、争议格 `(-6385,-59,6085)` 仍为**调度敏感**；
+- **Worker 类路径上只有 1 处 `mods\`（就是正式产物本身）**：`c2me / modernfix / sodium / iris / vmp / bobby / lithium` 命中数**全为 0**
+  → 「客户端 Mod 污染不了 Worker 世界生成」这一架构隔离在生产环境被实测坐实（数字与无 Mod 环境完全一致）。
+
+---
+
+## 三、【口径第 23 节】通过门槛逐条判定
+
+| # | 门槛 | 判定 | 证据 |
+| --- | --- | --- | --- |
+| 1 | 正式 `build/libs` jar-only 环境 Worker 能启动 | **通过** | R1–R14（`mods` 里只有正式产物；30+ 次 Worker 启动） |
+| 2 | 启动不依赖 `src` / `build/classes` / Gradle dev classpath | **通过** | 命令行断言负命中 + 10607 字符实记录 |
+| 3 | 普通用户不需要第二个手工安装文件 | **通过** | release 目录 1 jar；zip 内部只有该 jar |
+| 4 | 普通用户不需要额外安装 Java | **通过** | Worker 用当前 `java.home\bin\javaw.exe` |
+| 5 | 正式 Worker 能创建 Vanilla `ServerLevel` | **通过** | 宿主初始化日志 + 世界数据落盘 + `OPEN_SESSION` 成功 |
+| 6 | 生产 Smoke `20260922 (0,0) = 45` | **通过** | R1/R12/R13/R14 + R9（多人）全部 45 |
+| 7 | 生产 Smoke `Seed 2 (-400,380) = 23 / 1 / 22 / 0` | **通过** | R1（含逐项 parity）/ R5 / R12 / R13 / R14 |
+| 8 | 宿主 ChunkMap 查询 = 0 | **通过** | R1 的 15 个目标逐条 0；R5/R9/R12/R13/R14 均 0 |
+| 9 | 正式生产路径 Worker 崩溃可恢复 | **通过** | R5（PID 更换、启动次数 +1、仍 45） |
+| 10 | 退出后无孤儿进程 | **通过** | 14 次冒烟残留 = 0 |
+| 11 | 路径含空格通过 | **通过** | 三个含空格与中文的实例 |
+| 12 | 低内存默认值经实测而非猜测 | **通过** | 768/1024/1536/2048 + 256 五档实测，默认取 1024m |
+| 13 | Seed Mining OFF 对旧用户零影响 | **通过** | 见下节「老用户兼容」 |
+| 14 | AutoMiner 零行为变化 | **通过** | 本阶段改动清单中不含 AutoMiner 行为代码 |
+
+### 老用户兼容（门槛 13 / 14 展开）
+- **配置**：种子与开关属于配置，退出世界后**保留**（R 报告原文：「配置保留：启用=true，种子原文=12345」）；
+  冒烟实例复用同一 `gameDir` 连续 14 次运行，从未要求重置配置。
+- **Worker 运行目录自管**：`<gameDir>/yiyiaddon/seed-worker/<MC 版本>/`，与玩家存档、`config/` 完全分离；
+  宿主世界目录有 512 MB 上限，超限自动整份重建。
+- **懒启动**：Worker 只在**真的点了预测**时才被拉起（R 记录：客户端启动 → 标题界面 → 建世界 → 进世界期间无任何 Worker 进程，
+  第一次预测提交后才出现）；`Seed Mining` 关闭或未进入世界时 `canPredict()` 为 `false`，根本走不到启动路径。
+- **AutoMiner**：本阶段对 `feature/mining` 下**没有任何行为改动**（改动清单见第四节），普通自动挖矿逻辑与配置格式不变。
+
+---
+
+## 四、本阶段改动清单（232P 全部改动，共 7 个文件）
+
+| 文件 | 改动 | 为什么必须改 |
+| --- | --- | --- |
+| `src/main/java/com/yiyiaddon/seedworker/SeedWorkerMain.java` | 模组版本改为读「本类所在 jar」的元数据（`java.security.CodeSource`），回退按 `"id":"yiyiaddon"` 扫描类路径 | 修生产环境「模组版本不一致 → 预测恒 0」（第二节 7.1） |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorldgenWorkerLauncher.java` | Windows 优先 `javaw.exe`（不弹控制台窗口）；`maxHeapMb` / 启动超时 / 预测超时三个诊断属性 | 口径第十、十三、十六节 |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorldgenWorkerClient.java` | 超时读诊断属性；界面文案与技术原因分离（`lastErrorCn` 只存短中文，完整原因进日志） | 口径第十四节 |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorkerException.java` | 新增 `userMessageCn()`：按错误码给普通用户看的短中文；修正 `CodeSource` 导入 | 同上 |
+| `src/main/java/com/yiyiaddon/seed/service/SeedMiningService.java` | 失败结果文案取 `userMessageCn()`（技术栈只进日志） | 同上 |
+| `gradle/hardening.gradle` / `gradle/obfuscation.gradle` / `gradle/proguard-rules.pro` | 发布顺序改为**先混淆、后加固**（修 `CONSTANT_Dynamic` 让 ProGuard 必挂）；keep 跨进程入口类名并加发布校验断言 | 否则发布流水线产不出可用的正式 jar（第二节 7.2） |
+| `gradle/production-smoke.ps1`（新增，仅验收用） | 启动器等价冒烟脚本：组装真实 classpath、断言无开发目录、记录命令行/PID/RSS、检查残留进程；`-ExtraModsDir` 支持真实 Mod 目录 | 本阶段唯一的验收装置 |
+
+**Worker 架构、Predictor、ServerLevel 宿主、IPC 协议、UI 状态机：一行未改。**
+
+---
+
+## 五、失败必须优雅（口径第十四节）
+
+| 场景 | 客户端行为 | 界面文案（实测原文） | 日志 |
+| --- | --- | --- | --- |
+| 内存不可满足（`-Xmx64m`，JVM 直接拒绝启动，退出码 1） | **不崩**，正常退出；状态「本地世界生成计算器异常」 | 「本地世界生成计算器无法启动（可能是本机内存不足或被安全软件拦截），已停止；可稍后重试，其它功能不受影响。」 | 技术原因（Worker 日志路径、退出码、日志尾部）只写日志 |
+| 预测超时（注入 1 ms） | 不崩；自动回收进程 | 「本地世界生成计算器响应超时，已自动停止；再次预测会自动重启。」 | 「应答超时（PREDICT_DIAMOND，1 ms）」 |
+| Worker 被强杀 | 不崩；自动进失败态 | 「本地世界生成计算器已意外停止，已自动回收；再次预测会自动重启。」 | 退出码 + 诊断串 |
+| 启动超时 | 不崩；不无限重启 | 同上类短句 | 完整超时串 |
+
+**普通用户界面上不会出现** `Java stacktrace` / `ServerLevel` / `WorldGenRegion` / PID / Socket / 日志路径（R8、R7 的 `client-stdout` 已核对：这些只出现在日志行里）。
+**不会无限重启**：连续失败上限 3 次 + 最小重试间隔 5 s（R6 实测 4 次进程尝试后停止重试）。
+**不影响其它功能**：失败态停留期间客户端一直在推进刻，可继续使用 yiyiaddon 其它模块。
+
+---
+
+## 六、未做到 / 残留风险（明确声明，不写成「全部支持」）
+
+1. **启动器实测覆盖**：只实测了 PCL 产物的「等价命令」；官方启动器 / HMCL / Prism **未做真实点按钮实测**（官方启动器仅有静态审计 + 其 runtime 被实际使用）。
+2. **未在干净新机实测**：没有在一台「从未装过 Minecraft / Java」的机器上走安装流程。理论上不需要额外 Java（用当前进程 `java.home`），但缺一次真实用户装机验证。
+3. **`maxHeapMb < 256` 的边界**：`-Xms256m` 是固定初值，若把最大堆设到 256m 以下，JVM 会以「Initial heap size > maximum heap size」拒绝启动 → 客户端优雅失败但文案偏「内存不足」。
+   该属性**仅用于验收诊断**，正式默认 1024m 不触及此边界；建议后续若把它变成用户可配项，同时把初值改为 `min(初值, 上限)`。
+4. **宿主初始化期的一次出网**：来自 Vanilla 专用服务器初始化（非本模组代码），已在断网模拟下实测不影响可用性，但未逐一定位到具体域名（本机代理伪装了目标 IP）。
+5. **短暂 Vanilla 宿主监听**：初始化期会在 `127.0.0.1` 上短暂开放一次监听（就绪前关闭）。去掉它需要改动世界创建路径，本阶段按口径不做。
+6. **真实用户整包实测**：R14 是「照抄 mods 目录」的等价实测，不等同于用 PCL 点一次启动按钮走完整启动器链路。
+7. **换服 A→B 未单独实测**：A→B 与「退出服务器」走同一个收口（退服即停止 Worker + 清会话 + 清结果），
+   本阶段的证据来自 R9 的退服清理与 R5 的进程回收，**没有单独构造「A 服退出 → 立刻进 B 服」的用例**。
+8. **本阶段改的是「生产可用性」，不是算法**：Predictor / 会话 / 离线管线一行未改，
+   因此所有数字仍是 229/230 冻结的那一套；本阶段新增的数字只有「耗时 / 内存 / 进程」这类工程指标。
+
+---
+
+## 七、结论
+
+1. 正式产物 `yiyiaddon-1.0-beta2-26.1.2.jar`（SHA-256 `3CD0B463…`）在**只放这一个 jar** 的生产 Fabric 环境里，
+   Worker 能启动、能建 Vanilla `ServerLevel`、能完成 `OPEN_SESSION` / `PREDICT_DIAMOND`；
+2. 数字与开发环境 / 单人 Oracle **完全一致**（`45`、`23/1/22/0`、争议格调度敏感、宿主 ChunkMap 查询 0）；
+3. 不依赖任何开发目录、不需要第二套 Java、不需要用户做任何额外配置；发行文件 1 个；
+4. 崩溃可恢复、退出无孤儿、路径含中文与空格可用、超时与低内存都是可读中文的优雅失败；
+5. 在**真实用户 103-Mod**（含改世界生成的 Mod）环境里数字不变，隔离性成立；
+6. 默认 Worker 堆从 2048m 降到 **1024m**（实测四档 + 256m 下限）。
+
+**232-P 生产发行验收全部通过 → 停止，等待下一阶段：233 · 实际 Chunk Observation + 预测钻石世界渲染。**
+
+---
+
+## 附录 A：本阶段新增 / 修改 / 删除文件（口径 §102 第 65 项）
+
+### 新增
+
+| 文件 | 用途 | 进正式产物？ |
+| --- | --- | --- |
+| `gradle/production-smoke.ps1` | 生产发行冒烟脚本：按版本 JSON 组装启动器等价命令、断言无开发目录、抓 Worker 命令行 / PID / RSS、查残留进程；支持 `-ExtraModsDir`（真实 Mod 目录）、`-ExtraGameArgs`（如 `--quickPlayMultiplayer`）、javaw/java 双名字扫描 | **否**（仅验收用，不进 jar） |
+| `02-开发报告/项目开发报告/02-阶段施工与落盘/232P-追加-种子挖矿真实用户生产发行验收报告.md` | 本报告正本 | 否 |
+| `seedmining-phase4p-232p-report.md` | 本报告（仓库根副本，便于链接阅读） | 否 |
+| `02-开发报告/项目开发报告/02-阶段施工与落盘/232P-证据/`（57 个文件） | 逐次冒烟的取证（命令行 / PID 生命周期 / RSS / 装置报告 / Worker 日志 / 套接字快照） | 否 |
+| `build/commit-msg-232p.txt`、`build/commit-msg-beta3.md`、`build/commit-msg-232-add.md` | 提交信息草稿（PowerShell 下 heredoc 不可用，改用 `git commit -F`） | 否 |
+
+### 修改
+
+| 文件 | 改动 |
+| --- | --- |
+| `src/main/java/com/yiyiaddon/seedworker/SeedWorkerMain.java` | 模组版本改为读「本类所在 jar」的元数据（`java.security.CodeSource`）+ 按 `"id":"yiyiaddon"` 校验回退；同时修掉 `CodeSource` 包名写错与重复常量两处编译错误 |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorldgenWorkerLauncher.java` | Windows 优先 `javaw.exe`（不弹控制台黑窗，回退 `java.exe`）；新增 `maxHeapMb` / 启动超时 / 预测超时三个诊断属性；Worker 堆默认由 2048m 改为 1024m |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorldgenWorkerClient.java` | 超时读诊断属性；`lastErrorCn` 只存给界面看的短中文，完整技术原因改走日志 |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorkerException.java` | 新增 `userMessageCn()`：按错误码给出普通用户可读的短中文说明 |
+| `src/main/java/com/yiyiaddon/seed/service/SeedMiningService.java` | 失败结果文案取 `userMessageCn()`（异常栈只进日志） |
+| `gradle/hardening.gradle` | 加固输入改为「混淆产物」，与 `obfuscateClasses` 解耦（修循环依赖） |
+| `gradle/obfuscation.gradle` | 发布顺序改为**先混淆、后加固**；新增跨进程 Worker 入口类的存在性 + `main(String[])` 反射断言 |
+| `gradle/proguard-rules.pro` | `-keep` 跨进程入口 `SeedWorkerMain.main`、`-keepnames com.yiyiaddon.seedworker.**`、`-keep ReleaseProtection.bootstrap` |
+| `07-bug记录/1.0-beta3.md` | 登记本阶段**玩家可见**的 3 条修复 + 3 条变更（按 `07-bug记录/README.md` 口径：内部实现不入此账） |
+| `seedmining-phase4-232-report.md`（及 `02-开发报告` 内 232 报告副本） | 新增【二十一·补】口径 §102 六十七项逐条对照；【二十】已知限制第 1/2/3 条改为「已由 232-P 实机补齐」；开头补配套说明、文末补产出索引 |
+
+### 删除
+
+**无。**
+
+### 提交状态
+
+报告与 `1.0-beta3.md` 已推送到 `source/master`（最新 `639b610`）。
+**本阶段的代码改动仍在本地工作区未提交**（与 232 阶段相同口径：代码另行统一提交）。
+
+---
+
+## 附录 B：生产冒烟证据文件清单（`232P-证据/`，共 57 个）
+
+| 编号 | 文件（同前缀省略） |
+| --- | --- |
+| R1 | `R1-parity-xmx1024-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+| R2 | `R2-parity-xmx768-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker-rss-samples.txt、worker.log |
+| R3 | `R3-parity-xmx1536-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+| R4 | `R4-parity-xmx2048-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt |
+| R5 | `R5-lifecycle-`：生命周期.txt、worker-command.txt、worker-lifecycle.txt、worker.log |
+| R6 | `R6-startup-timeout-`：服务层回归.txt、client-stdout.txt、worker-lifecycle.txt、worker.log |
+| R7 | `R7-predict-timeout-`：服务层回归.txt、client-stdout.txt、worker-lifecycle.txt、worker.log |
+| R8 | `R8-lowmem64-`：服务层回归.txt、client-stdout.txt、worker-lifecycle.txt、worker.log |
+| R9 | `R9-multiplayer-`：多人验收.txt、worker-command.txt、worker-lifecycle.txt |
+| R10 | `R10-`：netstat-套接字变化.txt、service-final-服务层回归.txt、service-final-worker-command.txt、service-final-worker-rss-summary.txt |
+| R11 | `R11-offline-`：服务层回归.txt、worker-command.txt |
+| R12 | `R12-cold-final-`：服务层回归.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+| R13 | `R13-lowmem256-`：服务层回归.txt、worker-command.txt、worker-rss-summary.txt |
+| R14 | `R14-realmods103-`：服务层回归.txt、client-stdout.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+
+另有两次运行的原始脚本输出未复制进证据目录，保留在 `build/`：
+`smoke-A2-cold-service.log`、`smoke-R1…R14-*.log`。

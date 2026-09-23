@@ -9,6 +9,7 @@ import com.yiyiaddon.feature.mining.ui.console.MiningBaritonePage;
 import com.yiyiaddon.feature.mining.ui.console.MiningOverviewPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningPointPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningPersonalPage;
+import com.yiyiaddon.feature.mining.ui.console.MiningSeedPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningTargetPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningTeleportPage;
 import com.yiyiaddon.feature.mining.ui.console.MiningThresholdPage;
@@ -58,8 +59,15 @@ import java.util.Set;
  * <p><b>2026-09-18 配置记录入口不在本窗口</b>（用户两次纠正后的最终位置）：入口是模块页
  * 「打开控制台」按钮下方的 {@code §b服务器记录复原} 按钮（{@link AutoMinerPage}），点开
  * {@link MiningRecordScreen}（一键保存整套配置 = 全部设置 + 三个点位；每条记录读取 / 替换 / 详情 / 删除）。
- * <b>不要再往本窗口的页脚加记录控件</b>：本窗页脚由六个页签共用，加在这里等于每个页签底部各一份，
+ * <b>不要再往本窗口的页脚加记录控件</b>：本窗页脚由各页签共用，加在这里等于每个页签底部各一份，
  * 用户已明确否掉（「你弄去每个页面干嘛」）。</p>
+ *
+ * <p><b>2026-09-23 新增第八个页签「种子挖矿」</b>（{@link MiningSeedPage}，种子挖矿正式化第二阶段）：
+ * 它是「另一套目标来源」的控制层，与前面七页的性质不同 —— 那七页装的是自动挖矿自己的设置与点位，
+ * 这一页装的是按世界种子离线预测矿物的状态与控制。它<b>只读</b> {@code com.yiyiaddon.seed} 的运行时服务，
+ * 不往 {@link MiningSettings} 里加任何一项，也不与自动挖矿的执行链路相连（本阶段不接 AutoMiner）。
+ * 可见性：{@code personalMode = true} 时隐藏（与「目标选择」「传送指令」同一档），
+ * 隐藏时由 {@link #reload()} 先把当前页签落回可见兜底页。</p>
  */
 public final class MiningConsoleScreen extends PanelScreen implements ConsoleHost {
 
@@ -93,7 +101,14 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
         TELEPORT("传送指令"),
         THRESHOLD("触发条件"),
         PERSONAL("自用模式"),
-        BARITONE("Baritone调优");
+        BARITONE("Baritone调优"),
+        /**
+         * 种子挖矿（正式化第二阶段新增）：按种子离线预测矿物位置的控制层。
+         *
+         * <p>排在最后：它是「另一套目标来源」的入口，与前面六个「自动挖矿本身的设置」不是同一类，
+         * 放最后不打乱既有六页的顺序。</p>
+         */
+        SEED("种子挖矿");
 
         private final String title;
 
@@ -117,6 +132,10 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
             return switch (this) {
                 case PERSONAL -> personalMode;
                 case TARGET, TELEPORT -> !personalMode;
+                // 种子挖矿：自用模式下隐藏（用户 2026-09-23 口径：personalMode = true 时必须隐藏）。
+                // 页面被隐藏时 reload() 会先把当前页签落回可见兜底页，因此不会出现
+                // 「页签条上没有入口、正文却还停在这一页」的状态（见 reload()）。
+                case SEED -> !personalMode;
                 default -> true;
             };
         }
@@ -194,7 +213,7 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
         if (++autoRefreshTicks < AUTO_REFRESH_TICKS) return;
         autoRefreshTicks = 0;
         // 鼠标按住时不重建：正在按的那个按钮会被摘掉，抬起事件落到空处，表现为按钮「卡住」
-        if (minecraft == null || minecraft.gui.screen() != this) return;
+        if (minecraft == null || minecraft.screen != this) return;
         if (mousePressed(GLFW.GLFW_MOUSE_BUTTON_LEFT) || mousePressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) return;
 
         if (tab == Tab.OVERVIEW) {
@@ -271,6 +290,7 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
             case THRESHOLD -> new MiningThresholdPage(this, module).build(stack);
             case PERSONAL -> new MiningPersonalPage(this, module).build(stack);
             case BARITONE -> new MiningBaritonePage(this, module).build(stack);
+            case SEED -> new MiningSeedPage(this).build(stack);
         }
 
         buildFooter(stack);
@@ -295,7 +315,7 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
                 "顶部状态条每秒自动刷新；概览页整页每秒重画，其余页按这个按钮重排最新数据"),
             ConsoleWidgets.resetDefaultsCtl(this, module, this::reload),
             new Ctl(new Button("§7关闭", () -> {
-                if (minecraft != null) minecraft.gui.setScreen(null);
+                if (minecraft != null) minecraft.setScreen(null);
             }))), ButtonStrip.BUTTON_HEIGHT));
     }
 

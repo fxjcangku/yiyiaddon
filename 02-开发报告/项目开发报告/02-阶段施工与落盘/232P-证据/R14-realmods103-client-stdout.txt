@@ -1,0 +1,1413 @@
+﻿[14:05:33] [main/INFO]: Loading Minecraft 26.1.2 with Fabric Loader 0.19.5
+[14:05:33] [main/INFO]: Mappings not present!
+[14:05:33] [ForkJoinPool-1-worker-8/WARN]: Mod punchy uses the version 2.7e which isn't compatible with Loader's extended semantic version format (Could not parse version number component '7e'!), SemVer is recommended for reliably evaluating dependencies and prioritizing newer version
+[14:05:33] [ForkJoinPool-1-worker-5/WARN]: Mod com_github_oryxel1_cubeconverter uses the version abecffaaea which isn't compatible with Loader's extended semantic version format (Could not parse version number component 'abecffaaea'!), SemVer is recommended for reliably evaluating dependencies and prioritizing newer version
+[14:05:33] [main/WARN]: Warnings were found!
+ - 模组 'OptiGUI' (optigui) 2.3.0-beta.10+26.1 建议安装 animatica 的 任意版本，但没有安装它！
+	 - 为了最佳体验，您应该安装 animatica 的 任意版本。
+ - 模组 'Polytone' (polytone) 26.1.2-6.4.1 建议安装 nautilus_studio 的 26.1.2-1.9.0 及以上版本，但没有安装它！
+	 - 为了最佳体验，您应该安装 nautilus_studio 的 26.1.2-1.9.0 及以上版本。
+[14:05:33] [main/INFO]: Loading 286 mods:
+	- appleskin 3.0.10+mc26.1.2
+	- architectury 20.0.12
+	- asyncparticles 26.1.2.6
+	   \-- mixinsquared 0.3.7-beta.3
+	- axolotlbuckets 2.0.0+26.1
+	- badoptimizations 2.4.1
+	- balm 26.1.2.13
+	   \-- kuma_api 26.1.2.2
+	- betteradvancements 0.6.0.76
+	- betterblockentities 1.3.7-beta.1+mc26.1.2
+	- bettergrass 1.8.7+fabric.26.1.2
+	- bettermounthud 1.3.0
+	- boatiview 0.0.9
+	- bobby 5.2.13+mc26.1
+	   |-- com_typesafe_config 1.4.2
+	   |-- fabric-api-base 2.0.3+ece0632347
+	   |-- fabric-command-api-v2 3.0.5+e2bdee7847
+	   |-- io_leangen_geantyref_geantyref 1.3.13
+	   |-- org_spongepowered_configurate-core 4.1.2
+	   \-- org_spongepowered_configurate-hocon 4.1.2
+	- c2me 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-base 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-client-uncapvd 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-fixes-chunkio-threading-issues 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-fixes-general-threading-issues 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-fixes-worldgen-threading-issues 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-fixes-worldgen-vanilla-bugs 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-notickvd 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-allocs 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-chunkio 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-dfc 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-math 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-natives-math 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-scheduling 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-worldgen-general 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-opts-worldgen-vanilla 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-rewrites-chunk-serializer 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-rewrites-chunk-system 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-rewrites-chunkio 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-server-utils 0.4.0-alpha.0.54+26.1.2
+	   |-- c2me-threading-lighting 0.4.0-alpha.0.54+26.1.2
+	   |-- com_github_ben-manes_caffeine_caffeine 3.2.1
+	   |-- com_ibm_async_asyncutil 0.1.0
+	   |-- io_reactivex_rxjava3_rxjava 3.1.12
+	   |-- net_objecthunter_exp4j 0.4.8
+	   |-- org_jctools_jctools-core 4.0.5
+	   \-- org_reactivestreams_reactive-streams 1.0.4
+	- carpet 26.1+v260402
+	- chat_heads 1.2.8
+	- chatanimation 1.3.0
+	- chatpatches 8.0-alpha.11
+	- citresewn 1.2.2-fork.12+26.1.2
+	   \-- citresewn-defaults 1.2.2-fork.12+26.1.2
+	- cloth-config 26.1.154
+	   \-- cloth-basic-math 0.6.1
+	- continuity 3.0.1-beta.2+26.1
+	- controlling 26.1.2.4
+	- craterlib 3.1.2
+	- creativecore 2.14.16
+	   \-- net_neoforged_bus 7.2.0
+	- cwb 4.1.0+26.1
+	- defaultoptions 26.1.2.2
+	- dynamiccrosshair 9.12
+	   |-- dynamiccrosshair-api 1.3.1
+	   \-- libbamboo 2.29
+	- entity_model_features 3.3.5
+	- entity_sound_features 0.8.2
+	- entity_texture_features 7.2.1
+	- entityculling 1.10.5
+	   |-- transition 1.0.21
+	   \-- trender 1.0.15
+	- euphoria_patcher 1.10.0-r5.9-fabric
+	- fabric-api 0.155.2+26.1.2
+	   |-- fabric-api-lookup-api-v1 2.0.12+d5a053b64c
+	   |-- fabric-biome-api-v1 18.0.5+2fa62b4e4c
+	   |-- fabric-block-api-v1 3.0.2+ec56b6014c
+	   |-- fabric-block-getter-api-v2 2.0.6+ec56b6014c
+	   |-- fabric-content-registries-v0 11.3.0+0082c9664c
+	   |-- fabric-convention-tags-v2 4.6.2+4f11f7994c
+	   |-- fabric-crash-report-info-v1 1.0.3+9f78a5a84c
+	   |-- fabric-creative-tab-api-v1 5.0.11+d871b99e4c
+	   |-- fabric-data-attachment-api-v1 2.2.9+44a0bd1d4c
+	   |-- fabric-data-generation-api-v1 24.3.3+cda368334c
+	   |-- fabric-debug-api-v1 1.0.1+c792624d4c
+	   |-- fabric-dimensions-v1 5.1.7+ad343a8d4c
+	   |-- fabric-entity-events-v1 5.0.2+e2bdee784c
+	   |-- fabric-events-interaction-v0 5.2.2+07b380be4c
+	   |-- fabric-game-rule-api-v1 4.0.5+d871b99e4c
+	   |-- fabric-item-api-v1 14.3.0+6d1aaa724c
+	   |-- fabric-key-mapping-api-v1 2.0.4+e2bdee784c
+	   |-- fabric-lifecycle-events-v1 4.1.1+df84eb3d4c
+	   |-- fabric-loot-api-v3 3.0.12+00a1fba64c
+	   |-- fabric-menu-api-v1 2.0.14+d871b99e4c
+	   |-- fabric-message-api-v1 7.0.5+dae8ce3e4c
+	   |-- fabric-model-loading-api-v1 8.0.11+c80601bb4c
+	   |-- fabric-networking-api-v1 6.3.1+554860db4c
+	   |-- fabric-object-builder-api-v1 23.1.0+abb459f14c
+	   |-- fabric-particles-v1 5.0.15+b61fef434c
+	   |-- fabric-permission-api-v1 1.0.2+7437387b4c
+	   |-- fabric-recipe-api-v1 9.0.16+be4b75ae4c
+	   |-- fabric-registry-sync-v0 7.1.0+2fa62b4e4c
+	   |-- fabric-renderer-api-v1 13.0.8+c80601bb4c
+	   |-- fabric-renderer-indigo 8.1.5+1403e82c4c
+	   |-- fabric-rendering-fluids-v1 6.0.1+d871b99e4c
+	   |-- fabric-rendering-v1 23.3.1+e9207d814c
+	   |-- fabric-resource-conditions-api-v1 6.1.0+83dd0ba34c
+	   |-- fabric-resource-loader-v0 3.3.17+4fc5413f4c
+	   |-- fabric-resource-loader-v1 2.0.10+7c44c7324c
+	   |-- fabric-screen-api-v1 5.1.0+981dd9b24c
+	   |-- fabric-serialization-api-v1 2.0.3+11a26f314c
+	   |-- fabric-sound-api-v1 2.0.4+11a26f314c
+	   |-- fabric-tag-api-v1 2.1.1+371cf5db4c
+	   |-- fabric-transfer-api-v1 8.0.6+357ea7334c
+	   \-- fabric-transitive-access-wideners-v1 8.1.3+3ff549fb4c
+	- fabric-language-kotlin 1.13.13+kotlin.2.4.10
+	   |-- org_jetbrains_kotlin_kotlin-reflect 2.4.10
+	   |-- org_jetbrains_kotlin_kotlin-stdlib 2.4.10
+	   |-- org_jetbrains_kotlin_kotlin-stdlib-jdk7 2.4.10
+	   |-- org_jetbrains_kotlin_kotlin-stdlib-jdk8 2.4.10
+	   |-- org_jetbrains_kotlinx_atomicfu-jvm 0.33.0
+	   |-- org_jetbrains_kotlinx_kotlinx-coroutines-core-jvm 1.11.0
+	   |-- org_jetbrains_kotlinx_kotlinx-coroutines-jdk8 1.11.0
+	   |-- org_jetbrains_kotlinx_kotlinx-datetime-jvm 0.8.0
+	   |-- org_jetbrains_kotlinx_kotlinx-io-bytestring-jvm 0.9.1
+	   |-- org_jetbrains_kotlinx_kotlinx-io-core-jvm 0.9.1
+	   |-- org_jetbrains_kotlinx_kotlinx-serialization-cbor-jvm 1.11.0
+	   |-- org_jetbrains_kotlinx_kotlinx-serialization-core-jvm 1.11.0
+	   \-- org_jetbrains_kotlinx_kotlinx-serialization-json-jvm 1.11.0
+	- fabricloader 0.19.5
+	   \-- mixinextras 0.5.5
+	- fallingleaves 2.0.7
+	- fastipping 1.0.11
+	- ferritecore 9.0.0
+	- forgeconfigapiport 26.1.5
+	   |-- com_electronwill_night-config_core 3.8.3
+	   \-- com_electronwill_night-config_toml 3.8.3
+	- fzzy_config 0.7.6+26.1
+	   |-- blue_endless_jankson 1.2.3
+	   |-- fabric-permissions-api-v0 0.7.0-SNAPSHOT
+	   \-- net_peanuuutz_tomlkt_tomlkt-jvm 0.3.7
+	- gammautils 3.0.0
+	- gnetum 4.5.4+26.1.2-fabric
+	- held-item-info 1.9.1
+	- imblocker 7.2.1
+	- immediatelyfast 1.15.3+26.1
+	- inventoryprofilesnext 2.3.7
+	- iris 1.11.3+mc26.1.2
+	   |-- io_github_douira_glsl-transformer 3.0.0-pre3
+	   |-- org_anarres_jcpp 1.4.14
+	   \-- org_antlr_antlr4-runtime 4.13.1
+	- itemphysic 1.8.15
+	- itemscroller 0.31.6
+	   \-- conditional-mixin 0.6.4
+	- itemswapper 0.10.1
+	- ixeris 4.6.5+26.1.2-fabric
+	- jade 26.1.9+fabric
+	- java 25
+	- jecharacters 4.6.8
+	   \-- com_github_towdium_pinin 1.6.0
+	- konkrete 1.10.2
+	- krypton 0.3.0
+	   \-- com_velocitypowered_velocity-native 3.4.0-SNAPSHOT
+	- lambdynlights 4.11.2+26.1.2
+	   |-- lambdynlights_api 4.11.2+26.1.2
+	   |    |-- yumi_commons_collections 2.0.0
+	   |    |-- yumi_commons_core 2.0.0
+	   |    \-- yumi_commons_event 2.0.0
+	   |-- pride 1.6.0+26.1
+	   |-- spruceui 10.0.0+26.1
+	   \-- yumi_mc_core 1.1.0+26.1
+	        |-- yumi_commons_collections 2.0.0
+	        |-- yumi_commons_core 2.0.0
+	        \-- yumi_commons_event 2.0.0
+	- libipn 6.8.3
+	- litematica 0.27.12
+	   \-- conditional-mixin 0.6.4
+	- lithium 0.24.7+mc26.1.2
+	- malilib 0.28.11
+	   \-- conditional-mixin 0.6.4
+	- mcwifipnp 2.0.8
+	- melody 1.0.16
+	- midnightlib 1.9.3
+	- minecraft 26.1.2
+	- minihud 0.39.10
+	   \-- conditional-mixin 0.6.4
+	- modernfix 5.27.19-build.1
+	- modernui 3.13.0.5
+	   |-- dev_icyllis_arc3d-compiler 2026.2.0
+	   \-- org_commonmark_commonmark 0.25.0
+	- modmenu 18.0.0
+	- moreculling 1.7.3
+	- mousetweaks 2.31
+	- nochatreports 26.1-v2.19.0
+	- notenoughanimations 1.12.4
+	   |-- transition 1.0.21
+	   \-- trender 1.0.15
+	- optigui 2.3.0-beta.10+26.1
+	   |-- org_apache_commons_commons-text 1.12.0
+	   \-- org_ini4j_ini4j 0.5.4
+	- packetfixer 3.3.5
+	- peek 1.5.1+26.1.2
+	- pickupnotifier 26.1.1
+	- placeholder-api 3.0.0+26.1
+	- polytone 26.1.2-6.4.1
+	   |-- codecui 26.1.2-1.3.6
+	   \-- org_mvel_mvel2 2.5.2
+	- presencefootsteps 1.13.3+26.1
+	   \-- kirin 1.22.0-beta.1+26.1
+	- punchy 2.7e
+	- puzzleslib 26.1.14
+	- quick-pack 1.5.0
+	- reeses-sodium-options 2.2.3+mc26.1.2
+	- resourcefulconfig 4.0.1
+	- resourcify 1.8.5
+	- scalablelux 0.3.0-alpha.0.2+26.1.2
+	- searchables 1.0.2
+	- skinlayers3d 1.11.2
+	   |-- transition 1.0.21
+	   \-- trender 1.0.15
+	- skyboxify 3.3.1
+	   \-- com_moulberry_mixinconstraints 1.1.0
+	- smoothswapping 0.9.9
+	- sodium 0.9.1+mc26.1.2
+	- sodium-extra 0.9.3+mc26.1.2
+	   \-- me_flashyreese_mods_greenlight-api 0.1.0+mc26.2
+	- sspb 7.0.0
+	- status-effect-bars 1.0.11
+	- stendhal 1.4.6-26.1.2
+	   \-- libgui 16.0.1+26.1
+	        |-- jankson 12.0.0+j1.2.3
+	        |    \-- blue_endless_jankson 1.2.3
+	        \-- libninepatch 1.2.0
+	- supermartijn642configlib 1.1.8
+	- tcdcommons 5.5.6+fabric-26.1
+	- tweakeroo 0.28.8
+	   \-- conditional-mixin 0.6.4
+	- viafabricplus 4.5.6
+	   |-- com_github_oryxel1_cubeconverter abecffaaea
+	   |-- com_google_code_gson_gson 2.13.2
+	   |-- com_google_errorprone_error_prone_annotations 2.41.0
+	   |-- com_seedfinding_mc_biome 1.171.1
+	   |-- com_seedfinding_mc_core 1.210.0
+	   |-- com_seedfinding_mc_math 1.171.0
+	   |-- com_seedfinding_mc_noise 1.171.1
+	   |-- com_seedfinding_mc_seed 1.171.2
+	   |-- com_vdurmont_semver4j 3.1.0
+	   |-- com_viaversion_mcstructs_dialog 5-3.2.2-20251210.004302-1
+	   |-- com_viaversion_mcstructs_registry 5-3.2.2-SNAPSHOT
+	   |-- com_viaversion_viaaprilfools-common 4.2.3-SNAPSHOT
+	   |-- com_viaversion_viabackwards-common 5.12.0-SNAPSHOT
+	   |-- com_viaversion_viaversion-common 5.12.0-SNAPSHOT
+	   |-- de_florianreuth_classic4j 2.3.0
+	   |-- dev_kastle_netty_netty-transport-nethernet 1.7.0
+	   |-- dev_kastle_netty_netty-transport-raknet 1.7.0
+	   |-- dev_kastle_webrtc_webrtc-java 1.0.3
+	   |-- dev_kastle_webrtc_webrtc-java_linux-aarch64 1.0.3
+	   |-- dev_kastle_webrtc_webrtc-java_linux-x86_64 1.0.3
+	   |-- dev_kastle_webrtc_webrtc-java_macos-aarch64 1.0.3
+	   |-- dev_kastle_webrtc_webrtc-java_windows-aarch64 1.0.3
+	   |-- dev_kastle_webrtc_webrtc-java_windows-x86_64 1.0.3
+	   |-- fabric-resource-loader-v0 3.3.17+4fc5413f4c
+	   |-- io_jsonwebtoken_jjwt-api 0.13.0
+	   |-- io_jsonwebtoken_jjwt-gson 0.13.0
+	   |-- io_jsonwebtoken_jjwt-impl 0.13.0
+	   |-- net_jodah_expiringmap 0.5.10
+	   |-- net_lenni0451_commons_gson 1.9.2
+	   |-- net_lenni0451_commons_httpclient 1.9.2
+	   |-- net_lenni0451_commons_unchecked 1.9.2
+	   |-- net_lenni0451_mcstructs-bedrock_forms 2.0.1
+	   |-- net_lenni0451_mcstructs-bedrock_text 2.0.1
+	   |-- net_lenni0451_reflect 1.6.3
+	   |-- net_raphimc_minecraftauth 5.0.1
+	   |-- net_raphimc_viabedrock 0.0.29-SNAPSHOT
+	   |-- net_raphimc_vialegacy 3.1.0-SNAPSHOT
+	   |-- team_unnamed_mocha 3.0.1
+	   |-- viafabricplus-api 4.5.6
+	   \-- viafabricplus-visuals 4.5.6
+	- vmp 0.2.0+beta.7.234+26.1.2
+	- waveycapes 1.10.2
+	   |-- transition 1.0.21
+	   \-- trender 1.0.15
+	- xaerominimap 26.4.2
+	   \-- xaerolib 1.7.1
+	- xaeroworldmap 1.45.0
+	   \-- xaerolib 1.7.1
+	- yet_another_config_lib_v3 3.9.6+26.1-fabric
+	   |-- com_twelvemonkeys_common_common-image 3.12.0
+	   |-- com_twelvemonkeys_common_common-io 3.12.0
+	   |-- com_twelvemonkeys_common_common-lang 3.12.0
+	   |-- com_twelvemonkeys_imageio_imageio-core 3.12.0
+	   |-- com_twelvemonkeys_imageio_imageio-metadata 3.12.0
+	   |-- com_twelvemonkeys_imageio_imageio-webp 3.12.0
+	   |-- org_quiltmc_parsers_gson 0.2.1
+	   \-- org_quiltmc_parsers_json 0.2.1
+	- yiyiaddon 1.0-beta2
+	   |-- baritone 1.18.0
+	   |    \-- dev_babbaj_nether-pathfinder 1.6
+	   |-- io_github_humbleui_skija-shared 0.143.16
+	   |-- io_github_humbleui_skija-windows-arm64 0.143.16
+	   |-- io_github_humbleui_skija-windows-x64 0.143.16
+	   \-- io_github_humbleui_types 0.2.0
+	- yosbr 0.1.2
+[14:05:33] [main/INFO]: Applying default options... (YOSBR)
+[14:05:33] [main/INFO]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/C:/Users/Administrator/Desktop/MC/.minecraft/libraries/net/fabricmc/sponge-mixin/0.17.4+mixin.0.8.7/sponge-mixin-0.17.4+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[14:05:34] [main/INFO]: Config version: 6
+[14:05:34] [main/INFO]: BadOptimizations is generating the config with default values
+[14:05:34] [main/INFO]: Disabling enable_lightmap_caching because mod "polytone" is incompatible with it (built-in)
+[14:05:34] [main/INFO]: Disabling enable_sky_color_caching because mod "polytone" is incompatible with it (built-in)
+[14:05:34] [main/INFO]: Generating config file version 6
+[14:05:34] [main/INFO]: Mod gammautils added a lightmap caching hook: io.github.sjouwer.gammautils.compat.BadOptimizationsHook
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.base.mixin
+[14:05:34] [main/INFO]: Updating config from 0 to 1
+[14:05:34] [main/INFO]: Updating config from 1 to 2
+[14:05:34] [main/INFO]: Updating config from 2 to 3
+[14:05:34] [main/INFO]: Global Executor Parallelism: 1 configured, 1 evaluated, 1 default evaluated
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.client.uncapvd.mixin
+[14:05:34] [main/INFO]: Disabling config clientSideConfig.modifyMaxVDConfig.enabled: Incompatible with bobby@5.2.13+mc26.1 (*) (defined in c2me)
+[14:05:34] [main/INFO]: Disabling com.ishland.c2me.client.uncapvd.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.fixes.chunkio.threading_issues.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.fixes.general.threading_issues.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.fixes.worldgen.threading_issues.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.fixes.worldgen.vanilla_bugs.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.notickvd.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.allocs.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.chunkio.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.dfc.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.math.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.natives_math.mixin
+[14:05:34] [main/INFO]: Attempting to call native library. If your game crashes right after this point, native acceleration may not be available for your system.
+[14:05:34] [main/INFO]: Detected maximum supported ISA target: AVX2
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.scheduling.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.worldgen.general.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.opts.worldgen.vanilla.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.rewrites.chunk_serializer.mixin
+[14:05:34] [main/INFO]: Disabling config ioSystem.gcFreeChunkSerializer: Incompatible with architectury@20.0.12 (*) (defined in c2me)
+[14:05:34] [main/INFO]: Disabling com.ishland.c2me.rewrites.chunk_serializer.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.rewrites.chunksystem.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.rewrites.chunkio.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.server.utils.mixin
+[14:05:34] [main/INFO]: Initializing com.ishland.c2me.threading.lighting.mixin
+[14:05:34] [main/WARN]: Reference map 'chatanimation.refmap.json' for chatanimation.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'controlling.refmap.json' for controlling.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map '' for craterlib.fabric.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'creativecore.mixins.refmap.json' for creativecore.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'creativecore.mixins.refmap.json' for creativecore.fabric.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'entityculling.refmap.mixins.json' for entityculling.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'iris.refmap.json' for mixins.iris.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'iris-fabric.refmap.json' for mixins.iris.fabric.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'iris.refmap.json' for mixins.iris.vertexformat.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'iris.refmap.json' for mixins.iris.bettermipmaps.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'iris.refmap.json' for mixins.iris.compat.sodium.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'iris.refmap.json' for mixins.iris.fixes.maxfpscrash.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'itemphysic.mixin.refmap.json' for itemphysic.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'ixeris.mixins.refmap.json' for ixeris.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'kuma_api.refmap.json' for kuma_api.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'kuma_api.refmap.json' for kuma_api.fabric.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/INFO]: Loaded configuration file for Lithium: 171 options available, 0 override(s) found.
+[14:05:34] [main/INFO]: Loaded configuration file for ModernFix 5.27.19-build.1: 68 options available, 5 override(s) found
+[14:05:34] [main/WARN]: Option 'mixin.perf.release_protochunks' overriden (by mods [c2me]) to 'false'
+[14:05:34] [main/WARN]: Option 'mixin.bugfix.paper_chunk_patches' overriden (by mods [c2me]) to 'false'
+[14:05:34] [main/WARN]: Option 'mixin.perf.cache_strongholds' overriden (by mods [c2me]) to 'false'
+[14:05:34] [main/WARN]: Option 'mixin.bugfix.chunk_deadlock' overriden (by mods [c2me]) to 'false'
+[14:05:34] [main/WARN]: Option 'mixin.perf.dynamic_dfu' overriden (by mods [litematica]) to 'false'
+[14:05:34] [main/INFO]: Applying Nashorn fix
+[14:05:34] [main/INFO]: Configuring Minecraft's max.bg.threads option with 5 threads
+[14:05:34] [main/WARN]: Reference map 'modernfix.refmap.json' for modernfix-fabric.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'modernfix.refmap.json' for modernfix-common.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/INFO]: Iris API installed...
+[14:05:34] [main/WARN]: Reference map 'nochatreports.refmap.json' for mixins/common/nochatreports.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'quick_pack.refmap.json' for quick-pack.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'searchables.refmap.json' for searchables.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'searchables.refmap.json' for searchables.fabric.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'skinlayers3d.refmap.mixins.json' for skinlayers3d.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/INFO]: Loaded configuration file for Sodium: 36 options available, 1 override(s) found
+[14:05:34] [main/INFO]: Loaded configuration file for Sodium Extra: 26 options available, 0 override(s) found
+[14:05:34] [main/WARN]: Reference map 'sspb.refmap.json' for sspb.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'supermartijn642configlib.mixins.refmap.json' for supermartijn642configlib.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/INFO]: Successfully started async appender with [SysOut, ServerGuiConsole, Tracy, File]
+[14:05:34] [main/WARN]: Reference map 'xaerolib.refmap.json' for xaerolib.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'xaeroworldmap.refmap.json' for xaeroworldmap.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'yet_another_config_lib_v3.refmap.json' for yacl.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Reference map 'yet_another_config_lib_v3.refmap.json' for yacl-fabric.mixins.json could not be read. If this is a development environment you can ignore this message
+[14:05:34] [main/WARN]: Error loading class: mezz/jei/fabric/platform/RenderHelper (java.lang.ClassNotFoundException: mezz/jei/fabric/platform/RenderHelper)
+[14:05:34] [main/WARN]: @Mixin target mezz.jei.fabric.platform.RenderHelper was not found appleskin.jei.mixins.json:JEIRenderHelperMixin from mod appleskin
+[14:05:34] [main/WARN]: Error loading class: dev/isxander/controlify/virtualmouse/VirtualMouseHandler (java.lang.ClassNotFoundException: dev/isxander/controlify/virtualmouse/VirtualMouseHandler)
+[14:05:34] [main/WARN]: @Mixin target dev.isxander.controlify.virtualmouse.VirtualMouseHandler was not found mixins.ipnext.json:MixinVirtualMouseHandler from mod inventoryprofilesnext
+[14:05:35] [main/WARN]: Error loading class: fuzs/swordblockingmechanics/common/handler/SwordBlockingHandler (java.lang.ClassNotFoundException: fuzs/swordblockingmechanics/common/handler/SwordBlockingHandler)
+[14:05:35] [main/WARN]: Error loading class: fuzs/swordblockingmechanics/common/client/handler/FirstPersonRenderingHandler (java.lang.ClassNotFoundException: fuzs/swordblockingmechanics/common/client/handler/FirstPersonRenderingHandler)
+[14:05:35] [main/WARN]: Error loading class: net/bettercombat/logic/WeaponRegistry (java.lang.ClassNotFoundException: net/bettercombat/logic/WeaponRegistry)
+[14:05:35] [main/WARN]: Force-disabling mixin 'features.render.world.sky.LevelRendererMixin' as rule 'mixin.features.render.world.sky' (added by mods [iris]) disables it and children
+[14:05:35] [main/WARN]: Disabled mixin 'fi.dy.masa.tweakeroo.mixin.block.MixinStructureBlockBlockEntity' due to: 'conflicted/unsupported mod carpet@26.1+v260402 found'
+[14:05:35] [main/WARN]: Disabled mixin 'fi.dy.masa.tweakeroo.mixin.network.MixinServerboundSetStructureBlockPacket' due to: 'conflicted/unsupported mod carpet@26.1+v260402 found'
+[14:05:35] [main/WARN]: Disabled mixin 'fi.dy.masa.tweakeroo.mixin.fog.MixinGameRenderer_disableFog' due to: 'conflicted/unsupported mod sodium@0.9.1+mc26.1.2 found'
+[14:05:35] [main/WARN]: Disabled mixin 'fi.dy.masa.tweakeroo.mixin.render.MixinGameRenderer_ViewBob' due to: 'conflicted/unsupported mod iris@1.11.3+mc26.1.2 found'
+[14:05:35] [main/WARN]: Error loading class: org/anti_ad/mc/ipnext/event/AutoRefillHandler$ItemSlotMonitor (java.lang.ClassNotFoundException: org/anti_ad/mc/ipnext/event/AutoRefillHandler$ItemSlotMonitor)
+[14:05:35] [main/INFO]: Wrapping mixin service for asyncparticles.target-modifier.mixins.json so that we can modify target classes.
+[14:05:35] [main/INFO]: Redirecting IClassBytecodeProvider#getClassNode for fun.qu_an.minecraft.asyncparticles.client.coremod.mixin_extension.class_adjuster.mixin.AsyncParticlesGenerated$fun$_qu_an$_minecraft$_asyncparticles$_client$_mixin$_conditional$_MixinParticles_LockRequired_Tick
+[14:05:35] [main/INFO]: Redirecting IClassBytecodeProvider#getClassNode for fun.qu_an.minecraft.asyncparticles.client.coremod.mixin_extension.class_adjuster.mixin.AsyncParticlesGenerated$fun$_qu_an$_minecraft$_asyncparticles$_client$_mixin$_conditional$_Mixin_ReplaceRandom
+[14:05:35] [main/INFO]: Redirecting IClassBytecodeProvider#getClassNode for fun.qu_an.minecraft.asyncparticles.client.coremod.mixin_extension.class_adjuster.mixin.AsyncParticlesGenerated$fun$_qu_an$_minecraft$_asyncparticles$_client$_mixin$_conditional$_MixinParticles_LockRequired_Extract
+[14:05:35] [main/INFO]: Redirecting IClassBytecodeProvider#getClassNode for fun.qu_an.minecraft.asyncparticles.client.coremod.mixin_extension.class_adjuster.mixin.AsyncParticlesGenerated$fun$_qu_an$_minecraft$_asyncparticles$_client$_mixin$_conditional$_MixinParticles_LockProvider
+[14:05:35] [main/INFO]: Redirecting IClassBytecodeProvider#getClassNode for fun.qu_an.minecraft.asyncparticles.client.coremod.mixin_extension.class_adjuster.mixin.AsyncParticlesGenerated$fun$_qu_an$_minecraft$_asyncparticles$_client$_mixin$_conditional$_MixinParticles_LightCacheNoRefresh
+[14:05:35] [main/INFO]: Redirecting IClassBytecodeProvider#getClassNode for fun.qu_an.minecraft.asyncparticles.client.coremod.mixin_extension.class_adjuster.mixin.AsyncParticlesGenerated$fun$_qu_an$_minecraft$_asyncparticles$_client$_mixin$_conditional$_MixinAsyncTick_AsyncTickableParticleGroup
+[14:05:35] [main/INFO]: Searching for graphics cards...
+[14:05:35] [main/INFO]: Found graphics adapter: AdapterInfo{vendor=AMD, description='AMD Radeon(TM) Graphics', adapterType=0x00002323, openglIcdFilePath='C:\Windows\System32\DriverStore\FileRepository\u0195698.inf_amd64_480d395d3459e71d\B025498\atig6pxx.dll', openglIcdVersion=32.0.21036.18}
+[14:05:35] [main/INFO]: Found graphics adapter: AdapterInfo{vendor=NVIDIA, description='NVIDIA GeForce RTX 5080', adapterType=0x0000031B, openglIcdFilePath='C:\Windows\System32\DriverStore\FileRepository\nv_dispi.inf_amd64_b7cca8360c0d57e9\nvoglv64.dll', openglIcdVersion=32.0.15.9649}
+[14:05:35] [main/WARN]: Sodium has applied one or more workarounds to prevent crashes or other issues on your system: [NVIDIA_THREADED_OPTIMIZATIONS_BROKEN, AMD_GAME_OPTIMIZATION_BROKEN]
+[14:05:35] [main/WARN]: This is not necessarily an issue, but it may result in certain features or optimizations being disabled. You can sometimes fix these issues by upgrading your graphics driver.
+[14:05:35] [main/INFO]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.5).
+
+Euphoria Patcher:
+[14:05:36] [main/WARN]: EuphoriaPatcher: [UPDATE CHECKER] A new version of the EuphoriaPatcher Mod is available: 1.10.5
+[14:05:36] [main/WARN]: EuphoriaPatcher: [UPDATE CHECKER] Download it from Modrinth: https://euphoriapatches.com/download
+[14:05:36] [main/WARN]: EuphoriaPatcher: [UPDATE CHECKER] Current Version: 1.10.0
+[14:05:36] [main/INFO]: EuphoriaPatcher: Examining the naked mole-rat's cancer immunity...
+[14:05:36] [main/WARN]: EuphoriaPatcher: Error preparing to mark settings files: D:\mcaddon\种子 Worker Production Test RealMods\shaderpacks
+[14:05:36] [main/ERROR]: EuphoriaPatcher: Error checking for existing patched shaders: D:\mcaddon\种子 Worker Production Test RealMods\shaderpacks
+[14:05:36] [main/WARN]: EuphoriaPatcher: No shaders with expected name pattern found, checking via byte size...
+[14:05:36] [main/WARN]: EuphoriaPatcher: If you have a lot of shaders installed, this may take a while. Please be patient.
+[14:05:36] [main/WARN]: EuphoriaPatcher: Please wait... 
+
+[14:05:36] [main/ERROR]: EuphoriaPatcher: === SHADER NOT FOUND ===
+[14:05:36] [main/ERROR]: EuphoriaPatcher: Required: ComplementaryShaders r5.9
+[14:05:36] [main/ERROR]: EuphoriaPatcher: 
+[14:05:36] [main/ERROR]: EuphoriaPatcher: A newer version of EuphoriaPatches is available!
+[14:05:36] [main/ERROR]: EuphoriaPatcher: SOLUTION: Update to version 1.10.5 along with the compatible shader version: Complementary_r5.9.3
+[14:05:36] [main/ERROR]: EuphoriaPatcher: Download from: https://euphoriapatches.com/download
+[14:05:36] [main/INFO]: EuphoriaPatcher: Watching shaderpacks folder for ComplementaryShaders_r5.9...
+[14:05:36] [main/INFO]: EuphoriaPatcher: Watching shaderpacks folder for changes...
+[14:05:36] [Datafixer Bootstrap/INFO]: 291 Datafixer optimizations took 158 milliseconds
+[14:05:37] [main/INFO]: ModernFix reached bootstrap stage (4.890 s after launch)
+[14:05:37] [main/WARN]: Method overwrite conflict for getTemperature in modernfix-common.mixins.json:perf.remove_biome_temperature_cache.BiomeMixin from mod modernfix, previously written by net.caffeinemc.mods.lithium.mixin.world.temperature_cache.BiomeMixin. Skipping method.
+[14:05:37] [main/WARN]: Method overwrite conflict for getClimateSettings in architectury.mixins.json:BiomeAccessor from mod architectury, previously written by carpet.mixins.Biome_scarpetMixin. Skipping method.
+[14:05:37] [main/WARN]: Method overwrite conflict for getClimateSettings in polytone-common.mixins.json:accessor.BiomeAccessor from mod polytone, previously written by carpet.mixins.Biome_scarpetMixin. Skipping method.
+[14:05:38] [main/WARN]: Mixin stendhal.mixins.json:ChatScreenMixin from mod stendhal has multiple constructors, <init>(Lnet/minecraft/network/chat/Component;)V was selected
+[14:05:39] [main/INFO]: Vanilla bootstrap took 2036 milliseconds
+[14:05:39] [main/INFO]: Loaded default options for extra-folder
+[14:05:39] [main/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LockRequired_Extract. Check debug logs for more information.
+[14:05:39] [main/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LockProvider. Check debug logs for more information.
+[14:05:39] [main/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LockRequired_Tick. Check debug logs for more information.
+[14:05:39] [main/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.Mixin_ReplaceRandom. Check debug logs for more information.
+[14:05:39] [Render thread/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[14:05:39] [Render thread/INFO]: Setting user: SmokeTester
+[14:05:39] [Render thread/INFO]: Mod proxy balm:permissions resolved as net.blay09.mods.balm.platform.permissions.internal.CommonBalmPermissions@12552a69
+[14:05:39] [Via-Mappingloader-1/INFO]: Loading block connection mappings ...
+[14:05:39] [Render thread/INFO]: Discovering Plugins
+[14:05:39] [Render thread/INFO]: Discovered 0 plugins
+[14:05:39] [Worker-Main-1/INFO]: Loading translations...
+[14:05:39] [Worker-Main-1/INFO]: Registering protocols...
+[14:05:39] [Render thread/INFO]: ping & connect fast!
+[14:05:40] [Render thread/INFO]: [KONKRETE] Loading v1.10.2 in client-side mode on FABRIC!
+[14:05:40] [Render thread/INFO]: [KONKRETE] Server-side modules initialized and ready to use!
+[14:05:40] [Render thread/INFO]: Compression will use Java, encryption will use Java
+[14:05:40] [Render thread/INFO]: [MELODY] Loading v1.0.16 on FABRIC...
+[14:05:40] [Render thread/WARN]: Signature is missing
+[14:05:40] [Render thread/INFO]: Modern UI common config loaded/reloaded
+[14:05:40] [Render thread/INFO]: Initialized Modern UI
+[14:05:40] [Render thread/INFO]: Packet Fixer 3.3.5 Fabric has been initialized!
+[14:05:40] [Render thread/INFO]: Constructing components for pickupnotifier:common
+[14:05:40] [Render thread/INFO]: Dispatching loading event for config pickupnotifier-client.toml
+[14:05:40] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.Mixin_ReplaceRandom. Check debug logs for more information.
+[14:05:40] [Worker-Main-1/INFO]: Started resource pack HTTP server on http://127.0.0.1:61409/
+[14:05:40] [Worker-Main-1/WARN]: Experimental features are enabled. These features might not be fully stable/tested and may cause issues.
+[14:05:40] [Render thread/INFO]: Constructing components for puzzleslib:common
+[14:05:40] [Worker-Main-1/INFO]: ViaVersion detected lowest supported version by the proxy: c0.0.15a-1 (0)
+[14:05:40] [Worker-Main-1/INFO]: Highest supported version by the proxy: Bedrock 1.26.30 (1001)
+[14:05:40] [Render thread/INFO]: [Stendhal] Initializing
+[14:05:40] [Worker-Main-1/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[14:05:40] [Render thread/INFO]: [STDOUT]: [Stendhal] Config folder created.
+[14:05:40] [Render thread/INFO]: [STDOUT]: [Stendhal] Config file created.
+[14:05:40] [Download-2/ERROR]: Failed to fetch user properties
+com.mojang.authlib.exceptions.InvalidCredentialsException: Status: 401
+	at knot//com.mojang.authlib.exceptions.MinecraftClientHttpException.toAuthenticationException(MinecraftClientHttpException.java:59)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.fetchProperties(YggdrasilUserApiService.java:150)
+	at knot//net.minecraft.client.Minecraft.lambda$new$1(Minecraft.java:459)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: com.mojang.authlib.exceptions.MinecraftClientHttpException: Status: 401
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:103)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.get(MinecraftClient.java:56)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.fetchProperties(YggdrasilUserApiService.java:121)
+	... 5 more
+[14:05:40] [Render thread/INFO]: yiyiaddon initialised (baritone localisation: on)
+[14:05:40] [Render thread/INFO]: Registering S2C receiver with id architectury:spawn_entity_packet
+[14:05:40] [Render thread/INFO]: Loaded
+[14:05:40] [Render thread/INFO]: Building config cache from user defined config file...
+[14:05:40] [Render thread/INFO]: Collecting API Entrypoint's...
+[14:05:40] [Render thread/INFO]: Registering alt renderers via each collected entrypoint...
+[14:05:40] [Render thread/INFO]: [BetterGrassify] Config file not found. Creating a new one...
+[14:05:40] [Render thread/INFO]: [BetterGrassify] [FANCY] Gamers can finally touch grass!?
+[14:05:40] [Render thread/INFO]: Reading...
+[14:05:40] [Render thread/INFO]: No config file found; using default values
+[14:05:40] [Render thread/INFO]: Writing defaults to disk
+[14:05:40] [IO-Worker-1/INFO]: Saving...
+[14:05:40] [Render thread/INFO]: Finished Chat Patches setup!
+[14:05:40] [Render thread/INFO]: [citresewn] Registering CIT Conditions
+[14:05:40] [IO-Worker-1/INFO]: Saved config data to 'D:\mcaddon\种子 Worker Production Test RealMods\config\chatpatches.json'!
+[14:05:40] [IO-Worker-1/INFO]: [Config.serialize(->0)] Took 0.004 seconds
+[14:05:40] [Render thread/INFO]: [citresewn] Registering CIT Types
+[14:05:40] [Render thread/INFO]: Config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\dynamiccrosshair.json5' does not exist. Creating it with default values.
+[14:05:40] [Render thread/INFO]: Serializing class mod.crend.dynamiccrosshair.config.Config to 'D:\mcaddon\种子 Worker Production Test RealMods\config\dynamiccrosshair.json5'
+[14:05:40] [Render thread/INFO]: Serializing class mod.crend.dynamiccrosshair.config.Config to 'D:\mcaddon\种子 Worker Production Test RealMods\config\dynamiccrosshair.json5'
+[14:05:40] [Render thread/INFO]: [ETF]: Modifying ETF Render State constructor because: for EMF
+[14:05:40] [Render thread/INFO]: Loading Entity Model Features, (:
+[14:05:40] [Render thread/INFO]: [ETF]: 6 new ETF Random Properties registered by entity_model_features
+[14:05:40] [Render thread/INFO]: [ESF (Entity Sound Features)] initialized.
+[14:05:40] [Render thread/INFO]: [ETF]: 3 new ETF Random Properties registered by entity_sound_features
+[14:05:40] [Render thread/INFO]: [EMF]: Successful registration of custom function:playingsound from mod entity_sound_features
+[14:05:40] [Render thread/INFO]: [EMF]: Successful registration of custom function:isplayingsound from mod entity_sound_features
+[14:05:40] [Render thread/INFO]: [EMF]: Successful registration of custom function:playsound from mod entity_sound_features
+[14:05:40] [Render thread/INFO]: Loading Entity Texture Features, breaking your resource packs since 17 Jan 2022.
+[14:05:40] [Render thread/INFO]: [Indigo] Different rendering plugin detected; not applying Indigo.
+[14:05:40] [Render thread/INFO]: Registering leaf particles.
+[14:05:40] [Render thread/INFO]: Loaded config fzzy_config:keybinds in 6ms
+[14:05:40] [Via Async Scheduler 0/INFO]: Finished mapping loading, shutting down loader executor.
+[14:05:40] [Render thread/WARN]: [IMBlocker] Class net.mehvahdjukaar.supplementaries.client.screens.TextHolderEditScreen not found, ignored.
+[14:05:40] [Render thread/WARN]: [IMBlocker] Class com.simibubi.create.content.equipment.clipboard.ClipboardScreen not found, ignored.
+[14:05:40] [Render thread/INFO]: [IMBlocker] bakelist screenWhitelist result []
+[14:05:40] [Render thread/INFO]: Loading ItemSwapper!
+[14:05:40] [Render thread/INFO]: Loading ItemSwapper server support.
+[14:05:40] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.Mixin_ReplaceRandom. Check debug logs for more information.
+[14:05:40] [Render thread/INFO]: Krypton is now accelerating your Minecraft client's networking stack 🚀
+[14:05:40] [Render thread/INFO]: Note that Krypton is most effective on servers, not the client.
+[14:05:41] [Render thread/INFO]: Created MuiFabricApi
+[14:05:41] [Render thread/INFO]: Modern UI client config loaded/reloaded
+[14:05:41] [Render thread/INFO]: Modern UI text config loaded/reloaded
+[14:05:41] [Render thread/INFO]: Created TextLayoutEngine
+[14:05:41] [Render thread/INFO]: Initialized Modern UI text engine
+[14:05:41] [Render thread/INFO]: Initialized Modern UI client
+[14:05:41] [Render thread/INFO]: Using Cloth Config GUI
+[14:05:41] [Render thread/INFO]: Checking mod updates...
+[14:05:41] [Render thread/INFO]: [STDOUT]: [Mouse Tweaks] Main.initialize()
+[14:05:41] [Render thread/INFO]: [STDOUT]: [Mouse Tweaks] Generating the config file at: D:\mcaddon\种子 Worker Production Test RealMods\config\MouseTweaks.cfg
+[14:05:41] [Render thread/INFO]: [STDOUT]: [Mouse Tweaks] Created the config file.
+[14:05:41] [Render thread/INFO]: [STDOUT]: [Mouse Tweaks] Initialized.
+[14:05:41] [Render thread/INFO]: Constructing components for pickupnotifier:client
+[14:05:41] [Render thread/INFO]: Sodium: [0.9.1+mc26.1.2], Iris: [1.11.3+mc26.1.2]
+[14:05:41] [Render thread/INFO]: Assigning MaLiLib Pipelines to Iris Programs:
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/no_depth/no_cull: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/no_depth: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/lequal_depth/offset_1: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/lequal_depth/offset_2: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/lequal_depth/offset_3: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/lequal_depth/no_cull: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/lequal_depth: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent/depth_mask: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/translucent: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/no_depth/no_cull: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/no_depth: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/lequal_depth/offset_1: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/lequal_depth/offset_2: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/lequal_depth/offset_3: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/lequal_depth/no_cull: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/lequal_depth: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa/depth_mask: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_color/masa: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/text_plate/no_depth: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/text_plate: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/minihud/shape/no_depth/offset: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/minihud/shape/no_depth: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/minihud/shape/offset/no_cull: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/minihud/shape/offset: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/minihud/shape/no_cull: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/minihud/shape: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent/no_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent/no_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent/lequal_depth/offset_1: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent/lequal_depth/offset_2: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent/lequal_depth/offset_3: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent/lequal_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent/lequal_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/translucent: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa/no_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa/no_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa/lequal_depth/offset_1: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa/lequal_depth/offset_2: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa/lequal_depth/offset_3: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa/lequal_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa/lequal_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/position_color_lines/masa: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/minihud/shape_lines/no_depth/offset: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/minihud/shape_lines/no_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/minihud/shape_lines/offset/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/minihud/shape_lines/offset: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/minihud/shape_lines/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/minihud/shape_lines: LINES
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/no_depth/no_cull: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/no_depth: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/lequal_depth/offset_1: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/lequal_depth/offset_2: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/lequal_depth/offset_3: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/lequal_depth/no_cull: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/lequal_depth: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent/depth_mask: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/translucent: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/no_depth/no_cull: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/no_depth: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/lequal_depth/offset_1: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/lequal_depth/offset_2: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/lequal_depth/offset_3: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/lequal_depth/no_cull: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/lequal_depth: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa/depth_mask: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/position_tex_color/masa: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent/no_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent/no_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent/lequal_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent/offset_1: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent/offset_2: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent/offset_3: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/translucent: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple/no_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple/no_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple/lequal_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple/offset_1: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple/offset_2: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple/offset_3: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_lines/masa_simple: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/translucent/no_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/translucent/no_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/translucent/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/translucent/offset_1: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/translucent/offset_2: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/translucent/offset_3: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/translucent: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/masa_simple/no_depth/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/masa_simple/no_depth: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/masa_simple/no_cull: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/masa_simple/offset_1: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/masa_simple/offset_2: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/masa_simple/offset_3: LINES
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/debug_line_strip/masa_simple: LINES
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/gui_overlay: BASIC_COLOR
+[14:05:41] [Render thread/WARN]: Found okay program match for malilib:pipeline/gui_textured_overlay: TEXTURED_COLOR
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/solid_terrain: TERRAIN_SOLID
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/wireframe: LINES
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/cutout_terrain: TERRAIN_CUTOUT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/solid_terrain/offset: TERRAIN_SOLID
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/wireframe/offset: LINES
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/cutout_terrain/offset: TERRAIN_CUTOUT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/translucent: TERRAIN_TRANSLUCENT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/translucent/offset: TERRAIN_TRANSLUCENT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/solid_block/masa: MOVING_BLOCK
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/cutout_block/masa: TERRAIN_CUTOUT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/solid_block/offset: MOVING_BLOCK
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/cutout_block/offset: TERRAIN_CUTOUT
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/translucent_block: TEXT_BE
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/translucent_block/offset: TEXT_BE
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/legacy/solid: TERRAIN_SOLID
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/legacy/wireframe: LINES
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/legacy/cutout: TERRAIN_CUTOUT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/legacy/solid/masa/offset: TERRAIN_SOLID
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/legacy/wireframe/offset: LINES
+[14:05:41] [Render thread/WARN]: Found fine program match for malilib:pipeline/legacy/cutout/offset: TERRAIN_CUTOUT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/legacy/translucent: TERRAIN_TRANSLUCENT
+[14:05:41] [Render thread/WARN]: Found *decent* program match for malilib:pipeline/legacy/translucent/offset: TERRAIN_TRANSLUCENT
+[14:05:41] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinAsyncTick_AsyncTickableParticleGroup. Check debug logs for more information.
+[14:05:41] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinAsyncTick_AsyncTickableParticleGroup. Check debug logs for more information.
+[14:05:41] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinAsyncTick_AsyncTickableParticleGroup. Check debug logs for more information.
+[14:05:41] [Render thread/WARN]: Found *decent* program match for minecraft:polytone/pipeline/leash: MOVING_BLOCK
+[14:05:41] [Render thread/WARN]: Found okay program match for polytone:pipeline/additive_particle: PARTICLES_TRANS
+[14:05:41] [Render thread/WARN]: Found *decent* program match for polytone:pipeline/additive_translucent_moving_block: TEXT_BE
+[14:05:41] [Render thread/ERROR]: java.nio.file.NoSuchFileException: D:\mcaddon\种子 Worker Production Test RealMods\config\presencefootsteps
+[14:05:41] [Render thread/INFO]: Constructing components for puzzleslib:client
+[14:05:41] [Render thread/INFO]: Config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\skyboxify.json' does not exist. Creating it with default values.
+[14:05:41] [Render thread/INFO]: Serializing class btw.lowercase.skyboxify.config.SkyboxifyConfig to 'D:\mcaddon\种子 Worker Production Test RealMods\config\skyboxify.json'
+[14:05:41] [Render thread/INFO]: [SSPB] Broken dirt path lighting is best dirt path lighting lol
+[14:05:41] [Render thread/INFO]: Initializing 'tcdcommons' as 'TCDCommonsFabricClient'.
+[14:05:41] [Render thread/INFO]: [STDOUT]: [TRender] Initializing Client...
+[14:05:41] [Render thread/INFO]: Registering common data for channel xaerolib:main!
+[14:05:41] [Render thread/INFO]: Registering client data for channel xaerolib:main!
+[14:05:41] [Render thread/INFO]: Loading primary common config for channel xaerolib:main!
+[14:05:41] [Render thread/INFO]: Loading server config profiles for channel xaerolib:main!
+[14:05:41] [Render thread/INFO]: Loading primary client config for channel xaerolib:main!
+[14:05:41] [Render thread/INFO]: Loading client config profiles for channel xaerolib:main!
+[14:05:41] [Render thread/INFO]: Loading XaeroLib common 1/2!
+[14:05:41] [Render thread/INFO]: Loading XaeroLib client 1/3!
+[14:05:42] [Render thread/INFO]: Xaero's Minimap: World Map found!
+[14:05:42] [Render thread/INFO]: No Optifine!
+[14:05:42] [Render thread/INFO]: Xaero's Minimap: No Vivecraft!
+[14:05:42] [Render thread/INFO]: Xaero's Minimap: Iris found!
+[14:05:42] [Render thread/INFO]: Registering common data for channel xaerominimap:main!
+[14:05:42] [Render thread/INFO]: Registering client data for channel xaerominimap:main!
+[14:05:42] [Render thread/INFO]: Loading primary common config for channel xaerominimap:main!
+[14:05:42] [Render thread/INFO]: Loading server config profiles for channel xaerominimap:main!
+[14:05:42] [Render thread/INFO]: Loading primary client config for channel xaerominimap:main!
+[14:05:42] [Render thread/INFO]: Loading client config profiles for channel xaerominimap:main!
+[14:05:42] [Render thread/INFO]: Loading Xaero's Minimap - Stage 1/3
+[14:05:42] [Render thread/INFO]: Registering common data for channel xaeroworldmap:main!
+[14:05:42] [Render thread/INFO]: Registering client data for channel xaeroworldmap:main!
+[14:05:42] [Render thread/INFO]: Loading primary common config for channel xaeroworldmap:main!
+[14:05:42] [Render thread/INFO]: Loading server config profiles for channel xaeroworldmap:main!
+[14:05:42] [Render thread/INFO]: Loading primary client config for channel xaeroworldmap:main!
+[14:05:42] [Render thread/INFO]: Loading client config profiles for channel xaeroworldmap:main!
+[14:05:42] [Render thread/INFO]: Loading Xaero's World Map - Stage 1/3
+[14:05:42] [Render thread/INFO]: Config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\yacl.json5' does not exist. Creating it with default values.
+[14:05:42] [Render thread/INFO]: Serializing class dev.isxander.yacl3.platform.YACLConfig to 'D:\mcaddon\种子 Worker Production Test RealMods\config\yacl.json5'
+[14:05:42] [Render thread/INFO]: [STDOUT]: [nether-pathfinder] Created temp file at C:\Users\Administrator\AppData\Local\Temp\nether_pathfinder-x86_6411838727355425895861.dll
+[14:05:42] [Render thread/INFO]: [STDERR]: [nether-pathfinder] Failed to delete temp file
+[14:05:42] [Render thread/INFO]: [STDOUT]: [nether-pathfinder] Loaded shared library
+[14:05:42] [Download-1/INFO]: Update available for 'chatanimation@1.3.0', (-> 1.3.3+fabric-26.1)
+[14:05:42] [Download-1/INFO]: Update available for 'sodium-extra@0.9.3+mc26.1.2', (-> mc26.1.2-0.9.4+fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'entityculling@1.10.5', (-> 1.11.2)
+[14:05:42] [Download-1/INFO]: Update available for 'entity_model_features@3.3.5', (-> 3.3.8-fabric-26.1)
+[14:05:42] [Download-1/INFO]: Update available for 'litematica@0.27.12', (-> 0.27.14)
+[14:05:42] [Download-1/INFO]: Update available for 'fabric-language-kotlin@1.13.13+kotlin.2.4.10', (-> 1.14.1+kotlin.2.4.20)
+[14:05:42] [Download-1/INFO]: Update available for 'gnetum@4.5.4+26.1.2-fabric', (-> 4.6.1+26.1.2-fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'polytone@26.1.2-6.4.1', (-> 26.1.2-6.7.1)
+[14:05:42] [Download-1/INFO]: Update available for 'waveycapes@1.10.2', (-> 1.11.2)
+[14:05:42] [Download-1/INFO]: Update available for 'xaerominimap@26.4.2', (-> fabric-26.1.2-26.5.0)
+[14:05:42] [Download-1/INFO]: Update available for 'balm@26.1.2.13', (-> 26.1.2.14+fabric-26.1.2)
+[14:05:42] [Download-1/INFO]: Update available for 'puzzleslib@26.1.14', (-> 26.1.15)
+[14:05:42] [Download-1/INFO]: Update available for 'yet_another_config_lib_v3@3.9.6+26.1-fabric', (-> 3.9.7+26.1-fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'modmenu@18.0.0', (-> 18.0.1)
+[14:05:42] [Download-1/INFO]: Update available for 'iris@1.11.3+mc26.1.2', (-> 1.11.4+26.1-fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'imblocker@7.2.1', (-> 7.3.2)
+[14:05:42] [Download-1/INFO]: Update available for 'craterlib@3.1.2', (-> 26.1.2-3.1.3)
+[14:05:42] [Download-1/INFO]: Update available for 'punchy@2.7e', (-> 2.8a)
+[14:05:42] [Download-1/INFO]: Update available for 'skinlayers3d@1.11.2', (-> 1.11.3)
+[14:05:42] [Download-1/INFO]: Update available for 'xaeroworldmap@1.45.0', (-> fabric-26.1.2-1.46.0)
+[14:05:42] [Download-1/INFO]: Update available for 'malilib@0.28.11', (-> 0.28.12)
+[14:05:42] [Download-1/INFO]: Update available for 'notenoughanimations@1.12.4', (-> 1.12.5)
+[14:05:42] [Download-1/INFO]: Update available for 'tweakeroo@0.28.8', (-> 0.28.10)
+[14:05:42] [Download-1/INFO]: Update available for 'fastipping@1.0.11', (-> v1.0.12-mc26.1.2)
+[14:05:42] [Download-1/INFO]: Update available for 'controlling@26.1.2.4', (-> 26.1.2.7)
+[14:05:42] [Download-1/INFO]: Update available for 'architectury@20.0.12', (-> 20.1.15+fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'sodium@0.9.1+mc26.1.2', (-> mc26.1.2-0.9.2-fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'resourcify@1.8.5', (-> 1.8.6)
+[14:05:42] [Download-1/INFO]: Update available for 'minihud@0.39.10', (-> 0.39.11)
+[14:05:42] [Download-1/INFO]: Update available for 'reeses-sodium-options@2.2.3+mc26.1.2', (-> mc26.1.2-2.2.4+fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'skyboxify@3.3.1', (-> 3.4)
+[14:05:42] [Download-1/INFO]: Update available for 'entity_texture_features@7.2.1', (-> 7.2.4-fabric-26.1)
+[14:05:42] [Download-1/INFO]: Update available for 'ixeris@4.6.5+26.1.2-fabric', (-> 4.6.8+26.1.2-fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'euphoria_patcher@1.10.0-r5.9-fabric', (-> 1.10.5-r5.9.3-fabric)
+[14:05:42] [Download-1/INFO]: Update available for 'fabric-api@0.155.2+26.1.2', (-> 0.155.3+26.1.2)
+[14:05:42] [Render thread/INFO]: 种子挖矿：运行时服务已挂载（本地世界生成计算器；后台单线程；配置项 启用/种子）
+[14:05:42] [Render thread/INFO]: 种子挖矿PoC：开发期实验已挂载，进单人世界后自动运行一次（系统属性 yiyiaddon.seedpoc.enabled=1）
+[14:05:42] [Render thread/INFO]: Initializing mods (entrypoint yumi:init)...
+[14:05:43] [Render thread/INFO]: [LambDynLights] Initializing LambDynamicLights...
+[14:05:43] [Render thread/INFO]: [LambDynLights] Copied default configuration file.
+[14:05:43] [Render thread/INFO]: [LambDynLights] Configuration loaded.
+[14:05:43] [Render thread/INFO]: options.txt already exists - last modified 1790143532183
+[14:05:43] [Render thread/INFO]: Setting exclusive fullscreen to false by default, as the user is using Japanese/Chinese/Korean and likely needs IME support.
+[14:05:43] [Render thread/INFO]: Backend library: LWJGL version 3.4.1-snapshot
+[14:05:43] [Ixeris Event Polling Thread/INFO]: Using GlfwEventHandler
+[14:05:43] [Render thread/INFO]: Modifying process environment to apply workarounds for the NVIDIA graphics driver...
+[14:05:44] [Render thread/INFO]: Use NV_conservative_raster
+[14:05:44] [Render thread/INFO]: Use NV_blend_equation_advanced_coherent
+[14:05:44] [Render thread/INFO]: OpenGL vendor: NVIDIA Corporation
+[14:05:44] [Render thread/INFO]: OpenGL renderer: NVIDIA GeForce RTX 5080/PCIe/SSE2
+[14:05:44] [Render thread/INFO]: OpenGL version: 3.3.0 NVIDIA 596.49
+[14:05:44] [Render thread/INFO]: OpenGL caps: 
+AnisotropySupport: true
+GpuTracingSupport: false
+ConservativeRasterSupport: true
+TextureBarrierSupport: true
+DepthClipNegativeOneToOne: true
+BlendEquationSupport: ADVANCED_COHERENT
+ClampToBorderSupport: true
+MaxRenderTargetSize: 32768
+MaxPreferredRenderTargetSize: 32768
+MaxVertexAttributes: 16
+MaxVertexBindings: 8
+MaxTextureSize: 32768
+MaxPushConstantsSize: 0
+MaxColorAttachments: 8
+MinUniformBufferOffsetAlignment: 256
+MinStorageBufferOffsetAlignment: 16
+ShaderCaps:
+	TargetAPI: OPENGL_3_3
+	GLSLVersion: GLSL_330
+	SPIRVVersion: null
+	FMASupport: true
+	DualSourceBlendingSupport: true
+	PreferFlatInterpolation: true
+	VertexIDSupport: true
+	InfinitySupport: true
+	NonConstantArrayIndexSupport: true
+	BitManipulationSupport: true
+	NoPerspectiveInterpolationSupport: true
+	ReducedShaderMode: false
+	TextureQueryLod: false
+	UniformBindingSupport: true
+	VaryingLocationSupport: true
+	UseBlockMemberOffset: false
+	UsePrecisionModifiers: false
+	RequiresLocalOutputColorForFBFetch: false
+	MustObfuscateUniformColor: false
+	MustWriteToFragColor: false
+	ColorSpaceMathNeedsFloat: false
+	AvoidDfDxForGradientsWhenPossible: false
+	SecondaryOutputExtension: null
+	AdvBlendEqInteraction: 1
+	MaxFragmentSamplers: 32
+Vendor: NVIDIA
+Driver: NVIDIA
+MaxFragmentUniformVectors: 1024
+MaxTextureMaxAnisotropy: 16.0
+SupportsProtected: false
+SkipErrorChecks: true
+MaxLabelLength: 256
+DebugSupport: true
+BufferStorageSupport: true
+DrawElementsBaseVertexSupport: true
+BaseInstanceSupport: true
+DSASupport: true
+InvalidateBufferType: 2
+InvalidateFramebufferSupport: true
+ShaderBinarySupport: true
+UseStagingBuffers: false
+MustHaveFragmentShader: false
+VertexAttribBindingSupport: true
+CopyImageSupport: true
+SPIRVSupport: false
+ViewCompatibilityClassSupport: true
+TexStorageSupport: true
+ProgramBinarySupport: true
+ProgramBinaryFormats: [36385]
+GLSLVersion: 330
+ColorTypeToFormat:
+	UNKNOWN=>Unsupported
+	R_8=>R8
+	RG_88=>RG8
+	RGBA_8888=>RGBA8
+	R_16=>R16
+	RG_1616=>RG16
+	RGBA_16161616=>RBGA16
+	R_F16=>R16F
+	RG_F16=>RG16F
+	RGBA_F16=>RGBA16F
+	R_F32=>Unsupported
+	RG_F32=>Unsupported
+	RGBA_F32=>Unsupported
+	ALPHA_8=>R8
+	ALPHA_16=>R16
+	ALPHA_F16=>R16F
+	GRAY_8=>R8
+	GRAY_16=>R16
+	GRAY_ALPHA_88=>RG8
+	GRAY_ALPHA_1616=>RG16
+	BGRA_8888=>BGRA8
+	BGR_565=>B5_G6_R5
+	BGRA_5551=>BGR5_A1
+	RGBA_1010102=>RGB10_A2
+	BGRA_1010102=>BGR10_A2
+	RGBE_9995=>Unsupported
+	RGB_888=>RGB8
+	RGB_161616=>RGB16
+	RGBX_8888=>RGBA8
+CompressionTypeToBackendFormat: [null, {mBackend=OpenGL, mFormat=ETC2}, {mBackend=OpenGL, mFormat=RGB8_BC1}, {mBackend=OpenGL, mFormat=RGBA8_BC1}]
+
+[14:05:44] [Render thread/INFO]: UI manager initialized
+[14:05:44] [Render thread/INFO]: UI renderer initialized
+[14:05:44] [Render thread/INFO]: Initializing ImmediatelyFast 1.15.3+26.1 on NVIDIA GeForce RTX 5080/PCIe/SSE2 (NVIDIA Corporation) with OpenGL 3.3.0 NVIDIA 596.49
+[14:05:44] [Render thread/INFO]: Found Iris 1.11.3+mc26.1.2. Enabling compatibility.
+[14:05:44] [Render thread/INFO]: Debug functionality is disabled.
+[14:05:44] [Render thread/INFO]: ARB_direct_state_access detected, enabling DSA.
+[14:05:44] [Render thread/INFO]: Shaders are disabled because no valid shaderpack is selected
+[14:05:44] [Render thread/INFO]: AsyncParticles will cancel some of its mixins to achieve specific functions, so you can ignore the related Mixinsquared-canceller warnings below.
+[14:05:44] [Render thread/INFO]: Using optional rendering extensions: GL_ARB_buffer_storage, GL_KHR_debug, GL_ARB_vertex_attrib_binding, GL_ARB_direct_state_access, GL_EXT_texture_filter_anisotropic
+[14:05:44] [Render thread/INFO]: [ETF]: emissive suffixes loaded: [_e]
+[14:05:44] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LightCacheNoRefresh. Check debug logs for more information.
+[14:05:44] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LightCacheNoRefresh. Check debug logs for more information.
+[14:05:44] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LightCacheNoRefresh. Check debug logs for more information.
+[14:05:44] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LightCacheNoRefresh. Check debug logs for more information.
+[14:05:44] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LightCacheNoRefresh. Check debug logs for more information.
+[14:05:44] [Render thread/WARN]: Cancelled mixin fun.qu_an.minecraft.asyncparticles.client.mixin.conditional.MixinParticles_LightCacheNoRefresh. Check debug logs for more information.
+[14:05:44] [UI thread/INFO]: UI thread initialized in 287ms
+[14:05:44] [Render thread/INFO]: Hardware information:
+[14:05:44] [Render thread/INFO]: CPU: 8x AMD Ryzen 7 9850X3D 8-Core Processor 
+[14:05:44] [Render thread/INFO]: GPU: NVIDIA GeForce RTX 5080/PCIe/SSE2 (Supports OpenGL 3.3.0 NVIDIA 596.49)
+[14:05:44] [Render thread/INFO]: OS: Windows 11 (10.0)
+[14:05:44] [ForkJoinPool.commonPool-worker-4/WARN]: [Iris Update Check] This version doesn't have an update index, skipping.
+[14:05:44] [Render thread/INFO]: Reloading ResourceManager: vanilla, appleskin, asyncparticles, axolotlbuckets, badoptimizations, balm, betteradvancements, betterblockentities, bettergrass, bettermounthud, boatiview, bobby, c2me, carpet, chat_heads, chatanimation, chatpatches, citresewn, citresewn-defaults, cloth-config, com_viaversion_viaaprilfools-common, com_viaversion_viabackwards-common, com_viaversion_viaversion-common, conditional-mixin, continuity, controlling, craterlib, creativecore, cwb, defaultoptions, dynamiccrosshair, dynamiccrosshair-api, entity_model_features, entity_sound_features, entity_texture_features, entityculling, euphoria_patcher, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-language-kotlin, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, fallingleaves, forgeconfigapiport, fzzy_config, gammautils, gnetum, held-item-info, imblocker, immediatelyfast, inventoryprofilesnext, iris, itemphysic, itemscroller, itemswapper, jade, jankson, jecharacters, kirin, krypton, kuma_api, lambdynlights, lambdynlights_api, libbamboo, libgui, libipn, litematica, lithium, malilib, mcwifipnp, midnightlib, minihud, modernfix, modernui, modmenu, moreculling, net_raphimc_viabedrock, net_raphimc_vialegacy, nochatreports, notenoughanimations, optigui, peek, placeholder-api, polytone, presencefootsteps, pride, punchy, quick-pack, reeses-sodium-options, resourcefulconfig, resourcify, scalablelux, searchables, skinlayers3d, skyboxify, smoothswapping, sodium, sodium-extra, spruceui, sspb, status-effect-bars, stendhal, tcdcommons, trender, tweakeroo, viafabricplus, viafabricplus-visuals, vmp, waveycapes, xaerolib, xaerominimap, xaeroworldmap, yet_another_config_lib_v3, yiyiaddon, yosbr, itemswapper:default, punchy:punchy
+[14:05:44] [Render thread/INFO]: Placement Manager calculated thread limit: [02/02]
+[14:05:44] [Render thread/INFO]: i18nLang#load: File: '/assets/litematica/lang/en_us.json' has been loaded successfully
+[14:05:44] [Render thread/WARN]: i18nOptionManager#buildLanguageOptions(litematica): Detected [14] available options.
+[14:05:44] [Render thread/INFO]: i18nLang#load: File: '/assets/itemscroller/lang/en_us.json' has been loaded successfully
+[14:05:44] [Render thread/WARN]: i18nOptionManager#buildLanguageOptions(itemscroller): Detected [7] available options.
+[14:05:44] [Render thread/INFO]: i18nLang#load: File: '/assets/malilib/lang/en_us.json' has been loaded successfully
+[14:05:44] [Render thread/WARN]: i18nOptionManager#buildLanguageOptions(malilib): Detected [13] available options.
+[14:05:44] [Render thread/WARN]: getSchematicsBaseDirectory(): Created schematic directory 'D:\mcaddon\种子 Worker Production Test RealMods\schematics'
+[14:05:44] [Render thread/INFO]: Carpet: [26.1+v260402], CarpetTIS: [N/F]
+[14:05:44] [Render thread/INFO]: i18nLang#load: File: '/assets/minihud/lang/en_us.json' has been loaded successfully
+[14:05:44] [Render thread/WARN]: i18nOptionManager#buildLanguageOptions(minihud): Detected [8] available options.
+[14:05:44] [Worker-ResourceReload-3/INFO]: Scanned emoji map size: 3581
+[14:05:44] [Worker-ResourceReload-2/INFO]: Scanned emoji shortcodes: 6923
+[14:05:44] [Worker-ResourceReload-4/INFO]: Redirect registered font 'Inter Frozen Medium' to 'modernui:inter-frozen-medium'
+[14:05:44] [Worker-ResourceReload-4/INFO]: Registered font 'Inter Frozen Medium', location 'modernui:font/inter-frozen-medium-italic.otf' in pack: 'modernui'
+[14:05:44] [ForkJoinPool.commonPool-worker-1/INFO]: Redirect registered font 'JetBrains Mono Medium' to 'modernui:jetbrains-mono-medium'
+[14:05:44] [ForkJoinPool.commonPool-worker-1/INFO]: Registered font 'JetBrains Mono Medium', location 'modernui:font/jetbrains-mono-medium.ttf' in pack: 'modernui'
+[14:05:44] [Render thread/INFO]: i18nLang#load: File: '/assets/tweakeroo/lang/en_us.json' has been loaded successfully
+[14:05:44] [Render thread/WARN]: i18nOptionManager#buildLanguageOptions(tweakeroo): Detected [7] available options.
+[14:05:44] [ForkJoinPool.commonPool-worker-4/INFO]: Registered font 'Inter Frozen Medium', location 'modernui:font/inter-frozen-medium.otf' in pack: 'modernui'
+[14:05:44] [ForkJoinPool.commonPool-worker-3/INFO]: Redirect registered font 'mui-i18n-compat' to 'modernui:mui-i18n-compat'
+[14:05:44] [ForkJoinPool.commonPool-worker-3/INFO]: Registered font 'mui-i18n-compat', location 'modernui:font/muii18ncompat/muii18ncompat.ttf' in pack: 'modernui'
+[14:05:44] [Render thread/ERROR]: loadFromFile(): Failed to load config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\malilib.json'
+[14:05:44] [Render thread/ERROR]: loadFromFile(): Failed to load config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\tweakeroo.json'.
+[14:05:44] [Render thread/ERROR]: loadFromFile(): Failed to load config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\itemscroller.json'.
+[14:05:45] [Render thread/INFO]: Cached all modded block culling states
+[14:05:45] [ForkJoinPool.commonPool-worker-2/INFO]: Redirect registered font 'Source Han Sans CN Medium' to 'modernui:source-han-sans-cn-medium'
+[14:05:45] [ForkJoinPool.commonPool-worker-2/INFO]: Registered font 'Source Han Sans CN Medium', location 'modernui:font/source-han-sans-cn-medium.otf' in pack: 'modernui'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Font 'Noto Sans' failed to load or invalid
+[14:05:45] [Worker-ResourceReload-4/INFO]: Font 'San Francisco' failed to load or invalid
+[14:05:45] [Worker-ResourceReload-4/INFO]: Font 'Open Sans' failed to load or invalid
+[14:05:45] [Worker-ResourceReload-4/INFO]: Font 'STHeiti' failed to load or invalid
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded typeface: FontCollection{mFamilies=[Inter Frozen Medium, Source Han Sans CN Medium, Segoe UI Variable, Segoe UI, SimHei, Segoe UI Symbol, mui-i18n-compat], mExclusiveEastAsianBits=null}
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font 'minecraft:alt' in pack: 'vanilla'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font bundle: 'minecraft:font/alt.json', font set: [minecraft:include/space,minecraft:font/ascii_sga.png]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font 'minecraft:default' in pack: 'vanilla'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font bundle: 'minecraft:font/default.json', font set: [minecraft:include/space,minecraft:include/default]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font 'minecraft:illageralt' in pack: 'vanilla'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font bundle: 'minecraft:font/illageralt.json', font set: [minecraft:include/space,minecraft:font/asciillager.png]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font 'minecraft:include/default' in pack: 'vanilla'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font bundle: 'minecraft:font/include/default.json', font set: [minecraft:font/nonlatin_european.png,minecraft:font/accented.png,minecraft:font/ascii.png]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font 'minecraft:include/space' in pack: 'vanilla'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font bundle: 'minecraft:font/include/space.json', font set: [minecraft:include/space / minecraft:space]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font 'minecraft:include/unifont_pua' in pack: 'vanilla'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font bundle: 'minecraft:font/include/unifont_pua.json', font set: [modernui:internal-default]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font 'yiyiaddon:spacing' in pack: 'yiyiaddon'
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded raw font bundle: 'yiyiaddon:font/spacing.json', font set: [yiyiaddon:spacing / minecraft:space]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded font: 'minecraft:include/space', font set: [minecraft:include/space / minecraft:space]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded font: 'minecraft:include/default', font set: [minecraft:font/nonlatin_european.png,minecraft:font/accented.png,minecraft:font/ascii.png]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded font: 'minecraft:default', font set: [minecraft:include/space / minecraft:space,minecraft:font/nonlatin_european.png,minecraft:font/accented.png,minecraft:font/ascii.png]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded font: 'minecraft:illageralt', font set: [minecraft:include/space / minecraft:space,minecraft:font/asciillager.png]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded font: 'minecraft:include/unifont_pua', font set: [Inter Frozen Medium,Source Han Sans CN Medium,Segoe UI Variable,Segoe UI,SimHei,Segoe UI Symbol,mui-i18n-compat]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded font: 'yiyiaddon:spacing', font set: [yiyiaddon:spacing / minecraft:space]
+[14:05:45] [Worker-ResourceReload-4/INFO]: Loaded font: 'minecraft:alt', font set: [minecraft:include/space / minecraft:space,minecraft:font/ascii_sga.png]
+[14:05:45] [Download-3/ERROR]: Failed to retrieve profile key pair
+com.mojang.authlib.exceptions.MinecraftClientHttpException: Status: 401
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readInputStream(MinecraftClient.java:103)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:64)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:1053)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[14:05:45] [Render thread/INFO]: No default key bindings file found.
+[14:05:45] [Render thread/INFO]: Applied 0 defaults to key mappings (0 keys were reconfigured).
+[14:05:45] [Render thread/INFO]: Loaded default options for keymappings
+[14:05:45] [Render thread/INFO]: Deserializing Config from 'D:\mcaddon\种子 Worker Production Test RealMods\config\dynamiccrosshair.json5'
+[14:05:45] [Render thread/INFO]: Start loading plugin from Balm: net.blay09.mods.balm.platform.compatibility.hudinfo.internal.JadeModIntegration
+[14:05:45] [Render thread/INFO]: Start loading plugin from Jade: snownee.jade.addon.core.CorePlugin
+[14:05:45] [Render thread/INFO]: Start loading plugin from Jade: snownee.jade.addon.vanilla.VanillaPlugin
+[14:05:45] [Render thread/INFO]: Start loading plugin from Jade: snownee.jade.addon.universal.UniversalPlugin
+[14:05:45] [Render thread/INFO]: Start loading plugin from Jade: snownee.jade.addon.access.AccessibilityPlugin
+[14:05:45] [Render thread/INFO]: Start loading plugin from Jade: snownee.jade.addon.debug.DebugPlugin
+[14:05:45] [Render thread/INFO]: Loading Xaero's World Map - Stage 2/3
+[14:05:45] [Download-1/INFO]: Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: 0
+[14:05:45] [Download-1/ERROR]: Failed to fetch Realms feature flags
+com.mojang.realmsclient.exception.RealmsServiceException: Realms authentication error with message 'java.lang.RuntimeException: Failed to parse into SignedJWT: 0'
+	at knot//com.mojang.realmsclient.client.RealmsClient.execute(RealmsClient.java:526)
+	at knot//com.mojang.realmsclient.client.RealmsClient.fetchFeatureFlags(RealmsClient.java:186)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[14:05:45] [Render thread/INFO]: Registered player tracker system: map_synced
+[14:05:45] [Render thread/INFO]: Xaero's WorldMap Mod: Xaero's minimap found!
+[14:05:45] [Render thread/INFO]: Registered player tracker system: minimap_synced
+[14:05:45] [Render thread/INFO]: No Optifine!
+[14:05:45] [Render thread/INFO]: Xaero's World Map: No Vivecraft!
+[14:05:45] [Render thread/INFO]: Xaero's World Map: Iris found!
+[14:05:45] [Render thread/INFO]: Loading Xaero's World Map - Stage 3/3
+[14:05:45] [Render thread/INFO]: New world map region cache hash code: 1415965998
+[14:05:46] [Render thread/WARN]: `tryCondenseDupes(.)` called when `trimmedMessages` is empty
+[14:05:46] [Render thread/INFO]: [CHAT] [14:05:46] [Baritone] 未找到 Baritone 设置文件，正在重置。
+[14:05:46] [Render thread/INFO]: OpenAL initialized on device OpenAL Soft on SteelSeries Sonar - Gaming (SteelSeries Sonar Virtual Audio Device)
+[14:05:46] [Render thread/INFO]: Sound engine started
+[14:05:46] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[14:05:46] [Render thread/INFO]: 光影兼容兜底生效：已为缺失的原版采样器补绑 Sampler1(叠加纹理)、Sampler2(光照贴图)（上游 Iris 在 26.1.2 上偶发丢失绑定）
+[14:05:46] [Render thread/INFO]: Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/beds.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 2048x1024x0 minecraft:textures/atlas/gui.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 512x256x0 minecraft:textures/atlas/signs.png-atlas
+[14:05:46] [Render thread/INFO]: Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[14:05:46] [Render thread/INFO]: Font 'Noto Sans' failed to load or invalid
+[14:05:46] [Render thread/INFO]: Font 'San Francisco' failed to load or invalid
+[14:05:46] [Render thread/INFO]: Font 'Open Sans' failed to load or invalid
+[14:05:46] [Render thread/INFO]: Font 'STHeiti' failed to load or invalid
+[14:05:46] [Render thread/INFO]: Reloaded typeface: FontCollection{mFamilies=[Google Noto Color Emoji, Inter Frozen Medium, Source Han Sans CN Medium, Segoe UI Variable, Segoe UI, SimHei, Segoe UI Symbol, mui-i18n-compat], mExclusiveEastAsianBits=null}
+[14:05:46] [Render thread/INFO]: Reloaded glyph manager
+[14:05:46] [Render thread/INFO]: Reloaded text layout engine, res level: 2 to 2, locale: en_US, layout RTL: false
+[14:05:46] [Render thread/INFO]: Loading Xaero's Minimap - Stage 2/3
+[14:05:46] [Render thread/INFO]: Registered player tracker system: minimap_synced
+[14:05:46] [Render thread/INFO]: Loading Xaero's Minimap - Stage 3/3
+[14:05:46] [Render thread/INFO]: [Punchy Startup] resource reload: mix profile restored=false
+[14:05:46] [Render thread/INFO]: [Punchy Startup] local tuning file=D:\mcaddon\种子 Worker Production Test RealMods\config\punchy\punchy_tuning.json exists=false parsed=false sections=none
+[14:05:47] [Render thread/INFO]: [Punchy Startup] applied tuning: globalArmRight=scale=1.000 off=(0.000,0.000,0.000) rot=(0.000,0.000,0.000), globalArmLeft=scale=1.000 off=(-0.000,0.000,0.000) rot=(0.000,-0.000,-0.000), armKinds=0, itemSpecific=0
+[14:05:47] [Render thread/INFO]: Loading XaeroLib common 2/2!
+[14:05:47] [Render thread/INFO]: Loading XaeroLib client 2/3!
+[14:05:47] [Render thread/INFO]: Loading XaeroLib client 3/3!
+[14:05:47] [Render thread/INFO]: Thread[#63,Render thread,10,main]
+[14:05:47] [Render thread/INFO]: OpenGL Vendor: NVIDIA Corporation
+[14:05:47] [Render thread/INFO]: OpenGL Renderer: NVIDIA GeForce RTX 5080/PCIe/SSE2
+[14:05:47] [Render thread/INFO]: OpenGL Version: 3.3.0 NVIDIA 596.49
+[14:05:47] [Render thread/INFO]: Modifying OpenGL context to apply workarounds for the NVIDIA graphics driver...
+[14:05:47] [Render thread/INFO]: Enabling GL_DEBUG_OUTPUT_SYNCHRONOUS to force the NVIDIA driver to disable threaded command submission
+[14:05:47] [Render thread/INFO]: 30439 cache(s) were cleared!
+[14:05:47] [Render thread/INFO]: [Punchy Startup] resource reload: mix profile restored=false
+[14:05:47] [Render thread/INFO]: [Punchy Startup] local tuning file=D:\mcaddon\种子 Worker Production Test RealMods\config\punchy\punchy_tuning.json exists=false parsed=false sections=none
+[14:05:47] [Render thread/INFO]: [Punchy Startup] applied tuning: globalArmRight=scale=1.000 off=(0.000,0.000,0.000) rot=(0.000,0.000,0.000), globalArmLeft=scale=1.000 off=(-0.000,0.000,0.000) rot=(0.000,-0.000,-0.000), armKinds=0, itemSpecific=0
+[14:05:47] [Render thread/INFO]: Loaded 7 Polytone config entries
+[14:05:47] [Render thread/INFO]: Reloading ItemSwapper item groups and lists...
+[14:05:47] [Render thread/INFO]: Unable to find minecraft:scute, ignoring.
+[14:05:47] [Render thread/INFO]: Unable to find minecraft:chain, ignoring.
+[14:05:47] [Render thread/INFO]: Unable to find minecraft:grass, ignoring.
+[14:05:47] [Render thread/INFO]: Geometry registry populated! Task successfully completed
+[14:05:47] [Render thread/INFO]: [ETF]: reloading ETF data.
+[14:05:47] [Render thread/INFO]: [ETF]: emissive suffixes loaded: [_e]
+[14:05:47] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[14:05:47] [Render thread/INFO]: BlockModelCacheSchematic: refreshing model cache
+[14:05:47] [Render thread/INFO]: 种子挖矿：启用开关改为 关
+[14:05:47] [Render thread/INFO]: 种子挖矿：启用开关改为 开
+[14:05:47] [Render thread/INFO]: 种子挖矿PoC：已删除上一次的实验存档 D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed
+[14:05:47] [Render thread/INFO]: 种子挖矿PoC：正在用种子 20260922 新建测试世界 seedpoc-known-seed（原版普通世界设置）
+[14:05:47] [Render thread/INFO]: Found new data pack balm, loading it automatically
+[14:05:47] [Render thread/INFO]: Found new data pack dynamiccrosshair-api, loading it automatically
+[14:05:47] [Render thread/INFO]: Found new data pack fabric-convention-tags-v2, loading it automatically
+[14:05:47] [Render thread/INFO]: Found new data pack libgui, loading it automatically
+[14:05:47] [Render thread/INFO]: Reloaded glyph manager
+[14:05:47] [Render thread/INFO]: Reloaded text layout engine, res level: 2 to 2, locale: en_US, layout RTL: false
+[14:05:47] [IO-Worker-2/INFO]: Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: 0
+[14:05:47] [IO-Worker-2/ERROR]: Couldn't connect to realms
+com.mojang.realmsclient.exception.RealmsServiceException: Realms authentication error with message 'java.lang.RuntimeException: Failed to parse into SignedJWT: 0'
+	at knot//com.mojang.realmsclient.client.RealmsClient.execute(RealmsClient.java:526)
+	at knot//com.mojang.realmsclient.client.RealmsClient.clientCompatible(RealmsClient.java:307)
+	at knot//com.mojang.realmsclient.RealmsAvailability.lambda$check$0(RealmsAvailability.java:48)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[14:05:48] [Render thread/INFO]: Loaded 1515 recipes
+[14:05:48] [Render thread/INFO]: Loaded 1617 advancements
+[14:05:48] [Render thread/WARN]: Initial datapack load took 543.2 ms
+[14:05:48] [Render thread/INFO]: [ETF]: emissive suffixes loaded: [_e]
+[14:05:48] [Render thread/INFO]: Applied 0 biome modifications to 0 of 65 new biomes in 513.8 μs
+[14:05:48] [Server thread/INFO]: Dispatching loading event for config pickupnotifier-server.toml
+[14:05:48] [Server thread/INFO]: Starting integrated minecraft server version 26.1.2
+[14:05:48] [Server thread/INFO]: Generating keypair
+[14:05:48] [Server thread/INFO]: Enforcing safe world random access
+[14:05:48] [Server thread/INFO]: [STDOUT]: Density function compilation finished in 130.5 ms
+[14:05:48] [Server thread/INFO]: [STDOUT]: [ScalableLux] Lighting scaling is enabled in externally managed mode
+[14:05:48] [Server thread/INFO]: Changing watch distance to 10
+[14:05:48] [Server thread/INFO]: Using TheSpeedyObjectFactory without Unsafe
+[14:05:48] [Server thread/INFO]: Selecting global world spawn...
+[14:05:49] [Server thread/INFO]: [STDOUT]: Density function compilation finished in 4.354 ms
+[14:05:49] [Server thread/INFO]: Changing watch distance to 10
+[14:05:49] [Server thread/INFO]: [STDOUT]: Density function compilation finished in 3.042 ms
+[14:05:49] [Server thread/INFO]: Changing watch distance to 10
+[14:05:49] [Server thread/INFO]: Loading 0 persistent chunks...
+[14:05:49] [Server thread/INFO]: Preparing spawn area: 16%
+[14:05:49] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:overworld
+[14:05:49] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_end
+[14:05:50] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_nether
+[14:05:50] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[14:05:50] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[14:05:50] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[14:05:50] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[14:05:50] [Render thread/WARN]: Game took 17.732 seconds to start
+[14:05:50] [Render thread/INFO]: [Punchy Startup] resource reload: mix profile restored=false
+[14:05:50] [Render thread/INFO]: [Punchy Startup] local tuning file=D:\mcaddon\种子 Worker Production Test RealMods\config\punchy\punchy_tuning.json exists=false parsed=false sections=none
+[14:05:50] [Render thread/INFO]: [Punchy Startup] applied tuning: globalArmRight=scale=1.000 off=(0.000,0.000,0.000) rot=(0.000,0.000,0.000), globalArmLeft=scale=1.000 off=(-0.000,0.000,0.000) rot=(0.000,-0.000,-0.000), armKinds=0, itemSpecific=0
+[14:05:50] [Server thread/INFO]: Loading 0 chunks for player spawn...
+[14:05:50] [Server thread/INFO]: Preparing spawn area: 16%
+[14:05:50] [Server thread/INFO]: Preparing spawn area: 16%
+[14:05:50] [Server thread/INFO]: Preparing spawn area: 16%
+[14:05:50] [Server thread/INFO]: Preparing spawn area: 16%
+[14:05:51] [Server thread/INFO]: Preparing spawn area: 16%
+[14:05:51] [Server thread/INFO]: Preparing spawn area: 16%
+[14:05:52] [Server thread/INFO]: Time elapsed: 3478 ms
+[14:05:52] [Render thread/INFO]: Registered 17 custom block set types
+[14:05:52] [Render thread/INFO]: Reloaded Polytone AssetsFiles in 39 ms
+[14:05:52] [Server thread/WARN]: Method overwrite conflict for setExhaustion in carpet.mixins.json:FoodData_scarpetMixin from mod carpet, previously written by squeek.appleskin.mixin.FoodDataMixin. Skipping method.
+[14:05:52] [Server thread/INFO]: SmokeTester[local:E:2e02e985] logged in with entity id 25 at (-9.5, 67.0, 6.5)
+[14:05:52] [Render thread/INFO]: Minimap required item set to nothing.
+[14:05:52] [Render thread/INFO]: New Xaero hud session initialized!
+[14:05:52] [Server thread/INFO]: SmokeTester joined the game
+[14:05:52] [Render thread/INFO]: Fullscreen map required item set to nothing.
+[14:05:52] [Render thread/INFO]: New world map session initialized!
+[14:05:52] [Render thread/WARN]: @ModifyVariable(@At("HEAD")) Shift.BY=1 on sspb.mixins.json:sodium.SmoothLightPipelineMixin from mod sspb::localvar$hkg000$sspb$modifyApplyInsetPartialFaceVertexN2d exceeds the maximum allowed value: 0. Increase the value of maxShiftBy to suppress this warning.
+[14:05:52] [Render thread/INFO]: Started 2 worker threads
+[14:05:52] [Server thread/INFO]: Changing view distance to 12, from 10
+[14:05:52] [Server thread/INFO]: Changing watch distance to 12
+[14:05:52] [Server thread/INFO]: Changing watch distance to 12
+[14:05:52] [Server thread/INFO]: Changing watch distance to 12
+[14:05:52] [Server thread/INFO]: Changing simulation distance to 12, from 0
+[14:05:52] [Render thread/INFO]: [STDOUT]: Baritone world data dir: D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384
+[14:05:52] [Render thread/INFO]: [STDOUT]: Cached world directory: D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[14:05:52] [Render thread/INFO]: [STDOUT]: Would save waypoints to D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\waypoints
+[14:05:52] [Render thread/ERROR]: loadFromFile(): Failed to load config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\malilib.json'
+[14:05:52] [Render thread/ERROR]: loadFromFile(): Failed to load config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\tweakeroo.json'.
+[14:05:52] [Render thread/ERROR]: loadFromFile(): Failed to load config file 'D:\mcaddon\种子 Worker Production Test RealMods\config\itemscroller.json'.
+[14:05:52] [Render thread/WARN]: readFromDisk(): Error reading recipes saveDir 'D:\mcaddon\种子 Worker Production Test RealMods\itemscroller'
+[14:05:52] [Render thread/WARN]: readFromDisk(): Error reading villager data from dir 'D:\mcaddon\种子 Worker Production Test RealMods\itemscroller'
+[14:05:52] [Render thread/INFO]: BlockModelCacheSchematic: refreshing model cache
+[14:05:52] [Render thread/WARN]: Unable to read property: west with value: "false" for blockstate: {Name:"minecraft:cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/WARN]: Unable to read property: east with value: "false" for blockstate: {Name:"minecraft:cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/WARN]: Unable to read property: south with value: "false" for blockstate: {Name:"minecraft:cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/WARN]: Unable to read property: north with value: "false" for blockstate: {Name:"minecraft:cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/WARN]: Unable to read property: west with value: "false" for blockstate: {Name:"minecraft:mossy_cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/WARN]: Unable to read property: east with value: "false" for blockstate: {Name:"minecraft:mossy_cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/WARN]: Unable to read property: south with value: "false" for blockstate: {Name:"minecraft:mossy_cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/WARN]: Unable to read property: north with value: "false" for blockstate: {Name:"minecraft:mossy_cobblestone_wall",Properties:{east:"false",north:"false",south:"false",up:"false",west:"false"}}
+[14:05:52] [Render thread/INFO]: Starting [2] Placement Manager Daemon threads
+[14:05:52] [Render thread/INFO]: Starting [1] Worker Daemon threads
+[14:05:52] [IO-Worker-3/INFO]: Reading...
+[14:05:52] [IO-Worker-3/INFO]: Parsed 0 messages and 0 sent messages!
+[14:05:52] [Render thread/INFO]: [CHAT] [14:05:52] §8[§rseedpoc-known-seed§8]
+[14:05:52] [Render thread/INFO]: [CHAT] [14:05:52] §f§l[服务器检测]§r§l§c单人世界无需检测
+[14:05:52] [Render thread/INFO]: [CHAT] [14:05:52] §f§l[发包防踢]§r§l§c单人世界无需防踢
+[14:05:52] [IO-Worker-3/INFO]: [ChatLog.deserialize] Took 0.0 seconds
+[14:05:52] [Render thread/INFO]: [Inventory Profiles Next] Loaded 0 external GUI hints
+[14:05:52] [Render thread/INFO]: [Inventory Profiles Next] Loaded 803 build-in GUI hints
+[14:05:52] [Render thread/INFO]: [Inventory Profiles Next] Effective GUI hints after merge: 803
+[14:05:52] [Render thread/INFO]: Minimap updated server level id: -726698256 for world ResourceKey[minecraft:dimension / minecraft:overworld]
+[14:05:52] [Render thread/INFO]: Loaded 2 advancements
+[14:05:52] [Render thread/INFO]: [CHAT] [14:05:52] §8[§rseedpoc-known-seed§8]
+[14:05:52] [Render thread/INFO]: Restored 4 messages and 0 history messages!
+[14:05:53] [Render thread/INFO]: Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[14:05:53] [Render thread/INFO]: [星露谷] 界面观察：LevelLoadingScreen —— 容器槽内物品 0 个 / 界面对象内物品栈 0 个
+[14:05:53] [Render thread/INFO]: 种子挖矿：配置作用域切换为 singleplayer_seedpoc-known-seed
+[14:05:53] [Render thread/INFO]: 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：未填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：格式无效）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：格式无效）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：格式无效）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：格式无效）
+[14:05:53] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:05:53] [Render thread/INFO]: 种子挖矿：提交预测 种子 20260922 区块 (0,0)（后台线程 + 本地隔离计算器，渲染线程不参与）
+[14:05:53] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：正在启动本地世界生成计算器（第 1 次，版本 26.1.2，模组 1.0-beta2）
+[14:05:53] [yiyiaddon-seed-predict/INFO]: 本地世界生成计算器已拉起：PID 18908，运行目录 D:\mcaddon\种子 Worker Production Test RealMods\yiyiaddon\seed-worker\26.1.2，日志 D:\mcaddon\种子 Worker Production Test RealMods\yiyiaddon\seed-worker\26.1.2\seed-worker-26.1.2.log，宿主端口 51142
+[14:05:53] [Render thread/INFO]: Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[14:05:53] [Render thread/WARN]: Time from main menu to in-game was 4.91329 seconds
+[14:05:53] [Render thread/WARN]: Total time to load game and open world was 22.64529 seconds
+[14:05:53] [Render thread/WARN]: Found *decent* program match for minecraft:pipeline/translucent_particle: PARTICLES_TRANS
+[14:05:53] [Render thread/INFO]: Disabling caching for element misc_overlays. Reason: Blend Func (ZERO, ONE_MINUS_SRC_COLOR, ONE, ONE_MINUS_SRC_ALPHA)
+[14:05:53] [Render thread/INFO]: Reloading radar icon resources...
+[14:05:53] [Render thread/INFO]: Reloaded radar icon resources!
+[14:05:54] [Server thread/WARN]: SmokeTester moved wrongly!
+[14:05:54] [Render thread/INFO]: Disabling caching for element crosshair. Reason: Blend Func (ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_COLOR, ONE, ONE_MINUS_SRC_ALPHA)
+[14:05:54] [Render thread/INFO]: Resizing Dynamic Transforms UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[14:05:54] [Render thread/INFO]: Resizing Dynamic Transforms UBO, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[14:05:54] [Render thread/INFO]: Resized a dynamic immediate buffer to 160!
+[14:05:54] [Render thread/INFO]: Resized a dynamic immediate buffer to 160!
+[14:05:54] [Render thread/INFO]: Resized a dynamic immediate buffer to 320!
+[14:05:54] [Render thread/INFO]: Resized a dynamic immediate buffer to 320!
+[14:05:54] [Render thread/INFO]: Resized a dynamic immediate buffer to 640!
+[14:05:54] [Render thread/INFO]: Resized a dynamic immediate buffer to 640!
+[14:05:55] [Render thread/WARN]: Found *decent* program match for minecraft:pipeline/opaque_particle: PARTICLES
+[14:05:58] [Render thread/INFO]: Resized a dynamic immediate buffer to 1280!
+[14:05:58] [Render thread/INFO]: Resized a dynamic immediate buffer to 1280!
+[14:05:59] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：已就绪（PID 18908，协议 1，Minecraft 26.1.2，模组 1.0-beta2，耗时 6117 ms，宿主监听 已停用（不接受任何外部连接））
+[14:05:59] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s1-135283a（种子 20260922，维度 minecraft:overworld）
+[14:06:02] [Render thread/INFO]: 种子挖矿：预测成功 种子 20260922 区块 (0,0) → 45 个（调度敏感 0 / 未解析 45 / 确定性 0），耗时 3150 ms，缓存区块 529，宿主 ChunkMap 查询 0（必须为 0）
+[14:06:02] [Render thread/INFO]: 种子挖矿：计算器诊断 状态=已就绪；PID=18908；会话=s1-135283a；启动次数=1；预测次数=1；最近启动耗时=6117 ms；最近预测耗时=3184 ms；宿主 ChunkMap 查询=0
+[14:06:02] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:06:02] [Render thread/INFO]: 种子挖矿：提交预测 种子 2 区块 (-400,380)（后台线程 + 本地隔离计算器，渲染线程不参与）
+[14:06:02] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话 s1-135283a 已关闭（Worker 侧离线世界缓存已释放）
+[14:06:02] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s2-2（种子 2，维度 minecraft:overworld）
+[14:06:04] [Render thread/INFO]: 种子挖矿：预测成功 种子 2 区块 (-400,380) → 23 个（调度敏感 1 / 未解析 22 / 确定性 0），耗时 1883 ms，缓存区块 529，宿主 ChunkMap 查询 0（必须为 0）
+[14:06:04] [Render thread/INFO]: 种子挖矿：计算器诊断 状态=已就绪；PID=18908；会话=s2-2；启动次数=1；预测次数=2；最近启动耗时=6117 ms；最近预测耗时=1893 ms；宿主 ChunkMap 查询=0
+[14:06:04] [Render thread/INFO]: 种子挖矿：种子已修改（状态：已填写）
+[14:06:04] [Render thread/INFO]: 种子挖矿：提交预测 种子 12345 区块 (0,0)（后台线程 + 本地隔离计算器，渲染线程不参与）
+[14:06:04] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话 s2-2 已关闭（Worker 侧离线世界缓存已释放）
+[14:06:04] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：会话已打开 s3-3039（种子 12345，维度 minecraft:overworld）
+[14:06:06] [Render thread/INFO]: 种子挖矿：预测成功 种子 12345 区块 (0,0) → 31 个（调度敏感 0 / 未解析 31 / 确定性 0），耗时 1608 ms，缓存区块 529，宿主 ChunkMap 查询 0（必须为 0）
+[14:06:06] [Render thread/INFO]: 种子挖矿：计算器诊断 状态=已就绪；PID=18908；会话=s3-3039；启动次数=1；预测次数=3；最近启动耗时=6117 ms；最近预测耗时=1619 ms；宿主 ChunkMap 查询=0
+[14:06:06] [Render thread/INFO]: 种子挖矿：提交预测 种子 12345 区块 (-1,-1)（后台线程 + 本地隔离计算器，渲染线程不参与）
+[14:06:06] [Render thread/INFO]: 种子挖矿：预测成功 种子 12345 区块 (-1,-1) → 29 个（调度敏感 7 / 未解析 22 / 确定性 0），耗时 382 ms，缓存区块 574，宿主 ChunkMap 查询 0（必须为 0）
+[14:06:06] [Render thread/INFO]: 种子挖矿：计算器诊断 状态=已就绪；PID=18908；会话=s3-3039；启动次数=1；预测次数=4；最近启动耗时=6117 ms；最近预测耗时=388 ms；宿主 ChunkMap 查询=0
+[14:06:06] [Render thread/INFO]: 种子挖矿：提交预测 种子 12345 区块 (-25,17)（后台线程 + 本地隔离计算器，渲染线程不参与）
+[14:06:07] [Render thread/INFO]: 种子挖矿：预测成功 种子 12345 区块 (-25,17) → 24 个（调度敏感 0 / 未解析 24 / 确定性 0），耗时 1141 ms，缓存区块 1103，宿主 ChunkMap 查询 0（必须为 0）
+[14:06:07] [Render thread/INFO]: 种子挖矿：计算器诊断 状态=已就绪；PID=18908；会话=s3-3039；启动次数=1；预测次数=5；最近启动耗时=6117 ms；最近预测耗时=1145 ms；宿主 ChunkMap 查询=0
+[14:06:07] [Render thread/INFO]: 种子挖矿：提交预测 种子 12345 区块 (120,-130)（后台线程 + 本地隔离计算器，渲染线程不参与）
+[14:06:08] [Server thread/WARN]: SmokeTester moved wrongly!
+[14:06:08] [Server thread/WARN]: Can't keep up! Is the server overloaded? Running 5552ms or 111 ticks behind
+[14:06:09] [Render thread/INFO]: 种子挖矿：预测成功 种子 12345 区块 (120,-130) → 26 个（调度敏感 0 / 未解析 26 / 确定性 0），耗时 1346 ms，缓存区块 1632，宿主 ChunkMap 查询 0（必须为 0）
+[14:06:09] [Render thread/INFO]: 种子挖矿：计算器诊断 状态=已就绪；PID=18908；会话=s3-3039；启动次数=1；预测次数=6；最近启动耗时=6117 ms；最近预测耗时=1350 ms；宿主 ChunkMap 查询=0
+[14:06:09] [yiyiaddon-seedpoc-oracle/INFO]: [STDOUT]: Density function compilation finished in 76.81 ms
+[14:06:11] [Server thread/INFO]: SmokeTester has made the advancement [We Need to Go Deeper]
+[14:06:11] [Render thread/INFO]: Reloading pipeline on dimension change: minecraft:overworld => minecraft:the_nether
+[14:06:11] [Render thread/INFO]: Destroying pipeline minecraft:overworld
+[14:06:11] [Render thread/INFO]: Creating pipeline for dimension minecraft:the_nether
+[14:06:11] [Render thread/INFO]: Stopping worker threads
+[14:06:11] [Render thread/INFO]: Started 2 worker threads
+[14:06:11] [Render thread/INFO]: Stopping worker threads
+[14:06:11] [Render thread/INFO]: Started 2 worker threads
+[14:06:11] [Render thread/INFO]: BlockModelCacheSchematic: refreshing model cache
+[14:06:11] [Render thread/INFO]: Starting [2] Placement Manager Daemon threads
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: Started saving the world in a new thread
+[14:06:11] [Render thread/INFO]: [STDOUT]: Baritone world data dir: D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\the_nether_128
+[14:06:11] [Render thread/INFO]: [STDOUT]: Cached world directory: D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\the_nether_128\cache
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: Saving region -1,0 to disk D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[14:06:11] [ForkJoinPool.commonPool-worker-2/INFO]: [STDOUT]: Saving region 0,-1 to disk D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[14:06:11] [Render thread/INFO]: [STDOUT]: Would save waypoints to D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\the_nether_128\waypoints
+[14:06:11] [ForkJoinPool.commonPool-worker-4/INFO]: [STDOUT]: Saving region 0,0 to disk D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[14:06:11] [ForkJoinPool.commonPool-worker-3/INFO]: [STDOUT]: Saving region -1,-1 to disk D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384\cache
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: Saved region successfully
+[14:06:11] [Render thread/INFO]: [CHAT] [14:06:11] [SmokeTester head]SmokeTester has made the advancement [We Need to Go Deeper]
+[14:06:11] [Render thread/INFO]: Minimap updated server level id: -726698256 for world ResourceKey[minecraft:dimension / minecraft:the_nether]
+[14:06:11] [ForkJoinPool.commonPool-worker-3/INFO]: [STDOUT]: Saved region successfully
+[14:06:11] [ForkJoinPool.commonPool-worker-2/INFO]: [STDOUT]: Saved region successfully
+[14:06:11] [ForkJoinPool.commonPool-worker-4/INFO]: [STDOUT]: Saved region successfully
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: World save took 31ms
+[14:06:11] [Render thread/INFO]: Destroying pipeline minecraft:the_nether
+[14:06:11] [Render thread/INFO]: Shaders are disabled because no valid shaderpack is selected
+[14:06:11] [Render thread/INFO]: Creating pipeline for dimension minecraft:the_nether
+[14:06:11] [Render thread/INFO]: 种子挖矿：进入世界 维度=minecraft:the_nether（世界生成宿主由本地隔离计算器提供）
+[14:06:11] [Render thread/INFO]: Loaded 29 advancements
+[14:06:11] [Render thread/INFO]: Reloading pipeline on dimension change: minecraft:the_nether => minecraft:overworld
+[14:06:11] [Render thread/INFO]: Destroying pipeline minecraft:the_nether
+[14:06:11] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[14:06:11] [Render thread/INFO]: Stopping worker threads
+[14:06:11] [Render thread/INFO]: Started 2 worker threads
+[14:06:11] [Render thread/INFO]: Stopping worker threads
+[14:06:11] [Render thread/INFO]: Started 2 worker threads
+[14:06:11] [Render thread/INFO]: BlockModelCacheSchematic: refreshing model cache
+[14:06:11] [Render thread/INFO]: Starting [2] Placement Manager Daemon threads
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: Started saving the world in a new thread
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: Saving region 0,0 to disk D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\the_nether_128\cache
+[14:06:11] [Render thread/INFO]: [STDOUT]: Baritone world data dir: D:\mcaddon\种子 Worker Production Test RealMods\saves\seedpoc-known-seed\.\baritone\minecraft\overworld_384
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: Saved region successfully
+[14:06:11] [Baritone-Worker-3/INFO]: [STDOUT]: World save took 1ms
+[14:06:11] [Render thread/INFO]: Minimap updated server level id: -726698256 for world ResourceKey[minecraft:dimension / minecraft:overworld]
+[14:06:11] [Render thread/INFO]: Destroying pipeline minecraft:overworld
+[14:06:11] [Render thread/INFO]: Shaders are disabled because no valid shaderpack is selected
+[14:06:11] [Render thread/INFO]: Creating pipeline for dimension minecraft:overworld
+[14:06:11] [Render thread/INFO]: 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[14:06:11] [Render thread/INFO]: 种子挖矿：提交预测 种子 12345 区块 (-1,0)（后台线程 + 本地隔离计算器，渲染线程不参与）
+[14:06:12] [Render thread/INFO]: 种子挖矿：预测成功 种子 12345 区块 (-1,0) → 35 个（调度敏感 0 / 未解析 35 / 确定性 0），耗时 197 ms，缓存区块 1633，宿主 ChunkMap 查询 0（必须为 0）
+[14:06:12] [Render thread/INFO]: 种子挖矿：计算器诊断 状态=已就绪；PID=18908；会话=s3-3039；启动次数=1；预测次数=7；最近启动耗时=6117 ms；最近预测耗时=203 ms；宿主 ChunkMap 查询=0
+[14:06:12] [IO-Worker-1/INFO]: Saving...
+[14:06:12] [IO-Worker-1/INFO]: Saved 5 messages and 0 sent messages to 'D:\mcaddon\种子 Worker Production Test RealMods\logs\chatlog.json'!
+[14:06:12] [IO-Worker-1/INFO]: [ChatLog.serialize(->0)] Took 0.005 seconds
+[14:06:12] [Server thread/INFO]: SmokeTester lost connection: Disconnected
+[14:06:12] [Server thread/INFO]: SmokeTester left the game
+[14:06:12] [Server thread/INFO]: Stopping singleplayer server as player logged out
+[14:06:12] [Server thread/INFO]: Stopping server
+[14:06:12] [Server thread/INFO]: Saving players
+[14:06:12] [Server thread/INFO]: Saving worlds
+[14:06:12] [Server thread/INFO]: ServerLevel[seedpoc-known-seed]/minecraft:overworld: waiting for 1718 chunks to unload
+[14:06:12] [Server thread/INFO]: ServerLevel[seedpoc-known-seed]/minecraft:the_nether: waiting for 752 chunks to unload
+[14:06:12] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:overworld
+[14:06:13] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_end
+[14:06:13] [Server thread/INFO]: Saving chunks for level 'ServerLevel[seedpoc-known-seed]'/minecraft:the_nether
+[14:06:13] [Render thread/INFO]: Stopping [1] Worker Daemon threads
+[14:06:13] [Render thread/INFO]: Xaero hud session finalized.
+[14:06:13] [Render thread/INFO]: Finalizing world map session...
+[14:06:13] [Thread-17/INFO]: World map force-cleaned!
+[14:06:13] [Render thread/INFO]: World map session finalized.
+[14:06:13] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[14:06:13] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[14:06:13] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[14:06:13] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[14:06:13] [C2ME Storage #3/INFO]: Storage thread Thread[#160,C2ME Storage #3,4,main] stopped
+[14:06:13] [C2ME Storage #2/INFO]: Storage thread Thread[#157,C2ME Storage #2,4,main] stopped
+[14:06:13] [C2ME Storage #1/INFO]: Storage thread Thread[#156,C2ME Storage #1,4,main] stopped
+[14:06:13] [C2ME Storage #6/INFO]: Storage thread Thread[#170,C2ME Storage #6,4,main] stopped
+[14:06:13] [C2ME Storage #5/INFO]: Storage thread Thread[#169,C2ME Storage #5,4,main] stopped
+[14:06:13] [C2ME Storage #4/INFO]: Storage thread Thread[#168,C2ME Storage #4,4,main] stopped
+[14:06:13] [C2ME Storage #9/INFO]: Storage thread Thread[#173,C2ME Storage #9,4,main] stopped
+[14:06:13] [C2ME Storage #8/INFO]: Storage thread Thread[#172,C2ME Storage #8,4,main] stopped
+[14:06:13] [C2ME Storage #7/INFO]: Storage thread Thread[#171,C2ME Storage #7,4,main] stopped
+[14:06:13] [Server thread/INFO]: Dispatching unloading event for config pickupnotifier-server.toml
+[14:06:13] [Render thread/INFO]: Stopping worker threads
+[14:06:13] [Render thread/INFO]: [ETF]: emissive suffixes loaded: [_e]
+[14:06:13] [Render thread/INFO]: [ETF]: emissive suffixes loaded: [_e]
+[14:06:13] [Render thread/WARN]: Client disconnected with reason: 种子挖矿服务层回归：测试断开连接
+[14:06:13] [Render thread/INFO]: 种子挖矿：停止本地世界生成计算器（原因：退出世界）
+[14:06:13] [Render thread/INFO]: 种子挖矿：已离开世界，计算结果已清除、计算器已停止（配置保留）
+[14:06:13] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：已发送停机指令（PID 18908）
+[14:06:13] [yiyiaddon-seed-predict/INFO]: 种子挖矿｜Worker：本地世界生成计算器已停止（PID 18908，退出码 0）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜《232 · 种子挖矿正式化第四阶段 · 服务层回归结果（本地隔离世界生成计算器）》
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜驱动方式：客户端线程调用 SeedMiningService 公开 API（与界面按钮同一条路径）；
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜正式宿主：本机隔离的 Worker 进程（Vanilla ServerLevel）；直连对照：集成服务端的 ServerLevel。
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜数字基线：报告 229（正式 Predictor 迁移回归）与报告 228（FEEDBACK 调度定案）。
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜测试世界：seedpoc-known-seed（每轮新建，种子 20260922；注意预测用的是手动填写的种子，与世界种子无关）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜装置新鲜度：建世界前已删除上次实验存档并重建（全新 world / region / poi / entities）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜一、未进入世界（标题界面）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  关闭状态下状态：已关闭；期望「已关闭」→ （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  开启但未进入世界：等待进入世界；期望「等待进入世界」→ （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  进入世界：minecraft:overworld（服务层走本地隔离计算器，直连对照走集成服务端）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜二、界面装配烟测（控制台「种子挖矿」页）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  个人模式关：控制台整窗装配成功；单独装配「种子挖矿」页成功，总高 804 像素、是否为空：false
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  个人模式开：控制台整窗装配成功（种子页签走隐藏路径，不抛异常）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜三、种子输入解析（服务层公开 API）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「（空串）」→ 解析 null / 输入状态「未填写」/ 运行时状态「等待填写服务器种子」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「0」→ 解析 0 / 输入状态「已填写」/ 运行时状态「已就绪」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「12345」→ 解析 12345 / 输入状态「已填写」/ 运行时状态「已就绪」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「-7777」→ 解析 -7777 / 输入状态「已填写」/ 运行时状态「已就绪」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「20260922」→ 解析 20260922 / 输入状态「已填写」/ 运行时状态「已就绪」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「9223372036854775807」→ 解析 9223372036854775807 / 输入状态「已填写」/ 运行时状态「已就绪」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「-9223372036854775808」→ 解析 -9223372036854775808 / 输入状态「已填写」/ 运行时状态「已就绪」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「abc」→ 解析 null / 输入状态「格式无效」/ 运行时状态「种子格式无效」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「12.3」→ 解析 null / 输入状态「格式无效」/ 运行时状态「种子格式无效」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  输入「--」→ 解析 null / 输入状态「格式无效」/ 运行时状态「种子格式无效」
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  非法种子下是否允许预测：禁止（正确）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜四、服务层「测试当前区块预测」（后台单线程执行）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  用例 种子 20260922 区块 (0,0)：229 固定集首个目标（冷启动）｜提交后状态「正在启动本地世界生成计算器…」，客户端线程提交耗时 417 微秒（世界生成不在渲染线程）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    状态：预测完成；目标区块 (0,0)（期望 (0,0)）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    候选钻石 45（期望 45）（通过）；调度敏感 0（期望 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    未解析 45；确定性 0（本阶段恒 0）（通过）；未解析=候选-敏感：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    预测耗时 3150 ms；会话持有离线区块 529 个；宿主 ChunkMap 查询增量 0（必须为 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  用例 种子 2 区块 (-400,380)：228 受控顺序样本：争议格 (-6385,-59,6085) 必须仍是调度敏感｜提交后状态「正在预测当前区块…」，客户端线程提交耗时 33 微秒（世界生成不在渲染线程）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    状态：预测完成；目标区块 (-400,380)（期望 (-400,380)）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    候选钻石 23（期望 23）（通过）；调度敏感 1（期望 1）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    未解析 22；确定性 0（本阶段恒 0）（通过）；未解析=候选-敏感：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    预测耗时 1883 ms；会话持有离线区块 529 个；宿主 ChunkMap 查询增量 0（必须为 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    已知争议位置 (-6385,-59,6085)：调度敏感；期望「调度敏感」（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  用例 种子 12345 区块 (0,0)：229 Seed 12345 回归｜提交后状态「正在预测当前区块…」，客户端线程提交耗时 30 微秒（世界生成不在渲染线程）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    状态：预测完成；目标区块 (0,0)（期望 (0,0)）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    候选钻石 31（期望 31）（通过）；调度敏感 0（期望 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    未解析 31；确定性 0（本阶段恒 0）（通过）；未解析=候选-敏感：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    预测耗时 1608 ms；会话持有离线区块 529 个；宿主 ChunkMap 查询增量 0（必须为 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  用例 种子 12345 区块 (-1,-1)：228「真值不可重复」区块：正式分析给出 7 个调度敏感｜提交后状态「正在预测当前区块…」，客户端线程提交耗时 77 微秒（世界生成不在渲染线程）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    状态：预测完成；目标区块 (-1,-1)（期望 (-1,-1)）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    候选钻石 29（期望 29）（通过）；调度敏感 7（期望 7）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    未解析 22；确定性 0（本阶段恒 0）（通过）；未解析=候选-敏感：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    预测耗时 382 ms；会话持有离线区块 574 个；宿主 ChunkMap 查询增量 0（必须为 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  用例 种子 12345 区块 (-25,17)：228 顺序无关目标｜提交后状态「正在预测当前区块…」，客户端线程提交耗时 72 微秒（世界生成不在渲染线程）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    状态：预测完成；目标区块 (-25,17)（期望 (-25,17)）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    候选钻石 24（期望 24）（通过）；调度敏感 0（期望 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    未解析 24；确定性 0（本阶段恒 0）（通过）；未解析=候选-敏感：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    预测耗时 1141 ms；会话持有离线区块 1103 个；宿主 ChunkMap 查询增量 0（必须为 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  用例 种子 12345 区块 (120,-130)：228 顺序无关目标｜提交后状态「正在预测当前区块…」，客户端线程提交耗时 78 微秒（世界生成不在渲染线程）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    状态：预测完成；目标区块 (120,-130)（期望 (120,-130)）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    候选钻石 26（期望 26）（通过）；调度敏感 0（期望 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    未解析 26；确定性 0（本阶段恒 0）（通过）；未解析=候选-敏感：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    预测耗时 1346 ms；会话持有离线区块 1632 个；宿主 ChunkMap 查询增量 0（必须为 0）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜五、服务结果 vs 直连正式预测器（逐 BlockPos，只对第一个用例做，避免重复世界生成）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  直连正式 Predictor（独立实例、独立后台线程）预测 种子 20260922 区块 (0,0)……
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  服务层 45 个 / 直连 45 个 → 服务有直连没有 0 / 直连有服务没有 0 → 逐 BlockPos 完全一致
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜六、维度切换（实机切换：主世界 → 下界 → 主世界）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  切换前：状态「预测完成」，上一次结果 26 个，当前维度 主世界
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  下界：维度显示「下界」/ 支持状态「当前版本暂未支持下界矿物预测」/ 运行时状态「当前维度暂不支持」（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    旧维度结果是否已清除：已清除（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    下界是否允许预测：禁止（正确）（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  返回主世界：维度显示「主世界」/ 支持状态「支持：钻石预测」/ 运行时状态「已就绪」（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    返回后结果仍为空（旧维度的结果不会复活）：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜七、回主世界后补一次预测（让「退出世界确实持有预测器」可被观测）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  补预测结果：35 个；本地世界生成计算器是否在运行：true（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜八、退出世界（断开连接）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  断线前：状态「预测完成」，本地世界生成计算器在运行：true，上一次结果：有
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜  已回到标题界面：状态「等待进入世界」（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    运行时结果已清：（通过）；本地世界生成计算器已停止：（通过）（等待窗口内退出的才会计到这一行）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜    配置保留：启用=true，种子原文=12345（种子与开关属于配置，按口径不清）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜九、判定汇总
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】界面装配烟测：通过（两种模式整窗装配成功 + 种子页可构建 804 像素）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】种子输入解析矩阵：（通过）；非法种子禁止启动预测：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】用例 种子 20260922 区块 (0,0)：目标区块 （通过） / 候选 45（通过） / 调度敏感 0（通过） / 确定性为零 （通过） / 未解析关系 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】用例 种子 2 区块 (-400,380)：目标区块 （通过） / 候选 23（通过） / 调度敏感 1（通过） / 确定性为零 （通过） / 未解析关系 （通过） / 争议格调度敏感 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】用例 种子 12345 区块 (0,0)：目标区块 （通过） / 候选 31（通过） / 调度敏感 0（通过） / 确定性为零 （通过） / 未解析关系 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】用例 种子 12345 区块 (-1,-1)：目标区块 （通过） / 候选 29（通过） / 调度敏感 7（通过） / 确定性为零 （通过） / 未解析关系 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】用例 种子 12345 区块 (-25,17)：目标区块 （通过） / 候选 24（通过） / 调度敏感 0（通过） / 确定性为零 （通过） / 未解析关系 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】用例 种子 12345 区块 (120,-130)：目标区块 （通过） / 候选 26（通过） / 调度敏感 0（通过） / 确定性为零 （通过） / 未解析关系 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】服务层结果 vs 直连正式 Predictor 逐 BlockPos 一致：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】下界状态与旧结果清理：状态 （通过） / 结果已清 （通过） / 禁止预测 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】返回主世界回到就绪：（通过） / 结果未被旧维度复活：（通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜【判定】退出世界清理：状态回「等待进入世界」（通过） / 结果已清 （通过） / 计算器已停止 （通过）
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜全部判定：通过
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC｜报告已落盘：D:\mcaddon\种子 Worker Production Test RealMods\seedpoc-服务层回归.txt
+[14:06:13] [Render thread/INFO]: 种子挖矿PoC：按系统属性要求退出客户端
+[14:06:13] [Render thread/INFO]: Stopping [2] Placement Manager Daemon threads
+[14:06:13] [Render thread/INFO]: Stopping [1] Worker Daemon threads
+[14:06:13] [Render thread/INFO]: Stopping [0] Placement Manager Daemon threads
+[14:06:13] [CullThread/INFO]: [STDOUT]: Shutting down culling task!
+[14:06:14] [Render thread/INFO]: Stopping [1] Worker Daemon threads
+[14:06:14] [Render thread/INFO]: Stopping!
+[14:06:14] [Render thread/INFO]: [ETF]: emissive suffixes loaded: [_e]
+[14:06:14] [Ixeris Event Polling Thread/INFO]: Exiting event polling thread.
+[14:06:14] [yiyiaddon-seed-calculator-shutdown/INFO]: 种子挖矿：客户端正在退出，开始回收本地世界生成计算器
+[14:06:14] [Thread-3/INFO]: EuphoriaPatcher: Stopping shaderpacks folder watcher
+

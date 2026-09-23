@@ -1,0 +1,219 @@
+[16:06:33] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 26.1.2 with Fabric Loader 0.19.5
+[16:06:33] [main/INFO] (FabricLoader/Mappings) Mappings not present!
+[16:06:33] [ForkJoinPool-1-worker-7/WARN] (FabricLoader/Metadata) Mod me_friwi_jcef-api uses the version jcef-d3de827+cef-146.0.10+g8219561+chromium-146.0.7680.179 which isn't compatible with Loader's extended semantic version format (Could not parse version number component 'jcef'!), SemVer is recommended for reliably evaluating dependencies and prioritizing newer version
+[16:06:33] [main/INFO] (FabricLoader) Loading 57 mods:
+	- baritone 1.18.0
+	   \-- dev_babbaj_nether-pathfinder 1.6
+	- dev-auth-neo 1.1.1
+	   |-- me_friwi_jcef-api jcef-d3de827+cef-146.0.10+g8219561+chromium-146.0.7680.179
+	   |-- me_friwi_jcefmaven 146.0.10
+	   \-- org_slf4j_jul-to-slf4j 2.0.18
+	- fabric-api 0.155.2+26.1.2
+	- fabric-api-base 2.0.3+ece063234c
+	- fabric-api-lookup-api-v1 2.0.12+d5a053b64c
+	- fabric-biome-api-v1 18.0.5+2fa62b4e4c
+	- fabric-block-api-v1 3.0.2+ec56b6014c
+	- fabric-block-getter-api-v2 2.0.6+ec56b6014c
+	- fabric-client-gametest-api-v1 5.1.0+0a5283664c
+	- fabric-command-api-v2 3.0.5+e2bdee784c
+	- fabric-content-registries-v0 11.3.0+0082c9664c
+	- fabric-convention-tags-v2 4.6.2+4f11f7994c
+	- fabric-crash-report-info-v1 1.0.3+9f78a5a84c
+	- fabric-creative-tab-api-v1 5.0.11+d871b99e4c
+	- fabric-data-attachment-api-v1 2.2.9+44a0bd1d4c
+	- fabric-data-generation-api-v1 24.3.3+cda368334c
+	- fabric-debug-api-v1 1.0.1+c792624d4c
+	- fabric-dimensions-v1 5.1.7+ad343a8d4c
+	- fabric-entity-events-v1 5.0.2+e2bdee784c
+	- fabric-events-interaction-v0 5.2.2+07b380be4c
+	- fabric-game-rule-api-v1 4.0.5+d871b99e4c
+	- fabric-gametest-api-v1 4.0.17+867b87624c
+	- fabric-item-api-v1 14.3.0+6d1aaa724c
+	- fabric-key-mapping-api-v1 2.0.4+e2bdee784c
+	- fabric-lifecycle-events-v1 4.1.1+df84eb3d4c
+	- fabric-loot-api-v3 3.0.12+00a1fba64c
+	- fabric-menu-api-v1 2.0.14+d871b99e4c
+	- fabric-message-api-v1 7.0.5+dae8ce3e4c
+	- fabric-model-loading-api-v1 8.0.11+c80601bb4c
+	- fabric-networking-api-v1 6.3.1+554860db4c
+	- fabric-object-builder-api-v1 23.1.0+abb459f14c
+	- fabric-particles-v1 5.0.15+b61fef434c
+	- fabric-permission-api-v1 1.0.2+7437387b4c
+	- fabric-recipe-api-v1 9.0.16+be4b75ae4c
+	- fabric-registry-sync-v0 7.1.0+2fa62b4e4c
+	- fabric-renderer-api-v1 13.0.8+c80601bb4c
+	- fabric-renderer-indigo 8.1.5+1403e82c4c
+	- fabric-rendering-fluids-v1 6.0.1+d871b99e4c
+	- fabric-rendering-v1 23.3.1+e9207d814c
+	- fabric-resource-conditions-api-v1 6.1.0+83dd0ba34c
+	- fabric-resource-loader-v0 3.3.17+4fc5413f4c
+	- fabric-resource-loader-v1 2.0.10+7c44c7324c
+	- fabric-screen-api-v1 5.1.0+981dd9b24c
+	- fabric-serialization-api-v1 2.0.3+11a26f314c
+	- fabric-sound-api-v1 2.0.4+11a26f314c
+	- fabric-tag-api-v1 2.1.1+371cf5db4c
+	- fabric-transfer-api-v1 8.0.6+357ea7334c
+	- fabric-transitive-access-wideners-v1 8.1.3+3ff549fb4c
+	- fabricloader 0.19.5
+	- java 25
+	- minecraft 26.1.2
+	- mixinextras 0.5.5
+	- yiyiaddon 1.0-beta2
+[16:06:33] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/C:/Users/Administrator/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.4+mixin.0.8.7/5f66cc9f59b8efaa942155a3d5a30599bf6640dd/sponge-mixin-0.17.4+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[16:06:34] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.5).
+[16:06:34] [main/INFO] (DevAuthNeo) DevAuth active for account 'main'
+[16:06:34] [Datafixer Bootstrap/INFO] (Minecraft) 291 Datafixer optimizations took 183 milliseconds
+[16:06:37] [Render thread/INFO] (Minecraft) Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[16:06:37] [Render thread/INFO] (Minecraft) Setting user: yiyijia
+[16:06:37] [Render thread/INFO] (yiyiaddon) yiyiaddon initialised (baritone localisation: on)
+[16:06:37] [Render thread/INFO] (Minecraft) [STDOUT]: [nether-pathfinder] Created temp file at C:\Users\Administrator\AppData\Local\Temp\nether_pathfinder-x86_643843498533792382719.dll
+[16:06:37] [Render thread/INFO] (Minecraft) [STDERR]: [nether-pathfinder] Failed to delete temp file
+[16:06:37] [Render thread/INFO] (Minecraft) [STDOUT]: [nether-pathfinder] Loaded shared library
+[16:06:37] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿｜观察：已安装客户端区块加载 / 卸载监听（Fabric ClientChunkEvents）
+[16:06:37] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时服务已挂载（本地世界生成计算器 + 预测缓存 / 覆盖调度 / 实际区块观察 / 世界渲染；后台单线程；配置项 启用/种子/显示预测钻石/预测范围/显示当前缺失）
+[16:06:37] [Render thread/INFO] (yiyiaddon/seedpoc) 种子挖矿PoC：开发期实验已挂载，进单人世界后自动运行一次（系统属性 yiyiaddon.seedpoc.enabled=1）
+[16:06:37] [Render thread/INFO] (Indigo) [Indigo] Registering Indigo renderer!
+[16:06:37] [Render thread/INFO] (Minecraft) Backend library: LWJGL version 3.4.1-snapshot
+[16:06:38] [Render thread/INFO] (Minecraft) Using optional rendering extensions: GL_ARB_buffer_storage, GL_KHR_debug, GL_ARB_vertex_attrib_binding, GL_ARB_direct_state_access, GL_EXT_texture_filter_anisotropic
+[16:06:38] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, yiyiaddon
+[16:06:38] [Render thread/INFO] (Minecraft) [CHAT] [Baritone] 未找到 Baritone 设置文件，正在重置。
+[16:06:38] [Render thread/INFO] (yiyiaddon/render-compat) 光影兼容兜底生效：已为缺失的原版采样器补绑 Sampler1(叠加纹理)、Sampler2(光照贴图)（上游 Iris 在 26.1.2 上偶发丢失绑定）
+[16:06:38] [Worker-Main-6/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[16:06:38] [Worker-Main-2/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[16:06:38] [Worker-Main-4/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[16:06:39] [Render thread/INFO] (Minecraft) OpenAL initialized on device OpenAL Soft on SteelSeries Sonar - Gaming (SteelSeries Sonar Virtual Audio Device)
+[16:06:39] [Render thread/INFO] (Minecraft) Sound engine started
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/beds.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/signs.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[16:06:39] [Render thread/INFO] (Minecraft) Connecting to 127.0.0.1, 25565
+[16:06:40] [Render thread/INFO] (Minecraft) [STDOUT]: World seems to be a replay. Not loading Baritone cache.
+[16:06:40] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[发包防踢]§r§l§f进服伪装自检：\n§8├─ §f客户端名 §8▸ §a§lvanilla§r§f§l\n§8├─ §fMod通信 §8▸ §a§l拦截中§r§f§l\n§8├─ §f假潜行 §8▸ §a§l拦截中§r§f§l\n§8└─ §f假疾跑 §8▸ §a§l拦截中§r§f§l
+[16:06:40] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[16:06:40] [Render thread/INFO] (Minecraft) [STDOUT]: Retrying to load Baritone cache
+[16:06:40] [Render thread/INFO] (Minecraft) [STDOUT]: Baritone world data dir: D:\mcaddon\yiyiaddon\run-26.1.2-seed-coverage-test\baritone\127.0.0.1_25565\minecraft\overworld_384
+[16:06:40] [Render thread/INFO] (Minecraft) [STDOUT]: Cached world directory: D:\mcaddon\yiyiaddon\run-26.1.2-seed-coverage-test\baritone\127.0.0.1_25565\minecraft\overworld_384\cache
+[16:06:40] [Render thread/INFO] (Minecraft) [STDOUT]: Would save waypoints to D:\mcaddon\yiyiaddon\run-26.1.2-seed-coverage-test\baritone\127.0.0.1_25565\minecraft\overworld_384\waypoints
+[16:06:40] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loading region -13,11 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-coverage-test\baritone\127.0.0.1_25565\minecraft\overworld_384\cache
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[16:06:40] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 47ms
+[16:06:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：配置作用域切换为 server_127.0.0.1_25565
+[16:06:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：进入世界 维度=minecraft:overworld（世界生成宿主由本地隔离计算器提供）
+[16:06:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[16:06:40] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：第一段开跑 —— 客户端种子填 12345（服务器世界种子 20260922），范围 1，预期结果：候选几乎全部是「当前缺失」，且一条「可疑」都不该出现
+[16:06:40] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25565 / 种子 12345 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #2），预测缓存与渲染层已就绪
+[16:06:40] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：正在启动本地世界生成计算器（第 1 次，版本 26.1.2，模组 1.0-beta2）
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[16:06:40] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[服务器检测]§r§l§f§b§l━━ 服务端侦测报告 ━━§r\n§7服务器核心 §8▸ §6§lFabric§r§f§l\n§7反作弊   §8▸ §a§l未发现指纹§r§f§l §8（不等于没有）
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 16 reached during a single frame. New capacity will be 32.
+[16:06:40] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 本地世界生成计算器已拉起：PID 34204，运行目录 D:\mcaddon\yiyiaddon\run-26.1.2-seed-coverage-test\yiyiaddon\seed-worker\26.1.2，日志 D:\mcaddon\yiyiaddon\run-26.1.2-seed-coverage-test\yiyiaddon\seed-worker\26.1.2\seed-worker-26.1.2.log，宿主端口 51423
+[16:06:40] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loading region -13,12 from disk D:\mcaddon\yiyiaddon\run-26.1.2-seed-coverage-test\baritone\127.0.0.1_25565\minecraft\overworld_384\cache
+[16:06:40] [Baritone-Worker-1/INFO] (Minecraft) [STDOUT]: Loaded region successfully in 13ms
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 32 reached during a single frame. New capacity will be 64.
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 64 reached during a single frame. New capacity will be 128.
+[16:06:40] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 128 reached during a single frame. New capacity will be 256.
+[16:06:41] [Render thread/INFO] (Minecraft) Resizing Chunk Sections UBO, capacity limit of 256 reached during a single frame. New capacity will be 512.
+[16:06:45] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：已就绪（PID 34204，协议 1，Minecraft 26.1.2，模组 1.0-beta2，耗时 4816 ms，宿主监听 已停用（不接受任何外部连接））
+[16:06:45] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s1-3039（种子 12345，维度 minecraft:overworld）
+[16:06:47] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,380) → 18 个（候选 18（未观察 0 / 已确认 0 / 当前缺失 18）），缓存 1 个区块 / 上限 256
+[16:06:47] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：错误种子证据 #1 → 客户端种子 12345 / 服务器世界种子 20260922：候选 18 个 → 已确认 0 / 当前缺失 18 / 未观察 0（候选文案「缺失」；全程无「可疑」）
+[16:06:47] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：错误种子抽样 → (-6393,-60,6080) 实际方块 minecraft:deepslate，观察状态「缺失」（只说「预测位置当前实际不是钻石」，不下「种子错 / 假矿」结论）
+[16:06:47] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照全部清空
+[16:06:47] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[16:06:47] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：第二段开跑 —— 种子改为 2，准备传送到冻结口径的争议位置 (-6385,-59,6085)
+[16:06:47] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25565 / 种子 2 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #3），预测缓存与渲染层已就绪
+[16:06:47] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：发送指令 /gamemode spectator
+[16:06:47] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：发送指令 /tp -6385 -59 6085
+[16:06:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported yiyijia to -6384.500000, -59.000000, 6085.500000
+[16:06:47] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话 s1-3039 已关闭（Worker 侧离线世界缓存已释放）
+[16:06:47] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测 区块 (-401,380) 返回时身份已变，结果丢弃
+[16:06:47] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s2-2（种子 2，维度 minecraft:overworld）
+[16:06:49] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,380) → 23 个（候选 23（未观察 0 / 已确认 0 / 当前缺失 23）），缓存 1 个区块 / 上限 256
+[16:06:49] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：调度敏感证据（预测侧）→ (-6385,-59,6085) 确定性「调度敏感」（种子 2；与冻结口径一致）
+[16:06:49] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：调度敏感证据 #1（观察侧）→ (-6385,-59,6085) 实际方块 minecraft:deepslate，观察状态「缺失」；确定性仍为「调度敏感」（两个维度各自保留，未产生「可疑」）
+[16:06:49] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：第二段所在区块预测总览 （本区块调度敏感候选 1 条）
+[16:06:49] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：种子已修改）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照全部清空
+[16:06:49] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：种子已修改（状态：已填写）
+[16:06:49] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：预测范围改为 3 区块（目标区块最多 49 个）
+[16:06:49] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：第三段开跑 —— 种子回到 20260922，范围设为默认 3（目标 49 个区块），等待铺满并采集渲染开销
+[16:06:49] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测 区块 (-401,380) 返回时身份已变，结果丢弃
+[16:06:49] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话 s2-2 已关闭（Worker 侧离线世界缓存已释放）
+[16:06:49] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时身份已建立（世界 127.0.0.1:25565 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #4），预测缓存与渲染层已就绪
+[16:06:49] [yiyiaddon-seed-predict/INFO] (yiyiaddon/seed) 种子挖矿｜Worker：会话已打开 s3-135283a（种子 20260922，维度 minecraft:overworld）
+[16:06:50] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,380) → 37 个（候选 37（未观察 0 / 已确认 37 / 当前缺失 0）），缓存 1 个区块 / 上限 256
+[16:06:50] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-401,380) → 12 个（候选 49（未观察 0 / 已确认 49 / 当前缺失 0）），缓存 2 个区块 / 上限 256
+[16:06:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,379) → 29 个（候选 78（未观察 0 / 已确认 78 / 当前缺失 0）），缓存 3 个区块 / 上限 256
+[16:06:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,381) → 24 个（候选 102（未观察 0 / 已确认 102 / 当前缺失 0）），缓存 4 个区块 / 上限 256
+[16:06:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-399,380) → 33 个（候选 135（未观察 0 / 已确认 135 / 当前缺失 0）），缓存 5 个区块 / 上限 256
+[16:06:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-401,379) → 25 个（候选 160（未观察 0 / 已确认 160 / 当前缺失 0）），缓存 6 个区块 / 上限 256
+[16:06:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-401,381) → 22 个（候选 182（未观察 0 / 已确认 182 / 当前缺失 0）），缓存 7 个区块 / 上限 256
+[16:06:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-399,379) → 29 个（候选 211（未观察 0 / 已确认 211 / 当前缺失 0）），缓存 8 个区块 / 上限 256
+[16:06:51] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-399,381) → 15 个（候选 226（未观察 0 / 已确认 226 / 当前缺失 0）），缓存 9 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-402,380) → 30 个（候选 256（未观察 0 / 已确认 256 / 当前缺失 0）），缓存 10 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,378) → 15 个（候选 271（未观察 0 / 已确认 271 / 当前缺失 0）），缓存 11 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,382) → 27 个（候选 298（未观察 0 / 已确认 298 / 当前缺失 0）），缓存 12 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-398,380) → 11 个（候选 309（未观察 0 / 已确认 309 / 当前缺失 0）），缓存 13 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-402,379) → 21 个（候选 330（未观察 0 / 已确认 330 / 当前缺失 0）），缓存 14 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-402,381) → 20 个（候选 350（未观察 0 / 已确认 350 / 当前缺失 0）），缓存 15 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-401,378) → 33 个（候选 383（未观察 0 / 已确认 383 / 当前缺失 0）），缓存 16 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-401,382) → 17 个（候选 400（未观察 0 / 已确认 400 / 当前缺失 0）），缓存 17 个区块 / 上限 256
+[16:06:52] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-399,378) → 31 个（候选 431（未观察 0 / 已确认 431 / 当前缺失 0）），缓存 18 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-399,382) → 30 个（候选 461（未观察 0 / 已确认 461 / 当前缺失 0）），缓存 19 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-398,379) → 15 个（候选 476（未观察 0 / 已确认 476 / 当前缺失 0）），缓存 20 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-398,381) → 10 个（候选 486（未观察 0 / 已确认 486 / 当前缺失 0）），缓存 21 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-402,378) → 22 个（候选 508（未观察 0 / 已确认 508 / 当前缺失 0）），缓存 22 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-402,382) → 19 个（候选 527（未观察 0 / 已确认 526 / 当前缺失 1）），缓存 23 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-398,378) → 20 个（候选 547（未观察 0 / 已确认 546 / 当前缺失 1）），缓存 24 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-398,382) → 30 个（候选 577（未观察 0 / 已确认 576 / 当前缺失 1）），缓存 25 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-403,380) → 14 个（候选 591（未观察 0 / 已确认 590 / 当前缺失 1）），缓存 26 个区块 / 上限 256
+[16:06:53] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,377) → 33 个（候选 624（未观察 0 / 已确认 623 / 当前缺失 1）），缓存 27 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-400,383) → 21 个（候选 645（未观察 0 / 已确认 644 / 当前缺失 1）），缓存 28 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-397,380) → 13 个（候选 658（未观察 0 / 已确认 657 / 当前缺失 1）），缓存 29 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-403,379) → 7 个（候选 665（未观察 0 / 已确认 664 / 当前缺失 1）），缓存 30 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-403,381) → 11 个（候选 676（未观察 0 / 已确认 675 / 当前缺失 1）），缓存 31 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-401,377) → 8 个（候选 684（未观察 0 / 已确认 683 / 当前缺失 1）），缓存 32 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-401,383) → 37 个（候选 721（未观察 0 / 已确认 720 / 当前缺失 1）），缓存 33 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-399,377) → 32 个（候选 753（未观察 0 / 已确认 752 / 当前缺失 1）），缓存 34 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-399,383) → 21 个（候选 774（未观察 0 / 已确认 773 / 当前缺失 1）），缓存 35 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-397,379) → 26 个（候选 800（未观察 0 / 已确认 799 / 当前缺失 1）），缓存 36 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-397,381) → 25 个（候选 825（未观察 0 / 已确认 824 / 当前缺失 1）），缓存 37 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-403,378) → 25 个（候选 850（未观察 0 / 已确认 849 / 当前缺失 1）），缓存 38 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-403,382) → 22 个（候选 872（未观察 0 / 已确认 871 / 当前缺失 1）），缓存 39 个区块 / 上限 256
+[16:06:54] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-402,377) → 24 个（候选 896（未观察 0 / 已确认 895 / 当前缺失 1）），缓存 40 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-402,383) → 25 个（候选 921（未观察 0 / 已确认 920 / 当前缺失 1）），缓存 41 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-398,377) → 20 个（候选 941（未观察 0 / 已确认 940 / 当前缺失 1）），缓存 42 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-398,383) → 21 个（候选 962（未观察 0 / 已确认 961 / 当前缺失 1）），缓存 43 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-397,378) → 51 个（候选 1013（未观察 0 / 已确认 1012 / 当前缺失 1）），缓存 44 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-397,382) → 20 个（候选 1033（未观察 0 / 已确认 1032 / 当前缺失 1）），缓存 45 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-403,377) → 8 个（候选 1041（未观察 0 / 已确认 1040 / 当前缺失 1）），缓存 46 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-403,383) → 24 个（候选 1065（未观察 0 / 已确认 1064 / 当前缺失 1）），缓存 47 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-397,377) → 12 个（候选 1077（未观察 0 / 已确认 1076 / 当前缺失 1）），缓存 48 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：覆盖预测已收录 区块 (-397,383) → 23 个（候选 1100（未观察 0 / 已确认 1099 / 当前缺失 1）），缓存 49 个区块 / 上限 256
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：渲染开销证据 #1 → 范围 3（49 个目标区块）：已预测 49 个区块 / 候选 1100 个（未观察 0 / 已确认 1099 / 当前缺失 1 / 调度敏感 0）
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：快照重建读数 → 本窗口重建 50 次、平均每次 129.4 微秒；每次固定分配 = 1100 个候选各一条SeedRenderEntry + 1 次列表副本 + 1 个计数 + 1 个快照；当前 FPS 119；缓存 49/256 个区块
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：====== 结果汇总 ======
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：错误种子证据 1 条 / 调度敏感观察证据 1 条 / 渲染开销证据 1 条
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：最终读数 缓存目标区块 49 / 上限 256，累计淘汰 0，身份 世界 127.0.0.1:25565 / 种子 20260922 / 维度 minecraft:overworld / Minecraft 26.1.2 / 会话 #4；覆盖半径 3（目标 49 个），中心 -400,380，在跑 —，排队 0，累计提交 53 / 完成 51（移动丢弃排队 0，失败不再重试 0）；观察 候选 1100（未观察 0 / 已确认 1099 / 当前缺失 1）；已登记区块 49，绑定世界 有；渲染 目标区块 49 / 候选 1100（未观察 0 / 已确认 1099 / 当前缺失 1 / 调度敏感 0）
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：关闭显示预测钻石（顺带核对关闭即清空）
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：显示预测钻石改为 关
+[16:06:55] [Render thread/INFO] (yiyiaddon/seed) 种子挖矿：运行时已失效（原因：已关闭显示预测钻石）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照全部清空
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 233覆盖回归：关闭后 缓存 0 个区块 / 渲染快照 目标区块 0 / 候选 0（未观察 0 / 已确认 0 / 当前缺失 0 / 调度敏感 0）
+[16:06:55] [Render thread/INFO] (yiyiaddon/seedpoc) 种子挖矿PoC：按系统属性要求退出客户端
+[16:06:55] [Render thread/INFO] (Minecraft) Stopping!
+[16:06:55] [Render thread/INFO] (Minecraft) [System] [CHAT] §f§l[发包防踢]§r§l§f§6§l§c存活不到 1 分钟，可能被踢了
+[16:06:55] [yiyiaddon-seed-calculator-shutdown/INFO] (yiyiaddon/seed) 种子挖矿：客户端正在退出，开始回收本地世界生成计算器

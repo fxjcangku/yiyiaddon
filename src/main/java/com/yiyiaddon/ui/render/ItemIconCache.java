@@ -978,7 +978,8 @@ public final class ItemIconCache {
      * 「帧末没有界面绘制」的那两种切屏（{@code MinecraftFramePresentMixin} 与
      * {@code SkiaScreen#renderSkiaFrame} 的跳过分支）。</p>
      *
-     * <p>与 {@link #paintBackdrop} 一样是幂等的：同一帧里主路径画过之后这里再画一次也无副作用。</p>
+     * <p>与 {@link #paintBackdrop} 一样是幂等的：同一帧里主路径画过之后这里再画一次也无副作用
+     * （写回不再是一次性动作，见 {@link #paintBackdrop}）。</p>
      */
     public void flushBackdrop() {
         if (backdropImage == null) return;

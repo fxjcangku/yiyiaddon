@@ -31,6 +31,157 @@ loom {
             // 而且这台机器上 CEF 初始化失败、只弹一个白窗口登不进去，所以不用它。
             vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
         }
+
+        // ── 第五轮 PoC 专用运行目录（种子挖矿 · Chunk 生成顺序决定性实验）───────────────
+        // 为什么必须另起一个运行目录：run-26.1.2/mods 是用户日常环境（100+ 第三方 Mod，含 C2ME /
+        // ModernFix / Lithium / Krypton，都会改 Chunk 调度与线程），而本轮要测的恰恰是「原版 Chunk
+        // 请求顺序」，被污染的基线没有意义；同时禁止改动用户日常目录里的 Mod
+        // （开发习惯 · 改动禁区）。该目录只会加载 Fabric Loader + Fabric API + Baritone + Skija +
+        // 本模组（+ 开发环境登录），即「Vanilla + Fabric」可控基线。
+        // 用法：.\gradlew.bat runClientOrderTest
+        clientOrderTest {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-order-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+        }
+
+        // ── 第六轮 PoC 专用运行目录（种子挖矿 · Target ± 写半径 viewer 离线最终预测）──────
+        // 与第五轮同一个理由：run-26.1.2/ 是用户日常环境（100+ 第三方 Mod，含 C2ME / ModernFix /
+        // Lithium / Krypton，都会改 Chunk 调度与线程），而本轮要证明的是「纯 Seed 的最终钻石坐标」，
+        // 被污染的基线没有意义；同时禁止改动用户日常目录里的 Mod（开发习惯 · 改动禁区）。
+        // 该目录只加载 Fabric Loader + Fabric API + Baritone + Skija + 本模组（+ 开发环境登录），
+        // 即「Vanilla + Fabric」可控基线。
+        // 用法：.\gradlew.bat runClientSeedPredictTest（阶段与种子用 JAVA_TOOL_OPTIONS 传入）
+        clientSeedPredictTest {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-predict-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+        }
+
+        // ── 第四阶段（232）· 本地隔离世界生成 Worker ─────────────────────────────
+        // ① 单人 Oracle 对照：客户端自建固定种子的测试世界，驱动 Worker 与集成服务端逐项比结果。
+        //    用法：.\gradlew.bat runClientSeedWorkerParityTest
+        clientSeedWorkerParityTest {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-worker-parity-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            // 实验开关直接烘进运行配置：一条命令就能跑完并自动退出，便于重复运行
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.workerParity=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ② 真正多人验收（客户端侧）：自动连到本机专用服务器（见 runSeedWorkerServer）。
+        //    必须先把服务器跑起来（另一个终端）：.\gradlew.bat runSeedWorkerServer
+        //    再跑：.\gradlew.bat runClientSeedWorkerMultiplayerTest
+        clientSeedWorkerMultiplayerTest {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-worker-mp-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            programArgs '--quickPlayMultiplayer', '127.0.0.1:25565'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.workerMultiplayer=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ③ 进程生命周期与崩溃恢复：强杀计算器 → 自动进失败态 → 下一次点击自动重启一次 → 退世界无残留。
+        //    用法：.\gradlew.bat runClientSeedWorkerLifecycleTest
+        clientSeedWorkerLifecycleTest {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-worker-lifecycle-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.workerLifecycle=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ④ 第五阶段（233）实际 Chunk 观察与渲染：真实客户端连本机专用服务器（seed 20260922），
+        //    自动走完 CONFIRMED → MISSING → 恢复 CONFIRMED → Chunk 卸载回 UNOBSERVED。
+        //    前置：先跑 .\gradlew.bat runSeedWorkerServer（该任务会写好 ops.json 给 yiyijia 管理员权限，
+        //    用例要用 /setblock 与 /tp）；再跑 .\gradlew.bat runClientSeedObservationTest
+        clientSeedObservationTest {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-observation-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            programArgs '--quickPlayMultiplayer', '127.0.0.1:25565'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.observation=1'
+            // Server A→B 残留用例：主用例跑完后自动断开 A（25565）并连到 B（25566）
+            vmArg '-Dyiyiaddon.seedpoc.observation.serverB=127.0.0.1:25566'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑤ 覆盖 / 观察组合（233）：同一台服务器上顺跑三段 —— 错误种子（大量「当前缺失」）、
+        //    调度敏感 × 观察（种子 2 · 争议位置）、默认范围 3 的覆盖规模与渲染开销。
+        //    前置：.\gradlew.bat runSeedWorkerServer
+        clientSeedCoverageTest {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-coverage-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            programArgs '--quickPlayMultiplayer', '127.0.0.1:25565'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.coverageRegression=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑥ 关闭态回归（233）：进服后什么都不做，核对「没开种子挖矿 = 计算器不启动 / 缓存与渲染全空」。
+        clientSeedOffRegression {
+            client()
+            runDir = file("run-${project.minecraft_version}-seed-off-test")
+            programArgs '--username', 'yiyijia'
+            programArgs '--width', '1280', '--height', '720'
+            programArgs '--quickPlayMultiplayer', '127.0.0.1:25565'
+            vmArg '-Ddevauth.enabled=1'
+            vmArg '-Ddevauth.account=main'
+            vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
+            vmArg '-Dyiyiaddon.seedpoc.enabled=1'
+            vmArg '-Dyiyiaddon.seedpoc.offRegression=1'
+            vmArg '-Dyiyiaddon.seedpoc.exit=1'
+        }
+
+        // ⑦ 专用服务器（26.1.2，level-seed=20260922，不加载任何改 worldgen 的 Mod）。
+        //    运行目录与配置由 prepareSeedWorkerServer 生成（含 eula.txt），不要手工改。
+        seedWorkerServer {
+            server()
+            runDir = file("run-${project.minecraft_version}-seed-worker-server")
+            programArgs '--nogui'
+        }
+
+        // ⑧ Server A→B 用例的 B 服务器（端口 25566，种子 12345）。
+        //    运行目录与配置由 prepareSeedWorkerServerB 生成；与 ⑤ 可同时运行。
+        seedWorkerServerB {
+            server()
+            runDir = file("run-${project.minecraft_version}-seed-worker-server-b")
+            programArgs '--nogui'
+        }
     }
 }
 
@@ -146,3 +297,158 @@ tasks.register('buildBoth') {
 
 // 发布混淆独立于开发构建；只处理本项目字节码，不改嵌套第三方依赖。
 apply from: 'gradle/obfuscation.gradle'
+
+// ── 种子挖矿第四阶段（232）开发装置 ─────────────────────────────────────────
+// ① 独立启动一次本地世界生成 Worker（不进游戏）：验证「隔离进程里能否构造出可用的
+//    Vanilla ServerLevel」以及握手 / 会话 / 正式预测器整条链。
+//    用法：.\gradlew.bat seedWorkerProbe
+//         .\gradlew.bat seedWorkerProbe -PprobeArgs="build/seed-worker-probe 0 0 20260922"
+// ② 实机多人验收用：专用服务器 + 客户端自动连接（见 gradle/seed-worker-232.gradle）。
+tasks.register('seedWorkerProbe', JavaExec) {
+    group = 'verification'
+    description = '开发期直接启动一次本地隔离世界生成 Worker，验证 Vanilla 宿主与正式预测器连通性。'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.yiyiaddon.dev.seedpoc.WorkerProbe'
+    def rawArgs = (project.findProperty('probeArgs') ?: 'build/seed-worker-probe 0 0 20260922').toString()
+    args = rawArgs.split(' ').toList()
+}
+
+// 232 多人验收用的专用服务器目录：eula 与 server.properties 由构建脚本生成，
+// 保证「一条命令即可复现」，也不需要把这些运行目录文件提交进版本库。
+//
+// 233 追加：同一份生成逻辑被两台测试服务器复用（A = 25565 / seed 20260922，
+// B = 25566 / seed 12345）—— Server A→B 换服残留用例需要两台地址不同的服务器。
+def writeDedicatedServerDir = { File dir, int port, String seed, String motd ->
+    dir.mkdirs()
+    new File(dir, 'eula.txt').setText('eula=true\n', 'UTF-8')
+    // 233 观察回归要用 /setblock 与 /tp 造「方块被改掉 / 被恢复 / 区块卸载」三种情形，
+    // 因此这里给测试账号写管理员权限（仅这些由构建脚本生成的测试服务器目录，不碰任何真实服务器）。
+    // UUID 必须与原版离线 UUID 一致（server.properties 里 online-mode=false），
+    // 算法取自 26.1.2 源码 net/minecraft/core/UUIDUtil.java:87 —— OfflinePlayer:<名字> 的 MD5 版本 UUID。
+    def offlineUuid = java.util.UUID.nameUUIDFromBytes(
+            ('OfflinePlayer:' + 'yiyijia').getBytes('UTF-8')).toString()
+    new File(dir, 'ops.json').setText("""\
+            [
+              {
+                "uuid": "${offlineUuid}",
+                "name": "yiyijia",
+                "level": 4,
+                "bypassesPlayerLimit": false
+              }
+            ]
+            """.stripIndent(), 'UTF-8')
+    new File(dir, 'server.properties').setText("""\
+            # 由 yiyiaddon 构建脚本生成（232/233 验收用）：请勿手工修改。
+            server-ip=127.0.0.1
+            server-port=${port}
+            online-mode=false
+            max-players=8
+            motd=${motd}
+            level-name=world
+            level-seed=${seed}
+            level-type=minecraft:normal
+            generate-structures=true
+            spawn-protection=0
+            difficulty=peaceful
+            gamemode=survival
+            pvp=false
+            view-distance=8
+            simulation-distance=6
+            enable-status=true
+            enable-rcon=false
+            enable-query=false
+            sync-chunk-writes=false
+            allow-nether=false
+            """.stripIndent(), 'UTF-8')
+    println "专用服务器目录已准备：${dir.absolutePath}（端口 ${port}，种子 ${seed}）"
+}
+
+tasks.register('prepareSeedWorkerServer') {
+    group = 'verification'
+    description = '生成多人 / 观察验收用专用服务器的运行目录（eula.txt / ops.json / server.properties）。'
+    outputs.upToDateWhen { false }
+    doLast {
+        writeDedicatedServerDir(file("run-${project.minecraft_version}-seed-worker-server"),
+                25565, '20260922', 'yiyiaddon 232 dedicated server')
+        println "先跑 .\\gradlew.bat runSeedWorkerServer，看到 Done 后再跑 .\\gradlew.bat runClientSeedWorkerMultiplayerTest"
+    }
+}
+
+// 233 Server A→B 用例的 B 服务器（地址与 A 不同、种子也不同，故身份必然不同）
+tasks.register('prepareSeedWorkerServerB') {
+    group = 'verification'
+    description = '生成 233 Server A→B 换服用例的 B 服务器运行目录（端口 25566，种子 12345）。'
+    outputs.upToDateWhen { false }
+    doLast {
+        writeDedicatedServerDir(file("run-${project.minecraft_version}-seed-worker-server-b"),
+                25566, '12345', 'yiyiaddon 233 server B')
+        println "先跑 .\\gradlew.bat runSeedWorkerServerB，看到 Done 后再跑 .\\gradlew.bat runClientSeedObservationTest"
+    }
+}
+
+// 起服务器之前自动准备目录（含 eula），避免出现「第一次跑必须手工建文件」的隐性步骤
+tasks.matching { it.name == 'runSeedWorkerServer' }.configureEach {
+    dependsOn 'prepareSeedWorkerServer'
+}
+
+tasks.matching { it.name == 'runSeedWorkerServerB' }.configureEach {
+    dependsOn 'prepareSeedWorkerServerB'
+}
+
+// 232 客户端验收运行目录的预处理。
+// 为什么必须有这一步：原版在 options.txt 不存在（首次启动）时会先弹「无障碍引导界面」，
+// 而开发装置（ServiceRegression / WorkerParityRegression / WorkerMultiplayerRegression）
+// 只在「标题界面 / 无界面」时才动手 —— 于是全新的运行目录第一次跑会一直停在引导界面，
+// 表现为「客户端正常起来了但实验一动不动」。这里把引导开关写死，
+// 保证「一条命令即可复现」；只涉及开发运行目录，不影响任何正式产物。
+tasks.register('prepareSeedWorkerClientRun') {
+    group = 'verification'
+    description = '准备 232 客户端验收运行目录（关闭无障碍引导与多人连接警告）。'
+    outputs.upToDateWhen { false }
+    doLast {
+        // 要修补的开关：无障碍引导必须关（否则停不到标题界面），多人连接警告顺手关掉
+        Map<String, String> wanted = [
+                'onboardAccessibility' : 'false',
+                'skipMultiplayerWarning': 'true',
+        ]
+        List<String> runDirs = [
+                "run-${project.minecraft_version}-seed-worker-parity-test",
+                "run-${project.minecraft_version}-seed-worker-mp-test",
+                "run-${project.minecraft_version}-seed-worker-lifecycle-test",
+                "run-${project.minecraft_version}-seed-observation-test",
+                "run-${project.minecraft_version}-seed-coverage-test",
+                "run-${project.minecraft_version}-seed-off-test",
+        ]
+        runDirs.each { String name ->
+            File dir = file(name)
+            dir.mkdirs()
+            File options = new File(dir, 'options.txt')
+            List<String> lines = options.exists() ? options.readLines('UTF-8') : []
+            Map<String, Boolean> seen = [:]
+            List<String> patched = lines.collect { String line ->
+                int colon = line.indexOf(':')
+                String key = colon > 0 ? line.substring(0, colon) : null
+                if (key != null && wanted.containsKey(key)) {
+                    seen[key] = true
+                    return key + ':' + wanted[key]
+                }
+                return line
+            }
+            wanted.each { String key, String value ->
+                if (!seen.containsKey(key)) {
+                    patched.add(key + ':' + value)
+                }
+            }
+            options.setText(patched.join('\n') + '\n', 'UTF-8')
+            println "232 客户端验收目录已准备：${dir.absolutePath}（options.txt 开关已落定）"
+        }
+    }
+}
+
+tasks.matching {
+    it.name == 'runClientSeedWorkerParityTest' || it.name == 'runClientSeedWorkerMultiplayerTest'
+            || it.name == 'runClientSeedWorkerLifecycleTest' || it.name == 'runClientSeedObservationTest'
+            || it.name == 'runClientSeedCoverageTest' || it.name == 'runClientSeedOffRegression'
+}.configureEach {
+    dependsOn 'prepareSeedWorkerClientRun'
+}

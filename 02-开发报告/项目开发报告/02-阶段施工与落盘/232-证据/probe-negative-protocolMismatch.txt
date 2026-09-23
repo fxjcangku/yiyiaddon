@@ -1,0 +1,7 @@
+[探针] Worker 已拉起 PID=33960，等待宿主就绪（日志 D:\mcaddon\yiyiaddon\build\seed-worker-probe-neg-protocolMismatch\seed-worker-probe\probe-worker.log）...
+[探针] 仍在等待宿主就绪...
+[探针] 握手文件出现，耗时 3846 ms
+[探针] 已连接 127.0.0.1:64211
+[探针] 请求 HELLO 失败：PROTOCOL_MISMATCH / 协议版本不一致：客户端 2，Worker 1
+[探针] 负路径 protocolMismatch：HELLO=通过，请求 HELLO 期望错误码 PROTOCOL_MISMATCH → 实际 PROTOCOL_MISMATCH / 协议版本不一致：客户端 2，Worker 1 → 通过
+[探针] Worker 已退出，退出码 0

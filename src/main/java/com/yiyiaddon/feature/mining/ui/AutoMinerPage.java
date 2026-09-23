@@ -42,8 +42,8 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
 
     private static final String CONSOLE_BUTTON = "§b打开控制台";
     private static final String CONSOLE_HINT =
-        "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / 自用模式 / Baritone调优"
-            + "（自用模式与「目标选择」「传送指令」互斥显示）";
+        "按用途分页：概览 / 点位 / 目标选择 / 传送指令 / 触发条件 / 自用模式 / Baritone调优 / 种子挖矿"
+            + "（自用模式与「目标选择」「传送指令」「种子挖矿」互斥显示）";
 
     // ── 配置记录入口（用户 2026-09-18：「是控制台下面新建一个按钮 服务器记录复原」、「我说弄在控制台按钮下面」） ──
 
@@ -236,13 +236,13 @@ public final class AutoMinerPage extends CompactModulePage implements ModulePage
     private void openConsole() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.gui.setScreen(new MiningConsoleScreen(client.gui.screen(), module));
+        client.setScreen(new MiningConsoleScreen(client.screen, module));
     }
 
     /** 打开配置记录窗（一键保存 / 读取 / 替换 / 详情 / 删除）；父屏是当前模块页，ESC 回来 */
     private void openRecords() {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.gui.setScreen(new MiningRecordScreen(client.gui.screen(), module));
+        client.setScreen(new MiningRecordScreen(client.screen, module));
     }
 }
