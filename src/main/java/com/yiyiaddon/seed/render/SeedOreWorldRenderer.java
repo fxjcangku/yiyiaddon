@@ -144,8 +144,24 @@ public final class SeedOreWorldRenderer {
      * 世界渲染层回调（原版收集 gizmo 期间调用）。
      *
      * <p>本方法<b>只读快照</b>：不重建快照、不访问缓存、不读世界、不产生 BlockPos / String。</p>
+     *
+     * <p>它唯一做的事情是「按需计一次时」：{@link SeedRenderFrameProfiler} 默认关闭，关闭时这条分支恒不跳转，
+     * 绘制路径与 233 完全一致（口径第五十五节：采样不得留在正式热路径，或必须默认关闭）。</p>
      */
     public void render(EspRenderer renderer) {
+        if (!SeedRenderFrameProfiler.enabled()) {
+            draw(renderer);
+            return;
+        }
+        long startedNanos = System.nanoTime();
+        draw(renderer);
+        SeedRenderFrameProfiler.record(startedNanos, System.nanoTime(), snapshot);
+    }
+
+    /**
+     * 真正的每帧绘制（口径第五十五节：帧级 CPU 采样只包在它外面，采样关闭时就直接走这里）。
+     */
+    private void draw(EspRenderer renderer) {
         if (renderer == null || !visible.getAsBoolean()) {
             return;
         }

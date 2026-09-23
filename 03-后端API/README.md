@@ -45,7 +45,7 @@ wrangler deploy
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/api/register` | 注册/更新用户，返回排名与正版判定 |
-| POST | `/api/heartbeat` | 心跳（客户端每 3 秒一次，写库节流为 30 秒），心跳超时 90 秒判定离线 |
+| POST | `/api/heartbeat` | 心跳（客户端每 15 秒一次，写库节流为 30 秒），心跳超时 90 秒判定离线 |
 | POST | `/api/offline` | 断开连接时立即下线 |
 | POST | `/api/command-activity` | 上报功能使用（同名 30 秒去重） |
 | POST | `/api/crash/report` | 崩溃上报，按指纹聚合 |
@@ -55,7 +55,7 @@ wrangler deploy
 | POST | `/api/chat/send` | 发送频道消息或私聊（上限 300 字） |
 | GET | `/api/chat/online` | 在线玩家名单（仅玩家名） |
 | GET | `/api/stats` | 脱敏统计，供客户端展示 |
-| GET | `/api/config` | 拉取远程配置（客户端每 60 秒轮询） |
+| GET | `/api/config` | 拉取远程配置（客户端每 5 分钟轮询） |
 | POST | `/api/admin/login` | 管理员登录，签发 7 天有效 token |
 
 管理接口（需 `Authorization: Bearer <token>`）：`/api/admin/players`（GET/DELETE）、

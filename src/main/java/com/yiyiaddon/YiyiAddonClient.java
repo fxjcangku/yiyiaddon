@@ -90,7 +90,7 @@ public final class YiyiAddonClient implements ClientModInitializer {
                 event -> CommandActivityService.onOutgoingCommand(event.payload()));
 
         // 跨服聊天与管理员消息：进服开轮询，断线停（03-后端API/README.md 第五节列的接线契约，
-        // 与统计链路并列成对调用）。轮询体是 ChatService#pollNow，每 3 秒一次打 /api/messages/poll，
+        // 与统计链路并列成对调用）。轮询体是 ChatService#pollNow，每 10 秒一次打 /api/messages/poll，
         // 拉到的管理员消息画成 HUD 顶部横幅、其余进聊天栏；这里漏接的表现就是「后台发得出、玩家永远收不到」。
         ClientEventBus.subscribe(CHAT_OWNER, ClientEventType.JOIN_SERVER, event -> ChatService.start());
         ClientEventBus.subscribe(CHAT_OWNER, ClientEventType.DISCONNECT, event -> {

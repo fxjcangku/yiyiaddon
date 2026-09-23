@@ -13,8 +13,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * 在线心跳与离线通知。
  *
- * <p>每 3 秒上报一次，后端 12 秒收不到心跳即判定离线；玩家断开连接时调用
+ * <p>每 15 秒上报一次（后端 90 秒收不到心跳才判定离线，见 {@code worker.js} 的
+ * {@code HEARTBEAT_WRITE_INTERVAL} 与在线超时注释）；玩家断开连接时调用
  * {@link #reportOffline()} 可立即下线，无需等待超时。</p>
+ *
+ * <p><b>为什么不是 3 秒</b>：Cloudflare Workers 免费版的每日额度按<b>请求数</b>算（10 万/天，
+ * UTC 0 点重置），后端写库节流只省 D1、不省额度。3 秒心跳 = 2.88 万请求/玩家/天，
+ * 加上同频的消息轮询，一个玩家在线一天就能吃掉大半额度，配额打满后整站返回
+ * {@code error code: 1027}（2026-09-23 实机发生）。15 秒下本通道降到 5 760 请求/玩家/天，
+ * 在线感的代价只是「某人下线后最多 90 秒内仍显示在线」，与原本的 90 秒超时口径一致。</p>
  *
  * <p><b>顺带当统计通道</b>：心跳响应里带回后端的累计用户数与在线人数（写库心跳与被节流的心跳都带），
  * 由 {@link HomeStats#acceptHeartbeat(int, int)} 交给首页 —— 首页因此不必再单独轮询 {@code /api/stats}，
@@ -23,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 public final class HeartbeatService {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-    private static final long INTERVAL_SECONDS = 3L;
+    private static final long INTERVAL_SECONDS = 15L;
 
     private static volatile boolean started;
     private static volatile String lastUuid;

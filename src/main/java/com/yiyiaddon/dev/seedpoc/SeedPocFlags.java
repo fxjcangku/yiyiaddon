@@ -376,6 +376,29 @@ public final class SeedPocFlags {
         return raw.isEmpty() ? null : parseChunks(raw);
     }
 
+    /**
+     * 顺序实验要额外打印「最终方块状态」的探针坐标（形如 {@code -6417,-48,6123}）；空 = 不打。
+     *
+     * <p>234.1 的 MISSING 补证要用：三个全新世界跑不同合法请求顺序后，逐个世界读<b>同一格</b>
+     * 的最终 BlockState，才能说清「这一格随合法请求顺序变化」还是「三个世界都一样」。</p>
+     */
+    public static int[] orderProbePos() {
+        String raw = prop("order.probe", "");
+        if (raw.isEmpty()) {
+            return null;
+        }
+        String[] parts = raw.split(",");
+        if (parts.length != 3) {
+            return null;
+        }
+        try {
+            return new int[]{Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()),
+                    Integer.parseInt(parts[2].trim())};
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     /** 是否在第七轮里输出「同格多 writer 冲突清单」（默认开）。 */
     public static boolean round7Conflicts() {
         return !"0".equals(prop("round7.conflicts", "1"));
@@ -559,5 +582,98 @@ public final class SeedPocFlags {
      */
     public static boolean offRegression() {
         return "1".equals(prop("offRegression", "0"));
+    }
+
+    // ── 正式化第六阶段（报告 234：种子验证 + 可疑语义定案）────────────────────
+
+    /**
+     * 种子验证回归开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link SeedValidationRegression}：在<b>真实客户端 + 真实专用服务器</b>
+     * （种子 {@code 20260922}，账号需 OP）上顺序跑：</p>
+     * <ol>
+     *     <li>正确种子 → 多目标区块收集 → 必须进入「已验证」，并记录用了多少区块 / 多少独立证据组；</li>
+     *     <li>被挖矿容错 → dev-only 用 {@code /setblock air} 逐批移除已确认钻石（20% / 再 20%），
+     *         验证必须保持「已验证」；</li>
+     *     <li>策略级合成用例 → 单区块 45/45 确认、只有一个独立组：都<b>不得</b>进入已验证；</li>
+     *     <li>错误种子（12345 / 2 / 0 / -7777）→ 全部<b>不得</b>进入已验证，并记录各自读数；</li>
+     *     <li>改种子 / 换服务器 / 换维度 → 验证必须立刻清空（口径第四十七~五十节）。</li>
+     * </ol>
+     */
+    public static boolean validationRegression() {
+        return "1".equals(prop("validationRegression", "0"));
+    }
+
+    /** 验证回归的被试种子（默认 20260922，与冻结回归同一颗）。 */
+    public static long validationSeed() {
+        String raw = prop("validation.seed", "20260922");
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            return 20260922L;
+        }
+    }
+
+    /** 验证回归的覆盖半径（默认 3：与出厂默认一致，能覆盖多个目标区块）。 */
+    public static int validationRadius() {
+        String raw = prop("validation.radius", "3");
+        try {
+            return Math.max(1, Math.min(6, Integer.parseInt(raw)));
+        } catch (NumberFormatException ignored) {
+            return 3;
+        }
+    }
+
+    /**
+     * 验证回归「换服务器」用例的目标服务器地址（空 = 不跑）。
+     *
+     * <p>配了就要求另起一台地址不同的服务器（本仓库用 {@code runSeedWorkerServerB}，端口 25566）：
+     * 主用例跑完后装置会自动断开 A 并连 B，在进入 B 的第一刻核对「A 的验证结论与证据全部归零」。</p>
+     */
+    public static String validationServerB() {
+        return prop("validation.serverB", "");
+    }
+
+    /** 验证回归被挖矿容错用例的移除比例（百分比；默认 20，即先 20% 再 20%）。 */
+    public static int validationMinePercent() {
+        String raw = prop("validation.minePercent", "20");
+        try {
+            return Math.max(0, Math.min(50, Integer.parseInt(raw)));
+        } catch (NumberFormatException ignored) {
+            return 20;
+        }
+    }
+
+    /**
+     * 233 遗留「1 个 MISSING」定位开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link SeedMissingCandidateRegression}：连到种子 {@code 20260922} 的
+     * 专用服务器，传送到 233 覆盖回归第三段的位置（{@code -6385,-59,6085}，覆盖中心区块
+     * {@code -400,380}），把「当前缺失」那一格逐字段打出来，并做「卸载重载 / 断开重连」两次复现。</p>
+     */
+    public static boolean missingCandidateRegression() {
+        return "1".equals(prop("missingCandidate", "0"));
+    }
+
+    /**
+     * ESP / UI 目视验收装置开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link SeedVisualAcceptance}：它把画面稳定停在五个状态上
+     * （正坐标 / 负坐标 / 打开显示缺失 / 关闭渲染 / 种子挖矿控制台页），每个状态停留 15 秒并打时间戳，
+     * 供人工或截图脚本取画面。</p>
+     */
+    public static boolean visualAcceptance() {
+        return "1".equals(prop("visual", "0"));
+    }
+
+    /**
+     * 半径 6 压力烟测开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link SeedRadius6Smoke}：把覆盖范围开到允许的最大值 6（13 × 13 =
+     * 169 个目标区块），记录铺开耗时 / 候选规模 / 渲染条目 / 帧率 / 卡顿 / 内存 / 计算器是否持续工作，
+     * 只做观察与记录，不改默认范围、不改渲染器（口径第五十六、五十七节）。</p>
+     */
+    public static boolean radius6Smoke() {
+        return "1".equals(prop("radius6", "0"));
     }
 }

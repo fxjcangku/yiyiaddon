@@ -1879,7 +1879,7 @@ async function loadSettings(){
 
   h+='<div class="card">';
   h+='<div class="card-h">远程开关</div>';
-  h+='<div class="hint">游戏内客户端每 60 秒读取一次，改完立即生效、无需重启游戏；关掉后客户端停止对应上报。</div>';
+  h+='<div class="hint">游戏内客户端每 5 分钟读取一次，改完最多 5 分钟后生效、无需重启游戏；关掉后客户端停止对应上报。</div>';
   REMOTE_SWITCHES.forEach(([key,label,desc])=>{
     const on=isFlagOn(config[key]);
     h+='<div class="sw"><div class="info">'

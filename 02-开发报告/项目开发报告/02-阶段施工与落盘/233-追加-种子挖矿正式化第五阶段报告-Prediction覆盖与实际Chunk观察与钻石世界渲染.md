@@ -4,7 +4,7 @@
 - **项目**：`D:/mcaddon/yiyiaddon`（分支 `master`）
 - **环境**：Minecraft 26.1.2 · Fabric Loader 0.19.5 · Fabric API 0.155.2+26.1.2 · JDK 25（`--release 21`）· Fabric Loom 1.17.20
 - **产品版本**：`yiyiaddon 1.0-beta2`
-- **基线**：`232-FINAL-report.md`（唯一优先基线）→ `seedmining-local-server-report.md`（性能 / 行为基线）
+- **基线**：`232-FINAL-种子挖矿多人Worker与生产发行最终收口报告.md`（唯一优先基线）→ `232-追加-本地专用服务器实测报告-开发客户端下Worker缓存复用与维度切换.md`（性能 / 行为基线）
 - **验收产物**：`build/release/yiyiaddon-1.0-beta2-26.1.2.jar`（47,052,266 字节）
   - **SHA-256 = `804ed04521299ae035f2002ac5ec2b0c832984e887384f3f9faac621f04e449e`**
   - 对外 ZIP `build/release/yiyiaddon-1.0-beta2-26.1.2.zip`（46,749,756 字节）
@@ -440,8 +440,9 @@ C2ME / Lithium / Krypton / ModernFix）：五条证据同样全过，候选 37 �
    本轮未采集画面截图。
 5. **性能只覆盖本机基线环境**：范围 3 + 1100 候选 + 119 FPS 是在本机（1280×720）实测；
    更大范围（半径 6 = 169 目标）与更低配机器的表现未测。
-6. **历史遗留**：`seedmining-phase*` 报告、`232-证据/`、`232P-证据/` 与旧 PoC 装置一律保留未删，
-   本阶段未清理任何历史证据。
+6. **历史遗留**：`232-证据/`、`232P-证据/` 与旧 PoC 装置一律保留未删，本阶段未清理任何历史证据。
+   （早期那批 `seedmining-phase*` / `seedpoc-round*` 报告此后由 234 阶段统一收口：**正本只保留
+   `02-开发报告/项目开发报告/02-阶段施工与落盘/` 内按 `NN-类别-名称.md` 命名的版本**，根目录散落的同名副本已删除。）
 
 ---
 
@@ -476,7 +477,7 @@ C2ME / Lithium / Krypton / ModernFix）：五条证据同样全过，候选 37 �
 | `gradle/production-smoke.ps1` | 新增 `-Username` 参数（离线服务器的 OP 由名字派生，233 观察用例要发 `/setblock` 与 `/tp`） |
 
 **没有删除任何文件**；232 及更早的 PoC 装置、报告、证据目录全部原样保留。
-`232-FINAL-report.md` 中冻结的类与数字一行未动。
+`232-FINAL-种子挖矿多人Worker与生产发行最终收口报告.md` 中冻结的类与数字一行未动。
 
 ---
 

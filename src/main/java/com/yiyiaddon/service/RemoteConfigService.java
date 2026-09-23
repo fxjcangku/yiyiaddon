@@ -28,7 +28,14 @@ public final class RemoteConfigService {
     public static final String MESSAGE_POLL = "message_poll_enabled";
 
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-    private static final long INTERVAL_SECONDS = 60L;
+    /**
+     * 拉取周期 300 秒（原 60 秒）。
+     *
+     * <p>Cloudflare Workers 免费额度按请求数算（10 万/天，UTC 0 点重置），远端开关是三条轮询通道里
+     * 最不着急的一条：后台改开关后客户端最多晚 5 分钟生效，而本通道降下来的额度能让在线人数统计
+     * 多撑一个玩家（60 秒 = 1 440 请求/玩家/天 → 300 秒 = 288）。</p>
+     */
+    private static final long INTERVAL_SECONDS = 300L;
 
     private static final RemoteFlags FLAGS = new RemoteFlags();
     private static volatile boolean started;
@@ -36,7 +43,7 @@ public final class RemoteConfigService {
     private RemoteConfigService() {
     }
 
-    /** 启动轮询：立即拉取一次，之后每 60 秒刷新。幂等。 */
+    /** 启动轮询：立即拉取一次，之后每 {@link #INTERVAL_SECONDS} 秒刷新。幂等。 */
     public static void start() {
         if (started) return;
         started = true;

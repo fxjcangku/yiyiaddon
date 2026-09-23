@@ -62,6 +62,24 @@ public final class MiningSettings {
     /** 普通方块｜选择普通方块（石头、泥土、原木等）。存方块 ID，空串 = 未选择 */
     public String blockTarget = "";
 
+    // ━━━ 种子目标模式（235：钻石种子预测 → 自动挖矿正式接入；旧项目有对应物，本项目本轮接上） ━━━
+
+    /**
+     * 种子目标模式｜用<b>已通过验证的钻石种子预测</b>作为挖矿目标（精确到方块），
+     * 而不是让 Baritone 按「钻石矿石」这个类型在附近全局搜。
+     *
+     * <p><b>关闭时（默认）</b>：本模块行为与本设置不存在时<b>完全一致</b>——Baritone mine 按目标矿物类型
+     * 扫描附近矿石，秒破 / 连锁 / 物流 / 战斗全部照旧。</p>
+     *
+     * <p><b>打开时</b>：只走种子目标路径（见 {@code SeedMiningTargetProvider}）。这是硬约束：
+     * 一旦打开就<b>绝不</b>偷偷退回按矿物类型扫描；种子验证没通过（非 VERIFIED）时直接不开始挖矿
+     * （fail-closed），由自检 / 运行期看门狗停机并说明原因。</p>
+     *
+     * <p>前置条件（自检逐条报出）：种子挖矿总开关已开 + 服务器种子已填写且格式合法 + 当前维度为主世界 +
+     * 种子验证状态为「已验证」+ 目标选择为钻石矿（时运 / 精准均可）+ 秒破已开。</p>
+     */
+    public boolean seedTargetMode = false;
+
     // ━━━ 传送指令（旧项目 :249-308） ━━━
 
     /** 前往挖矿指令｜传送到挖矿区域的指令（支持带/或不带/） */
@@ -541,6 +559,8 @@ public final class MiningSettings {
         json.addProperty("overworldOreTarget", overworldOreTarget);
         json.addProperty("netherOreTarget", netherOreTarget);
         json.addProperty("blockTarget", blockTarget);
+        // 种子目标模式（235 新增键；老存档缺项一律保留默认 false，不需要迁移）
+        json.addProperty("seedTargetMode", seedTargetMode);
 
         json.addProperty("wildCommand", wildCommand);
         json.addProperty("rtpGuiEnabled", rtpGuiEnabled);
@@ -642,6 +662,7 @@ public final class MiningSettings {
         overworldOreTarget = stringOf(json, "overworldOreTarget", overworldOreTarget);
         netherOreTarget = stringOf(json, "netherOreTarget", netherOreTarget);
         blockTarget = stringOf(json, "blockTarget", blockTarget);
+        seedTargetMode = boolOf(json, "seedTargetMode", seedTargetMode);
 
         wildCommand = stringOf(json, "wildCommand", wildCommand);
         rtpGuiEnabled = boolOf(json, "rtpGuiEnabled", rtpGuiEnabled);

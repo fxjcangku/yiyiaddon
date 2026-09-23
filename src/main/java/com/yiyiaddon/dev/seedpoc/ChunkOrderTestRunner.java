@@ -245,6 +245,24 @@ public final class ChunkOrderTestRunner {
         notes.add("目标 (" + target.x() + "," + target.z() + ") 自变量：在目标之前被装饰的邻区块 "
                 + beforeCount + " 个 / 之后 " + afterCount + " 个（3x3 内共登记批号 " + batches.size() + " 个）");
 
+        // ── 3.5) 指定探针坐标的最终方块状态（234.1 MISSING 补证用；只读，不改世界）──
+        // 为什么需要它：三个全新世界跑不同合法请求顺序之后，必须能逐个世界读出「同一格最终是什么」，
+        // 才能判定该格是「随合法请求顺序变化」还是「三个世界都相同」。
+        int[] probe = SeedPocFlags.orderProbePos();
+        if (probe != null && (probe[0] >> 4) == target.x() && (probe[2] >> 4) == target.z()) {
+            BlockPos probePos = new BlockPos(probe[0], probe[1], probe[2]);
+            BlockState probeState = level.getBlockState(probePos);
+            boolean isDiamond = OreBlockLedger.isDiamond(probeState);
+            String probeLine = "探针 (" + probe[0] + "," + probe[1] + "," + probe[2] + ") 最终方块 = "
+                    + probeState.getBlock().getName().getString() + "｜注册名 "
+                    + net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(probeState.getBlock())
+                    + "｜是否钻石 = " + (isDiamond ? "是" : "否")
+                    + "｜该目标区块本次钻石总数 = " + all.size();
+            notes.add("目标 (" + target.x() + "," + target.z() + ") " + probeLine);
+            LOGGER.info("{}：顺序实验｜场景 {}｜目标 ({},{})｜{}",
+                    SeedPocConstants.LOG_KEY, scenarioId, target.x(), target.z(), probeLine);
+        }
+
         return new ChunkOrderTruth(scenarioId, seed, target, environment(),
                 SeedPocWorldFactory.LEVEL_ID, worldDir().toString(), SeedPocWorldFactory.lastFreshOk(), freshnessNote,
                 untouched, regionExisted, scenario.order(), batches, steps, diamondOre, deepslate, provenance);

@@ -256,6 +256,16 @@ public final class MiningConsoleScreen extends PanelScreen implements ConsoleHos
         }
     }
 
+    /**
+     * 直接落到「种子挖矿」页。
+     *
+     * <p>给模块 / 外接流程用（例如世界渲染相关的提示「去种子页看看」一键跳转），
+     * 与点页签按钮走同一条 {@link #switchTab} 路径：同样延到下一 tick 重建，不做「当场摘树」这种危险动作。</p>
+     */
+    public void openSeedTab() {
+        switchTab(Tab.SEED);
+    }
+
     /** 宿主客户端实例（各页打开子窗口用；与 {@code Minecraft.getInstance()} 同源） */
     public Minecraft client() {
         return minecraft;

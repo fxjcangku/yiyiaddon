@@ -22,6 +22,10 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>与后端的三个交互：在线玩家查询、频道/私聊发送、未读消息轮询与回复。
  * 发送与回复都是同步阻塞方法，调用方需自行放到后台线程或在 UI 动作中直接调用。</p>
+ *
+ * <p><b>轮询周期 10 秒</b>（原 3 秒）：Cloudflare Workers 免费额度按请求数算（10 万/天），
+ * 3 秒轮询自己就占 2.88 万请求/玩家/天，与心跳叠加后额度只够约 1.6 个玩家全天在线，
+ * 打满即整站 1027（2026-09-23 实机发生）。代价是管理员消息最多晚 10 秒弹出。</p>
  */
 public final class ChatService {
 
@@ -34,7 +38,7 @@ public final class ChatService {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final Duration SHORT_TIMEOUT = Duration.ofSeconds(5);
-    private static final long POLL_INTERVAL_SECONDS = 3L;
+    private static final long POLL_INTERVAL_SECONDS = 10L;
 
     private static volatile ScheduledExecutorService poller;
 
