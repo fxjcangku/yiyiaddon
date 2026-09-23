@@ -25,9 +25,9 @@
 | R3 | 同上，`-Xmx1536m` | 同上 `=1536` | 全通过 |
 | R4 | 同上，`-Xmx2048m` | 同上 `=2048` | 全通过 |
 | R5 | **崩溃恢复**（强杀 → 自动失败态 → 重启一次 → 再预测成功） | `-Dyiyiaddon.seedpoc.workerLifecycle=1` | 全通过 |
-| R6 | **启动超时负路径**（Fault Injection） | `-Dyiyiaddon.seedworker.startupTimeoutMillis=1` | 见第九节 |
-| R7 | **预测超时负路径**（Fault Injection） | `-Dyiyiaddon.seedworker.predictTimeoutMillis=1` | 见第九节 |
-| R8 | **内存不可满足优雅失败** | `-Dyiyiaddon.seedworker.maxHeapMb=64` | 见第十节 |
+| R6 | **启动超时负路径**（Fault Injection） | `-Dyiyiaddon.seedworker.startupTimeoutMillis=1` | 见【五】+【二.12】 |
+| R7 | **预测超时负路径**（Fault Injection） | `-Dyiyiaddon.seedworker.predictTimeoutMillis=1` | 见【五】+【二.12】 |
+| R8 | **内存不可满足优雅失败** | `-Dyiyiaddon.seedworker.maxHeapMb=64` | 见【五】 |
 | R9 | **生产多人冒烟**（Dedicated Server） | `-Dyiyiaddon.seedpoc.workerMultiplayer=1` + `--quickPlayMultiplayer` | 全通过 |
 | R10 | 最终确认 + **套接字取证** | `service` + 并行 `Get-NetTCPConnection` | 全通过 |
 | R11 | **断网模拟**（对 Worker 的 `javaw.exe` 出站 Block） | Windows 防火墙出站规则 | 全通过 |
@@ -36,6 +36,10 @@
 | R14 | **真实用户 103 个 Mod 环境**（照抄其 `mods` 目录） | `-ExtraModsDir` + `service` | 全通过 |
 
 14 次冒烟累计启动 Worker 30+ 次；**退出后残留 Worker 进程一律为 0**。
+
+> 表外还有两次不计入编号的运行（原始日志在 `build/`）：
+> **A2** = 修复「界面文案与技术原因分离」之前的一次先行冷启动运行（其数字已被 R12 取代，报告只用 R12）；
+> **R8b** = 与 R13 同配置（`-Xmx256m`）的一次先行运行，结论一致，R13 是带完整归档的复跑。
 
 ---
 
@@ -162,8 +166,8 @@ forbidden = \build\classes  \build\resources  \build\devlaunch  \src\main\java
 | 768m | 全通过 | 11,848 ms | 653 MB | 643 MB | 31 |
 | **1024m（最终默认）** | 全通过 | 11,841 ms | 695 MB | 634 MB | 33 |
 | 1536m | 全通过 | 12,467 ms | 690 MB | 645 MB | 31 |
-| 2048m | 全通过 | — | 683 MB | 536 MB | 32 |
-| 256m（额外下限探测，6 目标） | 全通过（45 / 23） | 11,644 ms | 559 MB | 480 MB | 22 |
+| 2048m | 全通过 | 10,841 ms | 683 MB | 536 MB | 32 |
+| 256m（额外下限探测，6 目标） | 全通过（45 / 23） | 11,644 ms（R8b 同配置记录；R13 用的是服务层装置，它不打印启动耗时行） | 559 MB | 480 MB | 22 |
 
 **最终采用 `-Xmx1024m`**（此前 232 为 2048m）：
 - 768m 也能过 15 目标，但峰值 RSS 已达 653 MB ≈ 上限的 85%，没有余量；
@@ -314,6 +318,10 @@ t=18s （Vanilla 宿主监听 56442 已消失；出网 HTTPS 也已消失）
 4. **宿主初始化期的一次出网**：来自 Vanilla 专用服务器初始化（非本模组代码），已在断网模拟下实测不影响可用性，但未逐一定位到具体域名（本机代理伪装了目标 IP）。
 5. **短暂 Vanilla 宿主监听**：初始化期会在 `127.0.0.1` 上短暂开放一次监听（就绪前关闭）。去掉它需要改动世界创建路径，本阶段按口径不做。
 6. **真实用户整包实测**：R14 是「照抄 mods 目录」的等价实测，不等同于用 PCL 点一次启动按钮走完整启动器链路。
+7. **换服 A→B 未单独实测**：A→B 与「退出服务器」走同一个收口（退服即停止 Worker + 清会话 + 清结果），
+   本阶段的证据来自 R9 的退服清理与 R5 的进程回收，**没有单独构造「A 服退出 → 立刻进 B 服」的用例**。
+8. **本阶段改的是「生产可用性」，不是算法**：Predictor / 会话 / 离线管线一行未改，
+   因此所有数字仍是 229/230 冻结的那一套；本阶段新增的数字只有「耗时 / 内存 / 进程」这类工程指标。
 
 ---
 
@@ -328,3 +336,65 @@ t=18s （Vanilla 宿主监听 56442 已消失；出网 HTTPS 也已消失）
 6. 默认 Worker 堆从 2048m 降到 **1024m**（实测四档 + 256m 下限）。
 
 **232-P 生产发行验收全部通过 → 停止，等待下一阶段：233 · 实际 Chunk Observation + 预测钻石世界渲染。**
+
+---
+
+## 附录 A：本阶段新增 / 修改 / 删除文件（口径 §102 第 65 项）
+
+### 新增
+
+| 文件 | 用途 | 进正式产物？ |
+| --- | --- | --- |
+| `gradle/production-smoke.ps1` | 生产发行冒烟脚本：按版本 JSON 组装启动器等价命令、断言无开发目录、抓 Worker 命令行 / PID / RSS、查残留进程；支持 `-ExtraModsDir`（真实 Mod 目录）、`-ExtraGameArgs`（如 `--quickPlayMultiplayer`）、javaw/java 双名字扫描 | **否**（仅验收用，不进 jar） |
+| `02-开发报告/项目开发报告/02-阶段施工与落盘/232P-追加-种子挖矿真实用户生产发行验收报告.md` | 本报告正本 | 否 |
+| `seedmining-phase4p-232p-report.md` | 本报告（仓库根副本，便于链接阅读） | 否 |
+| `02-开发报告/项目开发报告/02-阶段施工与落盘/232P-证据/`（57 个文件） | 逐次冒烟的取证（命令行 / PID 生命周期 / RSS / 装置报告 / Worker 日志 / 套接字快照） | 否 |
+| `build/commit-msg-232p.txt`、`build/commit-msg-beta3.md`、`build/commit-msg-232-add.md` | 提交信息草稿（PowerShell 下 heredoc 不可用，改用 `git commit -F`） | 否 |
+
+### 修改
+
+| 文件 | 改动 |
+| --- | --- |
+| `src/main/java/com/yiyiaddon/seedworker/SeedWorkerMain.java` | 模组版本改为读「本类所在 jar」的元数据（`java.security.CodeSource`）+ 按 `"id":"yiyiaddon"` 校验回退；同时修掉 `CodeSource` 包名写错与重复常量两处编译错误 |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorldgenWorkerLauncher.java` | Windows 优先 `javaw.exe`（不弹控制台黑窗，回退 `java.exe`）；新增 `maxHeapMb` / 启动超时 / 预测超时三个诊断属性；Worker 堆默认由 2048m 改为 1024m |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorldgenWorkerClient.java` | 超时读诊断属性；`lastErrorCn` 只存给界面看的短中文，完整技术原因改走日志 |
+| `src/main/java/com/yiyiaddon/seed/worker/client/SeedWorkerException.java` | 新增 `userMessageCn()`：按错误码给出普通用户可读的短中文说明 |
+| `src/main/java/com/yiyiaddon/seed/service/SeedMiningService.java` | 失败结果文案取 `userMessageCn()`（异常栈只进日志） |
+| `gradle/hardening.gradle` | 加固输入改为「混淆产物」，与 `obfuscateClasses` 解耦（修循环依赖） |
+| `gradle/obfuscation.gradle` | 发布顺序改为**先混淆、后加固**；新增跨进程 Worker 入口类的存在性 + `main(String[])` 反射断言 |
+| `gradle/proguard-rules.pro` | `-keep` 跨进程入口 `SeedWorkerMain.main`、`-keepnames com.yiyiaddon.seedworker.**`、`-keep ReleaseProtection.bootstrap` |
+| `07-bug记录/1.0-beta3.md` | 登记本阶段**玩家可见**的 3 条修复 + 3 条变更（按 `07-bug记录/README.md` 口径：内部实现不入此账） |
+| `seedmining-phase4-232-report.md`（及 `02-开发报告` 内 232 报告副本） | 新增【二十一·补】口径 §102 六十七项逐条对照；【二十】已知限制第 1/2/3 条改为「已由 232-P 实机补齐」；开头补配套说明、文末补产出索引 |
+
+### 删除
+
+**无。**
+
+### 提交状态
+
+报告与 `1.0-beta3.md` 已推送到 `source/master`（最新 `639b610`）。
+**本阶段的代码改动仍在本地工作区未提交**（与 232 阶段相同口径：代码另行统一提交）。
+
+---
+
+## 附录 B：生产冒烟证据文件清单（`232P-证据/`，共 57 个）
+
+| 编号 | 文件（同前缀省略） |
+| --- | --- |
+| R1 | `R1-parity-xmx1024-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+| R2 | `R2-parity-xmx768-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker-rss-samples.txt、worker.log |
+| R3 | `R3-parity-xmx1536-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+| R4 | `R4-parity-xmx2048-`：对照.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt |
+| R5 | `R5-lifecycle-`：生命周期.txt、worker-command.txt、worker-lifecycle.txt、worker.log |
+| R6 | `R6-startup-timeout-`：服务层回归.txt、client-stdout.txt、worker-lifecycle.txt、worker.log |
+| R7 | `R7-predict-timeout-`：服务层回归.txt、client-stdout.txt、worker-lifecycle.txt、worker.log |
+| R8 | `R8-lowmem64-`：服务层回归.txt、client-stdout.txt、worker-lifecycle.txt、worker.log |
+| R9 | `R9-multiplayer-`：多人验收.txt、worker-command.txt、worker-lifecycle.txt |
+| R10 | `R10-`：netstat-套接字变化.txt、service-final-服务层回归.txt、service-final-worker-command.txt、service-final-worker-rss-summary.txt |
+| R11 | `R11-offline-`：服务层回归.txt、worker-command.txt |
+| R12 | `R12-cold-final-`：服务层回归.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+| R13 | `R13-lowmem256-`：服务层回归.txt、worker-command.txt、worker-rss-summary.txt |
+| R14 | `R14-realmods103-`：服务层回归.txt、client-stdout.txt、worker-command.txt、worker-lifecycle.txt、worker-rss-summary.txt、worker.log |
+
+另有两次运行的原始脚本输出未复制进证据目录，保留在 `build/`：
+`smoke-A2-cold-service.log`、`smoke-R1…R14-*.log`。
