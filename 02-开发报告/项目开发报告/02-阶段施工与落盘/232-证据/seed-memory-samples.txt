@@ -1,0 +1,22 @@
+﻿t=0s clientRSS_MB=774 workerRSS_MB=-1 workerPid= garbage-first heap   total reserved 12353536K, committed 524288K, used 408547K [0x000000050e000000, 0x0000000800000000)
+t=2s clientRSS_MB=1186 workerRSS_MB=-1 workerPid= 
+t=4s clientRSS_MB=1226 workerRSS_MB=-1 workerPid= 
+t=6s clientRSS_MB=1469 workerRSS_MB=38 workerPid=33040 
+t=8s clientRSS_MB=1499 workerRSS_MB=156 workerPid=33040 
+t=10s clientRSS_MB=1737 workerRSS_MB=322 workerPid=33040 
+t=12s clientRSS_MB=2043 workerRSS_MB=392 workerPid=33040 
+t=14s clientRSS_MB=2146 workerRSS_MB=472 workerPid=33040 
+t=16s clientRSS_MB=2217 workerRSS_MB=544 workerPid=33040 
+t=18s clientRSS_MB=2589 workerRSS_MB=558 workerPid=33040 
+t=20s clientRSS_MB=2729 workerRSS_MB=537 workerPid=33040 
+t=22s clientRSS_MB=2645 workerRSS_MB=566 workerPid=33040 
+t=24s clientRSS_MB=2665 workerRSS_MB=542 workerPid=33040 
+t=26s clientRSS_MB=2661 workerRSS_MB=561 workerPid=33040 
+t=28s clientRSS_MB=2692 workerRSS_MB=569 workerPid=33040 
+t=30s clientRSS_MB=2693 workerRSS_MB=576 workerPid=33040 
+t=32s clientRSS_MB=2693 workerRSS_MB=627 workerPid=33040 
+t=34s clientRSS_MB=2742 workerRSS_MB=579 workerPid=33040 
+t=36s clientRSS_MB=2712 workerRSS_MB=585 workerPid=33040 
+t=38s clientRSS_MB=2819 workerRSS_MB=568 workerPid=33040 
+t=40s clientRSS_MB=-1 workerRSS_MB=-1 workerPid= 
+client gone (exit)

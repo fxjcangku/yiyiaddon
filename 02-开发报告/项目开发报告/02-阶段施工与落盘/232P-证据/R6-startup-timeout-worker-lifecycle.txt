@@ -1,0 +1,7 @@
+﻿t=14s 出现 Worker PID=20868 可执行文件=javaw.exe
+t=18s Worker PID=20868 已消失
+t=19s 出现 Worker PID=7088 可执行文件=javaw.exe
+t=21s 出现 Worker PID=20380 可执行文件=javaw.exe
+t=25s Worker PID=20380 已消失
+t=28s 出现 Worker PID=12408 可执行文件=javaw.exe
+t=31s Worker PID=12408 已消失

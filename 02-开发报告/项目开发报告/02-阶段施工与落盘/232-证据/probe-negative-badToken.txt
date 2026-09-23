@@ -1,0 +1,7 @@
+[探针] Worker 已拉起 PID=14164，等待宿主就绪（日志 D:\mcaddon\yiyiaddon\build\seed-worker-probe-neg-badToken\seed-worker-probe\probe-worker.log）...
+[探针] 仍在等待宿主就绪...
+[探针] 握手文件出现，耗时 4044 ms
+[探针] 已连接 127.0.0.1:64327
+[探针] 请求 HELLO 失败：BAD_TOKEN / 令牌不匹配：本机其它进程不得向本地世界生成计算器发送命令
+[探针] 负路径 badToken：HELLO=通过，请求 HELLO 期望错误码 BAD_TOKEN → 实际 BAD_TOKEN / 令牌不匹配：本机其它进程不得向本地世界生成计算器发送命令 → 通过
+[探针] Worker 已退出，退出码 0
