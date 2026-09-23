@@ -12,6 +12,10 @@ base {
 // 客户端与服务端必须用同一个值，驱动器 gradle/nether-mp.ps1 会同时传 -PnetherMpPort）。
 def netherMpPort = (project.findProperty('netherMpPort') ?: '25865').toString()
 
+// 238 目标接入回归追哪一种矿物（默认 DIAMOND，与 235 逐字一致；换矿物：-PseedTargetOre=COAL）。
+// 装置侧读 -Dyiyiaddon.seedpoc.target.ore，这里把 Gradle 属性转成它认的系统属性。
+def seedTargetOre = (project.findProperty('seedTargetOre') ?: 'DIAMOND').toString()
+
 loom {
     // 将 26.1.2 包私有的 GlDevice 提升为可访问（Skija 取主 Framebuffer 名字所需）
     accessWidenerPath = file('src/main/resources/yiyiaddon.accesswidener')
@@ -303,10 +307,11 @@ loom {
             vmArg '-Dyiyiaddon.seedpoc.exit=1'
         }
 
-        // ⑭ 目标接入实机回归（235）：钻石 Seed Target → AutoMiner 正式接入的 A~L 十二项。
+        // ⑭ 目标接入实机回归（235 / 238 起支持逐一换矿物）：种子目标 → AutoMiner 正式接入的 A~L 十二项。
         //    单人夹具世界（自动新建，固定种子 20260922，自带指令权限），因此不需要专用服务器。
         //    装置自己摆玩家位置、自己置空气口袋，全部指令只落在本运行目录下的存档里。
-        //    用法：.\gradlew.bat runClientSeedTargetTest
+        //    用法：.\gradlew.bat runClientSeedTargetTest            （钻石，与历史一致）
+        //          .\gradlew.bat runClientSeedTargetTest -PseedTargetOre=COAL（换主世界其它矿物）
         clientSeedTargetTest {
             client()
             runDir = file(".dev-runs/${project.minecraft_version}/seed/target")
@@ -317,6 +322,7 @@ loom {
             vmArg '-Ddevauth.microsoft.oauth2.grant-flow=auth-code-external'
             vmArg '-Dyiyiaddon.seedpoc.enabled=1'
             vmArg '-Dyiyiaddon.seedpoc.target=1'
+            vmArg "-Dyiyiaddon.seedpoc.target.ore=${seedTargetOre}"
             vmArg '-Dyiyiaddon.seedpoc.exit=1'
         }
 

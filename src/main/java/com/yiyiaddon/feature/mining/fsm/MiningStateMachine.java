@@ -1269,8 +1269,8 @@ public final class MiningStateMachine {
             lowSpeedTicks = 0;
             // 宽限从「真正下发 mine」这一刻算起（进 MINING 到下发之间还有预热 + 等区块的时间）
             mineStartTick = mc.player.tickCount;
-            // 235：目标来源交给提供者 —— 普通模式 = 男中音 mine 按矿物类型扫描（与旧调用点逐字等价）；
-            // 种子模式 = 从已验证的钻石种子预测里选精确坐标并寻路过去
+            // 235/238：目标来源交给提供者 —— 普通模式 = 男中音 mine 按矿物类型扫描（与旧调用点逐字等价）；
+            // 种子模式 = 从已验证的种子预测里选精确坐标并寻路过去（一次一种矿物，可换 11 种中的任一种）
             module.issueMiningTargets(true);
             // 播放开始挖矿音效
             module.getSoundNotifier().notifyMiningStart();

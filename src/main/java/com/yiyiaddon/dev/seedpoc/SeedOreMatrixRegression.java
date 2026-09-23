@@ -1169,24 +1169,49 @@ public final class SeedOreMatrixRegression {
     private static void tickNetherGates(Minecraft client) {
         SeedMiningService service = SERVICE;
         report("");
-        report("五、下界自动挖矿闸门（fail-closed）与有效矿物");
+        report("五、下界自动挖矿口径（238：下界专属验证）与有效矿物");
         report("  维度档案：" + service.predictModelCn());
         report("  下界自动挖矿：" + service.netherAutoMiningAllowedCn());
-        report("  本阶段允许自动挖矿的矿物（下界）：" + service.autoMinerEligibleOresCn());
-        report("  本阶段允许自动挖矿的矿物（主世界）：" + SeedOreRegistry.autoMinerEligible(
-                SeedDimensionProfile.OVERWORLD, OreType.DIAMOND));
-        boolean miningBlocked = !service.mayUseForAutomatedMining();
-        boolean targetNull = service.autoMiningTargetOre() == null;
-        boolean everyNetherOreBlocked = true;
+        report("  允许自动挖矿的矿物（下界）：" + service.autoMinerEligibleOresCn());
+        boolean allNetherOresEligible = true;
         for (OreType oreType : SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER)) {
-            if (service.mayUseForAutomatedMining(oreType)) {
-                everyNetherOreBlocked = false;
+            if (!SeedOreRegistry.autoMinerEligible(SeedDimensionProfile.NETHER, oreType)) {
+                allNetherOresEligible = false;
             }
         }
-        report("  mayUseForAutomatedMining() = " + service.mayUseForAutomatedMining()
-                + "；autoMiningTargetOre() = " + service.autoMiningTargetOre());
-        VERDICTS.add("【判定】下界自动挖矿 fail-closed（总门关 + 目标为 null + 三种矿物全被拒）："
-                + verdict(miningBlocked && targetNull && everyNetherOreBlocked));
+        // 238 口径的两条硬要求，逐条现场核对：
+        //   ① 维度不再是闸门 —— 静态资格全开，且拦下原因里不许出现「维度不支持」这类话术；
+        //   ② 放行必须来自「下界专属验证 + 证据覆盖该矿物」—— 逐种矿物的放行状态要与这两条严格一致。
+        boolean netherValidated = service.netherValidationEstablished();
+        List<OreType> evidenceOres = service.validationEvidenceOres();
+        boolean overworldEvidenceLeaked = SeedDimensionProfile.OVERWORLD.dimensionId()
+                .equals(service.validationDimensionId());
+        boolean perOreConsistent = true;
+        boolean noDimensionExcuse = true;
+        for (OreType oreType : SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER)) {
+            boolean allowed = service.mayUseForAutomatedMining(oreType);
+            boolean expected = netherValidated && evidenceOres.contains(oreType);
+            if (allowed != expected) {
+                perOreConsistent = false;
+            }
+            String reason = service.automatedMiningBlockReasonCn(oreType);
+            if (!reason.isEmpty() && (reason.contains("未开放") || reason.contains("不受支持"))) {
+                noDimensionExcuse = false;
+            }
+        }
+        report("  下界专属验证：" + netherValidated + "；证据覆盖的矿物："
+                + SeedMiningService.describeOresCn(evidenceOres)
+                + "；证据维度：" + (service.validationDimensionId().isEmpty()
+                        ? "无" : service.validationDimensionId()));
+        OreType chased = service.autoMiningTargetOre();
+        report("  当前追的矿物：" + chased + "；闸门原因："
+                + service.automatedMiningBlockReasonCn(chased));
+        VERDICTS.add("【判定】下界自动挖矿 238 口径：静态资格全开（"
+                + SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER).size() + " 种）"
+                + verdict(allNetherOresEligible)
+                + " / 逐种矿物放行 =「下界专属验证 ∧ 证据覆盖该矿」" + verdict(perOreConsistent)
+                + " / 拦下原因不含维度话术" + verdict(noDimensionExcuse)
+                + " / 主世界证据未参与下界" + verdict(!overworldEvidenceLeaked));
         step = Step.CASE_PREPARE;
         waitTicks = 0;
     }

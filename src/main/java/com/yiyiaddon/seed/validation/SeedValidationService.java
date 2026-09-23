@@ -186,7 +186,8 @@ public final class SeedValidationService {
      *
      * <p><b>它是「证据范围」的唯一取值来源</b>：验证结论永远只对<b>这一个维度</b>成立。
      * 主世界的证据不能推出下界成立（服务器可以主世界原版 + 下界自定义），
-     * 因此下界的自动挖矿门在服务层被恒定为 false，直到建立下界专属证据。</p>
+     * 因此下界要进自动挖矿，必须在下界身份下重新积累证据 —— 238 起下界与主世界同口径，
+     * 这道「证据只对自己维度有效」的护栏就是下界那条线唯一的放行依据。</p>
      */
     public String evidenceDimensionId() {
         return identity == null ? "" : identity.dimensionId();

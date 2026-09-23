@@ -39,6 +39,7 @@ import com.yiyiaddon.platform.eat.OffhandRationLock;
 import com.yiyiaddon.platform.player.WalkSpeedBoost;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.platform.world.WorldIdentity;
+import com.yiyiaddon.seed.model.OreType;
 import com.yiyiaddon.seed.service.SeedMiningService;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
@@ -222,7 +223,7 @@ public final class AutoMinerModule extends Module {
      */
     private final MiningTargetProvider normalTargetProvider = new BlockTypeMiningTargetProvider(this);
 
-    /** 种子模式目标提供者（235）：从已验证的钻石种子预测里挑精确坐标。 */
+    /** 种子模式目标提供者（235 / 238 泛化）：从已验证的种子预测里挑精确坐标（一次一种矿物）。 */
     private final MiningTargetProvider seedTargetProvider = new SeedMiningTargetProvider(this);
 
     /** 最近一次装载点位时所处的世界上下文（{@code server@dimension}） */
@@ -282,8 +283,13 @@ public final class AutoMinerModule extends Module {
     /**
      * 自动挖矿此刻要不要种子预测（{@link SeedMiningService#setAutoMiningDemandSource} 的判据）。
      *
-     * <p>只要「种子目标模式」开着且玩家在主世界就持续要 —— 与模块开关<b>无关</b>：模块还没启动、
-     * 或正卡在启动自检（种子尚未验证通过）时，正是这些预测在替验证攒证据。</p>
+     * <p>只要「种子目标模式」开着、且当前维度是种子预测支持的维度（主世界 / 下界）就持续要 ——
+     * 与模块开关<b>无关</b>：模块还没启动、或正卡在启动自检（种子尚未验证通过）时，
+     * 正是这些预测在替验证攒证据。</p>
+     *
+     * <p><b>238 起不再限定主世界</b>：下界要进种子自动挖矿，必须先在<b>下界</b>建立专属验证证据
+     * （见 {@link SeedMiningService#netherValidationEstablished()}），而证据来自下界的观察样本
+     * —— 如果这里只在下界之外要预测，下界将永远无法自证。</p>
      */
     public boolean wantsSeedRuntime() {
         if (!settings.seedTargetMode) {
@@ -292,7 +298,7 @@ public final class AutoMinerModule extends Module {
         if (mc.level == null || mc.player == null) {
             return false;
         }
-        return "minecraft:overworld".equals(WorldIdentity.dimension());
+        return SeedMiningService.instance().dimensionSupported();
     }
 
     /** 「使用种子目标」开关（235：种子挖矿页那一行）。 */
@@ -319,8 +325,24 @@ public final class AutoMinerModule extends Module {
             fsm.requestTargetReissue();
         }
         info(value
-            ? "§a✓ 已开启种子目标模式 §8▸ 按预测坐标挖钻石（需种子验证通过；验证未通过不会开始）"
+            ? "§a✓ 已开启种子目标模式 §8▸ 按预测坐标挖"
+                + seedTargetOreNameCn() + "（需种子验证通过；验证未通过不会开始）"
             : "§e已关闭种子目标模式 §8▸ 恢复按矿物类型扫描");
+    }
+
+    /**
+     * 种子模式当前追的矿物中文名（播报 / 状态行用；未开启或当前维度不可追时给一句话兜底）。
+     *
+     * <p>它只读服务层那一处判据（{@code autoMiningTargetOre()}），因此与目标提供者、
+     * 与自动挖矿页显示的是同一答案，不会各说一套。</p>
+     */
+    private String seedTargetOreNameCn() {
+        SeedMiningService service = SeedMiningService.instance();
+        OreType oreType = service.autoMiningTargetOre();
+        if (oreType == null) {
+            return "目标矿物";
+        }
+        return oreType.displayNameCn() + "矿";
     }
 
     /**
@@ -692,9 +714,9 @@ public final class AutoMinerModule extends Module {
             missing.add("§e目标§f·无法解析成方块（请重新选择）");
         }
 
-        // 种子目标模式（235）：把「为什么现在不能按种子挖」逐条报出来（总开关 / 维度 / 种子 /
-        // 验证闸门 / 目标是不是钻石 / 秒破）。判据与运行期、与种子挖矿页<b>同一个来源</b>
-        // （SeedMiningTargetProvider#notReadyReasonCn），不在这里另写一套，避免两处走散。
+        // 种子目标模式（235/238）：把「为什么现在不能按种子挖」逐条报出来（总开关 / 维度 / 种子 /
+        // 验证闸门与证据是否覆盖该矿物 / 目标矿物是否一致 / 秒破）。判据与运行期、与种子挖矿页
+        // <b>同一个来源</b>（SeedMiningTargetProvider#notReadyReasonCn），不在这里另写一套。
         String seedBlockReason = seedTargetBlockReasonCn();
         if (!seedBlockReason.isEmpty()) {
             missing.add("§b种子目标§f·" + seedBlockReason);

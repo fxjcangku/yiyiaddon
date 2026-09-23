@@ -1,0 +1,14 @@
+﻿[NETHER-MP] prepare dedicated server dir (port 25865)
+[NETHER-MP] start dedicated server
+[NETHER-MP] server ready; server java pids: 33756
+[NETHER-MP] start client
+[NETHER-MP] client exited with code 0
+[NETHER-MP] leftover worker processes: 0
+[NETHER-MP] device report: 全部判定：通过
+[NETHER-MP]   《237 · 下界真正多人验收 · 驱动器判决（26.2 线）》
+[NETHER-MP]   端口：25865（备选 25866, 25867）
+[NETHER-MP]   服务器就绪：True
+[NETHER-MP]   残留 Worker 进程：0
+[NETHER-MP]   装置报告：D:\mcv\wt-262\.dev-runs\26.2\seed\nether-mp\client\seedpoc-237-下界多人验收.txt
+[NETHER-MP]   装置全部判定：PASS
+[NETHER-MP]   判决：通过

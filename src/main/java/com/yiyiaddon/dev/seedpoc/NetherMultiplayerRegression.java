@@ -1,9 +1,20 @@
 package com.yiyiaddon.dev.seedpoc;
 
+import com.yiyiaddon.core.module.ModuleManager;
+import com.yiyiaddon.feature.mining.AutoMinerModule;
+import com.yiyiaddon.feature.mining.config.MiningSettings;
+import com.yiyiaddon.feature.mining.fsm.MinerState;
+import com.yiyiaddon.feature.mining.model.LootMode;
+import com.yiyiaddon.feature.mining.model.MiningPoint;
+import com.yiyiaddon.feature.mining.model.MiningPointType;
+import com.yiyiaddon.platform.world.WorldIdentity;
 import com.yiyiaddon.seed.model.OreType;
+import com.yiyiaddon.seed.observation.OreObservationState;
 import com.yiyiaddon.seed.observation.SeedObservationSnapshot;
 import com.yiyiaddon.seed.ore.SeedDimensionProfile;
+import com.yiyiaddon.seed.ore.SeedOreDefinition;
 import com.yiyiaddon.seed.ore.SeedOreRegistry;
+import com.yiyiaddon.seed.prediction.PredictedOre;
 import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.render.SeedRenderEntry;
 import com.yiyiaddon.seed.render.SeedRenderSnapshot;
@@ -15,6 +26,8 @@ import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import org.slf4j.Logger;
@@ -42,7 +55,9 @@ import org.slf4j.LoggerFactory;
  *     <li>下界观察 / ESP：真实已加载区块上的候选被观察层确认为真实方块，渲染快照条目与候选一一对应；</li>
  *     <li>远端未加载区块：<b>未加载时仍可预测</b>，且预测本身不导致客户端去加载它；随后真实进入该区域，
  *         观察层按实际 BlockState 更新；</li>
- *     <li>下界自动挖矿 fail-closed（总门关 + 目标为 null + 三种矿物全被拒）；</li>
+ *     <li>下界自动挖矿口径（238：静态资格全开；放行只来自「下界专属验证 + 证据覆盖该矿」）；</li>
+ *     <li><b>下界实际挖掘（238 新增）</b>：三种下界矿物逐个让自动挖矿在下界真的挖掉一颗 ——
+ *         候选处真值命中 → 提供者锁定该候选 → 秒破把真实方块变成 air → 换下一颗；</li>
  *     <li>Worker 退出无孤儿（本机隔离计算器进程在收尾后消失）。</li>
  * </ol>
  *
@@ -84,6 +99,21 @@ public final class NetherMultiplayerRegression {
     /** 远端目标使用的矿物（远古残骸：下界三种里最难碰巧命中的一种，非零即最有说服力）。 */
     private static final OreType FAR_ORE = OreType.ANCIENT_DEBRIS;
 
+    /**
+     * 下界实际挖掘逐个跑的矿物顺序（维度声明序：远古残骸 → 下界石英 → 下界金）。
+     *
+     * <p>238 的「下界也能自动挖」不能只停在「闸门放行」：本阶段让自动挖矿在下界真的挖掉一颗，
+     * 逐矿物留下「候选 → 目标 → 实际方块 → air」的完整证据链。</p>
+     */
+    private static final List<OreType> MINE_ORES = List.of(
+            OreType.ANCIENT_DEBRIS, OreType.NETHER_QUARTZ, OreType.NETHER_GOLD);
+
+    /** 下界实际挖掘：单种矿物的等待上限（候选出现 / 目标锁定 / 挖掉）。 */
+    private static final int WAIT_MINE_TICKS = 20 * 150;
+
+    /** 下界实际挖掘用的站位（有候选的区块中心；创造模式，任何高度都摔不死）。 */
+    private static final int MINE_STAND_Y = 70;
+
     private static final SeedMiningService SERVICE = SeedMiningService.instance();
 
     private enum Stage {
@@ -111,6 +141,12 @@ public final class NetherMultiplayerRegression {
         FAR_OBSERVE,
         /** 下界自动挖矿闸门。 */
         GATES,
+        /** 下界实际挖掘：换到下一种下界矿物并摆现场。 */
+        MINE_NEXT,
+        /** 下界实际挖掘：等候选出现 → 摆现场 → 启动模块。 */
+        MINE_SETUP,
+        /** 下界实际挖掘：等目标锁定与真实方块被挖掉。 */
+        MINE_RUN,
         /** 收尾：停计算器并核对无孤儿进程。 */
         SHUTDOWN_WORKER,
         FINISHED
@@ -122,6 +158,43 @@ public final class NetherMultiplayerRegression {
 
     // ── 下界三种矿物逐个预测的游标 ──
     private static int oreIndex;
+
+    // ── 下界实际挖掘（逐个矿物跑一遍）──
+    /** 当前跑到第几种下界矿物。 */
+    private static int mineIndex;
+    /** 当前被追的下界矿物。 */
+    private static OreType mineOre;
+    /** 装置选定的候选坐标（= 现场中心）。 */
+    private static BlockPos mineCandidate;
+    /** 候选处摆现场之前的真实方块读数（预测命中证据）。 */
+    private static String mineTruthBefore = "（未读）";
+    /** 提供者锁定的目标坐标。 */
+    private static BlockPos mineLocked;
+    /** 目标是否就是装置摆的那一颗（强判据）。 */
+    private static boolean mineLockedIsCandidate;
+    /** 现场那一格是不是被真的挖掉了（真实方块变成 air）。 */
+    private static boolean mineBroken;
+    /** 现场是否已经被装置确认过（先看到目标矿，才允许把 air 判成「被挖掉」）。 */
+    private static boolean mineSceneSeen;
+    /** 挖掉之后又过了多少刻（给「换下一颗」留窗口）。 */
+    private static int mineBrokenTicks;
+    /** 挖掉之后是否换到了下一颗。 */
+    private static boolean mineSwitched;
+    /** 本矿物内的小步进（摆现场需要跨刻发指令）。 */
+    private static int mineStep;
+    /** 摆现场时「放回目标矿」的重试次数。 */
+    private static int mineSetAttempts;
+    /** 模块启用后仍未运行（启动自检未通过）的连续刻数。 */
+    private static int mineDisabledTicks;
+    /** 本矿物的「站位点」水平坐标（区块中心）：物流指令绑回这里，模块自己那一跳才有真实位移。 */
+    private static int mineStandX;
+    private static int mineStandZ;
+    /** 「前往野外」由装置补跳的次数 / 连续空闲刻数（见 {@code tickMineRun}）。 */
+    private static int mineGoWildInjections;
+    private static int mineGoWildIdleTicks;
+
+    /** 一种矿物最多由装置补几次「前往野外」传送：够用即可，避免在真正的故障上无限补。 */
+    private static final int MAX_GO_WILD_INJECTIONS = 4;
 
     // ── 远端未加载候选的游标与命中结果 ──
     private static int farIndex;
@@ -152,6 +225,12 @@ public final class NetherMultiplayerRegression {
     /** 每客户端刻推进一次（由 {@link SeedPocEntry} 在下界多人验收模式下调用）。 */
     public static void onClientTick(Minecraft client) {
         try {
+            // 环境前提：装置全程要在创造模式。有人在窗口里按 F3+F4 切到生存，落体就会真的摔死人，
+            // 整轮证据随之作废（实测踩过）。这里只在「真的不是创造」时才补一刀，不刷屏。
+            if (stage != Stage.CONNECT && stage != Stage.FINISHED
+                    && client.player != null && !client.player.isCreative()) {
+                sendCommand(client, "gamemode creative @s");
+            }
             switch (stage) {
                 case CONNECT -> tickConnect(client);
                 case OVERWORLD_TP -> tickOverworldTeleport(client);
@@ -162,6 +241,9 @@ public final class NetherMultiplayerRegression {
                 case FAR_TP -> tickFarTeleport(client);
                 case FAR_OBSERVE -> tickFarObserve(client);
                 case GATES -> tickGates(client);
+                case MINE_NEXT -> tickMineNext(client);
+                case MINE_SETUP -> tickMineSetup(client);
+                case MINE_RUN -> tickMineRun(client);
                 case SHUTDOWN_WORKER -> tickShutdownWorker();
                 case FINISHED -> {
                 }
@@ -202,6 +284,8 @@ public final class NetherMultiplayerRegression {
             finish();
             return;
         }
+        // 强制创造模式：装置全程不需要生存逻辑，外部把模式改掉会引入摔伤 / 死亡这类噪声
+        sendCommand(client, "gamemode creative @s");
         SERVICE.setSeedText(String.valueOf(DEDICATED_SEED));
         SERVICE.setEnabled(true);
         SERVICE.setRenderPrediction(true);
@@ -222,6 +306,10 @@ public final class NetherMultiplayerRegression {
             }
             report("  上一次验收把玩家留在了 " + entryDimension + " → 先送回主世界，再开始基线"
                     + "（判据链的起点必须由装置自己定下来）");
+            // 先强制加载 + 封壳再传：直接 tp 到 y=120 是「从天上落下来」（生存模式下就是摔死），
+            // 观感也不像一次受控的基线取证。
+            forceloadAdd(client, SeedDimensionProfile.OVERWORLD, 0, 0);
+            carveSafeRoom(client, SeedDimensionProfile.OVERWORLD, 8, 120, 8);
             sendCommand(client, "execute in minecraft:overworld run tp @s 8 120 8");
         }
         if (++waitTicks > WAIT_DIMENSION_TICKS) {
@@ -299,6 +387,10 @@ public final class NetherMultiplayerRegression {
 
     private static void tickNetherTeleport(Minecraft client) {
         if (waitTicks == 0) {
+            // 入界点也要先封壳：直接 tp 到 y=100 是从「天上」落进下界，落点下方就是岩浆海 ——
+            // 观感就是「传进岩浆湖」；创造模式不致命，但现场已经不是可控环境了。
+            forceloadAdd(client, SeedDimensionProfile.NETHER, 0, 0);
+            carveSafeRoom(client, SeedDimensionProfile.NETHER, 0, 100, 0);
             if (!sendCommand(client, "execute in minecraft:the_nether run tp @s 0 100 0")) {
                 report("**下界传送指令发送失败**");
                 VERDICTS.add("【判定】下界：不通过（无法传送）");
@@ -495,7 +587,15 @@ public final class NetherMultiplayerRegression {
         if (waitTicks == 0) {
             int x = farTarget.getMiddleBlockX();
             int z = farTarget.getMiddleBlockZ();
-            sendCommand(client, "execute in minecraft:the_nether run tp @s " + x + " 100 " + z);
+            sendCommand(client, "gamemode creative @s");
+            // 先强制加载 + 封壳再传：远端区块在服务器侧尚未生成时 fill 会回「位置未加载」，
+            // 人就落进原始地形（落体 + 岩浆两重噪声）。区块「未加载时仍可预测」这条证据在上一段
+            // 已经取完，这里由装置自己加载它，不影响那条判据的成立。
+            forceloadAdd(client, SeedDimensionProfile.NETHER, farTarget.x(), farTarget.z());
+            carveSafeRoom(client, SeedDimensionProfile.NETHER, x, 100, z);
+            armOwnTeleportGrace();
+            sendCommand(client, "execute in minecraft:the_nether run tp @s "
+                    + (x + 0.5) + " 100 " + (z + 0.5));
             report("");
             report("五、进入远端区域（区块 " + farTarget.x() + "," + farTarget.z() + "）：把客户端真的送过去，"
                     + "观察层必须按实际 BlockState 更新");
@@ -553,30 +653,550 @@ public final class NetherMultiplayerRegression {
     // ────────────────────────────────────────────────────────────────────────
 
     private static void tickGates(Minecraft client) {
+        if (!inDimension(client, SeedDimensionProfile.NETHER)) {
+            // 身份随维度走：人一旦离开下界，下界证据随即作废 —— 这里的读数就不再代表下界口径。
+            report("");
+            report("六、下界自动挖矿口径（238：下界专属验证）");
+            report("  **装置发现玩家不在下界（当前 " + client.level.dimension().identifier()
+                    + "）：外部操作打断了取证，本段读数不成立**");
+            VERDICTS.add("【判定】下界自动挖矿 238 口径：不通过（取证时玩家不在下界 —— 环境被外部打断）");
+            stage = Stage.SHUTDOWN_WORKER;
+            waitTicks = 0;
+            return;
+        }
         report("");
-        report("六、下界自动挖矿闸门（fail-closed）");
+        report("六、下界自动挖矿口径（238：下界专属验证）");
         report("  维度档案：" + SERVICE.predictModelCn());
         report("  下界自动挖矿：" + SERVICE.netherAutoMiningAllowedCn());
         report("  允许自动挖矿的矿物（下界）：" + SERVICE.autoMinerEligibleOresCn());
-        boolean miningBlocked = !SERVICE.mayUseForAutomatedMining();
-        boolean targetNull = SERVICE.autoMiningTargetOre() == null;
-        boolean everyNetherOreBlocked = true;
+        boolean allNetherOresEligible = true;
         for (OreType oreType : SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER)) {
-            if (SERVICE.mayUseForAutomatedMining(oreType)) {
-                everyNetherOreBlocked = false;
+            if (!SeedOreRegistry.autoMinerEligible(SeedDimensionProfile.NETHER, oreType)) {
+                allNetherOresEligible = false;
             }
         }
-        report("  mayUseForAutomatedMining() = " + SERVICE.mayUseForAutomatedMining()
-                + "；autoMiningTargetOre() = " + SERVICE.autoMiningTargetOre());
-        VERDICTS.add("【判定】下界自动挖矿 fail-closed（总门关 + 目标为 null + 三种矿物全被拒）："
-                + verdict(miningBlocked && targetNull && everyNetherOreBlocked));
-        workerPid = SERVICE.calculatorPid();
-        report("");
-        report("七、Worker 无孤儿");
-        report("  收尾前计算器 PID=" + workerPid + "；启动次数 " + SERVICE.calculatorStartCount()
-                + "；状态 " + SERVICE.calculatorStateCn());
-        stage = Stage.SHUTDOWN_WORKER;
+        // 真实多人环境里核对 238 口径：放行必须来自「下界专属验证 + 证据覆盖该矿物」，
+        // 而不是维度闸门被打开；且主世界（专用服务器）的证据绝不能参与下界判定。
+        boolean netherValidated = SERVICE.netherValidationEstablished();
+        List<OreType> evidenceOres = SERVICE.validationEvidenceOres();
+        boolean overworldEvidenceLeaked = SeedDimensionProfile.OVERWORLD.dimensionId()
+                .equals(SERVICE.validationDimensionId());
+        boolean perOreConsistent = true;
+        boolean noDimensionExcuse = true;
+        for (OreType oreType : SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER)) {
+            boolean allowed = SERVICE.mayUseForAutomatedMining(oreType);
+            boolean expected = netherValidated && evidenceOres.contains(oreType);
+            if (allowed != expected) {
+                perOreConsistent = false;
+            }
+            String reason = SERVICE.automatedMiningBlockReasonCn(oreType);
+            if (!reason.isEmpty() && (reason.contains("未开放") || reason.contains("不受支持"))) {
+                noDimensionExcuse = false;
+            }
+        }
+        report("  下界专属验证：" + netherValidated + "；证据覆盖的矿物："
+                + SeedMiningService.describeOresCn(evidenceOres)
+                + "；证据维度：" + (SERVICE.validationDimensionId().isEmpty()
+                        ? "无" : SERVICE.validationDimensionId()));
+        OreType chased = SERVICE.autoMiningTargetOre();
+        report("  当前追的矿物：" + chased + "；闸门原因：" + SERVICE.automatedMiningBlockReasonCn(chased));
+        VERDICTS.add("【判定】下界自动挖矿 238 口径：静态资格全开（"
+                + SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER).size() + " 种）"
+                + verdict(allNetherOresEligible)
+                + " / 逐种矿物放行 =「下界专属验证 ∧ 证据覆盖该矿」" + verdict(perOreConsistent)
+                + " / 拦下原因不含维度话术" + verdict(noDimensionExcuse)
+                + " / 主世界证据未参与下界" + verdict(!overworldEvidenceLeaked));
+        stage = Stage.MINE_NEXT;
         waitTicks = 0;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 下界实际挖掘（238：逐种下界矿物走一遍「候选 → 目标 → 真实方块被挖掉」）
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 换到下一种下界矿物；全部跑完就进入收尾。
+     *
+     * <p>为什么必须有这一段：237 的「下界自动挖矿」只证到闸门（fail-closed）。238 把下界放开之后，
+     * 「放行」不等于「真能挖」—— 本段让自动挖矿在下界真的挖掉一颗，逐矿物留下完整证据链。</p>
+     */
+    private static void tickMineNext(Minecraft client) {
+        if (mineIndex >= MINE_ORES.size()) {
+            workerPid = SERVICE.calculatorPid();
+            report("");
+            report("九、Worker 无孤儿");
+            report("  收尾前计算器 PID=" + workerPid + "；启动次数 " + SERVICE.calculatorStartCount()
+                    + "；状态 " + SERVICE.calculatorStateCn());
+            stage = Stage.SHUTDOWN_WORKER;
+            waitTicks = 0;
+            return;
+        }
+        if (module() == null) {
+            report("  **自动挖矿模块不可用：下界实际挖掘无法验收**");
+            VERDICTS.add("【判定】下界实际挖掘：不通过（模块不可用）");
+            mineIndex = MINE_ORES.size();
+            return;
+        }
+        mineOre = MINE_ORES.get(mineIndex);
+        mineCandidate = null;
+        mineTruthBefore = "（未读）";
+        mineLocked = null;
+        mineLockedIsCandidate = false;
+        mineBroken = false;
+        mineSceneSeen = false;
+        mineBrokenTicks = 0;
+        mineSwitched = false;
+        mineStep = 0;
+        mineSetAttempts = 0;
+        mineDisabledTicks = 0;
+        mineGoWildInjections = 0;
+        mineGoWildIdleTicks = 0;
+        report("");
+        report("八之" + (mineIndex + 1) + "、下界实际挖掘：" + mineOre.displayNameCn()
+                + "（第 " + (mineIndex + 1) + "/" + MINE_ORES.size() + " 种）");
+        // 只勾这一种：种子模式追哪种矿由种子页勾选唯一决定（一次一种，与自动挖矿设置口径一致）
+        setOnlyOre(mineOre);
+        report("  种子页勾选：只留「" + mineOre.displayNameCn() + "」；当前被追矿物＝"
+                + SERVICE.autoMiningTargetOre());
+        int cx = NETHER_TARGET.x() * 16 + 8;
+        int cz = NETHER_TARGET.z() * 16 + 8;
+        mineStandX = cx;
+        mineStandZ = cz;
+        sendCommand(client, "gamemode creative @s");
+        // 强制加载候选所在区块（候选全在这儿）+ 把站位的原地形换成「封壳房间」+ 把玩家送过去
+        // （直接 tp 进原始地形会被岩浆湖包住：实测观感就是「传进岩浆里」）
+        forceloadAdd(client, SeedDimensionProfile.NETHER, NETHER_TARGET.x(), NETHER_TARGET.z());
+        carveSafeRoom(client, SeedDimensionProfile.NETHER, cx, MINE_STAND_Y, cz);
+        armOwnTeleportGrace();
+        sendCommand(client, "execute in minecraft:the_nether run tp @s "
+                + (cx + 0.5) + " " + MINE_STAND_Y + " " + (cz + 0.5));
+        sendCommand(client, "give @s minecraft:diamond_pickaxe 1");
+        sendCommand(client, "give @s minecraft:diamond_sword 1");
+        sendCommand(client, "give @s minecraft:cooked_beef 8");
+        report("  站位：" + cx + "," + MINE_STAND_Y + "," + cz + "（区块 "
+                + NETHER_TARGET.x() + "," + NETHER_TARGET.z() + " 已强制加载；创造模式，不会摔伤）");
+        stage = Stage.MINE_SETUP;
+        waitTicks = 0;
+    }
+
+    /** 等候选 → 读真值 → 摆现场 → 启动自动挖矿。 */
+    private static void tickMineSetup(Minecraft client) {
+        if (!inDimension(client, SeedDimensionProfile.NETHER)) {
+            report("  **当前不在下界，无法继续**");
+            VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn() + "：不通过（不在下界）");
+            nextMineOre(client);
+            return;
+        }
+        AutoMinerModule module = module();
+        if (module == null) {
+            report("  **自动挖矿模块不可用**");
+            VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn() + "：不通过（模块不可用）");
+            nextMineOre(client);
+            return;
+        }
+        switch (mineStep) {
+            case 0 -> {
+                mineCandidate = pickCandidate(client);
+                if (mineCandidate == null) {
+                    if (++waitTicks > WAIT_MINE_TICKS) {
+                        report("  **等待候选超时：覆盖内没有 " + mineOre.displayNameCn() + " 的候选**");
+                        VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn()
+                                + "：不通过（覆盖内无候选）");
+                        nextMineOre(client);
+                    }
+                    return;
+                }
+                waitTicks = 0;
+                mineStep = 1;
+            }
+            case 1 -> {
+                // 先读候选处的真实方块：这是「预测命中」的证据（还没有动过现场）
+                mineTruthBefore = blockIdAt(client, mineCandidate);
+                report("  候选 " + posText(mineCandidate) + "（玩家 "
+                        + posText(client.player.blockPosition()) + "，区块距离 "
+                        + chunkDistance(client, mineCandidate) + "）");
+                report("  候选处真实方块：" + mineTruthBefore + "（期望 " + oreBlockId(mineOre)
+                        + "）" + verdict(oreBlockId(mineOre).equals(mineTruthBefore)));
+                // 摆现场：把候选那一格周围开成一间「封了壳的房间」——下界 y≈20 这一层到处是岩浆湖，
+                // 只掏一个 3×3×3 的小口袋，玩家上半身仍埋在原地形里，观感就是「传进岩浆里」（实测踩过）。
+                // 房间 5×5×7（内空）+ 六面下界岩外壳，令现场与地形彻底无关：没有岩浆、没有火、没有落体。
+                int x = mineCandidate.getX();
+                int y = mineCandidate.getY();
+                int z = mineCandidate.getZ();
+                carveSafeRoom(client, SeedDimensionProfile.NETHER, x, y, z);
+                sendCommand(client, "execute in minecraft:the_nether run setblock "
+                        + x + " " + y + " " + z + " " + oreBlockId(mineOre));
+                // 装置【不】自己把玩家摆到这一颗旁边：走「前往野外」这条既有链路。
+                // 但「前往野外」绑的是站位点（人本来就在那儿，幂等、不挪人）—— 真正的位移由装置在
+                // 状态机空闲地等的时候补上一跳（见 tickMineRun）。原因：状态机判「传送是否生效」只看
+                // 单刻大跳变，模块自己那一跳常常落在它自己的等待窗里被吃掉，于是永远进不了挖矿态
+                // （实测：模块开着、聊天栏只有「发指令 tp」，一颗不挖）。与主世界 A~L 装置同一做法。
+                String standTp = "execute in minecraft:the_nether run tp @s "
+                        + (mineStandX + 0.5) + " " + MINE_STAND_Y + " " + (mineStandZ + 0.5);
+                // 自动挖矿配成「种子目标模式 + 秒破 + 本矿物」的最小集（与主世界 A~L 装置同一套口径）
+                MiningSettings settings = module.settings();
+                settings.personalMode = false;
+                settings.overworldOreTarget = "";
+                settings.netherOreTarget = anchorId(mineOre);
+                settings.blockTarget = "";
+                settings.lootMode = LootMode.FORTUNE;
+                settings.fastBreak = true;
+                settings.veinMiner = true;
+                settings.breakSpawner = false;
+                settings.hungerThreshold = 1;
+                settings.unloadThreshold = 36;
+                settings.autoDisconnect = false;
+                settings.statusBroadcast = false;
+                settings.pathViewFollow = false;
+                settings.teleportRetryEnabled = false;
+                settings.wildCommand = standTp;
+                settings.unloadCommand = standTp;
+                settings.supplyCommand = standTp;
+                settings.afkCommand = standTp;
+                settings.respawnCommand = standTp;
+                report("  自动挖矿配置：目标矿物＝" + mineOre.displayNameCn()
+                        + "（锚点 " + settings.netherOreTarget + "）+ 秒破 + 种子目标模式");
+                // 启动自检的其余缺项（与主世界 A~L 装置同一套做法）：
+                //   ① 三个点位都绑到这一颗的落脚点（装置不走物流，只为让自检通过）；
+                //   ② 食物白名单里要有手上那种食物（专用服务器的配置作用域里是空的）。
+                for (MiningPointType type : MiningPointType.values()) {
+                    module.pointStore().set(type, new MiningPoint(x, y + 1, z,
+                            WorldIdentity.dimension(), 0f, 0f));
+                }
+                if (!settings.foodWhitelist.contains("minecraft:cooked_beef")) {
+                    settings.foodWhitelist.add("minecraft:cooked_beef");
+                }
+                module.persistSettings();
+                report("  自检缺项已清零：三点位＝落脚点 / 食物白名单含熟牛肉 / 镐与剑在背包");
+                mineStep = 2;
+                waitTicks = 0;
+            }
+            case 2 -> {
+                // 先确认现场就位：指令是异步的，必须亲眼看到那一格真的是目标矿，才允许启动模块
+                // （实测过：若不等它，客户端可能先收到「空气」那一帧，把还没摆好的现场误判成「已被挖掉」）
+                String atCandidate = blockIdAt(client, mineCandidate);
+                if (!oreBlockId(mineOre).equals(atCandidate)) {
+                    if (++waitTicks > 20 * 15) {
+                        if (mineSetAttempts < 3) {
+                            mineSetAttempts++;
+                            report("  现场未就位（" + atCandidate + "）→ 重新放回目标矿（第 "
+                                    + mineSetAttempts + " 次）");
+                            sendCommand(client, "execute in minecraft:the_nether run setblock "
+                                    + mineCandidate.getX() + " " + mineCandidate.getY() + " "
+                                    + mineCandidate.getZ() + " " + oreBlockId(mineOre));
+                            waitTicks = 0;
+                            return;
+                        }
+                        report("  **现场始终未就位：" + atCandidate + "**");
+                        VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn()
+                                + "：不通过（现场未就位）");
+                        nextMineOre(client);
+                        return;
+                    }
+                    return;
+                }
+                mineSceneSeen = true;
+                report("  现场就位：候选处真实方块＝" + atCandidate + "（挖掘判据从这里开始）");
+                module.setSeedTargetMode(true);
+                ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, true);
+                report("  已启动自动挖矿；该矿物的闸门原因（应为空）：「"
+                        + SERVICE.automatedMiningBlockReasonCn(mineOre) + "」");
+                stage = Stage.MINE_RUN;
+                waitTicks = 0;
+            }
+            default -> stage = Stage.MINE_RUN;
+        }
+    }
+
+    /** 等提供者锁定候选，并等真实方块被挖掉。 */
+    private static void tickMineRun(Minecraft client) {
+        if (!inDimension(client, SeedDimensionProfile.NETHER)) {
+            report("  **当前不在下界，无法继续**");
+            VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn() + "：不通过（不在下界）");
+            nextMineOre(client);
+            return;
+        }
+        AutoMinerModule module = module();
+        if (module == null) {
+            VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn() + "：不通过（模块不可用）");
+            nextMineOre(client);
+            return;
+        }
+        // 「前往野外」空闲地等一个真实位移：由装置补上那一跳（与主世界 A~L 装置 advanceIntoMining 同一做法）。
+        // 补给目标取「离玩家更远的那一端」——站位点与候选点相隔 40 格以上，怎么取都是真实大位移。
+        if (module.isEnabled() && module.fsm().state() == MinerState.GO_WILD) {
+            if (!module.getCmdManager().isCommandExecuting() && ++mineGoWildIdleTicks > 20
+                    && mineGoWildInjections < MAX_GO_WILD_INJECTIONS) {
+                mineGoWildInjections++;
+                mineGoWildIdleTicks = 0;
+                BlockPos candidateFoot = new BlockPos(mineCandidate.getX(), mineCandidate.getY() + 1,
+                        mineCandidate.getZ());
+                BlockPos standFoot = new BlockPos(mineStandX, MINE_STAND_Y, mineStandZ);
+                BlockPos playerPos = client.player.blockPosition();
+                BlockPos dest = playerPos.distSqr(candidateFoot) >= playerPos.distSqr(standFoot)
+                        ? candidateFoot : standFoot;
+                report("  「前往野外」等不到位移 → 装置补一跳真传送（第 " + mineGoWildInjections + " 次）："
+                        + posText(dest));
+                armOwnTeleportGrace();
+                sendCommand(client, "execute in minecraft:the_nether run tp @s "
+                        + (dest.getX() + 0.5) + " " + dest.getY() + " " + (dest.getZ() + 0.5));
+            }
+            return;
+        }
+        mineGoWildIdleTicks = 0;
+        // 模块没在运行 = 启动自检没通过（缺项由模块自己播报）。装置如实报出来，不干等。
+        if (!module.isEnabled()) {
+            if (++mineDisabledTicks > 20 * 5) {
+                List<String> missing = module.selfCheck();
+                report("  **模块未在运行（启动自检未通过）**："
+                        + (missing.isEmpty() ? "（模块未给出缺项读数）"
+                        : String.join(" / ", missing.subList(0, Math.min(3, missing.size())))));
+                VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn()
+                        + "：不通过（启动自检未通过）");
+                nextMineOre(client);
+                return;
+            }
+            return;
+        }
+        mineDisabledTicks = 0;
+        if (mineLocked == null) {
+            BlockPos locked = module.miningTargetProvider().lockedTargetOrNull();
+            if (locked != null) {
+                mineLocked = locked;
+                mineLockedIsCandidate = locked.equals(mineCandidate);
+                report("  提供者锁定目标：" + posText(locked) + "；属于本矿物候选 "
+                        + verdict(isPredictedCandidate(locked)) + "；就是装置摆的那一颗 "
+                        + verdict(mineLockedIsCandidate));
+            }
+        }
+        // 以「提供者锁定的那一颗」为准读真值；还没锁定时看装置摆的那一颗
+        BlockPos probe = mineLocked != null ? mineLocked : mineCandidate;
+        String blockId = blockIdAt(client, probe);
+        String expected = oreBlockId(mineOre);
+        if (!mineSceneSeen && expected.equals(blockId)) {
+            mineSceneSeen = true; // 先确认现场就是「目标矿」，之后出现 air 才算被挖掉
+        }
+        if (mineSceneSeen && !mineBroken && blockId.equals("minecraft:air")) {
+            mineBroken = true;
+            report("  目标位置真实方块：" + blockId + "（已被挖掉）");
+        }
+        if (mineBroken) {
+            if (!mineSwitched && mineLocked != null) {
+                BlockPos now = module.miningTargetProvider().lockedTargetOrNull();
+                if (now != null && !now.equals(mineLocked)) {
+                    mineSwitched = true;
+                    report("  挖掉一颗后已换下一颗：" + posText(now));
+                }
+            }
+            // 挖掉之后再给 20 秒看「换下一颗」；换到或到点都收口
+            if (mineSwitched || ++mineBrokenTicks > 20 * 20) {
+                report("  判定：真实方块 → air（下界自动挖矿真的能挖）；本矿物候选数 "
+                        + countCandidates(mineOre));
+                VERDICTS.add("【判定】下界实际挖掘 · " + mineOre.displayNameCn()
+                        + "：候选命中 " + verdict(expected.equals(mineTruthBefore))
+                        + " / 目标来自候选 " + verdict(mineLocked != null && isPredictedCandidate(mineLocked))
+                        + " / 真值被挖掉 " + verdict(true)
+                        + " / 换下一颗 " + verdict(mineSwitched));
+                nextMineOre(client);
+            }
+            return;
+        }
+        if (++waitTicks > WAIT_MINE_TICKS) {
+            report("  **等待挖掉超时**（目标 " + posText(probe) + "，真实方块 " + blockId
+                    + "，模块启用 " + module.isEnabled() + "）");
+            VERDICTS.add("【判定】下界实际挖掘 " + mineOre.displayNameCn()
+                    + "：不通过（超时未挖掉）");
+            nextMineOre(client);
+        }
+    }
+
+    /** 收尾一种矿物（停模块、解除强制加载），再进入下一种。 */
+    private static void nextMineOre(Minecraft client) {
+        AutoMinerModule module = module();
+        if (module != null) {
+            ModuleManager.setEnabled(AutoMinerModule.MODULE_ID, false);
+            module.setSeedTargetMode(false);
+        }
+        if (mineCandidate != null) {
+            forceloadRemove(client, SeedDimensionProfile.NETHER,
+                    mineCandidate.getX() >> 4, mineCandidate.getZ() >> 4);
+        }
+        forceloadRemove(client, SeedDimensionProfile.NETHER, NETHER_TARGET.x(), NETHER_TARGET.z());
+        mineIndex++;
+        stage = Stage.MINE_NEXT;
+        waitTicks = 0;
+    }
+
+    /** 声明「接下来这一跳是我方传送」：装置自己发的 /tp 不该被手动传送守卫判成玩家传送。 */
+    private static void armOwnTeleportGrace() {
+        AutoMinerModule module = module();
+        if (module != null) {
+            module.fsm().armOwnTeleportGraceForDev();
+        }
+    }
+
+    /**
+     * 在 {@code (x,y,z)} 处开一间「封了壳的房间」：内空 5×5×7（{@code y-1 … y+5}）+ 六面下界岩外壳。
+     *
+     * <p>为什么不是只掏一个 3×3×3 的小口袋：下界这一层到处是岩浆湖与悬空岩浆，小口袋只清到
+     * {@code y+1}，玩家 tp 进去后上半身仍埋在原地形里 —— 观感就是「传进岩浆里」，而且岩浆会流回来。
+     * 六面封壳之后现场只由装置决定：没有岩浆、没有火、没有落体，挖掘判据不掺地形噪声。</p>
+     */
+    private static void carveSafeRoom(Minecraft client, SeedDimensionProfile dim, int x, int y, int z) {
+        String d = dim.dimensionId();
+        // 先掏空内部，再让外壳覆盖它的六个面
+        fill(client, d, x - 2, y - 1, z - 2, x + 2, y + 5, z + 2, "minecraft:air");
+        fill(client, d, x - 3, y - 1, z - 3, x + 3, y - 1, z + 3, "minecraft:netherrack");
+        fill(client, d, x - 3, y + 6, z - 3, x + 3, y + 6, z + 3, "minecraft:netherrack");
+        fill(client, d, x - 3, y, z - 3, x - 3, y + 5, z + 3, "minecraft:netherrack");
+        fill(client, d, x + 3, y, z - 3, x + 3, y + 5, z + 3, "minecraft:netherrack");
+        fill(client, d, x - 2, y, z - 3, x + 2, y + 5, z - 3, "minecraft:netherrack");
+        fill(client, d, x - 2, y, z + 3, x + 2, y + 5, z + 3, "minecraft:netherrack");
+    }
+
+    /** 以 /fill 摆一方块（装置的所有现场改造都走这一条，便于一眼看全）。 */
+    private static void fill(Minecraft client, String dimensionId,
+                             int x1, int y1, int z1, int x2, int y2, int z2, String blockId) {
+        sendCommand(client, "execute in " + dimensionId + " run fill "
+                + x1 + " " + y1 + " " + z1 + " " + x2 + " " + y2 + " " + z2 + " " + blockId);
+    }
+
+    /**
+     * 强制加载一个区块。
+     *
+     * <p><b>{@code /forceload} 收的是方块坐标</b>（命令内部再折算成区块号）：把区块号直接当参数传进去
+     * 会加载到<b>别的</b>区块上 —— 实测传 {@code (-3, 4)} 被折算成区块 {@code (-1, 0)}，于是现场所有
+     * {@code fill} 回一句 "That position is not loaded"，房间一个都没建成，人最后被 tp 进未改造的原始
+     * 地形里（下界那一层就是岩浆）。这里统一用 {@code chunkX << 4} 换成方块坐标。</p>
+     */
+    private static void forceloadAdd(Minecraft client, SeedDimensionProfile dim, int chunkX, int chunkZ) {
+        sendCommand(client, "execute in " + dim.dimensionId() + " run forceload add "
+                + (chunkX << 4) + " " + (chunkZ << 4));
+    }
+
+    /** 解除强制加载（同一口径：参数是方块坐标）。 */
+    private static void forceloadRemove(Minecraft client, SeedDimensionProfile dim, int chunkX, int chunkZ) {
+        sendCommand(client, "execute in " + dim.dimensionId() + " run forceload remove "
+                + (chunkX << 4) + " " + (chunkZ << 4));
+    }
+
+    /** 自动挖矿模块（不可用时返回 {@code null}）。 */
+    private static AutoMinerModule module() {
+        return ModuleManager.byId(AutoMinerModule.MODULE_ID) instanceof AutoMinerModule module ? module : null;
+    }
+
+    /** 从预测缓存里挑「离玩家最近、且落在当前覆盖方框内」的本矿物候选。 */
+    private static BlockPos pickCandidate(Minecraft client) {
+        LocalPlayer player = client.player;
+        if (player == null) {
+            return null;
+        }
+        BlockPos playerPos = player.blockPosition();
+        ChunkPos playerChunk = ChunkPos.containing(playerPos);
+        int radius = SERVICE.coverageRadius();
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (PredictionResult result : SERVICE.cachedPredictions()) {
+            if (result == null || result.failed()) {
+                continue;
+            }
+            for (PredictedOre ore : result.ores()) {
+                if (ore.oreType() != mineOre) {
+                    continue;
+                }
+                BlockPos pos = ore.position();
+                if (Math.abs((pos.getX() >> 4) - playerChunk.x()) > radius
+                        || Math.abs((pos.getZ() >> 4) - playerChunk.z()) > radius) {
+                    continue;
+                }
+                // 跳过已被观察层判「当前缺失」的候选：提供者的优先级里它不作为目标
+                if (SERVICE.observationState(pos) == OreObservationState.MISSING) {
+                    continue;
+                }
+                double distance = playerPos.distSqr(pos);
+                if (distance < bestDistance) {
+                    best = pos;
+                    bestDistance = distance;
+                }
+            }
+        }
+        return best;
+    }
+
+    /** 该坐标是不是本矿物的正式预测候选（只读预测缓存，不看真实世界）。 */
+    private static boolean isPredictedCandidate(BlockPos pos) {
+        if (pos == null) {
+            return false;
+        }
+        for (PredictionResult result : SERVICE.cachedPredictions()) {
+            if (result == null || result.failed()) {
+                continue;
+            }
+            for (PredictedOre ore : result.ores()) {
+                if (ore.oreType() == mineOre && ore.position().equals(pos)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 本矿物在正式定义里的第一个方块 id（下界三种都没有深层变种）。 */
+    private static String oreBlockId(OreType oreType) {
+        SeedOreDefinition definition = SeedOreRegistry.of(SeedDimensionProfile.NETHER, oreType);
+        if (definition == null || definition.blocks().isEmpty()) {
+            return "minecraft:air";
+        }
+        return BuiltInRegistries.BLOCK.getKey(definition.blocks().get(0)).toString();
+    }
+
+    /** 自动挖矿设置里的锚点（时运模式存产物物品 id；与正式层的下界时运表逐项一致）。 */
+    private static String anchorId(OreType oreType) {
+        return switch (oreType) {
+            case ANCIENT_DEBRIS -> "minecraft:ancient_debris";
+            case NETHER_QUARTZ -> "minecraft:quartz";
+            case NETHER_GOLD -> "minecraft:gold_nugget";
+            default -> "";
+        };
+    }
+
+    /** 客户端看到的这一格真实方块 id（专用服务器下即为服务端权威状态同步过来的结果）。 */
+    private static String blockIdAt(Minecraft client, BlockPos pos) {
+        ClientLevel level = client.level;
+        if (level == null || pos == null || !level.isLoaded(pos)) {
+            return "（未加载）";
+        }
+        return BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock()).toString();
+    }
+
+    /** 本矿物在预测缓存里的候选总数。 */
+    private static int countCandidates(OreType oreType) {
+        int counter = 0;
+        for (PredictionResult result : SERVICE.cachedPredictions()) {
+            if (result == null || result.failed()) {
+                continue;
+            }
+            for (PredictedOre ore : result.ores()) {
+                if (ore.oreType() == oreType) {
+                    counter++;
+                }
+            }
+        }
+        return counter;
+    }
+
+    private static String posText(BlockPos pos) {
+        return pos == null ? "（无）" : pos.getX() + "," + pos.getY() + "," + pos.getZ();
+    }
+
+    /** 目标相对玩家的区块切比雪夫距离（判「是否在覆盖方框内」用）。 */
+    private static int chunkDistance(Minecraft client, BlockPos pos) {
+        if (pos == null || client.player == null) {
+            return -1;
+        }
+        BlockPos playerPos = client.player.blockPosition();
+        return Math.max(Math.abs((pos.getX() >> 4) - (playerPos.getX() >> 4)),
+                Math.abs((pos.getZ() >> 4) - (playerPos.getZ() >> 4)));
     }
 
     private static void tickShutdownWorker() {

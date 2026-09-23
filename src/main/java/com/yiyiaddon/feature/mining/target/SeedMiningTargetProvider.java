@@ -39,12 +39,18 @@ import java.util.Set;
  * <h2>目标来源（唯一合法来源）</h2>
  * <p>输入只有三样：{@link SeedMiningService} 的预测缓存（Worker 返回的正式
  * {@link PredictionResult}）、实际区块观察（{@link SeedOreObservationTracker}）、
- * 以及种子验证闸门 {@link SeedMiningService#mayUseForAutomatedMining()}。<b>不</b>读真实世界找矿、
+ * 以及种子验证闸门 {@link SeedMiningService#mayUseForAutomatedMining(com.yiyiaddon.seed.model.OreType)}
+ * （验证通过 + 证据覆盖该矿物）。<b>不</b>读真实世界找矿、
  * <b>不</b>让男中音按矿物类型全局搜、<b>不</b>自己算任何 worldgen。</p>
  *
  * <h2>选择口径（第一版刻意保持简单稳定）</h2>
  * <ol>
- *     <li>只考虑：当前运行时身份 + 成功结果 + {@link OreType#DIAMOND} + 落在当前覆盖方框内；</li>
+ *     <li>只考虑：当前运行时身份 + 成功结果 + {@link SeedMiningService#autoMiningTargetOre() 当前追的那种矿}
+ *         （238 起任何一种受支持矿物都可以被追，一次只追一种）+ 落在当前覆盖方框内；</li>
+ *     <li><b>追哪种矿由服务层一处决定，顺序稳定</b>：种子页勾选 ∩ 本维度受支持，按维度声明序取第一种
+ *         （主世界：钻石→红石→青金石→金→铁→铜→煤→绿宝石；下界：远古残骸→下界石英→下界金）。
+ *         因此多选时不存在「这一次挖这个、下一次挖那个」；不同矿物的候选来自各自的分区
+ *         （{@code TargetKey(维度, 矿物, 区块)}），不会互相污染；</li>
  *     <li>优先级：<b>已确认（CONFIRMED）</b> → <b>未观察（UNOBSERVED）</b>；同级按玩家欧氏距离取最近；</li>
  *     <li>排除：已消费目标、{@link OreObservationState#MISSING}、暂时不可达（带冷却）；
  *         <b>不</b>因为「调度敏感」而排除——调度敏感不是假矿（真实世界里它同样可能出现）；</li>
@@ -53,11 +59,11 @@ import java.util.Set;
  *
  * <h2>到位之后</h2>
  * <p>目标区块没加载时照常导航（Baritone 自定义目标，精确到方块，不是类型扫描）；一旦真正加载，
- * <b>读实际 {@code BlockState} 重新确认</b>：</p>
+ * <b>读实际 {@code BlockState} 重新确认</b>（判据是该矿物的定义，含深层变种）：</p>
  * <ul>
- *     <li>是 {@code diamond_ore} / {@code deepslate_diamond_ore} → 交给现有
+ *     <li>是目标矿（例如 {@code coal_ore} / {@code deepslate_coal_ore}）→ 交给现有
  *         {@link MiningFastBreakController}（秒破）开挖，整条矿脉由现有 {@code MiningVeinMiner} 承接；</li>
- *     <li>不是钻石（含被 {@code /setblock air} 手动挖掉）→ 记进「已消费」并<b>立刻</b>换下一颗，
+ *     <li>不是目标矿（含被 {@code /setblock air} 手动挖掉）→ 记进「已消费」并<b>立刻</b>换下一颗，
  *         绝不在这里死磕一个不存在的坐标。</li>
  * </ul>
  *
@@ -196,16 +202,16 @@ public final class SeedMiningTargetProvider implements MiningTargetProvider {
         if (service.seedValue() == null) {
             return "服务器种子未填写或格式无效 §8▸ 请在「种子挖矿」页填写";
         }
-        if (!service.mayUseForAutomatedMining()) {
-            return "种子验证未通过（当前：" + service.validationSnapshot().stateCn()
-                + "）§8▸ 不启动种子自动挖矿";
-        }
+        // 追哪种矿由种子页的勾选决定（一次一种，与自动挖矿设置口径一致）
         OreType oreType = service.autoMiningTargetOre();
         if (oreType == null) {
-            // 236：所选矿物里没有一种获得自动挖矿资格（当前只有钻石有实机验证证据）。
-            // 这里如实停机，绝不退回「按矿物类型全局搜」——那会挖到预测之外的矿。
-            return "所选矿物尚未开放自动挖矿 §8▸ 当前只允许"
-                + service.autoMinerEligibleOresCn() + "（其余矿物仅提供预测 / 观察 / ESP）";
+            // 生效集合为空（当前维度没有可追的矿物）：如实停机，绝不退回「按矿物类型全局搜」
+            return "当前维度没有可追的矿物 §8▸ 可挖矿物：" + service.autoMinerEligibleOresCn();
+        }
+        // 维度 / 资格 / 验证状态 / 证据是否覆盖该矿物：判据与文案都在服务层一处（238）
+        String gateReason = service.automatedMiningBlockReasonCn(oreType);
+        if (!gateReason.isEmpty()) {
+            return gateReason + " §8▸ 不启动种子自动挖矿";
         }
         if (service.state() == SeedMiningRuntimeState.CALCULATOR_FAILED) {
             // 没有预测就没有目标：如实停机，不做「先正常挖着」这种偷偷 fallback
