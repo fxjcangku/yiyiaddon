@@ -38,18 +38,21 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>缓存与隔离</b>（正式化第一阶段口径第十八节）：</p>
  * <ul>
- *     <li>会话键 = （Minecraft 版本, 种子, 维度），由 {@link DiamondSeedPredictor} 负责隔离；
+ *     <li>会话键 = （Minecraft 版本, 种子, 维度），由 {@link SeedOrePredictor} 负责隔离；
  *         会话内部只有一个种子的一份离线世界，跨种子不可能共用；</li>
  *     <li>会话内区块键 = {@link ChunkPos}，键下按生成状态分槽（见 {@link OfflineChunkCache}），
  *         因此相邻目标区块能复用已铺好的前置阶段（这是「相邻目标比冷启动快一个量级」的来源）；</li>
  *     <li>调度敏感复核使用<b>另一份</b>离线世界（{@link ScheduleSensitivityAnalyzer} 自己的缓存），
  *         反向顺序写进去的方块不会污染基线世界。</li>
+ *     <li><b>暖会话一致性（237）</b>：目标区块第一次被装饰的那一次取到的「外来写入者」证据被记住
+ *         （见 {@link #firstForeignWriterEvidence}），后续暖请求照旧做调度敏感复核，
+ *         因此同一格的分类不会因为缓存变暖而退化。</li>
  * </ul>
  *
  * <p><b>生命周期</b>（口径第十九节）：{@link #clear()} 释放本会话全部离线区块产出，
  * {@link #close()} 关闭会话（关闭后的一切预测请求都返回失败结果，绝不返回空集合冒充「没有矿」）。
  * 世界断开 → 由上层调用 {@code close()}；Seed 修改 / 维度切换 → 由
- * {@link DiamondSeedPredictor} 换用另一个会话对象，旧会话不受影响。</p>
+ * {@link SeedOrePredictor} 换用另一个会话对象，旧会话不受影响。</p>
  *
  * <p><b>线程安全</b>（口径第二十、三十八节）：本类的全部公开方法都是 {@code synchronized}，
  * 内部状态全部是实例字段（没有任何全局可变 static），因此「整会话只有一个线程在驱动」这个前提
@@ -81,6 +84,19 @@ public final class PredictionSession implements AutoCloseable {
 
     /** 调度敏感分析器（自带一份独立的复核世界）。 */
     private final ScheduleSensitivityAnalyzer analyzer;
+
+    /**
+     * 目标区块 → <b>首次有效基线执行</b>观测到的外来写入者个数（237 修复）。
+     *
+     * <p>为什么必须记住：触发「调度敏感复核」的前提是「基线执行中确有其它 viewer 改过目标区块」，
+     * 而这件事只在目标区块<b>第一次被装饰</b>的那一次成立；会话内后续请求全部命中缓存，
+     * 指纹不再变化，触发条件就丢了 —— 同一格于是出现「冷会话 SCHEDULE_SENSITIVE / 暖会话 UNRESOLVED」
+     * 两套分类。这里保存的是<b>会话内首次真实观测到的读数</b>（不是推断出来的），
+     * 后续暖请求拿它与本次读数取较大者，让分类语义在会话内保持稳定。</p>
+     *
+     * <p>键只到目标区块、不含矿物：写入者判定走的是<b>全区块方块指纹</b>，与「找哪一种矿」无关。</p>
+     */
+    private final Map<ChunkPos, Integer> firstForeignWriterEvidence = new LinkedHashMap<>();
 
     /** 会话是否已关闭。 */
     private boolean closed;
@@ -183,6 +199,8 @@ public final class PredictionSession implements AutoCloseable {
     public synchronized void clear() {
         cache.clear();
         analyzer.clear();
+        // 证据属于「那份被清掉的离线世界」：世界一清，区块会重新装饰，首次执行读数必然重新取得
+        firstForeignWriterEvidence.clear();
     }
 
     @Override
@@ -245,8 +263,18 @@ public final class PredictionSession implements AutoCloseable {
                     System.currentTimeMillis() - startedAt);
         }
 
-        Set<BlockPos> scheduleSensitive =
-                analyzer.analyze(target, oreType, predicted, foreignWriters.size());
+        // 调度敏感复核的有效证据：本次基线执行观测到的写入者，与会话内首次有效基线执行记住的取较大者。
+        // 目标区块暖起来之后本次读数必然为 0，若不用记住的那一份，同一格的分类就会在会话内前后不一致。
+        int observedForeignWriters = foreignWriters.size();
+        Integer rememberedForeignWriters = firstForeignWriterEvidence.get(target);
+        int evidenceForeignWriters = Math.max(observedForeignWriters,
+                rememberedForeignWriters == null ? 0 : rememberedForeignWriters);
+        if (observedForeignWriters > 0) {
+            firstForeignWriterEvidence.put(target, observedForeignWriters);
+        }
+        boolean evidenceRemembered = observedForeignWriters <= 0 && evidenceForeignWriters > 0;
+        Set<BlockPos> scheduleSensitive = analyzer.analyze(target, oreType, predicted,
+                evidenceForeignWriters, evidenceRemembered);
 
         List<PredictedOre> ores = new ArrayList<>(predicted.size());
         int sensitiveCount = 0;
@@ -265,8 +293,13 @@ public final class PredictionSession implements AutoCloseable {
 
         List<String> notes = new ArrayList<>();
         notes.add("viewer 集合 " + viewers.size() + " 个（写半径 " + writeRadius + "，由 ChunkPyramid 现算）");
-        notes.add("基线执行中改过目标区块方块的其它 viewer：" + foreignWriters.size()
-                + " 个（按目标区块全区块方块指纹判定，不是只看钻石）");
+        notes.add("基线执行中改过目标区块方块的其它 viewer（本次）：" + observedForeignWriters
+                + " 个（按目标区块全区块方块指纹判定，不是只看钻石）；本目标本会话首次有效执行读数："
+                + (observedForeignWriters > 0 ? String.valueOf(observedForeignWriters)
+                : (rememberedForeignWriters == null ? "（无，该区块本次是首次有效装饰）"
+                : String.valueOf(rememberedForeignWriters))));
+        notes.add("调度敏感复核采用的有效外来写入者证据：" + evidenceForeignWriters
+                + " 个" + (evidenceRemembered ? "（本次暖会话，复用首次有效基线执行的证据）" : "（本次基线执行实测）"));
         notes.addAll(analyzer.notes());
         notes.add("复核世界累计持有区块：" + analyzer.cachedChunks() + " 个（本次新增 "
                 + (analyzer.cachedChunks() - probeChunksBefore) + "）；基线世界累计持有区块："

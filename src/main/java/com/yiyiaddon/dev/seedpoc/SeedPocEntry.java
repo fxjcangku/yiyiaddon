@@ -130,6 +130,11 @@ public final class SeedPocEntry {
             SeedOreMatrixRegression.onClientTick(client);
             return;
         }
+        // 第九阶段（237）：下界真正多人服务器验收（主世界 → 下界切换 + 远端未加载 + fail-closed）
+        if (SeedPocFlags.netherMultiplayer()) {
+            NetherMultiplayerRegression.onClientTick(client);
+            return;
+        }
         if (dispatched) {
             return;
         }

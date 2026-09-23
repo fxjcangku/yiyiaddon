@@ -735,4 +735,18 @@ public final class SeedPocFlags {
             return 20260922L;
         }
     }
+
+    // ── 正式化第九阶段（报告 237：双版本合流与下界多人）──────────────────────────
+
+    /**
+     * 下界真正多人（Dedicated Multiplayer）验收开关（默认关）。
+     *
+     * <p>开着时整轮实验换成 {@link NetherMultiplayerRegression}：连到本机专用服务器
+     * （端口 25865 / 种子 20260922 / allow-nether=true，服务端不加载 yiyiaddon），
+     * 核对「主世界 → 下界身份切换清空 / 下界三种矿物预测 / 下界观察与 ESP /
+     * 远端未加载区块可预测且不会导致客户端加载 / 下界自动挖矿 fail-closed / Worker 无孤儿」。</p>
+     */
+    public static boolean netherMultiplayer() {
+        return "1".equals(prop("netherMultiplayer", "0"));
+    }
 }

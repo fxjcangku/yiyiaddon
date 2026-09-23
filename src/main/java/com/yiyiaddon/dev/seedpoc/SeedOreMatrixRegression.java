@@ -12,6 +12,7 @@ import com.yiyiaddon.seed.prediction.SeedOrePredictor;
 import com.yiyiaddon.seed.render.SeedRenderEntry;
 import com.yiyiaddon.seed.render.SeedRenderSnapshot;
 import com.yiyiaddon.seed.service.SeedMiningService;
+import com.yiyiaddon.seed.worldgen.OfflineWorldgenContext;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -24,9 +25,14 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -119,10 +125,72 @@ public final class SeedOreMatrixRegression {
     private static final List<OreType> ORDER_TEST_ORES =
             List.of(OreType.REDSTONE, OreType.LAPIS, OreType.COAL, OreType.ANCIENT_DEBRIS);
 
+    // ── 237：绿宝石非零样本 / 远古残骸扩样本 ─────────────────────────────────
+
+    /**
+     * 绿宝石可生成的生物群系（8 类山地系）。
+     *
+     * <p>出处：{@code BiomeDefaultFeatures.java:80-82 addExtraEmeralds}，
+     * 调用点 {@code OverworldBiomes.java:190}（风袭丘陵系）/ {@code :770}（草甸、樱花树林）/
+     * {@code :800}（冻峰、尖峭峰、石峰）/ {@code :847}（雪坡）/ {@code :870}（雪林）。</p>
+     */
+    private static final Set<ResourceKey<Biome>> EMERALD_BIOMES = Set.of(
+            Biomes.WINDSWEPT_HILLS, Biomes.WINDSWEPT_GRAVELLY_HILLS, Biomes.WINDSWEPT_FOREST,
+            Biomes.MEADOW, Biomes.CHERRY_GROVE, Biomes.GROVE, Biomes.SNOWY_SLOPES,
+            Biomes.FROZEN_PEAKS, Biomes.JAGGED_PEAKS, Biomes.STONY_PEAKS);
+
+    /** 绿宝石补证：最多尝试的候选目标区块数（凑够 {@link #EMERALD_REQUIRED_NONZERO} 个非零即停）。 */
+    private static final int EMERALD_MAX_CANDIDATES = 16;
+
+    /** 绿宝石补证：要求取得的非零候选目标区块数。 */
+    private static final int EMERALD_REQUIRED_NONZERO = 2;
+
+    /** 绿宝石补证：生物群系粗扫的区块步长（先粗后细，避免逐区块全扫）。 */
+    private static final int EMERALD_SCAN_STEP = 8;
+
+    /** 绿宝石补证：生物群系粗扫的区块半径（±该值，覆盖 2×半径+1 见方）。 */
+    private static final int EMERALD_SCAN_RADIUS_CHUNKS = 512;
+
+    /** 绿宝石补证：判定「这一列是不是山地」的采样高度（多处采样，山地系在垂直方向上是分层的）。 */
+    private static final int[] EMERALD_SCAN_YS = {288, 224, 160, 96, 32};
+
+    /** 远古残骸扩样本：最多检查的目标区块数（口径上限 64）。 */
+    private static final int DEBRIS_MAX_CANDIDATES = 64;
+
+    /** 远古残骸扩样本：非空目标区块数达标线。 */
+    private static final int DEBRIS_REQUIRED_CHUNKS = 8;
+
+    /** 远古残骸扩样本：候选坐标总数达标线。 */
+    private static final int DEBRIS_REQUIRED_POSITIONS = 20;
+
+    /** 远古残骸扩样本：扫描窗口的起始区块（与固定用例的远端 A/B 错开，互不干扰）。 */
+    private static final ChunkPos DEBRIS_SCAN_ORIGIN = new ChunkPos(16, 16);
+
+    /** 远古残骸扩样本：扫描窗口的边长（区块），= 8 → 8×8 = 64 个目标区块。 */
+    private static final int DEBRIS_SCAN_SIDE = 8;
+
     private static final SeedMiningService SERVICE = SeedMiningService.instance();
 
+    /**
+     * 237：目标样本补证的类型。
+     *
+     * <p>为什么需要区分：237 要求给「绿宝石非零样本」与「远古残骸扩样本」各自取得
+     * Worker ↔ Oracle / 候选 ↔ 真实 / 观察 / ESP 证据，而这两组样本是<b>先扫描再按需取样</b>的
+     * （找到达标数量即停），因此判据与 22 个固定用例不同（固定用例是「每个都必须通过」，
+     * 这两组是「凑够规定数量并通过」）。</p>
+     */
+    private enum CaseKind {
+        /** 236 原有的固定矩阵用例（主世界 8×2 + 下界 3×2）。 */
+        MATRIX,
+        /** 237 绿宝石补证：山地系生物群系里的候选目标区块。 */
+        EMERALD_SAMPLE,
+        /** 237 远古残骸扩样本：下界连续目标区块。 */
+        DEBRIS_SAMPLE
+    }
+
     /** 一个矩阵用例：某一维度、某一矿物、某一目标区块。 */
-    private record OreCase(SeedDimensionProfile profile, OreType oreType, ChunkPos chunk, String roleCn) {
+    private record OreCase(SeedDimensionProfile profile, OreType oreType, ChunkPos chunk, String roleCn,
+                           CaseKind kind) {
 
         private String labelCn() {
             return profile.displayNameCn() + " · " + oreType.displayNameCn() + " · 区块 ("
@@ -135,6 +203,10 @@ public final class SeedOreMatrixRegression {
         ENTER_WORLD,
         /** 传送到主世界锚点。 */
         OVERWORLD_ANCHOR,
+        /** 237：扫描绿宝石山地候选与远古残骸扩样本候选（服务端线程执行一次）。 */
+        SCAN_SAMPLES,
+        /** 237：传送到绿宝石候选区块（让正式观察层真的能看到那些区块）。 */
+        EMERALD_ANCHOR,
         /** 切到下一个用例（矿物集合 / 覆盖半径 / 种子）。 */
         CASE_PREPARE,
         /** 提交 Worker 侧预测并等结果。 */
@@ -219,6 +291,36 @@ public final class SeedOreMatrixRegression {
     private static final Map<ChunkPos, Set<OreType>> OVERWORLD_BY_CHUNK = new LinkedHashMap<>();
     private static final Map<ChunkPos, Set<OreType>> NETHER_BY_CHUNK = new LinkedHashMap<>();
 
+    // ── 237：样本补证的扫描结果与达标计数 ──
+
+    /** 绿宝石候选目标区块（粗扫 + 邻域细化得到的山地系区块），最多 {@link #EMERALD_MAX_CANDIDATES} 个。 */
+    private static final List<ChunkPos> EMERALD_CANDIDATES = new ArrayList<>();
+
+    /** 绿宝石候选区块对应的生物群系名（报告用，与候选一一对应）。 */
+    private static final Map<ChunkPos, String> EMERALD_BIOME_BY_CHUNK = new LinkedHashMap<>();
+
+    /** 绿宝石第一个候选区块上的安全落点（把玩家传送过去，让正式观察层看到这一片）。 */
+    private static volatile BlockPos emeraldAnchor;
+
+    /** 远古残骸扩样本的目标区块（固定窗口，最多 {@link #DEBRIS_MAX_CANDIDATES} 个）。 */
+    private static final List<ChunkPos> DEBRIS_CANDIDATES = new ArrayList<>();
+
+    private static volatile boolean sampleScanDispatched;
+    private static volatile boolean sampleScanDone;
+
+    /** 用例清单里的分段边界（早期停止与「该不该切维度」都靠它）。 */
+    private static int emeraldBlockStart = -1;
+    private static int debrisBlockStart = -1;
+
+    /** 绿宝石补证已取得的非零候选区块数。 */
+    private static int emeraldNonZeroChunks;
+
+    /** 远古残骸扩样本已取得的非空目标区块数 / 候选坐标总数。 */
+    private static int debrisNonEmptyChunks;
+    private static int debrisPositions;
+
+    private static boolean emeraldObserved;
+
     private static String overworldIdentity = "（未记录）";
     private static String netherIdentity = "（未记录）";
     private static boolean reportWritten;
@@ -232,6 +334,8 @@ public final class SeedOreMatrixRegression {
             switch (step) {
                 case ENTER_WORLD -> tickEnterWorld(client);
                 case OVERWORLD_ANCHOR -> tickOverworldAnchor(client);
+                case SCAN_SAMPLES -> tickScanSamples(client);
+                case EMERALD_ANCHOR -> tickEmeraldAnchor(client);
                 case CASE_PREPARE -> tickCasePrepare(client);
                 case CASE_WORKER -> tickCaseWorker(client);
                 case CASE_ORACLE -> tickCaseOracle(client);
@@ -321,27 +425,290 @@ public final class SeedOreMatrixRegression {
         // 覆盖半径压到最小：本装置只关心「手工预测那一次」的结果，覆盖队列越短越好，
         // 免得 49 个区块的排队把每个用例拖到分钟级。
         service.setCoverageRadius(SeedMiningService.coverageRadiusMin());
-        // 用例清单：主世界 8 种 × 2 区块，然后下界 3 种 × 2 区块
+        // 237：先扫描「绿宝石山地候选」与「远古残骸扩样本」两组样本，再据此拼用例清单
+        step = Step.SCAN_SAMPLES;
+        waitTicks = 0;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 237：样本扫描（绿宝石山地候选 / 远古残骸扩样本）与服务端线程执行体
+    // ────────────────────────────────────────────────────────────────────────
+
+    /** 扫描阶段：把两份扫描都投递到服务端线程执行一次（离线 worldgen 上下文与真实高度图都在那一侧）。 */
+    private static void tickScanSamples(Minecraft client) {
+        if (!sampleScanDispatched) {
+            sampleScanDispatched = true;
+            waitTicks = 0;
+            server.execute(SeedOreMatrixRegression::scanSamples);
+            return;
+        }
+        if (!sampleScanDone) {
+            if (++waitTicks > WAIT_WORLD_TICKS) {
+                report("**等待样本扫描超时**");
+                VERDICTS.add("【判定】237 样本扫描：不通过（超时）");
+            }
+            return;
+        }
+        buildCases();
+        step = Step.CASE_PREPARE;
+        waitTicks = 0;
+    }
+
+    /**
+     * 两组样本的扫描（服务端线程）。
+     *
+     * <p><b>绿宝石</b>：用真实 26.1.2 的生物群系源（{@code OfflineWorldgenContext} 里那份
+     * 种子派生的 {@code RandomState} + 原版 {@code MultiNoiseBiomeSource}）在固定种子上粗扫
+     * 「有没有山地系生物群系」，命中后只在命中点邻域细化，得到有限个候选目标区块。
+     * 这一步刻意<b>只发生物群系、不生成区块</b>（{@code getNoiseBiome} 是纯函数），
+     * 因此扫描本身不产生任何方块、也不碰真实世界。</p>
+     *
+     * <p><b>远古残骸</b>：下界的扩样本不需要挑生物群系（远古残骸在所有下界生物群系都生成），
+     * 因此直接取一块与固定用例错开的连续窗口（8×8 = 64 个目标区块），由用例循环按需取用、
+     * 达标即停。</p>
+     */
+    private static void scanSamples() {
+        try {
+            long seed = SeedPocFlags.oreMatrixSeed();
+            ServerLevel overworld = server.overworld();
+            OfflineWorldgenContext context = OfflineWorldgenContext.create(overworld, seed);
+            Climate.Sampler sampler = context.randomState().sampler();
+
+            report("");
+            report("一之一、237 样本扫描（绿宝石山地候选 / 远古残骸扩样本）");
+            report("  绿宝石候选扫描：生物群系源 = 26.1.2 原版 MultiNoiseBiomeSource（主世界预设），"
+                    + "种子 " + seed + "；粗扫步长 " + EMERALD_SCAN_STEP + " 区块、半径 ±"
+                    + EMERALD_SCAN_RADIUS_CHUNKS + " 区块，采样高度 " + java.util.Arrays.toString(EMERALD_SCAN_YS));
+            int coarseSamples = 0;
+            List<ChunkPos> coarseHits = new ArrayList<>();
+            outer:
+            for (int cx = -EMERALD_SCAN_RADIUS_CHUNKS; cx <= EMERALD_SCAN_RADIUS_CHUNKS; cx += EMERALD_SCAN_STEP) {
+                for (int cz = -EMERALD_SCAN_RADIUS_CHUNKS; cz <= EMERALD_SCAN_RADIUS_CHUNKS;
+                     cz += EMERALD_SCAN_STEP) {
+                    coarseSamples++;
+                    String biome = classifyEmeraldColumn(context, sampler, cx, cz);
+                    if (biome != null) {
+                        coarseHits.add(new ChunkPos(cx, cz));
+                        if (coarseHits.size() >= EMERALD_MAX_CANDIDATES) {
+                            break outer;
+                        }
+                    }
+                }
+            }
+            report("    粗扫取样 " + coarseSamples + " 列 → 命中 " + coarseHits.size() + " 列");
+            refineEmeraldCandidates(context, sampler, coarseHits);
+            report("    细化后候选目标区块 " + EMERALD_CANDIDATES.size() + " 个"
+                    + (EMERALD_CANDIDATES.isEmpty() ? "（本种子粗扫范围内没有山地系生物群系）" : "："));
+            for (ChunkPos chunk : EMERALD_CANDIDATES) {
+                report("      (" + chunk.x() + "," + chunk.z() + ") 生物群系 " + EMERALD_BIOME_BY_CHUNK.get(chunk));
+            }
+            // 传送落点：只取区块中心的高空落点。为什么不用真实高度图：山地列的高度图读数在这种
+            // 远景列上并不可靠（装置第一版据此算出 -61，落点直接掉进虚空），而落点的高度对
+            // 「客户端加载了这一片区块」这件事没有影响 —— 区块加载只看 x/z。配合下面的旁观模式，
+            // 高空落点既不会摔死也不会掉出世界。
+            if (!EMERALD_CANDIDATES.isEmpty()) {
+                ChunkPos first = EMERALD_CANDIDATES.get(0);
+                emeraldAnchor = new BlockPos(first.getMiddleBlockX(), 200, first.getMiddleBlockZ());
+                report("    传送落点（让正式观察层真的加载这些区块）：(" + emeraldAnchor.getX() + ","
+                        + emeraldAnchor.getY() + "," + emeraldAnchor.getZ() + ")，落地方式：先旁观再传送");
+            }
+            report("");
+            report("  远古残骸扩样本：窗口起点区块 (" + DEBRIS_SCAN_ORIGIN.x() + "," + DEBRIS_SCAN_ORIGIN.z()
+                    + ")，" + DEBRIS_SCAN_SIDE + "×" + DEBRIS_SCAN_SIDE + " 共 "
+                    + (DEBRIS_SCAN_SIDE * DEBRIS_SCAN_SIDE) + " 个目标区块（上限 "
+                    + DEBRIS_MAX_CANDIDATES + "，达标即停）");
+            for (int dx = 0; dx < DEBRIS_SCAN_SIDE && DEBRIS_CANDIDATES.size() < DEBRIS_MAX_CANDIDATES; dx++) {
+                for (int dz = 0; dz < DEBRIS_SCAN_SIDE && DEBRIS_CANDIDATES.size() < DEBRIS_MAX_CANDIDATES; dz++) {
+                    DEBRIS_CANDIDATES.add(new ChunkPos(DEBRIS_SCAN_ORIGIN.x() + dx, DEBRIS_SCAN_ORIGIN.z() + dz));
+                }
+            }
+            report("    目标区块清单：" + describeChunks(DEBRIS_CANDIDATES));
+        } catch (Throwable error) {
+            LOGGER.error("{}：237 样本扫描异常", SeedPocConstants.LOG_KEY, error);
+            report("**237 样本扫描异常：" + error.getClass().getSimpleName() + " / " + error.getMessage() + "**");
+            VERDICTS.add("【判定】237 样本扫描：不通过（异常 " + error.getClass().getSimpleName() + "）");
+        } finally {
+            sampleScanDone = true;
+        }
+    }
+
+    /** 某一区块列是不是山地系生物群系；是则返回第一个命中的生物群系 id，否则 null。 */
+    private static String classifyEmeraldColumn(OfflineWorldgenContext context, Climate.Sampler sampler,
+                                                int chunkX, int chunkZ) {
+        int blockX = chunkX * 16 + 8;
+        int blockZ = chunkZ * 16 + 8;
+        for (int y : EMERALD_SCAN_YS) {
+            Holder<Biome> holder = context.biomeSource().getNoiseBiome(
+                    blockX >> 2, y >> 2, blockZ >> 2, sampler);
+            ResourceKey<Biome> key = holder.unwrapKey().orElse(null);
+            if (key != null && EMERALD_BIOMES.contains(key)) {
+                return key.identifier().toString();
+            }
+        }
+        return null;
+    }
+
+    /** 粗扫命中点邻域细化：在命中点 ±{@link #EMERALD_SCAN_STEP} 区块内逐区块判定，凑够候选数即停。 */
+    private static void refineEmeraldCandidates(OfflineWorldgenContext context, Climate.Sampler sampler,
+                                                List<ChunkPos> coarseHits) {
+        Set<ChunkPos> seen = new LinkedHashSet<>();
+        for (ChunkPos hit : coarseHits) {
+            for (int dx = -EMERALD_SCAN_STEP; dx <= EMERALD_SCAN_STEP; dx++) {
+                for (int dz = -EMERALD_SCAN_STEP; dz <= EMERALD_SCAN_STEP; dz++) {
+                    ChunkPos candidate = new ChunkPos(hit.x() + dx, hit.z() + dz);
+                    if (!seen.add(candidate)) {
+                        continue;
+                    }
+                    String biome = classifyEmeraldColumn(context, sampler, candidate.x(), candidate.z());
+                    if (biome != null) {
+                        EMERALD_CANDIDATES.add(candidate);
+                        EMERALD_BIOME_BY_CHUNK.put(candidate, biome);
+                        if (EMERALD_CANDIDATES.size() >= EMERALD_MAX_CANDIDATES) {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** 拼用例清单（237：在固定矩阵里插入绿宝石补证段与远古残骸扩样本段）。 */
+    private static void buildCases() {
         List<OreCase> built = new ArrayList<>();
         for (OreType oreType : SeedOreRegistry.oresOf(SeedDimensionProfile.OVERWORLD)) {
-            built.add(new OreCase(SeedDimensionProfile.OVERWORLD, oreType, OVERWORLD_FAR_A, "远端 A"));
-            built.add(new OreCase(SeedDimensionProfile.OVERWORLD, oreType, OVERWORLD_FAR_B, "远端 B"));
+            built.add(new OreCase(SeedDimensionProfile.OVERWORLD, oreType, OVERWORLD_FAR_A, "远端 A",
+                    CaseKind.MATRIX));
+            built.add(new OreCase(SeedDimensionProfile.OVERWORLD, oreType, OVERWORLD_FAR_B, "远端 B",
+                    CaseKind.MATRIX));
+        }
+        emeraldBlockStart = built.size();
+        for (ChunkPos chunk : EMERALD_CANDIDATES) {
+            built.add(new OreCase(SeedDimensionProfile.OVERWORLD, OreType.EMERALD, chunk, "山地样本补证",
+                    CaseKind.EMERALD_SAMPLE));
         }
         switchIndex = built.size();
         for (OreType oreType : SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER)) {
-            built.add(new OreCase(SeedDimensionProfile.NETHER, oreType, NETHER_FAR_A, "远端 A"));
-            built.add(new OreCase(SeedDimensionProfile.NETHER, oreType, NETHER_FAR_B, "远端 B"));
+            built.add(new OreCase(SeedDimensionProfile.NETHER, oreType, NETHER_FAR_A, "远端 A", CaseKind.MATRIX));
+            built.add(new OreCase(SeedDimensionProfile.NETHER, oreType, NETHER_FAR_B, "远端 B", CaseKind.MATRIX));
+        }
+        debrisBlockStart = built.size();
+        for (ChunkPos chunk : DEBRIS_CANDIDATES) {
+            built.add(new OreCase(SeedDimensionProfile.NETHER, OreType.ANCIENT_DEBRIS, chunk, "扩样本",
+                    CaseKind.DEBRIS_SAMPLE));
         }
         cases = List.copyOf(built);
         report("");
         report("一、矩阵规模：主世界 " + SeedOreRegistry.oresOf(SeedDimensionProfile.OVERWORLD).size()
-                + " 种 × 2 区块 = " + switchIndex + " 个用例；下界 "
+                + " 种 × 2 区块 = " + emeraldBlockStart + " 个用例；绿宝石补证 "
+                + EMERALD_CANDIDATES.size() + " 个用例（凑够 " + EMERALD_REQUIRED_NONZERO + " 个非零即停）；下界 "
                 + SeedOreRegistry.oresOf(SeedDimensionProfile.NETHER).size() + " 种 × 2 区块 = "
-                + (cases.size() - switchIndex) + " 个用例；合计 " + cases.size());
+                + (debrisBlockStart - switchIndex) + " 个用例；远古残骸扩样本上限 "
+                + DEBRIS_CANDIDATES.size() + " 个用例（凑够 " + DEBRIS_REQUIRED_CHUNKS + " 个非空或 "
+                + DEBRIS_REQUIRED_POSITIONS + " 个候选即停）；合计 " + cases.size());
         report("");
         report("二、逐用例证据（Worker ↔ Oracle 逐项 + 候选 ↔ 真实方块 + 观察 / ESP / 缓存隔离）");
+    }
+
+    /** 区块清单的紧凑文本（报告用）。 */
+    private static String describeChunks(List<ChunkPos> chunks) {
+        StringBuilder builder = new StringBuilder();
+        for (ChunkPos chunk : chunks) {
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append('(').append(chunk.x()).append(',').append(chunk.z()).append(')');
+            if (builder.length() > 320) {
+                builder.append(" …共 ").append(chunks.size()).append(" 个");
+                break;
+            }
+        }
+        return builder.length() == 0 ? "（无）" : builder.toString();
+    }
+
+    /**
+     * 把玩家送到绿宝石候选区块并取一次观察 / ESP 读数。
+     *
+     * <p><b>为什么单独一步、而且要放在所有预测用例之后</b>：绿宝石的判据里有一条「Observation」——
+     * 正式观察层只读<b>客户端真实已加载</b>的区块（{@code LOAD_OR_GENERATE=false}），
+     * 玩家不站在山地那一片，观察层对绿宝石就永远只有「未观察」。所以必须真的把客户端送过去。
+     * 但传送会让覆盖调度把那一圈区块先预测掉（会话变暖），若放在绿宝石预测用例<b>之前</b>，
+     * Worker 侧就是暖、Oracle 侧是冷，{@code originViewer} 必然对不上 —— 装置的 Worker ↔ Oracle
+     * 可比性优先，因此传送与观察读数放在两组预测证据都取完之后。</p>
+     *
+     * <p>落点由服务端真实高度图给出（地表上方 3 格），避免传送进山体、也避免高空坠落。</p>
+     */
+    private static void tickEmeraldAnchor(Minecraft client) {
+        if (waitTicks == 0) {
+            BlockPos anchor = emeraldAnchor;
+            // 先切旁观再传送：落点在山地高空（区块加载只看 x/z，高度取多少都不影响取证），
+            // 生存模式下从高空落下会摔死并重生回出生点 —— 装置第一版实测就是这个现象，
+            // 表现为「等了 90 秒也没站到目标区块」。
+            sendCommand(client, "gamemode spectator");
+            if (anchor == null || !sendCommand(client, "execute in minecraft:overworld run tp @s "
+                    + anchor.getX() + " " + anchor.getY() + " " + anchor.getZ())) {
+                report("**绿宝石候选传送指令发送失败（观察层证据降级为未加载读数）**");
+                VERDICTS.add("【判定】绿宝石补证 · 观察层：传送失败（未取证）");
+                emeraldObserved = true;
+                step = Step.CASE_PREPARE;
+                return;
+            }
+        }
+        if (++waitTicks > WAIT_WORLD_TICKS) {
+            report("**等待绿宝石候选区块加载超时（观察层证据降级为未加载读数）**");
+            VERDICTS.add("【判定】绿宝石补证 · 观察层：不通过（加载超时）");
+            sendCommand(client, "gamemode survival");
+            emeraldObserved = true;
+            step = Step.CASE_PREPARE;
+            return;
+        }
+        if (!inDimension(client, SeedDimensionProfile.OVERWORLD)) {
+            return;
+        }
+        if (client.player == null || client.level == null) {
+            return;
+        }
+        ChunkPos first = EMERALD_CANDIDATES.get(0);
+        int playerChunkX = client.player.blockPosition().getX() >> 4;
+        int playerChunkZ = client.player.blockPosition().getZ() >> 4;
+        if (playerChunkX != first.x() || playerChunkZ != first.z()) {
+            return;
+        }
+        // 覆盖调度会跟着玩家走：给它一点时间把这一圈的绿宝石铺开并观察
+        if (waitTicks < 20 * 20) {
+            return;
+        }
+        int entries = 0;
+        for (ChunkPos chunk : EMERALD_CANDIDATES) {
+            entries += renderEntries(chunk, OreType.EMERALD);
+        }
+        SeedObservationSnapshot observed = SERVICE.observationSnapshot();
+        report("");
+        report("三之一、绿宝石补证的观察层 / ESP 证据（客户端已真的加载山地候选区块）");
+        report("  运行时身份：" + SERVICE.runtimeIdentityCn());
+        report("  观察快照：候选 " + observed.candidates() + " / 已确认 " + observed.confirmed()
+                + " / 当前缺失 " + observed.missing() + " / 未观察 " + observed.unobserved());
+        report("  山地候选区块上的 ESP 条目合计：" + entries);
+        boolean observedOk = observed.candidates() > 0 && observed.confirmed() > 0;
+        VERDICTS.add("【判定】绿宝石补证 · 观察层（候选 " + observed.candidates() + " / 已确认 "
+                + observed.confirmed() + "）+ ESP 条目 " + entries + "：" + verdict(observedOk));
+        // 还原生存模式：后面的下界用例与 235 的判据都以「普通玩家」为前提，不留下模式副作用
+        sendCommand(client, "gamemode survival");
+        emeraldObserved = true;
         step = Step.CASE_PREPARE;
         waitTicks = 0;
+    }
+
+    /** 某矿物在指定目标区块上的 ESP 条目数。 */
+    private static int renderEntries(ChunkPos chunk, OreType oreType) {
+        int counter = 0;
+        for (SeedRenderEntry entry : SERVICE.renderSnapshot().entries()) {
+            if (entry.oreType() == oreType
+                    && entry.position().getX() >> 4 == chunk.x()
+                    && entry.position().getZ() >> 4 == chunk.z()) {
+                counter++;
+            }
+        }
+        return counter;
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -356,7 +723,35 @@ public final class SeedOreMatrixRegression {
         }
         // 跨维度切换：主世界用例跑完 → 先取主世界的隔离读数，再去下界
         if (caseIndex == switchIndex && !switchedToNether) {
+            // 237：主世界用例（含绿宝石补证）全部跑完后，才把玩家送到绿宝石候选区块，
+            // 让正式观察层真的加载那一片并取一次观察 / ESP 读数。
+            // 刻意放在所有预测用例<b>之后</b>：传送 + 覆盖会改变会话的冷热历史，
+            // 若在用例之前传送，绿宝石那一条就会变成「Worker 侧暖、Oracle 侧冷」，
+            // Worker ↔ Oracle 的 originViewer 对不上（装置第一版实测就是这个现象）。
+            if (!emeraldObserved && emeraldNonZeroChunks > 0) {
+                step = Step.EMERALD_ANCHOR;
+                waitTicks = 0;
+                return;
+            }
             step = Step.SUMMARY_OVERWORLD;
+            waitTicks = 0;
+            return;
+        }
+        // 237：两组样本的早期停止（凑够要求数量就不再白跑后续区块）
+        if (caseIndex >= emeraldBlockStart && caseIndex < switchIndex
+                && emeraldNonZeroChunks >= EMERALD_REQUIRED_NONZERO) {
+            report("  绿宝石补证已凑够 " + emeraldNonZeroChunks + " 个非零候选区块（要求 "
+                    + EMERALD_REQUIRED_NONZERO + "）→ 停止扫描剩余候选");
+            caseIndex = switchIndex;
+            waitTicks = 0;
+            return;
+        }
+        if (caseIndex >= debrisBlockStart
+                && (debrisNonEmptyChunks >= DEBRIS_REQUIRED_CHUNKS
+                || debrisPositions >= DEBRIS_REQUIRED_POSITIONS)) {
+            report("  远古残骸扩样本已达标（非空区块 " + debrisNonEmptyChunks + " / 候选坐标 "
+                    + debrisPositions + "）→ 停止扫描剩余目标区块");
+            caseIndex = cases.size();
             waitTicks = 0;
             return;
         }
@@ -646,6 +1041,22 @@ public final class SeedOreMatrixRegression {
         EXTRA_TOTAL += extra.size();
         MISSED_TOTAL += missed.size();
         SENSITIVE_EXTRA_TOTAL += sensitiveExtra;
+        // 237：两组样本的达标计数（绿宝石看「非零候选区块」，远古残骸看「非空区块 / 候选坐标」）
+        if (current.kind() == CaseKind.EMERALD_SAMPLE) {
+            if (workerResult.count() > 0) {
+                emeraldNonZeroChunks++;
+            }
+            report("    绿宝石补证累计：非零候选区块 " + emeraldNonZeroChunks + " / "
+                    + EMERALD_REQUIRED_NONZERO + "（要求），本用例候选 " + workerResult.count());
+        } else if (current.kind() == CaseKind.DEBRIS_SAMPLE) {
+            if (workerResult.count() > 0) {
+                debrisNonEmptyChunks++;
+            }
+            debrisPositions += workerResult.count();
+            report("    远古残骸扩样本累计：非空目标区块 " + debrisNonEmptyChunks + " / "
+                    + DEBRIS_REQUIRED_CHUNKS + "，候选坐标 " + debrisPositions + " / "
+                    + DEBRIS_REQUIRED_POSITIONS + "（任一达标即停）；本用例候选 " + workerResult.count());
+        }
         String key = caseKey(current.profile(), current.oreType(), current.chunk());
         CASE_DISPLAY.put(key, current.labelCn());
         if (undiagnosedExtra > 0) {
@@ -995,7 +1406,8 @@ public final class SeedOreMatrixRegression {
         report("  " + oreType.displayNameCn() + "（" + profile.displayNameCn() + " 目标区块 "
                 + target.x() + "," + target.z() + "，邻块 " + neighbour.x() + "," + neighbour.z()
                 + "）：顺序「邻块→目标」候选 " + warm.size() + "，顺序「目标冷启动」候选 "
-                + cold.size() + "，集合相同 " + verdict(equal));
+                + cold.size() + "，两种顺序集合相同 "
+                + (equal ? "（是）" : "（否 —— 该（矿物, 区块）合法顺序敏感，判据见下）"));
         report("    与真实世界该区块比对：真实 " + truth.size() + " 格；顺序「邻块→目标」与真实一致 "
                 + verdict(warmIsTruth) + "；顺序「目标冷启动」与真实一致 " + verdict(coldIsTruth));
         if (!equal) {
@@ -1012,20 +1424,50 @@ public final class SeedOreMatrixRegression {
         for (String note : coldTarget.stats().notes()) {
             report("      · " + note);
         }
+        // 引擎在「确定」这一档上的承诺：真实世界否定不了任何自称确定的坐标。
+        Set<BlockPos> coldExtra = new LinkedHashSet<>(cold);
+        coldExtra.removeAll(truth);
+        Set<BlockPos> falseCertainty = new LinkedHashSet<>();
+        for (PredictedOre ore : coldTarget.ores()) {
+            if (ore.certainty() == PredictionCertainty.DETERMINISTIC && coldExtra.contains(ore.position())) {
+                falseCertainty.add(ore.position());
+            }
+        }
         String key = caseKey(profile, oreType, target);
         if (equal) {
             VERDICTS.add("【判定】请求顺序对照 · " + oreType.displayNameCn() + "：两种合法顺序结果相同 "
-                    + verdict(true) + "（真实世界 " + truth.size() + " 格）");
+                    + verdict(true) + "（真实世界 " + truth.size() + " 格，逐格一致 " + verdict(warmIsTruth) + "）");
         } else {
-            boolean explained = sensitive == onlyCold.size() && (warmIsTruth || coldIsTruth);
+            // 两种合法顺序本就给出不同结果 ⇒ 该（矿物, 区块）是合法顺序敏感。
+            //
+            // 判据刻意<b>不</b>看「我枚举的这两种顺序里有没有一种撞上真实世界」：真实世界用的是
+            // 服务端当时自己的合法请求顺序（本装置把目标区块 ±1 邻域推到 FULL 的顺序），逐次运行
+            // 可能落在第三种合法顺序上（236 实测：主世界煤 (3,-1) 一次落在「邻块先」、另一次落在
+            // 另一种合法顺序）。把「是否撞上」当门槛，等于让判据随运行时机随机通过或失败。
+            //
+            // 真正的判据是引擎的诚实承诺，逐条可证：
+            //   ① 基线比另一种顺序多出来的坐标，必须正是引擎自查标记为「调度敏感」的那些；
+            //   ② 该用例里引擎不产出任何「确定」候选；
+            //   ③ 因此不存在「引擎自称确定、却被真实世界否定」的坐标。
+            boolean diffMarked = sensitive == onlyCold.size();
+            boolean noCertaintyClaim = coldTarget.deterministicCount() == 0;
+            boolean noFalseCertainty = falseCertainty.isEmpty();
+            boolean explained = diffMarked && noCertaintyClaim && noFalseCertainty;
             if (explained) {
                 ORDER_SENSITIVE_CASES.add(key);
             }
             VERDICTS.add("【判定】请求顺序对照 · " + oreType.displayNameCn()
                     + "：两种合法顺序给出不同结果（" + warm.size() + " vs " + cold.size()
-                    + "）⇒ 该（矿物, 区块）本就是合法顺序敏感；差异坐标被引擎标为调度敏感 "
-                    + verdict(sensitive == onlyCold.size()) + "；其中一种顺序与真实世界完全一致 "
-                    + verdict(warmIsTruth || coldIsTruth) + " ⇒ " + verdict(explained));
+                    + "）⇒ 该（矿物, 区块）本就是合法顺序敏感；基线多出的坐标被引擎标为调度敏感 "
+                    + verdict(diffMarked) + "；确定性声称 " + coldTarget.deterministicCount()
+                    + "（须为 0）" + verdict(noCertaintyClaim) + "；自称确定却被真实否定 "
+                    + falseCertainty.size() + " 格" + verdict(noFalseCertainty) + " ⇒ " + verdict(explained)
+                    // 这一段是<b>读数</b>（真实世界取的是服务端当时那条合法顺序的结果，不参与判据），
+                    // 因此刻意不用 verdict() 的「（**不通过**）」记号 —— 那会让收尾的
+                    // 「全部判定」把一条纯读数误判成失败项
+                    + "。（读数：真实世界 " + truth.size() + " 格；「邻块先」与真实"
+                    + (warmIsTruth ? "逐格一致" : "不一致") + "、「目标冷启动」与真实"
+                    + (coldIsTruth ? "逐格一致" : "不一致") + " —— 不参与判据。）");
         }
     }
 
@@ -1264,7 +1706,8 @@ public final class SeedOreMatrixRegression {
      *
      * <p>本装置不接受「错报只是读数」这种一句话结论：每一格未被标记的错报，都必须能落到
      * 第七节<b>实测</b>为「合法顺序敏感」的（矿物, 区块）上（判据 = 两种合法顺序给出不同结果、
-     * 差异坐标被引擎标为调度敏感、且其中一种顺序与真实世界完全一致）。落不下去的必须显式列出来。</p>
+     * 基线多出的坐标被引擎标为调度敏感、该用例里引擎不产出「确定」候选、且不存在「自称确定
+     * 却被真实世界否定」的坐标）。落不下去的必须显式列出来。</p>
      */
     private static String undiagnosedSummaryCn() {
         int total = 0;
@@ -1315,6 +1758,27 @@ public final class SeedOreMatrixRegression {
                 + "候选语义是「可能在这里」；因此错报 / 漏报是读数，其解释见逐格归因与第七节请求顺序对照。");
         VERDICTS.add("【判定】候选 ↔ 真实：错报 " + EXTRA_TOTAL + " 格中，引擎自查标记为调度敏感 "
                 + SENSITIVE_EXTRA_TOTAL + " 格；其余 " + undiagnosedSummaryCn());
+        report("");
+        report("八之二、237 样本补证（绿宝石非零 / 远古残骸扩样本）");
+        report("  绿宝石：山地候选目标区块 " + EMERALD_CANDIDATES.size() + " 个；取得非零候选区块 "
+                + emeraldNonZeroChunks + " 个（要求 ≥" + EMERALD_REQUIRED_NONZERO + "）");
+        for (ChunkPos chunk : EMERALD_CANDIDATES) {
+            String outcome = OUTCOME_BY_CASE.get(SeedDimensionProfile.OVERWORLD.displayNameCn() + " · "
+                    + OreType.EMERALD.displayNameCn() + " · 区块 (" + chunk.x() + "," + chunk.z() + ")[山地样本补证]");
+            if (outcome != null) {
+                report("    (" + chunk.x() + "," + chunk.z() + ") 生物群系 "
+                        + EMERALD_BIOME_BY_CHUNK.get(chunk) + " → " + outcome);
+            }
+        }
+        VERDICTS.add("【判定】绿宝石非零样本补证（要求 ≥" + EMERALD_REQUIRED_NONZERO + " 个非零候选区块）：取得 "
+                + emeraldNonZeroChunks + " 个" + verdict(emeraldNonZeroChunks >= EMERALD_REQUIRED_NONZERO));
+        report("  远古残骸：目标区块上限 " + DEBRIS_CANDIDATES.size() + " 个；取得非空目标区块 "
+                + debrisNonEmptyChunks + " 个 / 候选坐标 " + debrisPositions + " 个（达标线：≥"
+                + DEBRIS_REQUIRED_CHUNKS + " 个非空区块 或 ≥" + DEBRIS_REQUIRED_POSITIONS + " 个候选坐标）");
+        VERDICTS.add("【判定】远古残骸扩样本（≥" + DEBRIS_REQUIRED_CHUNKS + " 个非空目标区块 或 ≥"
+                + DEBRIS_REQUIRED_POSITIONS + " 个候选坐标）：非空区块 " + debrisNonEmptyChunks
+                + " / 候选坐标 " + debrisPositions + verdict(debrisNonEmptyChunks >= DEBRIS_REQUIRED_CHUNKS
+                || debrisPositions >= DEBRIS_REQUIRED_POSITIONS));
         report("");
         report("九、计算器诊断");
         report("  " + SERVICE.calculatorDiagnosticsCn());

@@ -40,6 +40,20 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  * 写进目标区块</b>的情形上；本类在没有这种观测时直接放弃复核，把坐标留给 UNRESOLVED——
  * 这样做的代价只是分类更保守，而不会把调度敏感矿误标成确定性矿。</p>
  *
+ * <p><b>暖会话一致性（237 修复）</b>：触发条件「基线执行中确有其它 viewer 改过目标区块」只在
+ * <b>该目标区块第一次被装饰</b>的那一次成立。会话内后续请求会命中缓存（所有阶段都有产出、
+ * 一律跳过），指纹自然不再变化，于是同一个合法目标在冷会话下被判 SCHEDULE_SENSITIVE、
+ * 在暖会话下却退化成 UNRESOLVED —— 这是「同一格两套分类」的真实可用性瑕疵。
+ * 修法不是放宽判据，而是把<b>会话内首次有效基线执行取到的外来写入者证据</b>由
+ * {@code PredictionSession} 记住并透传进来（见 {@code evidenceRemembered} 参数）：
+ * 仍然必须有「另一种合法执行顺序给出不同结果」这条正面证据才标 SCHEDULE_SENSITIVE，
+ * 只是这条证据不再因为缓存变暖而消失。</p>
+ *
+ * <p><b>为什么反向世界可以复用</b>：反向执行的<b>方块状态</b>只由（种子, 维度, 目标区块, viewer 集合）
+ * 决定，与「找哪一种矿」无关；而反向顺序里目标区块排在第一个被装饰，因此它一旦跑过就固定下来，
+ * 后续任何矿物来读都是同一份「另一种合法顺序」的世界状态。于是同一目标区块换矿物复核时
+ * 既不需要重跑、也不会得到两套结果。</p>
+ *
  * <p><b>与世界隔离</b>：复核必须在一份<b>独立</b>的离线世界（自己的 {@link OfflineChunkCache}）里跑，
  * 否则反向顺序写进去的方块会污染基线世界的后续预测。它复用同一个
  * {@link OfflineWorldgenContext}（只读的种子上下文），因此不会重复构造 BiomeSource / RandomState。</p>
@@ -91,22 +105,28 @@ public final class ScheduleSensitivityAnalyzer {
     /**
      * 对当前目标区块做一次保守的调度敏感分析。
      *
-     * @param target              目标区块
-     * @param oreType             矿物种类
-     * @param baselineOres        基线顺序下的预测集合（本方法只判定它的成员是否稳定，
-     *                            不会往里添加新坐标）
-     * @param foreignWriterViewers 基线执行中「除目标自身外、真的往目标区块里写过方块」的 viewer 个数
-     *                             （按目标区块全区块方块指纹判定；= 跨 viewer 竞争存在的前提）
+     * @param target               目标区块
+     * @param oreType              矿物种类
+     * @param baselineOres         基线顺序下的预测集合（本方法只判定它的成员是否稳定，
+     *                             不会往里添加新坐标）
+     * @param foreignWriterViewers 有效外来写入者个数（<b>本次基线执行观测到的</b>与
+     *                             <b>同一会话内首次有效基线执行记住的</b>取较大者）
+     * @param evidenceRemembered   该数值是否来自「首次有效基线执行记住的证据」（= 本次是暖会话，
+     *                             本次执行观测不到写入者）。它只影响诊断文字，不影响判据强度。
      * @return 应当标 {@link PredictionCertainty#SCHEDULE_SENSITIVE} 的坐标集合
      */
     public Set<BlockPos> analyze(ChunkPos target, OreType oreType, Set<BlockPos> baselineOres,
-                                 int foreignWriterViewers) {
+                                 int foreignWriterViewers, boolean evidenceRemembered) {
         notes.clear();
         executed = false;
         if (foreignWriterViewers <= 0) {
             notes.add("调度敏感分析：基线执行中没有任何其它 viewer 改过目标区块的方块"
                     + " → 不做反向顺序复核；本目标全部按未解析保守登记（不声称确定性）");
             return Set.of();
+        }
+        if (evidenceRemembered) {
+            notes.add("调度敏感分析：本次为暖会话（目标区块已在会话缓存里，本次基线执行观测不到外来写入者）"
+                    + " → 复用同一会话内首次有效基线执行取得的外来写入者证据（" + foreignWriterViewers + " 个）");
         }
 
         executed = true;
