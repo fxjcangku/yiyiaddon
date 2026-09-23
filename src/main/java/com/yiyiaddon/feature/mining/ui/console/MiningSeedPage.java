@@ -5,6 +5,7 @@ import com.yiyiaddon.seed.prediction.PredictionResult;
 import com.yiyiaddon.seed.render.SeedRenderSnapshot;
 import com.yiyiaddon.seed.runtime.SeedPredictionCoverageController;
 import com.yiyiaddon.seed.service.SeedMiningService;
+import com.yiyiaddon.seed.validation.SeedValidationSnapshot;
 import com.yiyiaddon.ui.component.CompactElement;
 import com.yiyiaddon.ui.component.CompactStack;
 import com.yiyiaddon.ui.console.ConsoleMetrics;
@@ -158,6 +159,29 @@ public final class MiningSeedPage {
             + "客户端只会读「服务器已经发给它的区块」，不会为了确认预测去请求加载任何区块", null,
             ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
 
+        // ── 服务器种子验证（正式化第六阶段 234；只读服务层验证快照，界面不自己算） ──
+        stack.add(section("服务器种子验证"));
+        stack.add(dataRow("验证状态", () -> validation().stateCn()));
+        stack.add(dataRow("有效样本区块", () -> validation().sampleChunks() + " 个"));
+        stack.add(dataRow("有效确认单元", () -> validation().confirmedUnits() + " 个"));
+        stack.add(dataRow("已确认候选", () -> validation().confirmedPositions() + " 个"));
+        stack.add(dataRow("当前缺失", () -> validation().missingPositions() + " 个"));
+
+        stack.add(new ConsoleRow(owner, () -> "重新开始验证",
+            "清空当前会话已经收集的验证证据，从此刻起重新收集。它不改种子、不清世界、"
+                + "也不清预测缓存；清空后需要产生新的观察样本（重新加载区块或方块发生变化）才会重新累积证据",
+            null,
+            List.of(new Ctl(new Button("§7重新开始验证", () -> service.restartValidation())))));
+
+        stack.add(new Note(owner, () -> "§8" + validation().reasonCn(), null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, () -> "§8" + validation().policyCn(), null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, () -> "§8" + validation().scopeNoteCn(), null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+        stack.add(new Note(owner, () -> "§8" + unverifiedNoteCn(), null,
+            ConsoleMetrics.SECTION_HEIGHT, ConsoleMetrics.SECTION_SIZE));
+
         // ── 环境 ──
         stack.add(section("环境"));
         stack.add(dataRow("当前维度", service::dimensionDisplayCn));
@@ -260,6 +284,42 @@ public final class MiningSeedPage {
         } catch (Throwable error) {
             return 0;
         }
+    }
+
+    /**
+     * 种子验证快照（正式化第六阶段 234）。
+     *
+     * <p>界面<b>只读</b>它，绝不自己计算验证逻辑（口径第七十三节）；读取失败时退回空快照，
+     * 避免一帧异常把整页读数打崩。</p>
+     */
+    private SeedValidationSnapshot validation() {
+        try {
+            SeedValidationSnapshot snapshot = service.validationSnapshot();
+            return snapshot == null ? SeedValidationSnapshot.EMPTY : snapshot;
+        } catch (Throwable error) {
+            return SeedValidationSnapshot.EMPTY;
+        }
+    }
+
+    /**
+     * 「种子尚未验证」提示（口径第九、五十一节：预测框能显示 ≠ 预测已验证）。
+     *
+     * <p>文案里刻意不出现「种子已确认 / 真实 Seed / 100% 正确」这类措辞（口径第五十三节），
+     * 只说明「当前能不能作为可信依据」。验证通过时给出正式通过文案与范围声明。</p>
+     */
+    private String unverifiedNoteCn() {
+        SeedValidationSnapshot snapshot = validation();
+        return switch (snapshot.state()) {
+            case VERIFIED -> "种子验证通过（基于已观察样本）：允许作为后续自动化挖矿的前置条件；"
+                + "但它仍不是「服务器真实 Seed 已被唯一确定」的证明";
+            case COLLECTING -> "当前 Seed 尚未完成验证（正在收集样本）：预测框可以照常显示，"
+                + "但它现在还只是「按填写的种子算出来的结果」，不要当成已验证依据";
+            case UNVERIFIED -> "当前 Seed 尚未验证（还没有有效观察样本）：预测框可以照常显示，"
+                + "但它现在还只是「按填写的种子算出来的结果」，不要当成已验证依据";
+            case INCONCLUSIVE -> "当前 Seed 证据不足：已看到不少数据但不足以验证，"
+                + "可能因为区块被挖过、区块较旧或样本太少；这不等于种子填错";
+            case CONFLICTING -> "当前 Seed 与已观察样本存在冲突证据（本阶段该状态不可达）";
+        };
     }
 
     private int scheduleSensitiveCount() {

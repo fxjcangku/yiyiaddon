@@ -28,6 +28,9 @@ import com.yiyiaddon.feature.mining.repository.MiningPointStore;
 import com.yiyiaddon.feature.mining.service.MiningBindingService;
 import com.yiyiaddon.feature.mining.service.MiningContainer;
 import com.yiyiaddon.feature.mining.service.ServerCommandRunner;
+import com.yiyiaddon.feature.mining.target.BlockTypeMiningTargetProvider;
+import com.yiyiaddon.feature.mining.target.MiningTargetProvider;
+import com.yiyiaddon.feature.mining.target.SeedMiningTargetProvider;
 import com.yiyiaddon.feature.mining.ui.AutoMinerPage;
 import com.yiyiaddon.feature.mining.vein.MiningVeinMiner;
 import com.yiyiaddon.integration.baritone.BaritoneChatTranslations;
@@ -36,6 +39,7 @@ import com.yiyiaddon.platform.eat.OffhandRationLock;
 import com.yiyiaddon.platform.player.WalkSpeedBoost;
 import com.yiyiaddon.platform.world.WorldContextFormatter;
 import com.yiyiaddon.platform.world.WorldIdentity;
+import com.yiyiaddon.seed.service.SeedMiningService;
 import com.yiyiaddon.ui.page.ModulePage;
 import com.yiyiaddon.ui.render.world.EspGlobalSettings;
 import com.yiyiaddon.ui.render.world.WorldOverlay;
@@ -209,6 +213,18 @@ public final class AutoMinerModule extends Module {
     /** 连锁挖矿：清掉整条连通矿脉（用户 2026-09-17 新增需求，复用秒破的单槽发包通道） */
     private final MiningVeinMiner veinMiner = new MiningVeinMiner(this);
 
+    /**
+     * 普通模式目标提供者（235）：把旧行为（男中音按矿物类型 mine）原样封装。
+     *
+     * <p>它与 {@link #seedTargetProvider} 是「挖掘目标从哪来」的两种实现，由
+     * {@link #miningTargetProvider()} 按设置选择 —— 状态机只跟提供者打交道，
+     * 因此<b>不会</b>到处出现 {@code if (seedMiningEnabled)} 这种散装分支。</p>
+     */
+    private final MiningTargetProvider normalTargetProvider = new BlockTypeMiningTargetProvider(this);
+
+    /** 种子模式目标提供者（235）：从已验证的钻石种子预测里挑精确坐标。 */
+    private final MiningTargetProvider seedTargetProvider = new SeedMiningTargetProvider(this);
+
     /** 最近一次装载点位时所处的世界上下文（{@code server@dimension}） */
     private String storeContext;
 
@@ -234,7 +250,49 @@ public final class AutoMinerModule extends Module {
         soundNotifier.setVolume(1.0f);
         // 修补联动战斗真实现（批次 4）：进入修补时开杀戮光环、离开时只关我们自己开的那一个
         fsm.setRepairCombat(new KillAuraRepairHook());
+        // 235：把「自动挖矿要不要种子预测」的需求挂给种子挖矿运行时。
+        // 种子运行时据此在「显示预测钻石」关着时也继续铺设预测（两个消费者：渲染器 + 自动挖矿）。
+        SeedMiningService.instance().setAutoMiningDemandSource(this::wantsSeedRuntime);
         // 玩家自己敲的服务器指令（用户 2026-09-18 需求）走 subscribedEvents() 声明式订阅，见那里的注释
+    }
+
+    // ── 挖掘目标提供者（235） ────────────────────────────────────────────────
+
+    /**
+     * 当前生效的目标提供者。
+     *
+     * <p><b>只按设置选，不看验证闸门</b>：种子目标模式一旦打开就必须走种子路径，闸门没通过时
+     * 由提供者自己报「不能挖」并让状态机停机（fail-closed）。若在这里再判一次闸门，就会出现
+     * 「闸门一关就悄悄退回按矿物类型扫描」——那是本轮明令禁止的偷偷 fallback。</p>
+     */
+    public MiningTargetProvider miningTargetProvider() {
+        return settings.seedTargetMode ? seedTargetProvider : normalTargetProvider;
+    }
+
+    /** 按当前提供者下发挖掘目标（状态机与连锁收尾共用；普通模式与旧 {@code startMining} 等价）。 */
+    public void issueMiningTargets(boolean broadcast) {
+        miningTargetProvider().issue(broadcast);
+    }
+
+    /** 自愈式重下发（挖不动 / 抖动卡死脱困）：普通模式重发 mine，种子模式换下一颗。 */
+    public void reissueMiningTargets() {
+        miningTargetProvider().reissue();
+    }
+
+    /**
+     * 自动挖矿此刻要不要种子预测（{@link SeedMiningService#setAutoMiningDemandSource} 的判据）。
+     *
+     * <p>只要「种子目标模式」开着且玩家在主世界就持续要 —— 与模块开关<b>无关</b>：模块还没启动、
+     * 或正卡在启动自检（种子尚未验证通过）时，正是这些预测在替验证攒证据。</p>
+     */
+    public boolean wantsSeedRuntime() {
+        if (!settings.seedTargetMode) {
+            return false;
+        }
+        if (mc.level == null || mc.player == null) {
+            return false;
+        }
+        return "minecraft:overworld".equals(WorldIdentity.dimension());
     }
 
     /**
@@ -594,6 +652,16 @@ public final class AutoMinerModule extends Module {
         // 会让状态机拿不到任何目标，在 MINING↔GO_WILD 之间无限空转（不停 RTP）
         if (selectedCount == 1 && getTargetBlocks().isEmpty()) {
             missing.add("§e目标§f·无法解析成方块（请重新选择）");
+        }
+
+        // 种子目标模式（235）：把「为什么现在不能按种子挖」逐条报出来（总开关 / 维度 / 种子 /
+        // 验证闸门 / 目标是不是钻石 / 秒破）。判据与运行期<b>同一个来源</b>
+        // （SeedMiningTargetProvider#notReadyReasonCn），不在这里另写一套，避免两处走散。
+        if (settings.seedTargetMode) {
+            String seedBlockReason = seedTargetProvider.notReadyReasonCn();
+            if (!seedBlockReason.isEmpty()) {
+                missing.add("§b种子目标§f·" + seedBlockReason);
+            }
         }
 
         // 点位绑定检测（旧 :938-943 的三条缺项）

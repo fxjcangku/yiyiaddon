@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p><b>统计的双通道</b>（2026-09-20 改造，目标是「省额度 + 刷得快」）：</p>
  * <ol>
- *   <li><b>心跳通道</b>（世界内，零额外请求）：客户端每 3 秒一次的心跳本来就带身份、位置、延迟上报，
+ *   <li><b>心跳通道</b>（世界内，零额外请求）：客户端每 15 秒一次的心跳本来就带身份、位置、延迟上报，
  *       后端在写库心跳（30 秒一次）时把累计用户数与在线人数一并回带，被节流的心跳读后端内存缓存回带 ——
  *       于是首页的「累计使用人数」与「在线人数」每 30 秒跟一次新，客户端一次 /api/stats 都不用发；</li>
  *   <li><b>轮询通道</b>（主菜单 / 老后端兜底）：{@code /api/stats} 每 {@link #INTERVAL_SECONDS} 秒一次。
@@ -31,13 +31,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class HomeStats {
 
-    /** 轮询通道周期；心跳通道不在供数时（主菜单 / 老后端）才按这个节奏拉统计。 */
-    private static final long INTERVAL_SECONDS = 20L;
     /**
-     * 心跳通道的新鲜窗口：必须大于后端的写库节流周期（30 秒）+ 一次心跳间隔，
-     * 否则世界内会误判「通道没在供数」而恢复轮询。
+     * 轮询通道周期；心跳通道不在供数时（主菜单 / 老后端）才按这个节奏拉统计。
+     *
+     * <p>{@code /api/stats} 是 4 条 D1 查询的重路径，而 Cloudflare Workers 免费额度按请求数算，
+     * 所以挂主菜单时也放慢到 60 秒（原 20 秒 = 4 320 请求/天，纯挂机也在烧额度）。</p>
      */
-    private static final long HEARTBEAT_FRESH_MILLIS = 40_000L;
+    private static final long INTERVAL_SECONDS = 60L;
+    /**
+     * 心跳通道的新鲜窗口：必须大于后端的写库节流周期（30 秒）+ 一次心跳间隔（15 秒），
+     * 否则世界内会误判「通道没在供数」而恢复轮询。45 秒是下限，留 15 秒余量。
+     */
+    private static final long HEARTBEAT_FRESH_MILLIS = 60_000L;
 
     private static final AtomicBoolean STARTED = new AtomicBoolean();
     private static final AtomicBoolean REFRESHING = new AtomicBoolean();

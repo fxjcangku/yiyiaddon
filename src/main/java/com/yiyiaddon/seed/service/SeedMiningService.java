@@ -16,6 +16,10 @@ import com.yiyiaddon.seed.render.SeedRenderSnapshot;
 import com.yiyiaddon.seed.runtime.SeedPredictionCoverageController;
 import com.yiyiaddon.seed.runtime.SeedPredictionRepository;
 import com.yiyiaddon.seed.runtime.SeedRuntimeIdentity;
+import com.yiyiaddon.seed.validation.SeedValidationEvidence;
+import com.yiyiaddon.seed.validation.SeedValidationEvidenceGroup;
+import com.yiyiaddon.seed.validation.SeedValidationService;
+import com.yiyiaddon.seed.validation.SeedValidationSnapshot;
 import com.yiyiaddon.seed.worker.client.SeedWorkerException;
 import com.yiyiaddon.seed.worker.client.SeedWorkerState;
 import com.yiyiaddon.seed.worker.client.SeedWorldgenWorkerClient;
@@ -23,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.BooleanSupplier;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
@@ -63,6 +68,23 @@ import org.slf4j.LoggerFactory;
  *         （绝不主动加载区块、绝不扫全区块），{@link SeedOreWorldRenderer} 只读它的快照。</li>
  * </ol>
  * 三者都<b>不含</b>预测算法本身：预测永远只发生在 Worker 里（口径第七节）。</p>
+ *
+ * <p><b>正式化第六阶段（234）新增的第四条接线</b>：{@link SeedValidationService} —— 种子验证。
+ * 它只消费「预测缓存 + 观察层」，按<b>有效证据单元</b>聚票后给出验证结论
+ * （未验证 / 收集中 / 已验证 / 证据不足 / 与当前模型冲突），并向界面暴露只读快照。
+ * 服务层在这里只负责三件事（口径第七十二节）：建立身份时 {@code bind}、
+ * 观察变更时 {@code update}、运行时失效时 {@code reset}；
+ * 验证阈值与判据全部在 {@code seed.validation} 包里，<b>不</b>塞进本类。</p>
+ *
+ * <p><b>正式化第七阶段（235）</b>：自动挖矿成为种子预测的<b>第二个消费者</b>。因此本阶段把
+ * 「世界渲染」从「运行时是否工作」里拆出来（口径：Renderer 与 Coverage 解耦）——</p>
+ * <pre>
+ * Seed Runtime / Coverage
+ * ├── Renderer consumer（「显示预测钻石」开关，只决定画不画框）
+ * └── AutoMiner consumer（{@code MiningSettings#seedTargetMode}，决定要不要一直预测下去）
+ * </pre>
+ * 只有<b>「启用种子挖矿」总开关关闭 / 退世界 / 换维度 / 改种子</b>才真的停止整个运行时；
+ * 关掉「显示预测钻石」只是不画框，<b>不再</b>清预测缓存、覆盖队列与观察状态。</p>
  *
  * <p><b>线程模型</b>：公开方法都在客户端主线程调用；真正的「启动 Worker + 会话 + 预测」在单线程
  * 背景 Executor（{@code yiyiaddon-seed-predict}）上执行，结果通过 {@code Minecraft#execute} 回投主线程，
@@ -130,6 +152,15 @@ public final class SeedMiningService {
     private final SeedOreObservationTracker observer = SeedOreObservationTracker.instance();
 
     /**
+     * 种子验证服务（正式化第六阶段 234）。
+     *
+     * <p>它<b>只消费</b>「预测缓存 + 观察层」两样东西（口径第五十八节），
+     * 负责把观察样本聚成有效证据单元、按正式阈值给出验证结论，并向界面暴露只读快照。
+     * 服务层只做「谁在什么时候驱动它、失效时清它」这点接线（口径第七十二节）。</p>
+     */
+    private final SeedValidationService validation = new SeedValidationService();
+
+    /**
      * 渲染层此刻是否可见（volatile：客户端主线程写、渲染线程每帧读）。
      *
      * <p>它是渲染器的第一道闸；第二道是「渲染层本身有没有注册」。两道都在
@@ -168,6 +199,17 @@ public final class SeedMiningService {
 
     /** 当前运行时身份；{@code null} = 不成立（此时不预测、不观察、不渲染）。 */
     private volatile SeedRuntimeIdentity identity;
+
+    /**
+     * <b>自动挖矿（235）对种子预测的需求源</b>。
+     *
+     * <p>由自动挖矿模块在构造时挂上（{@link #setAutoMiningDemandSource}）：它回答
+     * 「自动挖矿现在需不需要种子目标」。只要为真，即使「显示预测钻石」关着，覆盖调度也照常跑
+     * —— 这正是本轮要的「两个消费者」语义：渲染器关掉只影响画框，不影响自动挖矿用的预测缓存。</p>
+     *
+     * <p>默认无需求（没有自动挖矿模块的构建里，行为与 233/234 完全一致）。</p>
+     */
+    private volatile BooleanSupplier autoMiningDemand = () -> false;
 
     /** 是否有一个预测在后台跑（含 Worker 正在启动、结果还没回来的窗口）。 */
     private volatile boolean predicting;
@@ -332,8 +374,9 @@ public final class SeedMiningService {
     /**
      * 设置「显示预测钻石」。
      *
-     * <p>它不是单纯的显示开关，而是<b>覆盖调度的开关</b>（口径第十八节）：打开后附近区块才会被
-     * 逐个送进 Worker，关掉则整条链停止、世界里不留任何预测框（口径第四十节同一口径）。</p>
+     * <p><b>235 起它只是渲染开关</b>（口径：Renderer 与 Coverage 解耦）：关掉时只注销渲染层、
+     * 清渲染快照（世界里一个框都不留），<b>不</b>再清预测缓存 / 覆盖队列 / 观察状态 ——
+     * 自动挖矿可能正拿着这些预测在挖矿。整个运行时只在「启用种子挖矿」关闭或身份失效时停止。</p>
      */
     public void setRenderPrediction(boolean value) {
         if (config.renderPrediction() == value) {
@@ -342,9 +385,8 @@ public final class SeedMiningService {
         config.renderPrediction(value);
         persist();
         LOGGER.info("{}：显示预测钻石改为 {}", LOG_KEY, value ? "开" : "关");
-        if (!value) {
-            invalidateRuntime("已关闭显示预测钻石");
-        }
+        // 立刻生效（渲染线程每帧读 volatile renderActive），下一 tick 的 syncRuntime 再收敛其余状态
+        applyRendererAttachment();
         refreshState();
     }
 
@@ -446,6 +488,16 @@ public final class SeedMiningService {
         return coverage.pendingCount();
     }
 
+    /**
+     * 覆盖调度是否还会产出新的预测（235：自动挖矿用它区分「再等等」与「这片区域没有目标了」）。
+     *
+     * <p>{@code true} = 还有区块在排队或正在 Worker 上跑；{@code false} = 当前覆盖方框已经收敛
+     * （全部出结果，或剩下的都在失败态不再重试）。</p>
+     */
+    public boolean coverageStillWorking() {
+        return coverage.pendingCount() > 0 || coverage.activeChunk() != null;
+    }
+
     /** 正在 Worker 上预测的目标区块显示文本（空闲为「—」）。 */
     public String coverageActiveChunkCn() {
         return coverage.activeChunkCn();
@@ -460,7 +512,7 @@ public final class SeedMiningService {
     /** 预测缓存 + 覆盖调度的一行诊断（日志用）。 */
     public String runtimeDiagnosticsCn() {
         return repository.describeCn() + "；" + coverage.describeCn() + "；观察 " + observer.describeCn()
-                + "；渲染 " + renderer.snapshot().describeCn();
+                + "；渲染 " + renderer.snapshot().describeCn() + "；" + validation.describeCn();
     }
 
     /** 渲染快照重建次数（开发诊断 / 性能记录用）。 */
@@ -477,6 +529,122 @@ public final class SeedMiningService {
      */
     public long snapshotBuildTotalNanos() {
         return snapshotBuildTotalNanos;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 读数：种子验证（正式化第六阶段 234）
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 种子验证快照（界面唯一读数入口，口径第七十三节）。
+     *
+     * <p>界面<b>不得</b>自己计算验证逻辑，只读这份不可变读数。</p>
+     */
+    public SeedValidationSnapshot validationSnapshot() {
+        return validation.snapshot();
+    }
+
+    /**
+     * <b>未来 AutoMiner 的唯一正式安全门</b>（口径第十节）。
+     *
+     * <p>只有验证状态为「已验证」才返回 {@code true}；其余状态一律 {@code false}。
+     * 本阶段<b>不接</b> AutoMiner（口径第五十九节），本方法只是把门先定义好，供 235 消费。</p>
+     */
+    public boolean mayUseForAutomatedMining() {
+        return validation.mayUseForAutomatedMining();
+    }
+
+    /**
+     * 「重新开始验证」（口径第四十一节）：清空当前 runtime 验证证据并从此刻重新收集。
+     *
+     * <p>它只作用于验证层：不清预测缓存、不清观察层、不改种子、不碰世界。
+     * 由于验证证据必须来自观察样本，清空后需要产生<b>新的</b>观察才会重新累积证据
+     * （重新加载区块或发生方块更新）。</p>
+     *
+     * @return 被清掉的证据条数
+     */
+    public int restartValidation() {
+        return validation.restart();
+    }
+
+    /** 种子验证的一行诊断（日志 / 报告用）。 */
+    public String validationDiagnosticsCn() {
+        return validation.describeCn();
+    }
+
+    /**
+     * 当前验证证据清单（<b>开发诊断 / 回归装置取证据用</b>；正式界面不显示它）。
+     *
+     * <p>回归装置需要逐条读到「位置 / 目标区块 / 确定性 / 来源 / 写入者 / 观察状态 / 实际方块 /
+     * 首次与最近观察时间」这些字段（口径第二十七节要求逐项输出），因此这里按只读副本暴露；
+     * 界面侧仍然只读 {@link #validationSnapshot()}。</p>
+     */
+    public java.util.List<SeedValidationEvidence> validationEvidence() {
+        return validation.evidenceList();
+    }
+
+    /** 当前有效证据单元清单（开发诊断 / 回归装置用）。 */
+    public java.util.List<SeedValidationEvidenceGroup> validationGroups() {
+        return validation.groups();
+    }
+
+    /**
+     * 逐单元诊断明细（<b>dev-only</b>；口径第十三节要求把每个已确认单元的 provenance 与全部成员坐标
+     * 打印成一组，便于事后追溯「N 个单元究竟来自几次世界生成事件」）。
+     */
+    public java.util.List<String> validationUnitDiagnostics(boolean confirmedOnly) {
+        return validation.unitDiagnosticsCn(confirmedOnly);
+    }
+
+    /**
+     * 预测缓存里的全部正式结果（<b>开发诊断 / 回归装置取证据用</b>）。
+     *
+     * <p>回归装置要逐字段输出某个候选的完整记录（确定性 / 来源 / 写入者 / 冲突写入者），
+     * 那些字段只在 {@code PredictedOre} 上，因此这里按只读副本暴露；正式界面不读它。</p>
+     */
+    public java.util.Collection<PredictionResult> cachedPredictions() {
+        return repository.results();
+    }
+
+    /** 硬冲突判据的可用性说明（报告用；当前必为「不可达」）。 */
+    public String validationConflictAvailabilityCn() {
+        return validation.conflictAvailabilityCn();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 读数：自动挖矿接入（正式化第七阶段 235）
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * 挂上「自动挖矿需不需要种子预测」的需求源（235）。
+     *
+     * <p>只有一个消费者会调用它（自动挖矿模块），因此不需要多播：本类只关心「有没有人在用」。
+     * 传 {@code null} 等价于撤销需求源（回到「没有自动挖矿消费者」的 233/234 行为）。</p>
+     */
+    public void setAutoMiningDemandSource(BooleanSupplier source) {
+        this.autoMiningDemand = source == null ? () -> false : source;
+        refreshState();
+    }
+
+    /**
+     * 当前运行时身份；未建立（未启用 / 未进世界 / 种子不合法 / 非主世界 / 已失效）返回 {@code null}。
+     *
+     * <p>235 的自动挖矿目标提供者用它做生命周期判据：身份对象一变（改种子 / 换服 / 换维度 / 退世界
+     * 都会在 {@link #invalidateRuntime(String)} 里换号并重建），旧选出来的目标必须<b>立刻</b>作废。</p>
+     */
+    public SeedRuntimeIdentity runtimeIdentity() {
+        return identity;
+    }
+
+    /**
+     * 自动挖矿消费者此刻是否在要预测（内部判据；需求源抛异常一律按「不要」处理，绝不拖垮主循环）。
+     */
+    private boolean autoMiningConsumerDemand() {
+        try {
+            return autoMiningDemand.getAsBoolean();
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -808,6 +976,9 @@ public final class SeedMiningService {
         // 观察这一维变了（区块加载 / 卸载 / 候选方块被更新）→ 标脏，本刻末统一重建一次快照
         if (observer.revision() != observedObserverRevision) {
             observedObserverRevision = observer.revision();
+            // 234：验证只消费「预测 + 观察」，因此与渲染快照共用同一个「观察变了」的触发点，
+            // 既不多跑一次 O(候选数) 的活，也不会漏掉任何一次新观察（口径第七十四节）
+            validation.update(repository.results(), observer);
             renderer.markDirty();
         }
         if (renderer.dirty()) {
@@ -900,13 +1071,17 @@ public final class SeedMiningService {
     /**
      * 同步运行时身份与渲染开关（每刻一次，全部是 O(1) 判断）。
      *
-     * <p>覆盖是否工作的六个条件（口径第十八节）：种子挖矿已启用 + 已进入世界 + 种子合法 +
-     * 维度为主世界 + 「显示预测钻石」已开 + 身份可建立。任一不满足：不提交任何预测，
-     * 并让已经建立的身份整体失效。</p>
+     * <p>覆盖是否工作的条件（235 起为七个）：种子挖矿已启用 + 已进入世界 + 种子合法 +
+     * 维度为主世界 + <b>至少有一个消费者</b>（「显示预测钻石」打开，或自动挖矿在要种子目标）。
+     * 任一不满足：不提交任何预测，并让已经建立的身份整体失效。</p>
+     *
+     * <p>注意最后一条是<b>或</b>关系：自动挖矿要目标时，即使「显示预测钻石」关着，
+     * 预测缓存 / 覆盖队列 / 观察状态也必须照常运转（Renderer 与 Coverage 解耦，235）。</p>
      */
     private void syncRuntime() {
-        boolean want = config.enabled() && config.renderPrediction() && worldReady && parsedSeed != null
-                && dimensionSupported() && levelRef instanceof ClientLevel;
+        boolean wantsPrediction = config.renderPrediction() || autoMiningConsumerDemand();
+        boolean want = config.enabled() && worldReady && parsedSeed != null
+                && dimensionSupported() && levelRef instanceof ClientLevel && wantsPrediction;
         if (!want) {
             if (identity != null || renderer.attached()) {
                 invalidateRuntime(config.enabled() ? "覆盖条件不满足" : "功能关闭");
@@ -921,17 +1096,42 @@ public final class SeedMiningService {
             identity = created;
             repository.bind(created);
             observer.bind(level);
-            renderer.attach();
+            validation.bind(created);
             coverage.setRadius(config.coverageRadius());
-            LOGGER.info("{}：运行时身份已建立（{}），预测缓存与渲染层已就绪", LOG_KEY, created.describeCn());
+            LOGGER.info("{}：运行时身份已建立（{}），预测缓存与观察层已就绪（渲染层按开关单独挂载）",
+                    LOG_KEY, created.describeCn());
         }
         coverage.setRadius(config.coverageRadius());
+        // 渲染层单独挂载：ESP 关着时运行时照常跑（自动挖矿是另一个消费者）
+        applyRendererAttachment();
         syncRendererFlags();
     }
 
-    /** 把渲染可见性 / 显示缺失两个开关同步到渲染线程可读的 volatile 镜像。 */
+    /**
+     * 按「显示预测钻石」开关挂载 / 注销世界渲染层（235）。
+     *
+     * <p><b>它只碰渲染</b>：不触碰预测缓存、覆盖队列、观察状态、验证证据。关掉时靠
+     * {@link SeedOreWorldRenderer#detach()} 的「注销 + 清快照」双保险保证世界里一个框都不留；
+     * 重新打开时重新挂载并从现有缓存重建快照（世界下一刻就能看到正在挖的那些预测）。</p>
+     */
+    private void applyRendererAttachment() {
+        boolean visible = identity != null && config.enabled() && config.renderPrediction();
+        renderActive = visible;
+        if (visible) {
+            if (!renderer.attached()) {
+                renderer.attach();
+                // 刚挂上必须重建一次快照：detach 时快照已清空，而观察层此后可能一直没变化，
+                // 不标脏的话世界里会一直空着。**只在挂载这一刻标脏** —— 每刻标脏等于每刻重建
+                // O(候选数) 的快照，那是本阶段明令避免的常态开销
+                renderer.markDirty();
+            }
+        } else if (renderer.attached()) {
+            renderer.detach();
+        }
+    }
+
+    /** 把「显示当前缺失」开关同步到渲染线程可读的 volatile 镜像。 */
     private void syncRendererFlags() {
-        renderActive = identity != null && config.renderPrediction() && config.enabled();
         showMissingMirror = config.showMissing();
     }
 
@@ -950,10 +1150,13 @@ public final class SeedMiningService {
         coverage.reset();
         repository.reset();
         observer.unbind();
+        // 234：验证证据与结论同样绑在运行时身份上（口径第十九、四十七~五十节）：
+        // 改种子 / 换服 / 换维度 / 退世界 / 关功能 一律清空，绝不把上一次会话的验证带过来
+        validation.reset(reason);
         renderer.detach();
         renderActive = false;
         if (hadSomething) {
-            LOGGER.info("{}：运行时已失效（原因：{}）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照全部清空",
+            LOGGER.info("{}：运行时已失效（原因：{}）—— 预测缓存 / 覆盖队列 / 观察状态 / 渲染快照 / 种子验证全部清空",
                     LOG_KEY, reason);
         }
     }
@@ -963,9 +1166,15 @@ public final class SeedMiningService {
      *
      * <p>单执行位 + 有限排队都在覆盖调度器内部保证（口径第二十一节）；计算器处于失败态时不提交，
      * 避免在坏掉的进程上反复排队。</p>
+     *
+     * <p>235：触发条件与 {@link #syncRuntime()} 同源 —— 「显示预测钻石」开着<b>或</b>自动挖矿在要
+     * 种子目标。因此关掉 ESP 后，自动挖矿需要的预测仍在持续铺开。</p>
      */
     private void driveCoverage() {
-        if (identity == null || !config.renderPrediction()) {
+        if (identity == null) {
+            return;
+        }
+        if (!config.renderPrediction() && !autoMiningConsumerDemand()) {
             return;
         }
         Minecraft client = Minecraft.getInstance();
