@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="展示资源/yiyiaddon-1.0-beta4-cover.gif" width="1120" alt="yiyiaddon 1.0-beta5 动态概念封面：星露谷农场、自动钓鱼与种子自动挖矿从 3D 场景过渡为 2D 功能总览。">
+  <img src="展示资源/yiyiaddon-1.0-beta6-cover.gif" width="1120" alt="yiyiaddon 1.0-beta6 动态概念封面：星露谷农场、自动钓鱼与种子自动挖矿从 3D 场景过渡为 2D 功能总览。">
 </p>
 
 <p align="center">
@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta5"><strong>下载 1.0-beta5</strong></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta6"><strong>下载 1.0-beta6</strong></a>
   · <a href="#核心系统">核心系统</a>
   · <a href="#安装">安装</a>
   · <a href="https://github.com/fxjcangku/yiyiaddon/issues">反馈问题</a>
@@ -31,7 +31,7 @@
 | 开始使用 | 深入了解 | 更新与反馈 |
 | :--- | :--- | :--- |
 | [安装指南](安装指南.md) | [功能指南](功能指南.md) | [更新日志](更新日志.md) |
-| [常见问题](常见问题.md) | [静态功能概览](展示资源/yiyiaddon-1.0-beta4-cover-2d.png) | [提交问题](https://github.com/fxjcangku/yiyiaddon/issues/new?template=bug_report.md) |
+| [常见问题](常见问题.md) | [静态功能概览](展示资源/yiyiaddon-1.0-beta6-cover-2d.png) | [提交问题](https://github.com/fxjcangku/yiyiaddon/issues/new?template=bug_report.md) |
 
 使用服务器功能前，请阅读[服务器使用注意](服务器使用注意.md)，确认服规、管理员许可与自动化边界。
 
@@ -104,14 +104,16 @@ IP 与网络地区由客户端在本机查询后直接展示，不写入 yiyiadd
 | Java | **25** |
 | 系统 | 当前发布包提供 Windows x64 / ARM64 原生组件 |
 
-1. 打开 [Releases](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta5)，下载文件名末尾与你游戏版本一致的 ZIP。
+1. 打开 [Releases](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta6)，下载文件名末尾与你游戏版本一致的 ZIP。
 2. 解压 ZIP，把里面的 yiyiaddon JAR 与对应版本 Fabric API 一起放进实例的 `mods`。
 3. 不要把 ZIP 直接放入 `mods`，也不要额外安装 Baritone；寻路组件已经随包提供。
 4. 第一次运行建议使用独立实例，并先备份存档与配置。
 
 ## 版本状态
 
-**1.0-beta5 · 公开测试版**
+**1.0-beta6 · 公开测试版**
+
+本版重写液态玻璃界面，提供完整面板与分类下拉、并排使用说明和鼠标点位设置，同时更新村民交易、星露谷钓鱼、配置分享与账号状态。完整变更见[版本发布页](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta6)。
 
 发布包会分别执行源码构建、混淆产物校验和独立客户端启动测试。通过这些门禁表示安装包能够正常加载，不代表每个服务器、每个模块组合都已完成长期实机验证。
 
