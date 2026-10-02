@@ -1,0 +1,183 @@
+{
+  "assets": [
+    {
+      "jar_sha256": "c019d6078592600521cbc366fb4368e9b385043c205f429befbf9d47b4dfa3f8",
+      "name": "yiyiaddon-1.0-beta6-26.1.2.zip",
+      "parts": [
+        {
+          "name": "part000",
+          "sha256": "4df96ef868b533fb739b621fb11b4409012e218c65cdf252cadb83b731865263",
+          "size": 4194304
+        },
+        {
+          "name": "part001",
+          "sha256": "55555311c08ecff78634196510ab5e6894b92e81f72e125406189152d9723548",
+          "size": 4194304
+        },
+        {
+          "name": "part002",
+          "sha256": "31da1a54163c8bdb547a377f1915355f3723fb57d631a0d73215c62895f53e41",
+          "size": 4194304
+        },
+        {
+          "name": "part003",
+          "sha256": "08c87346cdbb9830b7611d60380b853fd8f2a3c9b2e5ff991c4f66a4e4963a92",
+          "size": 4194304
+        },
+        {
+          "name": "part004",
+          "sha256": "22ad55091404d26a7043021c1f7fdb8f56ea3604a71c588036e78091d7e0d19a",
+          "size": 4194304
+        },
+        {
+          "name": "part005",
+          "sha256": "11bd50f64c5c5bce033fd195f40728e6b9999db88c500a0e8538aaa6dde0630e",
+          "size": 4194304
+        },
+        {
+          "name": "part006",
+          "sha256": "f213f4abf41b3ccf136faf6990bdddbbef9d778570d682442ab8fb9b1fedc1c3",
+          "size": 4194304
+        },
+        {
+          "name": "part007",
+          "sha256": "18d746e2eb8d678eddeeeafaa4c0bc18d5d76c562980d0fdcfe6f32e4c420458",
+          "size": 4194304
+        },
+        {
+          "name": "part008",
+          "sha256": "12233161ac0881e61fb525990640d19ec1efc795fae9d36b17ffcf375a514c38",
+          "size": 4194304
+        },
+        {
+          "name": "part009",
+          "sha256": "0b694a5b82abadf1cee56675a211a5ae46e2724b74479b79bd10be346bfe1310",
+          "size": 4194304
+        },
+        {
+          "name": "part010",
+          "sha256": "85cfe19d0b9519ee2b6ef7d718725017dfbd4329667d3d2e24eb6d7949ebfcd0",
+          "size": 4194304
+        },
+        {
+          "name": "part011",
+          "sha256": "3e033823f7bf52b525f67b48e8c57a83be89238e03b2063a60cb5a693be4c1e1",
+          "size": 4194304
+        },
+        {
+          "name": "part012",
+          "sha256": "7b0040dee5767327c41bf14790a44539b1aa1b491a703fbf47321c52e6f41a36",
+          "size": 4194304
+        },
+        {
+          "name": "part013",
+          "sha256": "d764414d71654b5cf0ad65e4385f2701190bf30a4b07431fe9366ad8d7a5fc2c",
+          "size": 4194304
+        },
+        {
+          "name": "part014",
+          "sha256": "1ecbbef5e9d5b0f99dfbedae99d36246fdf0836de15c2c1c36fae6583a379651",
+          "size": 4194304
+        },
+        {
+          "name": "part015",
+          "sha256": "c70c648e5ee0be8d5202a8e96e36d822e809dfd54d4827e90b4579d1277e24df",
+          "size": 2353001
+        }
+      ],
+      "sha256": "05b5aa74888cf561ceb9f6348cc38fc9f1ef94fce593233b26f2fc0f3832f1f5",
+      "size": 65267561
+    },
+    {
+      "jar_sha256": "9a91107de271545ef300329e311f0fa8150dd58da7c4fc6d972b3c3d13333990",
+      "name": "yiyiaddon-1.0-beta6-26.2.zip",
+      "parts": [
+        {
+          "name": "part000",
+          "sha256": "d59295bfb6851626acc1ae767e539a815843675abae0948844eb37cb23aa125a",
+          "size": 4194304
+        },
+        {
+          "name": "part001",
+          "sha256": "d58eee617bc7cbb221c7d9f83f6065a6fb0c5bdef76bac89abd4721930dc8c02",
+          "size": 4194304
+        },
+        {
+          "name": "part002",
+          "sha256": "7677c421e73f208d6084342bc35532aa54698a9354fb7a71e5615cbb0ab33e16",
+          "size": 4194304
+        },
+        {
+          "name": "part003",
+          "sha256": "b359a4b467c3d40dcf8a64d0842b116c7fe08aa8acddd0d0f7557110599ba876",
+          "size": 4194304
+        },
+        {
+          "name": "part004",
+          "sha256": "7cc14bed61c9f4cf4db3092d5967de114ce899feb2271cf1a525073240a4a4fa",
+          "size": 4194304
+        },
+        {
+          "name": "part005",
+          "sha256": "536cb79cdee0846b4c85e79a144e543f51dda0dfea501ae49c23c84067b2efa0",
+          "size": 4194304
+        },
+        {
+          "name": "part006",
+          "sha256": "c23bf5b7f7f83c5bde294ec13b24c1095123b4d0c9177f868b669b2da8338bed",
+          "size": 4194304
+        },
+        {
+          "name": "part007",
+          "sha256": "35a9855fb9bd1fc29df9894e74a09a09bcf9b03f64fec8247a46e6a3bda388de",
+          "size": 4194304
+        },
+        {
+          "name": "part008",
+          "sha256": "53ae45ec18690e395ea7b14ac18e1360d041deb450d52081597e2dc67901c968",
+          "size": 4194304
+        },
+        {
+          "name": "part009",
+          "sha256": "67640522e57d7940e2b67a86437c7a02f7545ff4a954897062d8695551daa376",
+          "size": 4194304
+        },
+        {
+          "name": "part010",
+          "sha256": "9726f639f2e758c851a027bb89607fc590ad749f07a06d25cfcf8efd457a41b0",
+          "size": 4194304
+        },
+        {
+          "name": "part011",
+          "sha256": "88cece468e95676823a09463e990a68cad4b9416209afd8b88acbf0a1e1ae24f",
+          "size": 4194304
+        },
+        {
+          "name": "part012",
+          "sha256": "e085da4b12f11b5004012d0eb184942e3cc64cde26b0a77e41550676dbf6176e",
+          "size": 4194304
+        },
+        {
+          "name": "part013",
+          "sha256": "dd6b60eaf1bfe5a6f4f910644478124d7a023fb1af96a55790bc1a7566ec4072",
+          "size": 4194304
+        },
+        {
+          "name": "part014",
+          "sha256": "36d74db66c3e8eee88a4c7dd8a552c6f962747c22e6c8aa31768d2e9cfcc8f51",
+          "size": 4194304
+        },
+        {
+          "name": "part015",
+          "sha256": "2087093e2e5e175f8b31471bd4d3e09ddf5e5b2fc1bbb5e6cb3db03b8c5fd9f7",
+          "size": 2361410
+        }
+      ],
+      "sha256": "1e64980056b98e84fa5536cd7bb8195b0886bb265d614b8472ab8674d1981a5d",
+      "size": 65275970
+    }
+  ],
+  "repository": "fxjcangku/yiyiaddon",
+  "schema": 1,
+  "tag": "v1.0-beta6"
+}

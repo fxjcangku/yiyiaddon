@@ -1,0 +1,151 @@
+name: 原样发布已验收的 beta6 双版本附件
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage_commit:
+        description: 已核验分段和发行清单所在的完整公开提交摘要
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-verified-v1.0-beta6
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    if: >-
+      github.repository == 'fxjcangku/yiyiaddon' &&
+      github.event.repository.private == false &&
+      github.actor == 'fxjcangku' &&
+      github.ref == 'refs/heads/master' &&
+      github.sha == inputs.stage_commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: 检出固定公开提交的已验收分段
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.stage_commit }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            /发布附件/**
+          sparse-checkout-cone-mode: false
+
+      - name: 完整重组、核对后原样覆盖附件并下载复核
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_HOST: github.com
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, subprocess, tempfile, zipfile
+          from pathlib import Path
+
+          REPO = 'fxjcangku/yiyiaddon'
+          TAG = 'v1.0-beta6'
+          OLD = {'yiyiaddon-1.0-beta6-26.1.2.zip': {'sha256': 'be3f74823dc6a1b73dbdda2c297c5ae0ea25329a9b03cc66ad08fb4630a3ff61', 'size': 65258737}, 'yiyiaddon-1.0-beta6-26.2.zip': {'sha256': 'a11dc2f5f494d76a2f2462dfef42ebdd151c31414cc960cbff8f183fa80200f7', 'size': 65266313}}
+          ROOT = Path('发布附件')
+          WORK = Path(os.environ['RUNNER_TEMP']) / 'yiyi-verified-zip'
+          WORK.mkdir()
+
+          def sha(path):
+              result = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b''):
+                      result.update(block)
+              return result.hexdigest()
+
+          def command(args):
+              result = subprocess.run(args, capture_output=True, check=False)
+              if result.returncode:
+                  raise SystemExit('GitHub 原生发行命令失败；未输出认证信息或原始响应')
+              return result.stdout
+
+          def release():
+              value = json.loads(command(['gh', 'api', '--hostname', 'github.com',
+                                          'repos/' + REPO + '/releases/tags/' + TAG]))
+              if value.get('tag_name') != TAG:
+                  raise SystemExit('发行标签不匹配')
+              return value
+
+          def verify_zip(path, item):
+              if path.stat().st_size != item['size'] or sha(path) != item['sha256']:
+                  raise SystemExit('完整 ZIP 大小或 SHA256 不匹配：' + item['name'])
+              with zipfile.ZipFile(path) as archive:
+                  expected = item['name'][:-4] + '.jar'
+                  if archive.namelist() != [expected] or archive.infolist()[0].is_dir() \
+                          or archive.infolist()[0].flag_bits & 1 or archive.testzip() is not None:
+                      raise SystemExit('ZIP 条目或 CRC 不匹配：' + item['name'])
+                  result = hashlib.sha256()
+                  with archive.open(expected) as stream:
+                      for block in iter(lambda: stream.read(1024 * 1024), b''):
+                          result.update(block)
+                  if result.hexdigest() != item['jar_sha256']:
+                      raise SystemExit('原样 JAR 摘要不匹配')
+
+          def accepted_asset(value, item):
+              matches = [asset for asset in value['assets'] if asset['name'] == item['name']]
+              if len(matches) != 1 or matches[0].get('state') != 'uploaded':
+                  raise SystemExit('目标旧附件缺失、重复或尚未上传完成：' + item['name'])
+              asset = matches[0]
+              new = asset.get('digest') == 'sha256:' + item['sha256'] and asset.get('size') == item['size']
+              old = asset.get('digest') == 'sha256:' + OLD[item['name']]['sha256'] \
+                  and asset.get('size') == OLD[item['name']]['size']
+              if not (new or old):
+                  raise SystemExit('远端附件不是预期旧版或本次新版，拒绝覆盖：' + item['name'])
+              return new
+
+          manifest = json.loads((ROOT / '.yiyi-verified-assets.json').read_text(encoding='utf-8'))
+          if manifest.get('schema') != 1 or manifest.get('repository') != REPO or manifest.get('tag') != TAG \
+                  or [item.get('name') for item in manifest.get('assets', [])] != list(OLD):
+              raise SystemExit('发行清单不匹配固定目标')
+
+          # 两个完整 ZIP 的 SHA/JAR/CRC 全部通过之后才有任何发行覆盖动作。
+          for item in manifest['assets']:
+              part_dir = ROOT / (item['name'] + '.parts')
+              expected_names = ['part%03d' % index for index in range(len(item['parts']))]
+              if not expected_names or len(expected_names) > 1000 \
+                      or [part.get('name') for part in item['parts']] != expected_names \
+                      or sorted(path.name for path in part_dir.iterdir()) != expected_names:
+                  raise SystemExit('分段不完整或存在额外文件')
+              path = WORK / item['name']
+              with path.open('wb') as output:
+                  for index, part in enumerate(item['parts']):
+                      source = part_dir / part['name']
+                      if not source.is_file() or source.is_symlink() or source.stat().st_size != part['size'] \
+                              or sha(source) != part['sha256'] or not 0 < part['size'] <= 4194304 \
+                              or (index < len(item['parts']) - 1 and part['size'] != 4194304):
+                          raise SystemExit('分段内容不匹配')
+                      with source.open('rb') as stream:
+                          for block in iter(lambda: stream.read(1024 * 1024), b''):
+                              output.write(block)
+              verify_zip(path, item)
+
+          before = release()
+          for item in manifest['assets']:
+              accepted_asset(before, item)
+          for item in manifest['assets']:
+              current = release()
+              # 每次覆盖前重新核对两份资产；允许已成功替换一份后的安全重试。
+              states = {entry['name']: accepted_asset(current, entry) for entry in manifest['assets']}
+              if not states[item['name']]:
+                  command(['gh', 'release', 'upload', TAG, str(WORK / item['name']),
+                           '--repo', 'github.com/' + REPO, '--clobber'])
+
+          after = release()
+          for item in manifest['assets']:
+              if not accepted_asset(after, item):
+                  raise SystemExit('覆盖后附件仍然是旧版本')
+              with tempfile.TemporaryDirectory(prefix='yiyi-download-', dir=os.environ['RUNNER_TEMP']) as directory:
+                  command(['gh', 'release', 'download', TAG, '--repo', 'github.com/' + REPO,
+                           '--pattern', item['name'], '--dir', directory])
+                  verify_zip(Path(directory) / item['name'], item)
+          print(json.dumps([{'name': item['name'], 'size': item['size'], 'digest': 'sha256:' + item['sha256']}
+                            for item in manifest['assets']], ensure_ascii=False))
+          PY
