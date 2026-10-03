@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="展示资源/yiyiaddon-1.0-beta6-cover.gif" width="1120" alt="yiyiaddon 1.0-beta6 动态概念封面：星露谷农场、自动钓鱼与种子自动挖矿从 3D 场景过渡为 2D 功能总览。">
+  <img src="展示资源/yiyiaddon-1.0-beta7-cover.gif" width="1120" alt="yiyiaddon 1.0-beta7 动态概念封面：星露谷农场、自动钓鱼与种子自动挖矿从 3D 场景过渡为 2D 功能总览。">
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@
 | 开始使用 | 深入了解 | 更新与反馈 |
 | :--- | :--- | :--- |
 | [安装指南](安装指南.md) | [功能指南](功能指南.md) | [更新日志](更新日志.md) |
-| [常见问题](常见问题.md) | [静态功能概览](展示资源/yiyiaddon-1.0-beta6-cover-2d.png) | [提交问题](https://github.com/fxjcangku/yiyiaddon/issues/new?template=bug_report.md) |
+| [常见问题](常见问题.md) | [静态功能概览](展示资源/yiyiaddon-1.0-beta7-cover-2d.png) | [提交问题](https://github.com/fxjcangku/yiyiaddon/issues/new?template=bug_report.md) |
 
 使用服务器功能前，请阅读[服务器使用注意](服务器使用注意.md)，确认服规、管理员许可与自动化边界。
 
