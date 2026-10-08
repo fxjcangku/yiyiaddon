@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="展示资源/液态玻璃介绍-20261008/首页封面.svg" width="1200" alt="yiyiaddon：独立 Fabric 客户端模组，农场、钓鱼、挖矿与日常后勤；右侧为界面概念示意。">
+  <img src="展示资源/yiyiaddon-1.0-beta8-cover.gif" width="1120" alt="yiyiaddon 1.0-beta8 动态概念封面：星露谷农场、自动钓鱼与种子自动挖矿从 3D 场景过渡为 2D 功能总览。">
 </p>
 
 <p align="center">
@@ -168,4 +168,4 @@
 
 ---
 
-<sub>封面为原创界面概念示意；标注「实机」的图片来自实际客户端。Minecraft 是 Mojang Synergies AB 的商标，本项目与 Mojang 或 Microsoft 无关联。</sub>
+<sub>顶部动图为功能概念示意；标注「实机」的图片来自实际客户端。Minecraft 是 Mojang Synergies AB 的商标，本项目与 Mojang 或 Microsoft 无关联。</sub>
