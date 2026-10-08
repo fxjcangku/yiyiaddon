@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">yiyiaddon：自动化，留在后台。</title>
+  <desc id="desc">独立 Fabric 客户端模组，适用于 Minecraft 26.1.2 与 26.2。原创液态玻璃品牌插画，右侧为灵动岛与钓鱼模块的界面概念示意，并非游戏截图。</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1200" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171D21"/>
+      <stop offset=".55" stop-color="#11181B"/>
+      <stop offset="1" stop-color="#1B222B"/>
+    </linearGradient>
+    <radialGradient id="mintLight" cx="0" cy="0" r="1" gradientTransform="translate(930 205) rotate(142) scale(405 295)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9CDBCA" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#9CDBCA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violetLight" cx="0" cy="0" r="1" gradientTransform="translate(1110 487) rotate(-135) scale(385 237)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C4B6F3" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#C4B6F3" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="708" y1="148" x2="1068" y2="426" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EBF7F0" stop-opacity=".16"/>
+      <stop offset=".47" stop-color="#DCEDF0" stop-opacity=".07"/>
+      <stop offset="1" stop-color="#CED3ED" stop-opacity=".14"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="713" y1="158" x2="1054" y2="422" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3FFF8" stop-opacity=".65"/>
+      <stop offset=".33" stop-color="#D1E5DC" stop-opacity=".12"/>
+      <stop offset=".77" stop-color="#DBD8EE" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#EAE8F8" stop-opacity=".45"/>
+    </linearGradient>
+    <linearGradient id="capsule" x1="773" y1="73" x2="1040" y2="143" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DDEDE5" stop-opacity=".21"/>
+      <stop offset="1" stop-color="#C7D4D4" stop-opacity=".09"/>
+    </linearGradient>
+    <linearGradient id="mintTop" x1="717" y1="344" x2="901" y2="418" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CEE3D3"/>
+      <stop offset="1" stop-color="#7BBAAC"/>
+    </linearGradient>
+    <linearGradient id="cubeLeft" x1="675" y1="375" x2="806" y2="469" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#617D73"/>
+      <stop offset="1" stop-color="#364E48"/>
+    </linearGradient>
+    <linearGradient id="cubeRight" x1="809" y1="387" x2="899" y2="457" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#436F62"/>
+      <stop offset="1" stop-color="#263D37"/>
+    </linearGradient>
+    <linearGradient id="lilacTop" x1="1024" y1="256" x2="1159" y2="321" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E3DFED"/>
+      <stop offset="1" stop-color="#AFA6CC"/>
+    </linearGradient>
+    <linearGradient id="ivoryTop" x1="1004" y1="63" x2="1123" y2="140" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F1ECDA"/>
+      <stop offset="1" stop-color="#BCBCAB"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-35%" width="150%" height="190%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="21" flood-color="#020708" flood-opacity=".38"/>
+    </filter>
+    <clipPath id="bounds"><rect width="1200" height="520" rx="26"/></clipPath>
+  </defs>
+
+  <!-- 原创静态展示图：所有几何、材质与文案均内嵌，不加载脚本、字体或外部资源。 -->
+  <g clip-path="url(#bounds)">
+    <rect width="1200" height="520" fill="url(#background)"/>
+    <rect width="1200" height="520" fill="url(#mintLight)"/>
+    <rect width="1200" height="520" fill="url(#violetLight)"/>
+    <path d="M594 520 1200 170M665 520 1200 211M738 520 1200 253M811 520 1200 295M884 520 1200 337" stroke="#DCEEE4" stroke-opacity=".025"/>
+    <path d="M1190 520 710 243M1200 483 763 231M1200 441 810 216M1200 400 857 202" stroke="#DCEEE4" stroke-opacity=".025"/>
+
+    <!-- 左侧品牌区：较大的主标题与定位句，缩到仓库正文宽度后仍保持清晰层级。 -->
+    <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif">
+      <rect x="64" y="48" width="34" height="34" rx="11" fill="#D6F0E2" fill-opacity=".07" stroke="#DCEFE5" stroke-opacity=".23"/>
+      <path d="m73 58 8 5 8-5M81 63v10M73 58v10l8 5 8-5V58" stroke="#D4F3E3" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="112" y="71" font-size="17" fill="#AFBEB7" letter-spacing="1">独立 Fabric 客户端模组</text>
+
+      <text x="61" y="211" font-size="79" font-weight="600" fill="#F2F4EC" letter-spacing="-3.5">yiyiaddon</text>
+      <text x="64" y="276" font-size="35" font-weight="500" fill="#E8ECE5" letter-spacing=".5">自动化，留在后台。</text>
+      <text x="65" y="322" font-size="20" fill="#A7B6B0" letter-spacing=".2">农场、钓鱼、挖矿与日常后勤。</text>
+
+      <path d="M65 374h39" stroke="#ABDBBF" stroke-opacity=".75" stroke-width="2" stroke-linecap="round"/>
+      <text x="65" y="415" font-size="16" fill="#BECAC3" letter-spacing=".5">Minecraft 26.1.2 / 26.2</text>
+      <text x="65" y="445" font-size="15" fill="#748A80" letter-spacing=".5">轻盈界面 · 清晰状态 · 专注操作</text>
+    </g>
+
+    <!-- 方块地形是原创抽象体块，与游戏截图、地图或服务器资源没有混用。 -->
+    <g opacity=".83">
+      <path d="m1020 92 57-33 58 33-58 34Z" fill="url(#ivoryTop)"/>
+      <path d="m1020 92 57 34v60l-57-33Z" fill="#788276"/>
+      <path d="m1077 126 58-34v60l-58 34Z" fill="#515C57"/>
+      <path d="m1020 92 57 34 58-34M1077 126v60" stroke="#F1EFD9" stroke-opacity=".25"/>
+    </g>
+    <g opacity=".72">
+      <path d="m1044 282 66-38 67 38-67 39Z" fill="url(#lilacTop)"/>
+      <path d="m1044 282 66 39v84l-66-38Z" fill="#79768C"/>
+      <path d="m1110 321 67-39v84l-67 39Z" fill="#4C4F63"/>
+      <path d="m1044 282 66 39 67-39M1110 321v84" stroke="#E4DEF2" stroke-opacity=".3"/>
+    </g>
+    <g opacity=".92">
+      <path d="m673 375 92-53 91 53-91 54Z" fill="url(#mintTop)"/>
+      <path d="m673 375 92 54v59l-92-54Z" fill="url(#cubeLeft)"/>
+      <path d="m765 429 91-54v59l-91 54Z" fill="url(#cubeRight)"/>
+      <path d="m673 375 92 54 91-54M765 429v59" stroke="#DEF7E7" stroke-opacity=".22"/>
+      <path d="m797 402 46-27 46 27-46 27Z" fill="#AAC5B6"/>
+      <path d="m797 402 46 27v31l-46-27Z" fill="#4F6F62"/>
+      <path d="m843 429 46-27v31l-46 27Z" fill="#355247"/>
+    </g>
+
+    <!-- 胶囊与详情仅作概念表达；使用同一层薄边缘，不模拟真实游戏截图。 -->
+    <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif">
+      <g filter="url(#shadow)">
+        <rect x="766" y="81" width="325" height="59" rx="29.5" fill="#111C1B" fill-opacity=".73"/>
+        <rect x="766" y="81" width="325" height="59" rx="29.5" fill="url(#capsule)" stroke="#D1E5DC" stroke-opacity=".33"/>
+        <circle cx="800" cy="111" r="17" fill="#D2EFD9" fill-opacity=".1"/>
+        <path d="M791 111c5-7 11-7 15 0-4 7-10 7-15 0Zm15 0 6-5v10Z" stroke="#C7E8D5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="797" cy="110" r="1" fill="#C7E8D5"/>
+        <text x="829" y="117" font-size="16" fill="#EDF5ED">等待鱼上钩</text>
+        <path d="M942 100v22" stroke="#E3EEE7" stroke-opacity=".13"/>
+        <text x="961" y="117" font-size="17" font-weight="600" fill="#DCF3E4">128</text>
+        <circle cx="1062" cy="111" r="3" fill="#B1D7BD"/>
+      </g>
+
+      <g filter="url(#shadow)">
+        <rect x="692" y="166" width="418" height="240" rx="24" fill="#192423" fill-opacity=".89"/>
+        <rect x="692" y="166" width="418" height="240" rx="24" fill="url(#glass)" stroke="url(#edge)"/>
+        <path d="M718 167h212" stroke="#EFFDF3" stroke-opacity=".3" stroke-linecap="round"/>
+        <text x="719" y="208" font-size="20" font-weight="600" fill="#F0F3EB">星露谷钓鱼</text>
+        <circle cx="1012" cy="201" r="3" fill="#ADDCBE"/>
+        <text x="1025" y="207" font-size="13" fill="#C1D8CA">运行中</text>
+        <text x="719" y="237" font-size="14" fill="#ADC3B7">等待鱼上钩</text>
+        <path d="M719 257h364" stroke="#E1F1E8" stroke-opacity=".1"/>
+
+        <text x="719" y="283" font-size="13" fill="#98AFA3">本次鱼获</text>
+        <text x="902" y="283" font-size="13" fill="#98AFA3">运行时间</text>
+        <text x="718" y="319" font-size="29" font-weight="500" fill="#F0F4EC" letter-spacing=".2">128<tspan dx="9" font-size="13" fill="#99B0A1">条</tspan></text>
+        <text x="901" y="317" font-family="'Segoe UI',sans-serif" font-size="25" font-weight="400" fill="#E5EAE2" letter-spacing="1">01:23:40</text>
+        <path d="M874 275v47" stroke="#E0F0E7" stroke-opacity=".1"/>
+
+        <rect x="717" y="346" width="170" height="35" rx="11" fill="#CCE8D6" fill-opacity=".12" stroke="#D9EDDC" stroke-opacity=".14"/>
+        <rect x="900" y="346" width="185" height="35" rx="11" fill="#D9E5DE" fill-opacity=".055" stroke="#DFEAE3" stroke-opacity=".12"/>
+        <text x="802" y="369" text-anchor="middle" font-size="14" fill="#DAEBDD">暂停钓鱼</text>
+        <text x="992" y="369" text-anchor="middle" font-size="14" fill="#C0D0C7">模块设置</text>
+      </g>
+
+      <path d="M966 470h19" stroke="#A4BBAF" stroke-opacity=".5"/>
+      <text x="996" y="475" font-size="12" fill="#82978D" letter-spacing="1">界面概念示意</text>
+    </g>
+    <rect x=".5" y=".5" width="1199" height="519" rx="25.5" stroke="#D9EBDE" stroke-opacity=".1"/>
+  </g>
+</svg>
