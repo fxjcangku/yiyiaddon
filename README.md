@@ -1,155 +1,63 @@
 <p align="center">
-  <img src="展示资源/yiyiaddon-module-cover.gif" width="1120" alt="yiyiaddon 动态功能封面：展示农场、钓鱼、挖矿与自动化模块的概念画面。">
+  <img src="展示资源/yiyiaddon-module-cover.gif" width="100%" alt="yiyiaddon 动态功能展示">
 </p>
 
 <h1 align="center">yiyiaddon</h1>
 
 <p align="center">
-  <strong>把重复操作交给自动化，把注意力留给世界。</strong><br>
-  面向 Minecraft Java Edition 的独立 Fabric 客户端模组
+  <strong>把繁琐交给自动化。</strong><br>
+  专为 Minecraft Java Edition 打造的独立 Fabric 客户端模组。
 </p>
 
 <p align="center">
-  中文化交互 · 模块化任务 · 运行状态可视化 · 自动化后勤
+  <sub>PUBLIC BETA 9.3 &nbsp;·&nbsp; MC 26.1.2 / 26.2 &nbsp;·&nbsp; WINDOWS x64</sub>
 </p>
 
 <p align="center">
-  <code>1.0-beta9.3</code>　<code>Minecraft 26.1.2 / 26.2</code>　<code>Windows x64</code>
-</p>
-
-<p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta9.3"><strong>下载最新版本</strong></a>　·　
-  <a href="安装指南.md">安装指南</a>　·　
-  <a href="功能指南.md">功能指南</a>　·　
-  <a href="界面预览.md">界面预览</a>　·　
-  <a href="https://github.com/fxjcangku/yiyiaddon/issues">反馈问题</a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta9.3"><strong>下载模组</strong></a>
+  &nbsp;·&nbsp;
+  <a href="安装指南.md">安装指南</a>
+  &nbsp;·&nbsp;
+  <a href="功能指南.md">功能文档</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/fxjcangku/yiyiaddon/issues">问题反馈</a>
 </p>
 
 ---
 
-## 让自动化的每一步都有迹可循
+## 核心能力
 
-**yiyiaddon** 围绕种植、钓鱼、挖矿、附魔、村民交易与物资管理等游戏流程，提供可配置的客户端自动化能力。
+**农场与钓鱼**　星露谷作物与季节识别、自动种植收获、普通／岩浆／虚空钓鱼及后勤补给。
 
-它不只关注任务是否执行，也重视**正在做什么、为什么等待、结果是否得到确认**。各模块拥有独立的运行状态和设置入口，配合服务器资源识别、物资后勤与任务记录，减少重复操作和信息干扰。
+**挖矿与交易**　自动采掘、种子矿物预测与验证、村民交易、物资搬运和自动卸货。
 
-| 模块化管理 | 状态与结果 | 服务器适配 |
-| :--- | :--- | :--- |
-| 按需启用功能，分开配置目标、模式、点位与后勤 | 集中展示任务阶段、通知、统计与异常原因 | 依当前服务器的资源、物品和规则进行识别与核对 |
+**附魔与装备**　原版及自定义附魔、目标筛选、极品装备合成与成品分类入箱。
 
-## 核心功能
+**模块与界面**　中文配置、运行状态、自检、通知与统计集中管理，不再刷屏聊天框。
 
-| 功能模块 | 主要能力 |
-| :--- | :--- |
-| **星露谷农场** | 识别服务器作物与资源；按季节和区域规划种植，联动浇水、施肥、收获及补给卸货。 |
-| **星露谷钓鱼** | 浮漂状态判断；支持普通、岩浆和虚空钓鱼相关流程，并处理鱼饵、鱼获和专用后勤。 |
-| **自动挖矿** | 目标矿物采掘、寻路、工具与物资管理；可结合世界种子预测，并对真实方块再次验证。 |
-| **自动附魔与极品装备合成** | 原版与自定义附魔书、装备处理，以及第五模式的多装备铁砧合成；支持目标筛选、经验补给及成品分类。 |
-| **自动村民交易** | 读取真实交易报价，管理村民搜索、材料补给、交易、卸货和必要的退料。 |
-| **其他实用工具** | 原版自动农场、自动箱子、自动丢弃、ID 识别与配置、图书管理员、自动骨粉及世界显示等。 |
+<sub>还包含原版自动农场、自动箱子、自动丢弃、ID 识别、图书管理员等实用功能。</sub>
 
-<details>
-<summary><strong>展开查看核心模块的更多能力</strong></summary>
+## 下载
 
-### 星露谷农场
-- 根据当前服务器资源包识别作物、种子、种植盆与工具；目标与资源按服务器隔离。
-- 支持单作物区和混种区，结合季节信息决定种植目标。
-- 围绕播种、浇水、施肥、收获、种子补给和成品入箱组织连续任务。
+**Minecraft 26.1.2**　[下载 ZIP](https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta9.3/yiyiaddon-1.0-beta9.3-26.1.2.zip)　·　Fabric API `0.155.2+26.1.2`
 
-### 星露谷钓鱼
-- 综合浮漂动作与时间状态判断操作时机，不仅依赖固定延迟。
-- 普通、岩浆与虚空场景分别配置；支持鱼饵补充、鱼获出售、入箱和清理。
-- 以服务端实际反馈区分操作发出、操作接受与成功钓获；不同服务器需要单独验证。
+**Minecraft 26.2**　[下载 ZIP](https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta9.3/yiyiaddon-1.0-beta9.3-26.2.zip)　·　Fabric API `0.161.0+26.2`
 
-### 自动挖矿
-- 支持采掘目标、自动寻路，以及食物、工具耐久和卸货等辅助流程。
-- 世界种子预测为候选位置提供线索，已加载区域仍以真实方块验证为准。
-- 主世界与下界使用各自的矿物目标及验证记录；预测不保证目标必然存在。
+<sub>Java 25 · Fabric Loader 0.19.5+ · Windows x64。解压 ZIP，将 JAR 放入 `mods`；无需额外安装 Baritone。</sub>
 
-### 自动附魔与装备合成
-- 四种附魔模式分别管理原版附魔书、原版装备、自定义附魔书与自定义装备。
-- 第五模式支持从指定工具箱和成品书箱取料，按装备各自的方案逐件进行铁砧合成。
-- 支持目标词条、等级条件、分类卸货与加工记录；经验不足时可按模式执行补充流程。
-- 处理书本、装备及容器时保留必要的服务端结果核对，避免把未知结果当作成功。
+## 最新更新
 
-### 自动村民交易
-- 根据真实报价进行材料补充、交易、结果核对与绿宝石卸货。
-- 材料占满背包时，可依配置将符合条件的材料退回对应箱子。
-- 村民搜索范围、工作点与后勤容器按使用场景独立配置。
+**1.0-beta9.3**　新增极品装备合成第五模式，完善附魔分类卸货、砂轮取回与任务收尾，并优化附魔执行效率。
 
-> 各模块的前置条件、可用模式和服务器兼容范围不同。具体行为以游戏内说明与[功能指南](功能指南.md)为准。
-
-</details>
-
-## 统一的模块播报与运行界面
-
-**自动化信息集中展示，不再用大量模块通知刷聊天框。**
-
-- **运行状态**：区分运行、等待、暂停、异常、停止与完成，并展示当前任务、阶段及原因。
-- **通知记录**：短时间重复播报可合并，历史消息支持查看、筛选与复制；普通聊天保持原有用途。
-- **任务账目**：根据模块和模式记录已确认的操作、物品流向及相关统计，避免只展示无法核实的数字。
-- **界面布局**：提供精致窄形、横向状态栏与精致方形等样式，支持位置和尺寸调整，并适配深浅主题。
-
-[查看界面交互与说明 →](界面预览.md)
-
-## 最新版本 · 1.0-beta9.3
-
-本次更新重点围绕 **极品装备合成、自动分类卸货与流程稳定性**：
-
-- **新增第五模式**：多件装备按各自方案进行铁砧合成，支持纯合成或结合挂机补充经验。
-- **完善四模式分类卸货**：按目标词条与分类管理专用箱、公共箱，减少混放和重复处理。
-- **优化附魔操作**：GUI 操作延迟默认调整为 0 刻，同时保留需要服务端确认的校验。
-- **修复关键流程**：涵盖砂轮产物取回、特殊方块附近寻路、停用收尾及部分低帧率钓鱼场景。
-
-本版的第五模式和四模式分类卸货已在隔离单机场景完成对应测试；不同服务器插件环境、长期挂机及部分分支仍需要进一步验证。
-
-[阅读 beta9.3 完整更新说明 →](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta9.3)
-
-## 下载与安装
-
-**请按 Minecraft 版本选择对应安装包，26.1.2 与 26.2 不可混用。**
-
-| Minecraft 版本 | 安装包 | 对应 Fabric API |
-| :--- | :--- | :--- |
-| **26.1.2** | [下载 beta9.3 · ZIP](https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta9.3/yiyiaddon-1.0-beta9.3-26.1.2.zip) | <code>0.155.2+26.1.2</code> |
-| **26.2** | [下载 beta9.3 · ZIP](https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta9.3/yiyiaddon-1.0-beta9.3-26.2.zip) | <code>0.161.0+26.2</code> |
-
-**运行环境**：Windows x64 · Java 25 · Fabric Loader 0.19.5 或更新的兼容版本。当前没有提供 26.3 安装包。
-
-1. 安装与你的游戏版本匹配的 Fabric Loader 与 Fabric API。
-2. 下载对应 ZIP 并解压，把里面的 **JAR 文件**放入游戏实例的 <code>mods</code> 文件夹；不要直接放入 ZIP。
-3. 移出重复的旧版 yiyiaddon JAR。**Baritone 已随安装包提供，无需重复安装。**
-4. 启动游戏，默认按 **G** 打开模组界面，按提示配置模块、目标和点位后再运行。
-
-更新已有实例前，建议先备份配置与存档；已有配置和开关状态应按正常更新流程保留。
-
-[查看完整安装指南 →](安装指南.md) · [常见问题](常见问题.md)
-
-## 使用说明与反馈
-
-yiyiaddon 目前处于**公开测试阶段**。不同服务器的插件、资源包、网络环境和规则可能影响功能表现；安装成功不代表全部业务流程均已在目标服务器验证。
-
-请先在小范围内测试，遵守服务器规则，并在更换服务器、维度或资源包后核对目标、点位和容器。遇到物品结果异常、持续失败或反作弊提示时，应先停止相关模块并排查。
-
-- [提交问题或建议](https://github.com/fxjcangku/yiyiaddon/issues)
-- [Discord 社区](https://discord.gg/vwrRCtET)
-- [服务器使用注意](服务器使用注意.md)
-- [历史发布版本](https://github.com/fxjcangku/yiyiaddon/releases)
-
-<details>
-<summary><strong>在线状态与隐私说明</strong></summary>
-
-- 在线玩家名单不显示完整玩家名，自己的账户资料区域仍可显示本人信息。
-- 首页可展示正版状态、在线人数、排行、使用人数、网络地区、IP 和最后同步时间。
-- 后端维护在线统计与公开排行所需的最小账户状态，以及管理员发送的通知消息。
-- 不收集玩家坐标、生命值、所在服务器、模块开关、崩溃详情或指令记录。
-- IP 与网络地区由客户端在本机查询并展示，不写入 yiyiaddon 后端；管理员可广播通知或向指定玩家发送消息。
-
-</details>
+[查看完整更新日志 →](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0-beta9.3)
 
 ---
 
 <p align="center">
-  <strong>yiyiaddon · Minecraft Fabric Client Mod</strong><br>
-  <sub>顶部 GIF 为功能概念展示。Minecraft 为 Mojang Synergies AB 的商标；本项目与 Mojang 或 Microsoft 无关联。</sub>
+  <sub>公开测试中 · 不同服务器的资源包、插件和规则可能影响功能，请先小范围验证并遵守服规。</sub><br>
+  <sub><a href="https://discord.gg/vwrRCtET">Discord</a> · <a href="服务器使用注意.md">使用注意</a> · <a href="常见问题.md">常见问题</a></sub>
+</p>
+
+<p align="center">
+  <sub>GIF 为功能概念展示。Minecraft 为 Mojang Synergies AB 的商标；本项目与 Mojang、Microsoft 无关联。</sub>
 </p>
