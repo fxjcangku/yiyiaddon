@@ -36,9 +36,9 @@
       种植、钓鱼、挖矿、附魔与交易按模块独立配置，让重复流程有序运行。
     </td>
     <td width="50%" valign="top">
-      <sub>02 / SERVER-AWARE</sub><br>
-      <strong>服务器资源识别</strong><br>
-      根据当前服务器的资源、物品和实际反馈进行识别，不直接照搬其他服务器的数据。
+      <sub>02 / RESOURCE INTELLIGENCE</sub><br>
+      <strong>服务器资源包提取与解析</strong><br>
+      按需获取并解析本服资源包，识别自定义物品、模型与贴图，让不同服务器的玩法也能被正确理解。
     </td>
   </tr>
   <tr>
@@ -54,6 +54,27 @@
     </td>
   </tr>
 </table>
+
+## 服务器资源包智能解析 <sub>SERVER RESOURCE INTELLIGENCE</sub>
+
+**不止是下载资源包，更是让模组读懂服务器的自定义内容。**
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <sub>EXTRACT & CACHE</sub><br>
+      <strong>按需提取 · 本服缓存</strong><br>
+      在游戏内点击「检测 / 提取当前服务器资源包」，检查已生效资源、复用本地 ZIP 缓存或按需获取资源，并查看解析状态、来源及资源指纹。
+    </td>
+    <td width="50%" valign="top">
+      <sub>DECODE & DISCOVER</sub><br>
+      <strong>模型解析 · 自定义资源发现</strong><br>
+      扫描物品定义、模型、方块状态、贴图、语言与字体映射，为自定义种子、作物、种植盆、鱼竿、鱼饵、鱼钩、鱼获及四季图标提供识别依据。
+    </td>
+  </tr>
+</table>
+
+<sub>识别以当前服务器实际生效的资源为优先依据；按服务器与资源指纹隔离结果，换服或资源更新后重新核对。资源证据不足时不会把猜测当作已识别。</sub>
 
 ## 模块一览 <sub>MODULES</sub>
 
