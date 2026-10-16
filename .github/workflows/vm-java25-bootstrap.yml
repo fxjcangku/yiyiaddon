@@ -1,0 +1,37 @@
+name: Temporary VM Java 25 Bootstrap
+
+on:
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-java25:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Temurin Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Verify and package JDK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          java -version
+          javac -version
+          mkdir -p vm-bootstrap
+          tar -C "$(dirname "$JAVA_HOME")" -czf vm-bootstrap/temurin-java25-linux-x64.tar.gz "$(basename "$JAVA_HOME")"
+          sha256sum vm-bootstrap/temurin-java25-linux-x64.tar.gz | tee vm-bootstrap/SHA256SUMS
+          java -XshowSettings:properties -version 2>&1 | tee vm-bootstrap/java-version.txt
+      - name: Upload Java 25 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: temurin-java25-linux-x64
+          path: vm-bootstrap/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
