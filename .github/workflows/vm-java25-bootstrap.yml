@@ -24,9 +24,13 @@ jobs:
           java -version
           javac -version
           mkdir -p vm-bootstrap
-          tar -C "$(dirname "$JAVA_HOME")" -czf vm-bootstrap/temurin-java25-linux-x64.tar.gz "$(basename "$JAVA_HOME")"
+          REAL_JAVA_HOME="$(readlink -f "$JAVA_HOME")"
+          test -x "$REAL_JAVA_HOME/bin/java"
+          test -x "$REAL_JAVA_HOME/bin/javac"
+          tar -C "$(dirname "$REAL_JAVA_HOME")" -czf vm-bootstrap/temurin-java25-linux-x64.tar.gz "$(basename "$REAL_JAVA_HOME")"
+          test "$(stat -c%s vm-bootstrap/temurin-java25-linux-x64.tar.gz)" -gt 50000000
           sha256sum vm-bootstrap/temurin-java25-linux-x64.tar.gz | tee vm-bootstrap/SHA256SUMS
-          java -XshowSettings:properties -version 2>&1 | tee vm-bootstrap/java-version.txt
+          "$REAL_JAVA_HOME/bin/java" -XshowSettings:properties -version 2>&1 | tee vm-bootstrap/java-version.txt
       - name: Upload Java 25 package
         uses: actions/upload-artifact@v4
         with:
