@@ -4,7 +4,7 @@
 
 <picture>
   <source media="(max-width: 640px)" srcset="展示资源/homepage-20261021/brand-compact.svg">
-  <img src="展示资源/homepage-20261021/brand.svg" width="100%" alt="yiyiaddon · 自动化执行，专注你的世界。当前公开测试版 1.0-beta9.3，支持 Minecraft 26.1.2 / 26.2。">
+  <img src="展示资源/homepage-20261021/brand.svg" width="100%" alt="yiyiaddon · 自动化执行，专注你的世界。当前公开版 beta9.3 支持 26.1.2 / 26.2；beta10 新增 26.3 支持。">
 </picture>
 
 <p align="center">
@@ -30,6 +30,11 @@
 </a>
 
 ### 下载与安装
+
+<picture>
+  <source media="(max-width: 640px)" srcset="展示资源/homepage-20261021/support-26.3-compact.svg">
+  <img src="展示资源/homepage-20261021/support-26.3.svg" width="100%" alt="beta10 新增 Minecraft 26.3 支持；安装包待上传，配套 Fabric API 版本发布时提供。">
+</picture>
 
 <p align="center">
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta9.3/yiyiaddon-1.0-beta9.3-26.1.2.zip"><img src="展示资源/homepage-20261021/download-26.1.2.svg" width="400" alt="下载 Minecraft 26.1.2 ZIP · beta9.3 · Fabric API 0.155.2+26.1.2"></a>
