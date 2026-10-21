@@ -41,7 +41,7 @@
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta9.3/yiyiaddon-1.0-beta9.3-26.2.zip"><img src="展示资源/homepage-20261021/download-26.2.svg" width="400" alt="下载 Minecraft 26.2 ZIP · beta9.3 · Fabric API 0.161.0+26.2"></a>
 </p>
 
-**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+
+**26.1.2 / 26.2 运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+
 
 解压 ZIP，将 JAR 与对应 Fabric API 放入 <code>mods</code>。Baritone 已内置。
 
