@@ -31,11 +31,6 @@
 
 ### 下载与安装
 
-<picture>
-  <source media="(max-width: 640px)" srcset="展示资源/homepage-20261021/support-26.3-compact.svg">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta10/yiyiaddon-1.0-beta10-26.3.zip"><img src="展示资源/homepage-20261021/support-26.3.svg" width="100%" alt="26.3 安装包已提供，配套 Fabric API 0.164.0+26.3。"></a>
-</picture>
-
 <p align="center">
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta10/yiyiaddon-1.0-beta10-26.1.2.zip"><img src="展示资源/homepage-20261021/download-26.1.2.svg" width="400" alt="下载 Minecraft 26.1.2 ZIP · beta10 · Fabric API 0.155.2+26.1.2"></a>
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0-beta10/yiyiaddon-1.0-beta10-26.2.zip"><img src="展示资源/homepage-20261021/download-26.2.svg" width="400" alt="下载 Minecraft 26.2 ZIP · beta10 · Fabric API 0.161.0+26.2"></a>
