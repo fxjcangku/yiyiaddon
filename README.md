@@ -31,9 +31,9 @@
 
 ### 下载与安装
 
-[最新正式版](https://github.com/fxjcangku/yiyiaddon/releases/latest) &nbsp; · &nbsp; [正式版发布记录](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Afalse) &nbsp; · &nbsp; [测试版发布记录](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Atrue)
+[最新正式版](https://github.com/fxjcangku/yiyiaddon/releases/latest) &nbsp; · &nbsp; [正式版发布记录](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Afalse) &nbsp; · &nbsp; [测试版历史](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Atrue)
 
-日常安装选择正式版；测试版单独标记为 Pre-release，不替换正式版下载入口。下面的安装包属于正式版 1.0。
+后续只更新正式版，旧测试版仅作历史记录。日常安装选择最新正式版；下面的安装包属于正式版 1.0。
 
 <p align="center">
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0/yiyiaddon-1.0-26.1.2.zip"><img src="展示资源/homepage-20261023/download-26.1.2.svg" width="400" alt="下载 Minecraft 26.1.2 ZIP · 1.0 · Fabric API 0.155.2+26.1.2"></a>
