@@ -3,12 +3,13 @@
 </p>
 
 <picture>
-  <source media="(max-width: 640px)" srcset="展示资源/homepage-20261023/brand-compact.svg">
-  <img src="展示资源/homepage-20261023/brand.svg" width="100%" alt="yiyiaddon · 自动化执行，专注你的世界。当前公开版 1.0 支持 26.1.2 / 26.2 / 26.3。">
+  <source media="(max-width: 640px)" srcset="展示资源/homepage-20261023/brand-compact.svg?v=1.1-6e98459d">
+  <img src="展示资源/homepage-20261023/brand.svg?v=1.1-a4c457b2" width="100%" alt="yiyiaddon · 自动化执行，专注你的世界。最新正式版 1.1；Minecraft 26.1.2 / 26.2 / 26.3。">
 </picture>
 
 <p align="center">
-  <a href="#下载与安装"><strong>下载安装 ↗</strong></a> &nbsp; · &nbsp;
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest"><strong>下载最新版本 ↗</strong></a> &nbsp; · &nbsp;
+  <a href="#下载与安装"><strong>按游戏版本下载 ↗</strong></a> &nbsp; · &nbsp;
   <a href="功能指南.md"><strong>功能指南 ↗</strong></a> &nbsp; · &nbsp;
   <a href="界面预览.md"><strong>界面预览 ↗</strong></a>
 </p>
@@ -31,24 +32,24 @@
 
 ### 下载与安装
 
-[最新正式版](https://github.com/fxjcangku/yiyiaddon/releases/latest) &nbsp; · &nbsp; [正式版发布记录](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Afalse) &nbsp; · &nbsp; [测试版历史](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Atrue)
+[下载最新版本](https://github.com/fxjcangku/yiyiaddon/releases/latest) &nbsp; · &nbsp; [正式版发布记录](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Afalse) &nbsp; · &nbsp; [测试版历史](https://github.com/fxjcangku/yiyiaddon/releases?q=prerelease%3Atrue)
 
-后续只更新正式版，旧测试版仅作历史记录。日常安装选择最新正式版；下面的安装包属于正式版 1.0。
+当前最新正式版为 **1.1**。下面三个按钮直接下载对应 Minecraft 版本最新可用的混淆 JAR；发布新正式版后自动更新，预告与测试版不会替换正式包。
 
 <p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0/yiyiaddon-1.0-26.1.2.zip"><img src="展示资源/homepage-20261023/download-26.1.2.svg" width="400" alt="下载 Minecraft 26.1.2 ZIP · 1.0 · Fabric API 0.155.2+26.1.2"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0/yiyiaddon-1.0-26.2.zip"><img src="展示资源/homepage-20261023/download-26.2.svg" width="400" alt="下载 Minecraft 26.2 ZIP · 1.0 · Fabric API 0.161.0+26.2"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.1.2.jar"><img src="展示资源/homepage-20261023/download-26.1.2.svg?v=1.1-e062bff0" width="400" alt="下载 Minecraft 26.1.2 JAR · 最新可用正式版 1.1"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.2.jar"><img src="展示资源/homepage-20261023/download-26.2.svg?v=1.1-effdd570" width="400" alt="下载 Minecraft 26.2 JAR · 最新可用正式版 1.1"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.0/yiyiaddon-1.0-26.3.zip"><img src="展示资源/homepage-20261023/download-26.3.svg" width="400" alt="下载 Minecraft 26.3 ZIP · 1.0 · Fabric API 0.164.0+26.3"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.3.jar"><img src="展示资源/homepage-20261023/download-26.3.svg?v=1.1-b97c165d" width="400" alt="下载 Minecraft 26.3 JAR · 最新可用正式版 1.1"></a>
 </p>
 
-**26.1.2 / 26.2 / 26.3 运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+
+**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+
 
-解压 ZIP，将 JAR 与对应 Fabric API 放入 <code>mods</code>。Baritone 已内置。
+将对应游戏版本的 JAR 放入 <code>mods</code>，并单独安装匹配的 Fabric API。Baritone 已内置；具体支持范围与依赖以对应下载页为准。
 
-[安装指南 →](安装指南.md) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md) &nbsp; · &nbsp; [查看更新记录 →](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.0)
+[安装指南 →](安装指南.md) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md) &nbsp; · &nbsp; [查看最新更新记录 →](https://github.com/fxjcangku/yiyiaddon/releases/latest)
 
 ### 文档与支持
 
