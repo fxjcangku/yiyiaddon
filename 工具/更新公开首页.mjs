@@ -37,7 +37,7 @@ const downloads = games.map(game => {
 const latestGames = downloads.filter(item => item.tag === latest.tag_name).map(item => item.game);
 if (!latestGames.length) throw new Error('最新正式版没有可核实安装包，保留现有首页');
 
-/** 原 SVG 保留几何与材质，只为已有文字槽增加稳定 ID 并更新对应文本。 */
+/** 保留封面、按钮的排版，只更新稳定 ID 对应的发布文字；旧槽位兼容原有资源。 */
 function textSlot(svg, id, selector, value) {
   if (!svg.includes(`id="${id}"`)) {
     if (!svg.includes(selector)) throw new Error(`展示资源缺少文字槽 ${id}`);
@@ -75,22 +75,37 @@ for (const item of downloads) {
 const readmePath = path.join(root, 'README.md');
 let readme = fs.readFileSync(readmePath, 'utf8').replaceAll('\r\n', '\n');
 readme = readme.replace(/(src="展示资源\/homepage-20261023\/brand.svg(?:\?[^\"]*)?"[^>]*alt=")[^"]*/,
-  `$1yiyiaddon · 自动化执行，专注你的世界。最新正式版 ${xml(version)}；Minecraft ${latestGames.join(' / ')}。`);
+  `$1yiyiaddon · 独立 Fabric 客户端模组。最新正式版 ${xml(version)}；Minecraft ${latestGames.join(' / ')}。`);
 // 图片 URL 随真实 SVG 内容变化，避免 GitHub 图片代理继续显示上一版宣传。
 const imageUrl = (name, number) => `展示资源/homepage-20261023/${name}?v=${encodeURIComponent(number)}-${createHash('sha256').update(outputs.get(path.join(folder, name))).digest('hex').slice(0, 8)}`;
 readme = readme.replace(/(src=")展示资源\/homepage-20261023\/brand.svg(?:\?[^\"]*)?(\")/,
   (_, open, close) => open + imageUrl('brand.svg', version) + close);
 readme = readme.replace(/(srcset=")展示资源\/homepage-20261023\/brand-compact.svg(?:\?[^\"]*)?(\")/,
   (_, open, close) => open + imageUrl('brand-compact.svg', version) + close);
-const navigation = `<p align="center">\n  <a href="${repository}/releases/latest"><strong>下载最新版本 ↗</strong></a> &nbsp; · &nbsp;\n  <a href="#下载与安装"><strong>按游戏版本下载 ↗</strong></a> &nbsp; · &nbsp;\n  <a href="功能指南.md"><strong>功能指南 ↗</strong></a> &nbsp; · &nbsp;\n  <a href="界面预览.md"><strong>界面预览 ↗</strong></a>\n</p>`;
-const navPattern = /<p align="center">\s*<a href="(?:#下载与安装|https:\/\/github.com\/fxjcangku\/yiyiaddon\/releases\/latest)"[\s\S]*?<\/p>/;
-if (!navPattern.test(readme)) throw new Error('首页导航结构已改变，停止覆盖');
-readme = readme.replace(navPattern, navigation);
-const card = item => `  <a href="${item.url}"><img src="${imageUrl(`download-${item.game}.svg`, item.version)}" width="400" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
-const section = `### 下载与安装\n\n[下载最新版本](${repository}/releases/latest) &nbsp; · &nbsp; [正式版发布记录](${repository}/releases?q=prerelease%3Afalse) &nbsp; · &nbsp; [测试版历史](${repository}/releases?q=prerelease%3Atrue)\n\n当前最新正式版为 **${xml(version)}**。下面三个按钮直接下载对应 Minecraft 版本最新可用的混淆 JAR；发布新正式版后自动更新，预告与测试版不会替换正式包。\n\n<p align="center">\n${downloads.slice(0, 2).map(card).join('\n')}\n</p>\n\n<p align="center">\n${card(downloads[2])}\n</p>\n\n**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+\n\n将对应游戏版本的 JAR 放入 <code>mods</code>，并单独安装匹配的 Fabric API。Baritone 已内置；具体支持范围与依赖以对应下载页为准。\n\n[安装指南 →](安装指南.md) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md) &nbsp; · &nbsp; [查看最新更新记录 →](${repository}/releases/latest)\n\n`;
-const sectionPattern = /### 下载与安装\n[\s\S]*?(?=### 文档与支持)/;
-if (!sectionPattern.test(readme)) throw new Error('下载区域结构已改变，停止覆盖');
-outputs.set(readmePath, readme.replace(sectionPattern, section));
+const card = item => `  <a href="${item.url}"><img src="${imageUrl(`download-${item.game}.svg`, item.version)}" width="260" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
+const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本，点击按钮直接下载 JAR。\n\n<p align="center">\n${downloads.map(card).join('\n')}\n</p>\n\n**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包；**Baritone 已内置**。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
+// 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
+const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
+if ((readme.match(/<!-- homepage:downloads:start -->/g) || []).length !== 1
+    || (readme.match(/<!-- homepage:downloads:end -->/g) || []).length !== 1
+    || !sectionPattern.test(readme)) throw new Error('下载区域边界缺失或重复，停止覆盖');
+readme = readme.replace(sectionPattern, `<!-- homepage:downloads:start -->\n${section}\n<!-- homepage:downloads:end -->`);
+// 下一版正式发布后，移除已兑现的旧预告，避免首页继续显示“尚无安装包”。
+const previewPattern = /<!-- homepage:preview:start -->[\s\S]*?<!-- homepage:preview:end -->\n*/;
+const preview = readme.match(previewPattern)?.[0];
+const previewVersion = preview?.match(/releases\/tag\/v(\d+(?:\.\d+)*)-preview/)?.[1];
+const compareVersion = (left, right) => {
+  const a = left.split('.').map(Number), b = right.split('.').map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const difference = (a[i] || 0) - (b[i] || 0);
+    if (difference) return difference;
+  }
+  return 0;
+};
+if (previewVersion && /^\d+(?:\.\d+)*$/.test(version) && compareVersion(version, previewVersion) >= 0) {
+  readme = readme.replace(previewPattern, '');
+}
+outputs.set(readmePath, readme);
 // 所有输入和槽位先验证，再写文件；工作流仅在全部成功后提交允许的玩家展示文件。
 for (const [file, content] of outputs) fs.writeFileSync(file, content, 'utf8');
 console.log(JSON.stringify({ latest: version, downloads, files: outputs.size }, null, 2));
