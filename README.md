@@ -49,14 +49,11 @@
 
 <p align="center">
 <!-- homepage:fixed-port:start -->
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.2-preview"><img src="展示资源/homepage-20261023/preview-1.21.11.svg?v=1.1-05499771" width="260" alt="Minecraft 1.21.11 · 固定适配 · 暂无公开安装包，查看 1.2 预告"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.2-preview"><img src="展示资源/homepage-20261023/preview-1.21.11.svg?v=1.1-7ae07ef2" width="194" alt="Minecraft 1.21.11 · 版本适配 · 暂无公开安装包，查看 1.2 预告"></a>
 <!-- homepage:fixed-port:end -->
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.1.2.jar"><img src="展示资源/homepage-20261023/download-26.1.2.svg?v=1.1-6950f714" width="260" alt="下载 Minecraft 26.1.2 JAR · 最新可用正式版 1.1"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.2.jar"><img src="展示资源/homepage-20261023/download-26.2.svg?v=1.1-f003df1e" width="260" alt="下载 Minecraft 26.2 JAR · 最新可用正式版 1.1"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.3.jar"><img src="展示资源/homepage-20261023/download-26.3.svg?v=1.1-fda2cb6d" width="260" alt="下载 Minecraft 26.3 JAR · 最新可用正式版 1.1"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.1.2.jar"><img src="展示资源/homepage-20261023/download-26.1.2.svg?v=1.1-6950f714" width="194" alt="下载 Minecraft 26.1.2 JAR · 最新可用正式版 1.1"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.2.jar"><img src="展示资源/homepage-20261023/download-26.2.svg?v=1.1-f003df1e" width="194" alt="下载 Minecraft 26.2 JAR · 最新可用正式版 1.1"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.3.jar"><img src="展示资源/homepage-20261023/download-26.3.svg?v=1.1-fda2cb6d" width="194" alt="下载 Minecraft 26.3 JAR · 最新可用正式版 1.1"></a>
 </p>
 
 **运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+

@@ -98,14 +98,11 @@ if (outputs.has(fixedPortCard)) {
   readme = readme.replace(/(src=")展示资源\/homepage-20261023\/preview-1\.21\.11.svg(?:\?[^\"]*)?(\")/,
     (_, open, close) => open + imageUrl('preview-1.21.11.svg', version) + close);
 }
-const card = item => `  <a href="${item.url}"><img src="${imageUrl(`download-${item.game}.svg`, item.version)}" width="260" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
-// 两张一行保持四卡均衡；窄屏依原生图片宽度自然换行，预告固定排在 26.1.2 之前。
+const card = item => `  <a href="${item.url}"><img src="${imageUrl(`download-${item.game}.svg`, item.version)}" width="194" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
+// 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
-const cardRows = [];
-for (let index = 0; index < cards.length; index += 2) {
-  cardRows.push(`<p align="center">\n${cards.slice(index, index + 2).join('\n')}\n</p>`);
-}
-const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本；预告卡仅供查看，正式版按钮直接下载 JAR。\n\n${cardRows.join('\n\n')}\n\n**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包；**Baritone 已内置**。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
+const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
+const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本；预告卡仅供查看，正式版按钮直接下载 JAR。\n\n${cardStrip}\n\n**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包；**Baritone 已内置**。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
 // 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
 const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
 if ((readme.match(/<!-- homepage:downloads:start -->/g) || []).length !== 1
