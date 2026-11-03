@@ -14,6 +14,15 @@
   <a href="界面预览.md"><strong>界面预览 ↗</strong></a>
 </p>
 
+### 开发协作
+
+本项目由 [fxjcangku](https://github.com/fxjcangku) 维护，代码主要借助 Claude 与 OpenAI Codex 编写和迭代。
+
+<p align="center">
+  <a href="https://github.com/claude"><img src="展示资源/homepage-20261023/collaboration-claude.svg" width="400" alt="Claude · Anthropic 人工智能协作开发"></a>
+  <a href="https://github.com/codex"><img src="展示资源/homepage-20261023/collaboration-codex.svg" width="400" alt="Codex · OpenAI 人工智能协作开发"></a>
+</p>
+
 ### 核心能力
 
 <p align="center">
@@ -54,14 +63,5 @@
 ### 文档与支持
 
 [反馈问题](https://github.com/fxjcangku/yiyiaddon/issues) &nbsp; / &nbsp; [常见问题](常见问题.md) &nbsp; / &nbsp; [服务器使用注意](服务器使用注意.md) &nbsp; / &nbsp; [Discord](https://discord.gg/vwrRCtET)
-
-### 开发协作
-
-本项目由 [fxjcangku](https://github.com/fxjcangku) 维护，代码主要借助 Claude 与 OpenAI Codex 编写和迭代。
-
-<p align="center">
-  <a href="https://github.com/claude"><img src="展示资源/homepage-20261023/collaboration-claude.svg" width="400" alt="Claude · Anthropic 人工智能协作开发"></a>
-  <a href="https://github.com/codex"><img src="展示资源/homepage-20261023/collaboration-codex.svg" width="400" alt="Codex · OpenAI 人工智能协作开发"></a>
-</p>
 
 <sub>顶部动画为功能概念展示；实际表现以当前版本与服务器支持为准。本项目与 Mojang、Microsoft 无关联。</sub>
