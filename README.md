@@ -1,14 +1,14 @@
 <p align="center">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact.gif?v=9e6e196c">
-    <img src="展示资源/yiyiaddon-module-cover.gif?v=882b56e4" width="100%" alt="yiyiaddon 动态功能展示">
+    <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact-compat.gif?v=337161c0">
+    <img src="展示资源/yiyiaddon-module-cover-compat.gif?v=c6af1e70" width="100%" alt="yiyiaddon 动态功能展示 · Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3">
   </picture><br>
   <sub>功能概念动画；实际界面与可用功能以所安装版本及服务器支持为准。</sub>
 </p>
 
 <picture>
-  <source media="(max-width: 640px)" srcset="展示资源/homepage-20261023/brand-compact.svg?v=1.1-714549ca">
-  <img src="展示资源/homepage-20261023/brand.svg?v=1.1-3a1350d9" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.1；Minecraft 26.1.2 / 26.2 / 26.3。">
+  <source media="(max-width: 640px)" srcset="展示资源/homepage-20261023/brand-compact-compat.svg?v=1.1-7955a3ba">
+  <img src="展示资源/homepage-20261023/brand-compat.svg?v=1.1-391eb359" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.1；Minecraft 26.1.2 / 26.2 / 26.3。1.21.11 适配预告。">
 </picture>
 
 <p align="center">
@@ -21,7 +21,7 @@
 <!-- homepage:preview:start -->
 ### 下一步 · 1.2 更新预告
 
-**仅图文预告，暂无 1.2 公开安装包。**
+**Minecraft 1.21.11 适配已加入 1.2 预告，暂无公开安装包。**
 
 - **星露谷农场**：作物识别、成熟判定、收割补种、分区与补给流程持续完善。
 - **操作与阅读**：可拖动的帮助面板、聊天体验与 HUD 统计继续调整。

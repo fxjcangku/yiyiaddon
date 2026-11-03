@@ -35,7 +35,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/homepage-latest.json"
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/homepage-catalog.json"
           node "工具/更新公开首页.mjs" --latest "$RUNNER_TEMP/homepage-latest.json" --catalog "$RUNNER_TEMP/homepage-catalog.json"
-          git add -- README.md 展示资源/homepage-20261023/brand.svg 展示资源/homepage-20261023/brand-compact.svg 展示资源/homepage-20261023/download-26.1.2.svg 展示资源/homepage-20261023/download-26.2.svg 展示资源/homepage-20261023/download-26.3.svg
+          git add -- README.md 展示资源/homepage-20261023/brand-compat.svg 展示资源/homepage-20261023/brand-compact-compat.svg 展示资源/homepage-20261023/download-26.1.2.svg 展示资源/homepage-20261023/download-26.2.svg 展示资源/homepage-20261023/download-26.3.svg
           if git diff --cached --quiet; then
             echo '首页已对应最新正式发布，无需重复提交。'
             exit 0

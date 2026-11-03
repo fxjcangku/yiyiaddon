@@ -50,14 +50,14 @@ function textSlot(svg, id, selector, value) {
 const folder = path.join(root, '展示资源/homepage-20261023');
 const outputs = new Map();
 for (const compact of [false, true]) {
-  const name = compact ? 'brand-compact.svg' : 'brand.svg';
+  const name = compact ? 'brand-compact-compat.svg' : 'brand-compat.svg';
   let svg = fs.readFileSync(path.join(folder, name), 'utf8');
   svg = textSlot(svg, 'release-version', compact ? '<text x="30" y="249"' : '<text x="850" y="120"', version);
   const summary = (latest.name || '').split(/[｜|]/).slice(1).join(' · ').trim() || '查看最新正式版更新';
   if (!compact) svg = textSlot(svg, 'release-title', '<text x="854" y="212"', Array.from(summary).slice(0, 14).join(''));
   svg = textSlot(svg, 'supported-games', compact ? '<text x="30" y="290"' : '<text x="854" y="173"',
     `${compact ? '' : 'Minecraft '}${latestGames.join(' / ')}`);
-  const label = `yiyiaddon ${version} · 独立 Fabric 客户端模组`;
+  const label = `yiyiaddon ${version} · 独立 Fabric 客户端模组 · 1.21.11 适配预告`;
   svg = svg.replace(/aria-label="[^"]*"/, `aria-label="${xml(label)}"`).replace(/<title>[^<]*<\/title>/, `<title>${xml(label)}</title>`);
   outputs.set(path.join(folder, name), svg);
 }
@@ -86,14 +86,14 @@ const fixedPortCard = path.join(folder, 'preview-1.21.11-compat.svg');
 if (fixedPort && fs.existsSync(fixedPortCard)) {
   outputs.set(fixedPortCard, fs.readFileSync(fixedPortCard, 'utf8'));
 }
-readme = readme.replace(/(src="展示资源\/homepage-20261023\/brand.svg(?:\?[^\"]*)?"[^>]*alt=")[^"]*/,
-  `$1yiyiaddon · 独立 Fabric 客户端模组。最新正式版 ${xml(version)}；Minecraft ${latestGames.join(' / ')}。`);
+readme = readme.replace(/(src="展示资源\/homepage-20261023\/brand-compat.svg(?:\?[^\"]*)?"[^>]*alt=")[^"]*/,
+  `$1yiyiaddon · 独立 Fabric 客户端模组。最新正式版 ${xml(version)}；Minecraft ${latestGames.join(' / ')}。1.21.11 适配预告。`);
 // 图片 URL 随真实 SVG 内容变化，避免 GitHub 图片代理继续显示上一版宣传。
 const imageUrl = (name, number) => `展示资源/homepage-20261023/${name}?v=${encodeURIComponent(number)}-${createHash('sha256').update(outputs.get(path.join(folder, name))).digest('hex').slice(0, 8)}`;
-readme = readme.replace(/(src=")展示资源\/homepage-20261023\/brand.svg(?:\?[^\"]*)?(\")/,
-  (_, open, close) => open + imageUrl('brand.svg', version) + close);
-readme = readme.replace(/(srcset=")展示资源\/homepage-20261023\/brand-compact.svg(?:\?[^\"]*)?(\")/,
-  (_, open, close) => open + imageUrl('brand-compact.svg', version) + close);
+readme = readme.replace(/(src=")展示资源\/homepage-20261023\/brand-compat.svg(?:\?[^\"]*)?(\")/,
+  (_, open, close) => open + imageUrl('brand-compat.svg', version) + close);
+readme = readme.replace(/(srcset=")展示资源\/homepage-20261023\/brand-compact-compat.svg(?:\?[^\"]*)?(\")/,
+  (_, open, close) => open + imageUrl('brand-compact-compat.svg', version) + close);
 if (outputs.has(fixedPortCard)) {
   readme = readme.replace(/(src=")展示资源\/homepage-20261023\/preview-1\.21\.11.svg(?:\?[^\"]*)?(\")/,
     (_, open, close) => open + imageUrl('preview-1.21.11-compat.svg', version) + close);
