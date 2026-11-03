@@ -74,6 +74,18 @@ for (const item of downloads) {
 }
 const readmePath = path.join(root, 'README.md');
 let readme = fs.readFileSync(readmePath, 'utf8').replaceAll('\r\n', '\n');
+// 固定适配预告独立于下一版摘要：正式版号递增不能被视为该游戏版本已经有公开安装包。
+const fixedPortPattern = /<!-- homepage:fixed-port:start -->[\s\S]*?<!-- homepage:fixed-port:end -->/;
+const fixedPort = readme.match(fixedPortPattern)?.[0];
+for (const marker of ['start', 'end']) {
+  const count = (readme.match(new RegExp(`<!-- homepage:fixed-port:${marker} -->`, 'g')) || []).length;
+  if (count > 1 || (fixedPort && count !== 1)) throw new Error('固定适配预告边界重复或不完整');
+}
+// 预告与正式卡同一区域、同一尺寸；只保留查看预告入口，不加入 games 或生成下载地址。
+const fixedPortCard = path.join(folder, 'preview-1.21.11.svg');
+if (fixedPort && fs.existsSync(fixedPortCard)) {
+  outputs.set(fixedPortCard, fs.readFileSync(fixedPortCard, 'utf8'));
+}
 readme = readme.replace(/(src="展示资源\/homepage-20261023\/brand.svg(?:\?[^\"]*)?"[^>]*alt=")[^"]*/,
   `$1yiyiaddon · 独立 Fabric 客户端模组。最新正式版 ${xml(version)}；Minecraft ${latestGames.join(' / ')}。`);
 // 图片 URL 随真实 SVG 内容变化，避免 GitHub 图片代理继续显示上一版宣传。
@@ -82,8 +94,18 @@ readme = readme.replace(/(src=")展示资源\/homepage-20261023\/brand.svg(?:\?[
   (_, open, close) => open + imageUrl('brand.svg', version) + close);
 readme = readme.replace(/(srcset=")展示资源\/homepage-20261023\/brand-compact.svg(?:\?[^\"]*)?(\")/,
   (_, open, close) => open + imageUrl('brand-compact.svg', version) + close);
+if (outputs.has(fixedPortCard)) {
+  readme = readme.replace(/(src=")展示资源\/homepage-20261023\/preview-1\.21\.11.svg(?:\?[^\"]*)?(\")/,
+    (_, open, close) => open + imageUrl('preview-1.21.11.svg', version) + close);
+}
 const card = item => `  <a href="${item.url}"><img src="${imageUrl(`download-${item.game}.svg`, item.version)}" width="260" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
-const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本，点击按钮直接下载 JAR。\n\n<p align="center">\n${downloads.map(card).join('\n')}\n</p>\n\n**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包；**Baritone 已内置**。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
+// 两张一行保持四卡均衡；窄屏依原生图片宽度自然换行，预告固定排在 26.1.2 之前。
+const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
+const cardRows = [];
+for (let index = 0; index < cards.length; index += 2) {
+  cardRows.push(`<p align="center">\n${cards.slice(index, index + 2).join('\n')}\n</p>`);
+}
+const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本；预告卡仅供查看，正式版按钮直接下载 JAR。\n\n${cardRows.join('\n\n')}\n\n**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包；**Baritone 已内置**。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
 // 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
 const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
 if ((readme.match(/<!-- homepage:downloads:start -->/g) || []).length !== 1
@@ -104,6 +126,18 @@ const compareVersion = (left, right) => {
 };
 if (previewVersion && /^\d+(?:\.\d+)*$/.test(version) && compareVersion(version, previewVersion) >= 0) {
   readme = readme.replace(previewPattern, '');
+}
+// 只允许图片缓存摘要变化；预告必须仍在下载区首位，不能被发布刷新吞掉或补回顶部。
+const withoutImageVersion = value => value?.replace(/\?v=[^"\s>]+/g, '');
+if (fixedPort && withoutImageVersion(readme.match(fixedPortPattern)?.[0]) !== withoutImageVersion(fixedPort)) {
+  throw new Error('固定适配预告被意外修改，停止覆盖');
+}
+if (fixedPort) {
+  const finalSection = readme.match(sectionPattern)?.[0] || '';
+  if (!finalSection.includes(readme.match(fixedPortPattern)[0])
+      || finalSection.indexOf('homepage:fixed-port:start') > finalSection.indexOf('download-26.1.2.svg')) {
+    throw new Error('适配预告没有保留在下载区第一张，停止覆盖');
+  }
 }
 outputs.set(readmePath, readme);
 // 所有输入和槽位先验证，再写文件；工作流仅在全部成功后提交允许的玩家展示文件。

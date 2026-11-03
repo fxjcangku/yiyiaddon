@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="展示资源/yiyiaddon-module-cover.gif" width="100%" alt="yiyiaddon 动态功能展示"><br>
+  <picture>
+    <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact.gif?v=9e6e196c">
+    <img src="展示资源/yiyiaddon-module-cover.gif?v=882b56e4" width="100%" alt="yiyiaddon 动态功能展示">
+  </picture><br>
   <sub>功能概念动画；实际界面与可用功能以所安装版本及服务器支持为准。</sub>
 </p>
 
@@ -14,6 +17,18 @@
   <a href="界面预览.md"><img src="展示资源/homepage-20261023/nav-preview.svg?v=20261103-fa071503" width="160" alt="界面预览"></a>
   <a href="https://github.com/fxjcangku/yiyiaddon/issues"><img src="展示资源/homepage-20261023/nav-feedback.svg?v=20261103-74e4f117" width="160" alt="问题反馈"></a>
 </p>
+
+<!-- homepage:preview:start -->
+### 下一步 · 1.2 更新预告
+
+**仅图文预告，暂无 1.2 公开安装包。**
+
+- **星露谷农场**：作物识别、成熟判定、收割补种、分区与补给流程持续完善。
+- **操作与阅读**：可拖动的帮助面板、聊天体验与 HUD 统计继续调整。
+- **更多适配**：钓鱼、自动驱魔与不同服务器菜单的适配推进中。
+
+[查看完整 1.2 预告 →](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.2-preview) &nbsp; · &nbsp; 正式安装请使用下方 **1.1** 对应游戏版本下载。
+<!-- homepage:preview:end -->
 
 **yiyiaddon** 是一款独立的 Minecraft Fabric 客户端模组，提供农场、钓鱼、挖矿、附魔与物资管理等自动化功能，并将聊天增强、任务通知和运行统计放进统一的中文界面。不同服务器分别保存配置，具体模块按需要启用。
 
@@ -30,10 +45,16 @@
 ### 下载与安装
 
 <!-- homepage:downloads:start -->
-当前正式版 **1.1**。选择与你的 Minecraft 一致的版本，点击按钮直接下载 JAR。
+当前正式版 **1.1**。选择与你的 Minecraft 一致的版本；预告卡仅供查看，正式版按钮直接下载 JAR。
 
 <p align="center">
+<!-- homepage:fixed-port:start -->
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.2-preview"><img src="展示资源/homepage-20261023/preview-1.21.11.svg?v=1.1-05499771" width="260" alt="Minecraft 1.21.11 · 固定适配 · 暂无公开安装包，查看 1.2 预告"></a>
+<!-- homepage:fixed-port:end -->
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.1.2.jar"><img src="展示资源/homepage-20261023/download-26.1.2.svg?v=1.1-6950f714" width="260" alt="下载 Minecraft 26.1.2 JAR · 最新可用正式版 1.1"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.2.jar"><img src="展示资源/homepage-20261023/download-26.2.svg?v=1.1-f003df1e" width="260" alt="下载 Minecraft 26.2 JAR · 最新可用正式版 1.1"></a>
   <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.1/yiyiaddon-1.1-26.3.jar"><img src="展示资源/homepage-20261023/download-26.3.svg?v=1.1-fda2cb6d" width="260" alt="下载 Minecraft 26.3 JAR · 最新可用正式版 1.1"></a>
 </p>
@@ -57,18 +78,6 @@
 </p>
 
 服务器资源识别为农场、钓鱼等模块提供物品与模型信息；资源包、频道命令和玩法各不相同，首次使用先按本服条件完成配置。[查看完整功能指南 →](功能指南.md)
-
-<!-- homepage:preview:start -->
-### 下一步 · 1.2 更新预告
-
-**开发进展，尚无 1.2 安装包。** 正式下载请使用上方对应游戏版本按钮。
-
-- **星露谷农场**：作物识别、成熟判定、收割补种、分区与补给流程持续完善。
-- **操作与阅读**：可拖动的帮助面板、聊天体验与 HUD 统计继续调整。
-- **更多适配**：钓鱼、自动驱魔与不同服务器菜单的适配推进中。
-
-[查看完整 1.2 预告与当前验证范围 →](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.2-preview)
-<!-- homepage:preview:end -->
 
 ### 界面与使用
 
