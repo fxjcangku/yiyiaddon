@@ -82,7 +82,7 @@ for (const marker of ['start', 'end']) {
   if (count > 1 || (fixedPort && count !== 1)) throw new Error('固定适配预告边界重复或不完整');
 }
 // 预告与正式卡同一区域、同一尺寸；只保留查看预告入口，不加入 games 或生成下载地址。
-const fixedPortCard = path.join(folder, 'preview-1.21.11.svg');
+const fixedPortCard = path.join(folder, 'preview-1.21.11-compat.svg');
 if (fixedPort && fs.existsSync(fixedPortCard)) {
   outputs.set(fixedPortCard, fs.readFileSync(fixedPortCard, 'utf8'));
 }
@@ -96,7 +96,7 @@ readme = readme.replace(/(srcset=")展示资源\/homepage-20261023\/brand-compac
   (_, open, close) => open + imageUrl('brand-compact.svg', version) + close);
 if (outputs.has(fixedPortCard)) {
   readme = readme.replace(/(src=")展示资源\/homepage-20261023\/preview-1\.21\.11.svg(?:\?[^\"]*)?(\")/,
-    (_, open, close) => open + imageUrl('preview-1.21.11.svg', version) + close);
+    (_, open, close) => open + imageUrl('preview-1.21.11-compat.svg', version) + close);
 }
 const card = item => `  <a href="${item.url}"><img src="${imageUrl(`download-${item.game}.svg`, item.version)}" width="194" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
