@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="展示资源/yiyiaddon-module-cover.gif" width="100%" alt="yiyiaddon 动态功能展示"><br>
+  <sub>功能概念动画；实际界面与可用功能以所安装版本及服务器支持为准。</sub>
+</p>
+
 <picture>
   <source media="(max-width: 640px)" srcset="展示资源/homepage-20261023/brand-compact.svg?v=1.1-714549ca">
   <img src="展示资源/homepage-20261023/brand.svg?v=1.1-3a1350d9" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.1；Minecraft 26.1.2 / 26.2 / 26.3。">
@@ -70,15 +75,6 @@
 默认按 **G** 打开主界面，在模块内配置目标与点位；聊天增强从聊天框的「设置」进入。运行通知与统计集中在独立面板，遇到暂停或等待时可直接查看原因。
 
 [查看客户端截图与设计预览 →](界面预览.md) &nbsp; · &nbsp; [安装指南 →](安装指南.md) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)
-
-<details>
-<summary>查看功能概念动画</summary>
-
-<p align="center"><img src="展示资源/yiyiaddon-module-cover.gif" width="100%" alt="yiyiaddon 功能概念动画"></p>
-
-动画用于介绍功能方向；实际界面、可用功能与服务器支持以所安装版本为准。
-
-</details>
 
 ### 文档与支持
 
