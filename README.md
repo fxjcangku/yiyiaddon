@@ -55,4 +55,13 @@
 
 [反馈问题](https://github.com/fxjcangku/yiyiaddon/issues) &nbsp; / &nbsp; [常见问题](常见问题.md) &nbsp; / &nbsp; [服务器使用注意](服务器使用注意.md) &nbsp; / &nbsp; [Discord](https://discord.gg/vwrRCtET)
 
+### 开发协作
+
+本项目由 [fxjcangku](https://github.com/fxjcangku) 维护，代码主要借助 Claude 与 OpenAI Codex 编写和迭代。
+
+<p>
+  <a href="https://github.com/claude"><img src="https://avatars.githubusercontent.com/u/81847?v=4" width="32" height="32" alt="Claude"></a> <a href="https://github.com/claude">Claude</a> &nbsp; · &nbsp;
+  <a href="https://github.com/codex"><img src="https://avatars.githubusercontent.com/u/267193182?v=4" width="32" height="32" alt="OpenAI Codex"></a> <a href="https://github.com/codex">OpenAI Codex</a>
+</p>
+
 <sub>顶部动画为功能概念展示；实际表现以当前版本与服务器支持为准。本项目与 Mojang、Microsoft 无关联。</sub>
