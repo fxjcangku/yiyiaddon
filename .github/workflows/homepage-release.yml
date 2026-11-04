@@ -1,7 +1,7 @@
-name: 正式发布后更新首页与下载
+name: 发布后更新首页、下载与历史归档
 on:
   release:
-    types: [published, edited, released, unpublished, deleted]
+    types: [published, edited, released, prereleased, unpublished, deleted]
   workflow_dispatch:
     inputs:
       migrate_legacy_zip:
@@ -16,14 +16,13 @@ concurrency:
   cancel-in-progress: false
 jobs:
   refresh:
-    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
     steps:
       - name: 读取公开首页
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: master
-      - name: 从真实正式发布和附件更新首页
+      - name: 从真实发布和附件更新首页与分类归档
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -35,7 +34,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/homepage-latest.json"
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/homepage-catalog.json"
           node "工具/更新公开首页.mjs" --latest "$RUNNER_TEMP/homepage-latest.json" --catalog "$RUNNER_TEMP/homepage-catalog.json"
-          git add -- README.md 展示资源/homepage-20261023/brand-compat.svg 展示资源/homepage-20261023/brand-compact-compat.svg 展示资源/homepage-20261023/download-26.1.2.svg 展示资源/homepage-20261023/download-26.2.svg 展示资源/homepage-20261023/download-26.3.svg
+          git add -- README.md 发布说明/历史版本.md 展示资源/homepage-20261023/brand-compat.svg 展示资源/homepage-20261023/brand-compact-compat.svg 展示资源/homepage-20261023/download-26.1.2.svg 展示资源/homepage-20261023/download-26.2.svg 展示资源/homepage-20261023/download-26.3.svg
           for asset in brand-release.svg brand-compact-release.svg download-1.21.11-release.svg download-26.1.2-release.svg download-26.2-release.svg download-26.3-release.svg; do
             file="展示资源/homepage-20261023/$asset"
             if [ -f "$file" ]; then git add -- "$file"; fi
@@ -49,11 +48,10 @@ jobs:
             done
           done
           if git diff --cached --quiet; then
-            echo '首页已对应最新正式发布，无需重复提交。'
+            echo '首页与分类归档已对应实际发布，无需重复提交。'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m '按最新正式发布更新首页与各版本下载'
+          git commit -m '按实际发布更新正式版首页与分类归档'
           git push origin HEAD:master
-

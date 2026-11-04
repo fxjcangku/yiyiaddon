@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { buildReleaseHistory } from './生成历史版本.mjs';
 
-/** 只根据真实正式 Release 与已上传附件刷新玩家首页；不读取模组源码，不发布或修改安装包。 */
+/** 根据真实 Release 刷新正式版首页与分类归档；不读取模组源码，不发布或修改安装包。 */
 const args = process.argv.slice(2);
 const option = name => { const at = args.indexOf(name); return at < 0 ? null : args[at + 1]; };
 const root = path.resolve(option('--root') || fileURLToPath(new URL('../', import.meta.url)));
@@ -96,7 +97,8 @@ for (const compact of [false, true]) {
   const template = compact ? 'brand-compact-compat.svg' : 'brand-compat.svg';
   let svg = fs.readFileSync(path.join(folder, template), 'utf8');
   svg = textSlot(svg, 'release-version', compact ? '<text x="30" y="249"' : '<text x="850" y="120"', version);
-  const summary = (latest.name || '').split(/[｜|]/).slice(1).join(' · ').trim() || '查看最新正式版更新';
+  const summary = (latest.name || '').split(/[｜|]/).slice(1).join(' · ').trim()
+    .replace(/^(?:正式版|测试版)(?:\s*[·•—-]\s*|\s*$)/, '') || '查看最新正式版更新';
   // 版本支持短句完整显示，避免按字符截断把 1.21.11 写成 1；其余摘要保留原有卡宽限制。
   const shortTitle = summary.match(/^支持\s*(?:Minecraft\s*)?\d+(?:\.\d+)+/i)?.[0]
     || Array.from(summary).slice(0, 14).join('');
@@ -179,6 +181,26 @@ if ((readme.match(/<!-- homepage:downloads:start -->/g) || []).length !== 1
     || (readme.match(/<!-- homepage:downloads:end -->/g) || []).length !== 1
     || !sectionPattern.test(readme)) throw new Error('下载区域边界缺失或重复，停止覆盖');
 readme = readme.replace(sectionPattern, `<!-- homepage:downloads:start -->\n${section}\n<!-- homepage:downloads:end -->`);
+// 分类入口独立于下载区，保留手工内容；链接主题别名与归档锚点一起生成。
+const historyButtons = ['stable', 'beta'].map(kind => themes.map(theme => {
+  const file = path.join(themeFolder, `nav-${kind}-${theme}.svg`);
+  const digest = createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 8);
+  const src = `展示资源/theme/nav-${kind}-${theme}.svg?v=${digest}`;
+  const href = `发布说明/历史版本.md#user-content-${kind}#gh-${theme}-mode-only`;
+  return `  <a href="${href}"><img src="${src}" width="160" alt="${kind === 'stable' ? '正式版本' : '测试版本'}"></a>`;
+}).join('')).join('\n');
+const historySection = `<!-- homepage:history:start -->\n### 历史版本\n\n当前推荐使用最新正式版；正式版与测试版分开查看。\n\n<p align="center">\n${historyButtons}\n</p>\n<!-- homepage:history:end -->`;
+const historyPattern = /<!-- homepage:history:start -->[\s\S]*?<!-- homepage:history:end -->/;
+const historyStartCount = (readme.match(/<!-- homepage:history:start -->/g) || []).length;
+const historyEndCount = (readme.match(/<!-- homepage:history:end -->/g) || []).length;
+if (historyStartCount === 0 && historyEndCount === 0) {
+  readme = readme.replace('<!-- homepage:downloads:end -->', `<!-- homepage:downloads:end -->\n\n${historySection}`);
+} else {
+  if (historyStartCount !== 1 || historyEndCount !== 1 || !historyPattern.test(readme)) throw new Error('历史入口边界缺失或重复，停止覆盖');
+  readme = readme.replace(historyPattern, historySection);
+}
+const history = buildReleaseHistory({ catalog, latest, repository });
+outputs.set(path.join(root, '发布说明/历史版本.md'), history.markdown);
 // 下一版正式发布后，移除已兑现的旧预告，避免首页继续显示“尚无安装包”。
 const previewPattern = /<!-- homepage:preview:start -->[\s\S]*?<!-- homepage:preview:end -->\n*/;
 const preview = readme.match(previewPattern)?.[0];
@@ -212,5 +234,4 @@ for (const [file, content] of outputs) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, content, 'utf8');
 }
-console.log(JSON.stringify({ latest: version, downloads, files: outputs.size }, null, 2));
-
+console.log(JSON.stringify({ latest: version, downloads, history: history.counts, files: outputs.size }, null, 2));

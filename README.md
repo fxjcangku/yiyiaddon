@@ -70,6 +70,17 @@
 [详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](https://github.com/fxjcangku/yiyiaddon/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)
 <!-- homepage:downloads:end -->
 
+<!-- homepage:history:start -->
+### 历史版本
+
+当前推荐使用最新正式版；正式版与测试版分开查看。
+
+<p align="center">
+  <a href="发布说明/历史版本.md#user-content-stable#gh-light-mode-only"><img src="展示资源/theme/nav-stable-light.svg?v=9a13e163" width="160" alt="正式版本"></a>  <a href="发布说明/历史版本.md#user-content-stable#gh-dark-mode-only"><img src="展示资源/theme/nav-stable-dark.svg?v=8a9ae59a" width="160" alt="正式版本"></a>
+  <a href="发布说明/历史版本.md#user-content-beta#gh-light-mode-only"><img src="展示资源/theme/nav-beta-light.svg?v=02af4227" width="160" alt="测试版本"></a>  <a href="发布说明/历史版本.md#user-content-beta#gh-dark-mode-only"><img src="展示资源/theme/nav-beta-dark.svg?v=1e0ff833" width="160" alt="测试版本"></a>
+</p>
+<!-- homepage:history:end -->
+
 ### 功能概览
 
 <p align="center">
