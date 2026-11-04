@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact-compat.gif?v=337161c0">
-    <img src="展示资源/yiyiaddon-module-cover-compat.gif?v=c6af1e70" width="100%" alt="yiyiaddon 动态功能展示 · Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3">
+    <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact-1.2.gif?v=81e7a084">
+    <img src="展示资源/yiyiaddon-module-cover-1.2.gif?v=b7a7a473" width="100%" alt="yiyiaddon 动态功能展示 · Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3">
   </picture><br>
   <sub>功能概念动画；实际界面与可用功能以所安装版本及服务器支持为准。</sub>
 </p>

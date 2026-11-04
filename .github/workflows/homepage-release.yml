@@ -36,6 +36,10 @@ jobs:
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/homepage-catalog.json"
           node "工具/更新公开首页.mjs" --latest "$RUNNER_TEMP/homepage-latest.json" --catalog "$RUNNER_TEMP/homepage-catalog.json"
           git add -- README.md 展示资源/homepage-20261023/brand-compat.svg 展示资源/homepage-20261023/brand-compact-compat.svg 展示资源/homepage-20261023/download-26.1.2.svg 展示资源/homepage-20261023/download-26.2.svg 展示资源/homepage-20261023/download-26.3.svg
+          for asset in brand-release.svg brand-compact-release.svg download-1.21.11-release.svg download-26.1.2-release.svg download-26.2-release.svg download-26.3-release.svg; do
+            file="展示资源/homepage-20261023/$asset"
+            if [ -f "$file" ]; then git add -- "$file"; fi
+          done
           if git diff --cached --quiet; then
             echo '首页已对应最新正式发布，无需重复提交。'
             exit 0

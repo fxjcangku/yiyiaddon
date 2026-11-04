@@ -16,7 +16,7 @@ const version = latest.tag_name.slice(1);
 const stable = catalog.filter(item => !item.draft && !item.prerelease && item.tag_name !== latest.tag_name)
   .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at));
 const candidates = [latest, ...stable];
-const games = ['26.1.2', '26.2', '26.3'];
+const games = ['1.21.11', '26.1.2', '26.2', '26.3'];
 const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
 /** 每条游戏版本独立选择最新正式附件；没有该线新包时不能把另一条线或预告冒充可下载包。 */
@@ -26,14 +26,16 @@ const downloads = games.map(game => {
     const asset = (release.assets || []).find(item => item.name === `yiyiaddon-${number}-${game}.jar`
       && item.size > 0 && item.state === 'uploaded');
     if (!asset) continue;
-    if (!asset.browser_download_url.startsWith(`${repository}/releases/download/`)) throw new Error('安装包链接不属于本仓库');
+    if (asset.browser_download_url !== [repository, "releases/download", release.tag_name, asset.name].join("/")) throw new Error('安装包链接不属于本仓库');
     const row = (release.body || '').split('\n').map(line => line.split('|').map(cell => cell.trim().replaceAll('**', '')))
       .find(cells => cells[1] === game);
     const dependency = row?.[3]?.match(/\d+\.\d+\.\d+\+\d+(?:\.\d+)+/)?.[0] || null;
     return { game, version: number, url: asset.browser_download_url, dependency, tag: release.tag_name };
   }
+  if (game === '1.21.11') return null;
   throw new Error(`未找到 Minecraft ${game} 的正式 JAR，保留现有首页`);
-});
+}).filter(Boolean);
+const fixedPortAvailable = downloads.some(item => item.game === '1.21.11');
 const latestGames = downloads.filter(item => item.tag === latest.tag_name).map(item => item.game);
 if (!latestGames.length) throw new Error('最新正式版没有可核实安装包，保留现有首页');
 
@@ -49,21 +51,29 @@ function textSlot(svg, id, selector, value) {
 }
 const folder = path.join(root, '展示资源/homepage-20261023');
 const outputs = new Map();
+// 首次正式发布四个版本时使用新路径，避开旧路径缓存。
+const brandName = compact => 'brand' + (compact ? '-compact' : '') + (fixedPortAvailable ? '-release.svg' : '-compat.svg');
+const downloadName = game => 'download-' + game + (fixedPortAvailable ? '-release.svg' : '.svg');
 for (const compact of [false, true]) {
-  const name = compact ? 'brand-compact-compat.svg' : 'brand-compat.svg';
-  let svg = fs.readFileSync(path.join(folder, name), 'utf8');
+  const name = brandName(compact);
+  const template = compact ? 'brand-compact-compat.svg' : 'brand-compat.svg';
+  let svg = fs.readFileSync(path.join(folder, template), 'utf8');
   svg = textSlot(svg, 'release-version', compact ? '<text x="30" y="249"' : '<text x="850" y="120"', version);
   const summary = (latest.name || '').split(/[｜|]/).slice(1).join(' · ').trim() || '查看最新正式版更新';
   if (!compact) svg = textSlot(svg, 'release-title', '<text x="854" y="212"', Array.from(summary).slice(0, 14).join(''));
   svg = textSlot(svg, 'supported-games', compact ? '<text x="30" y="290"' : '<text x="854" y="173"',
-    `${compact ? '' : 'Minecraft '}${latestGames.join(' / ')}`);
-  const label = `yiyiaddon ${version} · 独立 Fabric 客户端模组 · 1.21.11 适配预告`;
+    `${compact || latestGames.length === 4 ? '' : 'Minecraft '}${latestGames.join(' / ')}`);
+  if (fixedPortAvailable) svg = svg.replace(/<text[^>]*>1\.21\.11 适配预告<\/text>/, '');
+  const label = 'yiyiaddon ' + version + ' · 独立 Fabric 客户端模组 · Minecraft ' + latestGames.join(' / ')
+    + (fixedPortAvailable ? '' : ' · 1.21.11 适配预告');
   svg = svg.replace(/aria-label="[^"]*"/, `aria-label="${xml(label)}"`).replace(/<title>[^<]*<\/title>/, `<title>${xml(label)}</title>`);
   outputs.set(path.join(folder, name), svg);
 }
 for (const item of downloads) {
-  const name = `download-${item.game}.svg`;
-  let svg = fs.readFileSync(path.join(folder, name), 'utf8');
+  const name = downloadName(item.game);
+  const template = 'download-' + (item.game === '1.21.11' ? '26.1.2' : item.game) + '.svg';
+  let svg = fs.readFileSync(path.join(folder, template), 'utf8');
+  if (item.game === '1.21.11') svg = svg.replace('>26.1.2</text>', '>1.21.11</text>');
   svg = textSlot(svg, 'release-version', '<text x="688" y="55"', item.version);
   svg = textSlot(svg, 'fabric-api', '<text x="32" y="222"', item.dependency ? `Fabric API  ${item.dependency}` : '配套 Fabric API 见下载页');
   svg = textSlot(svg, 'download-note', '<text x="32" y="258"', '此游戏版本最新可用正式包');
@@ -76,33 +86,24 @@ const readmePath = path.join(root, 'README.md');
 let readme = fs.readFileSync(readmePath, 'utf8').replaceAll('\r\n', '\n');
 // 固定适配预告独立于下一版摘要：正式版号递增不能被视为该游戏版本已经有公开安装包。
 const fixedPortPattern = /<!-- homepage:fixed-port:start -->[\s\S]*?<!-- homepage:fixed-port:end -->/;
-const fixedPort = readme.match(fixedPortPattern)?.[0];
+const fixedPort = !fixedPortAvailable && readme.match(fixedPortPattern)?.[0];
 for (const marker of ['start', 'end']) {
   const count = (readme.match(new RegExp(`<!-- homepage:fixed-port:${marker} -->`, 'g')) || []).length;
   if (count > 1 || (fixedPort && count !== 1)) throw new Error('固定适配预告边界重复或不完整');
 }
-// 预告与正式卡同一区域、同一尺寸；只保留查看预告入口，不加入 games 或生成下载地址。
-const fixedPortCard = path.join(folder, 'preview-1.21.11-compat.svg');
-if (fixedPort && fs.existsSync(fixedPortCard)) {
-  outputs.set(fixedPortCard, fs.readFileSync(fixedPortCard, 'utf8'));
-}
-readme = readme.replace(/(src="展示资源\/homepage-20261023\/brand-compat.svg(?:\?[^\"]*)?"[^>]*alt=")[^"]*/,
-  `$1yiyiaddon · 独立 Fabric 客户端模组。最新正式版 ${xml(version)}；Minecraft ${latestGames.join(' / ')}。1.21.11 适配预告。`);
-// 图片 URL 随真实 SVG 内容变化，避免 GitHub 图片代理继续显示上一版宣传。
+// 图片 URL 包含实际内容摘要；首个正式四版本页面另换文件名，避开旧路径缓存。
 const imageUrl = (name, number) => `展示资源/homepage-20261023/${name}?v=${encodeURIComponent(number)}-${createHash('sha256').update(outputs.get(path.join(folder, name))).digest('hex').slice(0, 8)}`;
-readme = readme.replace(/(src=")展示资源\/homepage-20261023\/brand-compat.svg(?:\?[^\"]*)?(\")/,
-  (_, open, close) => open + imageUrl('brand-compat.svg', version) + close);
-readme = readme.replace(/(srcset=")展示资源\/homepage-20261023\/brand-compact-compat.svg(?:\?[^\"]*)?(\")/,
-  (_, open, close) => open + imageUrl('brand-compact-compat.svg', version) + close);
-if (outputs.has(fixedPortCard)) {
-  readme = readme.replace(/(src=")展示资源\/homepage-20261023\/preview-1\.21\.11.svg(?:\?[^\"]*)?(\")/,
-    (_, open, close) => open + imageUrl('preview-1.21.11-compat.svg', version) + close);
-}
-const card = item => `  <a href="${item.url}"><img src="${imageUrl(`download-${item.game}.svg`, item.version)}" width="194" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
+readme = readme.replace(/(src=")展示资源\/homepage-20261023\/brand-(?:compat|release)\.svg(?:\?[^"]*)?("[^>]*alt=")[^"]*/,
+  (_, open, middle) => open + imageUrl(brandName(false), version) + middle +
+    "yiyiaddon · 独立 Fabric 客户端模组。最新正式版 " + xml(version) + "；Minecraft " + latestGames.join(" / ") + "。" +
+    (fixedPortAvailable ? "" : "1.21.11 适配预告。"));
+readme = readme.replace(/(srcset=")展示资源\/homepage-20261023\/brand-compact-(?:compat|release)\.svg(?:\?[^"]*)?(")/,
+  (_, open, close) => open + imageUrl(brandName(true), version) + close);
+const card = item => `  <a href="${item.url}"><img src="${imageUrl(downloadName(item.game), item.version)}" width="194" alt="下载 Minecraft ${item.game} JAR · 最新可用正式版 ${item.version}"></a>`;
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
 const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
-const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本；预告卡仅供查看，正式版按钮直接下载 JAR。\n\n${cardStrip}\n\n**运行环境** &nbsp; Windows x64 · Java 25 · Fabric Loader 0.19.5+\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包；**Baritone 已内置**。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
+const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本，正式版按钮直接下载 JAR。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n${cardStrip}\n\n**运行环境** &nbsp; Windows x64 · Fabric Loader 0.19.5+ · ${fixedPortAvailable ? "1.21.11 使用 Java 21，26 系列使用 Java 25" : "Java 25"}\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包；**Baritone 已内置**。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
 // 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
 const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
 if ((readme.match(/<!-- homepage:downloads:start -->/g) || []).length !== 1
@@ -121,7 +122,7 @@ const compareVersion = (left, right) => {
   }
   return 0;
 };
-if (previewVersion && /^\d+(?:\.\d+)*$/.test(version) && compareVersion(version, previewVersion) >= 0) {
+if (previewVersion && (!preview.includes('1.21.11') || fixedPortAvailable) && /^\d+(?:\.\d+)*$/.test(version) && compareVersion(version, previewVersion) >= 0) {
   readme = readme.replace(previewPattern, '');
 }
 // 只允许图片缓存摘要变化；预告必须仍在下载区首位，不能被发布刷新吞掉或补回顶部。
