@@ -40,6 +40,14 @@ jobs:
             file="展示资源/homepage-20261023/$asset"
             if [ -f "$file" ]; then git add -- "$file"; fi
           done
+          # 只暂存刷新工具生成的品牌与下载组件，静态导航和功能卡由人工维护。
+          for theme in light dark; do
+            git add -- "展示资源/theme/brand-$theme.svg" "展示资源/theme/brand-compact-$theme.svg"
+            for game in 1.21.11 26.1.2 26.2 26.3; do
+              file="展示资源/theme/download-$game-$theme.svg"
+              if [ -f "$file" ]; then git add -- "$file"; fi
+            done
+          done
           if git diff --cached --quiet; then
             echo '首页已对应最新正式发布，无需重复提交。'
             exit 0
@@ -48,3 +56,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m '按最新正式发布更新首页与各版本下载'
           git push origin HEAD:master
+

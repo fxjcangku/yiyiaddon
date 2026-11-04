@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="116" viewBox="0 0 380 116" role="img" aria-label="问题反馈">
+<title>问题反馈</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#182331"/><stop offset="1" stop-color="#101720"/></linearGradient>
+<radialGradient id="glow" cx="100%" cy="0%" r="110%"><stop stop-color="#FCD34D" stop-opacity=".09"/><stop offset=".8" stop-color="#FCD34D" stop-opacity="0"/></radialGradient>
+</defs>
+<g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
+<rect x="1" y="1" width="378" height="102" rx="23" fill="url(#bg)" stroke="#554B33" stroke-width="1.5"/>
+<rect x="1" y="1" width="378" height="102" rx="23" fill="url(#glow)"/>
+<g transform="translate(28 31) scale(1.5833333333)" fill="none" stroke="#FCD34D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3h.01"/></g>
+<text x="83" y="65" font-size="32" fill="#F3F6FC" font-weight="600">问题反馈</text>
+<g transform="translate(320 38) scale(1.1666666667)" fill="none" stroke="#FCD34D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></g>
+</g></svg>
