@@ -144,14 +144,10 @@ const imageUrl = (file, number) => {
   const relative = path.relative(root, file).split(path.sep).join('/');
   return `${relative}?v=${encodeURIComponent(number)}-${createHash('sha256').update(content).digest('hex').slice(0, 8)}`;
 };
-// README 的 GitHub 主题可能与操作系统不同；由 GitHub 的主题片段决定显隐。
-const themedUrl = (name, theme, number) => imageUrl(path.join(themeFolder, `${name}-${theme}.svg`), number)
-  + `#gh-${theme}-mode-only`;
-function themedImages(name, number, width, label) {
-  return themes.map(theme => `<img src="${themedUrl(name, theme, number)}" width="${width}" alt="${xml(label)}">`).join('');
-}
+// GitHub README 主题 CSS 匹配链接 href 的主题片段，不能仅在 img src 上标记。
+const themedUrl = (name, theme, number) => imageUrl(path.join(themeFolder, `${name}-${theme}.svg`), number);
 function responsiveBrand(theme, number, label) {
-  return `<picture>\n  <source media="(max-width: 640px)" srcset="${themedUrl('brand-compact', theme, number)}">\n  <img src="${themedUrl('brand', theme, number)}" width="100%" alt="${xml(label)}">\n</picture>`;
+  return `<a href="${repository}/releases/latest#gh-${theme}-mode-only">\n  <picture>\n    <source media="(max-width: 640px)" srcset="${themedUrl('brand-compact', theme, number)}">\n    <img src="${themedUrl('brand', theme, number)}" width="100%" alt="${xml(label)}">\n  </picture>\n</a>`;
 }
 const brandLabel = `yiyiaddon · 独立 Fabric 客户端模组。最新正式版 ${version}；Minecraft ${latestGames.join(' / ')}。`
   + (fixedPortAvailable ? '' : '1.21.11 适配预告。');
@@ -171,7 +167,7 @@ if (brandStartCount === 0 && brandEndCount === 0) {
 }
 const card = item => {
   const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · Baritone 寻路已内置`;
-  return `  <a href="${item.url}">${themedImages(`download-${item.game}`, item.version, '194', label)}</a>`;
+  return themes.map(theme => `  <a href="${item.url}#gh-${theme}-mode-only"><img src="${themedUrl(`download-${item.game}`, theme, item.version)}" width="194" alt="${xml(label)}"></a>`).join('\n');
 };
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
