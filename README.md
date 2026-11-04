@@ -36,10 +36,10 @@
 当前正式版 **1.2**。选择与你的 Minecraft 一致的版本，正式版按钮直接下载 JAR。
 
 <p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar"><img src="展示资源/homepage-20261023/download-1.21.11-release.svg?v=1.2-e61a6b77" width="194" alt="下载 Minecraft 1.21.11 JAR · 最新可用正式版 1.2"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar"><img src="展示资源/homepage-20261023/download-26.1.2-release.svg?v=1.2-80176359" width="194" alt="下载 Minecraft 26.1.2 JAR · 最新可用正式版 1.2"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar"><img src="展示资源/homepage-20261023/download-26.2-release.svg?v=1.2-65d93361" width="194" alt="下载 Minecraft 26.2 JAR · 最新可用正式版 1.2"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar"><img src="展示资源/homepage-20261023/download-26.3-release.svg?v=1.2-1a86ca0f" width="194" alt="下载 Minecraft 26.3 JAR · 最新可用正式版 1.2"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar"><img src="展示资源/homepage-20261023/download-1.21.11-release.svg?v=1.2-058a899a" width="194" alt="下载 Minecraft 1.21.11 JAR · 最新可用正式版 1.2"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar"><img src="展示资源/homepage-20261023/download-26.1.2-release.svg?v=1.2-257d037c" width="194" alt="下载 Minecraft 26.1.2 JAR · 最新可用正式版 1.2"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar"><img src="展示资源/homepage-20261023/download-26.2-release.svg?v=1.2-e4895aef" width="194" alt="下载 Minecraft 26.2 JAR · 最新可用正式版 1.2"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar"><img src="展示资源/homepage-20261023/download-26.3-release.svg?v=1.2-adb4cfb0" width="194" alt="下载 Minecraft 26.3 JAR · 最新可用正式版 1.2"></a>
 </p>
 
 **运行环境** &nbsp; Windows x64 · Fabric Loader 0.19.5+ · 1.21.11 使用 Java 21，26 系列使用 Java 25
