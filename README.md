@@ -35,7 +35,7 @@
 由 **fxjcangku** 维护，主要借助 **Claude** 与 **OpenAI Codex** 编写代码、迭代功能和修复问题。
 
 <p align="center">
-  <a href="https://github.com/fxjcangku#gh-light-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-light.svg?v=0b056dfb" width="260" alt="fxjcangku · 项目维护、需求规划、测试与发布"></a><a href="https://github.com/fxjcangku#gh-dark-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-dark.svg?v=ec27c95a" width="260" alt="fxjcangku · 项目维护、需求规划、测试与发布"></a>
+  <a href="https://github.com/fxjcangku#gh-light-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-light.svg?v=b7d9797e" width="260" alt="fxjcangku · 项目维护、需求规划、测试与发布"></a><a href="https://github.com/fxjcangku#gh-dark-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-dark.svg?v=8a665ab1" width="260" alt="fxjcangku · 项目维护、需求规划、测试与发布"></a>
   <a href="https://github.com/claude#gh-light-mode-only"><img src="展示资源/theme/collaboration-claude-light.svg?v=0150b9a6" width="260" alt="Claude · Anthropic 代码协作"></a><a href="https://github.com/claude#gh-dark-mode-only"><img src="展示资源/theme/collaboration-claude-dark.svg?v=cc4666e1" width="260" alt="Claude · Anthropic 代码协作"></a>
   <a href="https://github.com/codex#gh-light-mode-only"><img src="展示资源/theme/collaboration-codex-light.svg?v=4428bcbc" width="260" alt="Codex · OpenAI 代码协作"></a><a href="https://github.com/codex#gh-dark-mode-only"><img src="展示资源/theme/collaboration-codex-dark.svg?v=bc55a8bd" width="260" alt="Codex · OpenAI 代码协作"></a>
 </p>
