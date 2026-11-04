@@ -8,11 +8,11 @@
 
 <!-- homepage:brand:start -->
 <picture>
-  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.2-d95b9f26">
-  <source media="(max-width: 640px) and (prefers-color-scheme: light)" srcset="展示资源/theme/brand-compact-light.svg?v=1.2-2be2e3ef">
-  <source media="(prefers-color-scheme: dark)" srcset="展示资源/theme/brand-dark.svg?v=1.2-51330355">
-  <source media="(prefers-color-scheme: light)" srcset="展示资源/theme/brand-light.svg?v=1.2-d1576d6f">
-  <img src="展示资源/theme/brand-light.svg?v=1.2-d1576d6f" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.2-1c63acac">
+  <source media="(max-width: 640px) and (prefers-color-scheme: light)" srcset="展示资源/theme/brand-compact-light.svg?v=1.2-a7167847">
+  <source media="(prefers-color-scheme: dark)" srcset="展示资源/theme/brand-dark.svg?v=1.2-85f9f21e">
+  <source media="(prefers-color-scheme: light)" srcset="展示资源/theme/brand-light.svg?v=1.2-62ff02a2">
+  <img src="展示资源/theme/brand-light.svg?v=1.2-62ff02a2" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
 </picture>
 <!-- homepage:brand:end -->
 
