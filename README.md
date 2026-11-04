@@ -9,14 +9,14 @@
 <!-- homepage:brand:start -->
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-light-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.2-2be2e3ef">
-    <img src="展示资源/theme/brand-light.svg?v=1.2-adbd5dc0" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.2-a7167847">
+    <img src="展示资源/theme/brand-light.svg?v=1.2-a380e79f" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
   </picture>
 </a>
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-dark-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.2-d95b9f26">
-    <img src="展示资源/theme/brand-dark.svg?v=1.2-812ac2d2" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.2-1c63acac">
+    <img src="展示资源/theme/brand-dark.svg?v=1.2-d962da31" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
   </picture>
 </a>
 <!-- homepage:brand:end -->
