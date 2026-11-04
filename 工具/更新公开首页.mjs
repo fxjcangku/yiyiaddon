@@ -97,7 +97,10 @@ for (const compact of [false, true]) {
   let svg = fs.readFileSync(path.join(folder, template), 'utf8');
   svg = textSlot(svg, 'release-version', compact ? '<text x="30" y="249"' : '<text x="850" y="120"', version);
   const summary = (latest.name || '').split(/[｜|]/).slice(1).join(' · ').trim() || '查看最新正式版更新';
-  if (!compact) svg = textSlot(svg, 'release-title', '<text x="854" y="212"', Array.from(summary).slice(0, 14).join(''));
+  // 版本支持短句完整显示，避免按字符截断把 1.21.11 写成 1；其余摘要保留原有卡宽限制。
+  const shortTitle = summary.match(/^支持\s*(?:Minecraft\s*)?\d+(?:\.\d+)+/i)?.[0]
+    || Array.from(summary).slice(0, 14).join('');
+  if (!compact) svg = textSlot(svg, 'release-title', '<text x="854" y="212"', shortTitle);
   svg = textSlot(svg, 'supported-games', compact ? '<text x="30" y="290"' : '<text x="854" y="173"',
     `${compact || latestGames.length === 4 ? '' : 'Minecraft '}${latestGames.join(' / ')}`);
   if (fixedPortAvailable) svg = svg.replace(/<text[^>]*>1\.21\.11 适配预告<\/text>/, '');
@@ -141,22 +144,18 @@ const imageUrl = (file, number) => {
   const relative = path.relative(root, file).split(path.sep).join('/');
   return `${relative}?v=${encodeURIComponent(number)}-${createHash('sha256').update(content).digest('hex').slice(0, 8)}`;
 };
-const themedUrl = (name, theme, number) => imageUrl(path.join(themeFolder, `${name}-${theme}.svg`), number);
-function themedPicture(name, number, width, label, compact = false) {
-  const sources = compact ? [
-    `  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="${themedUrl(`${name}-compact`, 'dark', number)}">`,
-    `  <source media="(max-width: 640px) and (prefers-color-scheme: light)" srcset="${themedUrl(`${name}-compact`, 'light', number)}">`,
-  ] : [];
-  sources.push(
-    `  <source media="(prefers-color-scheme: dark)" srcset="${themedUrl(name, 'dark', number)}">`,
-    `  <source media="(prefers-color-scheme: light)" srcset="${themedUrl(name, 'light', number)}">`,
-    `  <img src="${themedUrl(name, 'light', number)}" width="${width}" alt="${xml(label)}">`,
-  );
-  return `<picture>\n${sources.join('\n')}\n</picture>`;
+// README 的 GitHub 主题可能与操作系统不同；由 GitHub 的主题片段决定显隐。
+const themedUrl = (name, theme, number) => imageUrl(path.join(themeFolder, `${name}-${theme}.svg`), number)
+  + `#gh-${theme}-mode-only`;
+function themedImages(name, number, width, label) {
+  return themes.map(theme => `<img src="${themedUrl(name, theme, number)}" width="${width}" alt="${xml(label)}">`).join('');
+}
+function responsiveBrand(theme, number, label) {
+  return `<picture>\n  <source media="(max-width: 640px)" srcset="${themedUrl('brand-compact', theme, number)}">\n  <img src="${themedUrl('brand', theme, number)}" width="100%" alt="${xml(label)}">\n</picture>`;
 }
 const brandLabel = `yiyiaddon · 独立 Fabric 客户端模组。最新正式版 ${version}；Minecraft ${latestGames.join(' / ')}。`
   + (fixedPortAvailable ? '' : '1.21.11 适配预告。');
-const brandSection = `<!-- homepage:brand:start -->\n${themedPicture('brand', version, '100%', brandLabel, true)}\n<!-- homepage:brand:end -->`;
+const brandSection = `<!-- homepage:brand:start -->\n${themes.map(theme => responsiveBrand(theme, version, brandLabel)).join('\n')}\n<!-- homepage:brand:end -->`;
 const brandPattern = /<!-- homepage:brand:start -->[\s\S]*?<!-- homepage:brand:end -->/;
 const brandStartCount = (readme.match(/<!-- homepage:brand:start -->/g) || []).length;
 const brandEndCount = (readme.match(/<!-- homepage:brand:end -->/g) || []).length;
@@ -172,7 +171,7 @@ if (brandStartCount === 0 && brandEndCount === 0) {
 }
 const card = item => {
   const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · Baritone 寻路已内置`;
-  return `  <a href="${item.url}">\n    ${themedPicture(`download-${item.game}`, item.version, '194', label).replaceAll('\n', '\n    ')}\n  </a>`;
+  return `  <a href="${item.url}">${themedImages(`download-${item.game}`, item.version, '194', label)}</a>`;
 };
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
