@@ -18,6 +18,9 @@ const stable = catalog.filter(item => !item.draft && !item.prerelease && item.ta
   .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at));
 const candidates = [latest, ...stable];
 const games = ['1.21.11', '26.1.2', '26.2', '26.3'];
+const baritoneNote = '已内置调教优化版 Baritone';
+const baritoneWarning = '请卸载自行安装的 Baritone';
+const baritoneSummary = `${baritoneNote} · ${baritoneWarning}`;
 const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
 /** 按表头识别兼容表，兼容旧四列与新三列排版；不从固定列号或其他游戏版本猜依赖。 */
@@ -122,8 +125,9 @@ for (const item of downloads) {
     svg = textSlot(svg, 'game-version', null, item.game);
     svg = textSlot(svg, 'release-version', null, item.version);
     svg = textSlot(svg, 'fabric-api', null, item.dependency ? `Fabric API  ${item.dependency}` : '配套 Fabric API 见下载页');
-    svg = textSlot(svg, 'download-note', null, 'Baritone 寻路已内置');
-    const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · Baritone 寻路已内置`;
+    svg = textSlot(svg, 'download-note', null, baritoneNote);
+    svg = textSlot(svg, 'baritone-warning', null, baritoneWarning);
+    const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${baritoneSummary}`;
     svg = svg.replace(/aria-label="[^"]*"/, `aria-label="${xml(label)}"`).replace(/<title>[^<]*<\/title>/, `<title>${xml(label)}</title>`);
     outputs.set(file, svg);
     // 保留旧图片 URL 的输出兼容；现行首页仅引用新的明暗组件。
@@ -168,13 +172,13 @@ if (brandStartCount === 0 && brandEndCount === 0) {
   readme = readme.replace(brandPattern, brandSection);
 }
 const card = item => {
-  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · Baritone 寻路已内置`;
+  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${baritoneSummary}`;
   return themes.map(theme => `  <a href="${item.url}#gh-${theme}-mode-only"><img src="${themedUrl(`download-${item.game}`, theme, item.version)}" width="194" alt="${xml(label)}"></a>`).join('\n');
 };
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
 const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
-const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本，正式版按钮直接下载 JAR。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n${cardStrip}\n\n**Baritone 寻路已整合进 yiyiaddon 的 JAR，无需另外下载或安装 Baritone。**\n\n**运行环境** &nbsp; Windows x64 · Fabric Loader 0.19.5+ · ${fixedPortAvailable ? "1.21.11 使用 Java 21，26 系列使用 Java 25" : "Java 25"}\n\n1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。\n2. 安装配套 **Fabric API**，移出重复旧包。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
+const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本，正式版按钮直接下载 JAR。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n> [!IMPORTANT]\n> **yiyiaddon 已内置经过调教优化的 Baritone。${baritoneWarning}，避免重复加载或冲突。**\n> 无需另外下载或安装 Baritone。\n\n${cardStrip}\n\n**运行环境** &nbsp; Windows x64 · Fabric Loader 0.19.5+ · ${fixedPortAvailable ? "1.21.11 使用 Java 21，26 系列使用 Java 25" : "Java 25"}\n\n1. 退出游戏，将自行安装的 Baritone JAR 移出当前实例的 <code>mods</code> 文件夹，再放入对应版本的 yiyiaddon JAR。\n2. 安装配套 **Fabric API**，移出重复旧包。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
 // 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
 const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
 if ((readme.match(/<!-- homepage:downloads:start -->/g) || []).length !== 1

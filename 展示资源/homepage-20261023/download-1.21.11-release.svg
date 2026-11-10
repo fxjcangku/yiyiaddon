@@ -1,19 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="480" height="314" viewBox="0 0 480 314" role="img" aria-label="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · Baritone 寻路已内置">
-<title>下载 Minecraft 1.21.11 JAR · 正式版 1.2 · Baritone 寻路已内置</title>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="349" viewBox="0 0 480 349" role="img" aria-label="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone">
+<title>下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone</title>
 <defs>
 <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#182331"/><stop offset="1" stop-color="#101720"/></linearGradient>
 <radialGradient id="glow" cx="100%" cy="0%" r="110%"><stop stop-color="#93C5FD" stop-opacity=".09"/><stop offset=".8" stop-color="#93C5FD" stop-opacity="0"/></radialGradient>
 </defs>
 <g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
-<rect x="1" y="1" width="478" height="300" rx="24" fill="url(#bg)" stroke="#34465D" stroke-width="1.5"/>
-<rect x="1" y="1" width="478" height="300" rx="24" fill="url(#glow)"/>
+<rect x="1" y="1" width="478" height="335" rx="24" fill="url(#bg)" stroke="#34465D" stroke-width="1.5"/>
+<rect x="1" y="1" width="478" height="335" rx="24" fill="url(#glow)"/>
 <text x="28" y="45" font-size="21" fill="#A9B8CC" font-weight="600" letter-spacing="1.7">MINECRAFT</text>
 <text x="452" y="45" font-size="20" fill="#93C5FD" font-weight="650" id="release-version" text-anchor="end">1.2</text>
 <text x="27" y="111" font-size="52" fill="#F3F6FC" font-weight="700" id="game-version" letter-spacing="-1">1.21.11</text>
-<text x="28" y="154" font-size="25" fill="#93C5FD" font-weight="600" id="download-note">Baritone 寻路已内置</text>
-<text x="28" y="189" font-size="22" fill="#A9B8CC" font-weight="400" id="fabric-api">Fabric API  0.141.6+1.21.11</text>
-<rect x="25" y="214" width="430" height="62" rx="15" fill="#93C5FD"/>
-<g transform="translate(44 232) scale(1.1666666667)" fill="none" stroke="#101828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 15v5h16v-5"/></g>
-<text x="88" y="255" font-size="24" fill="#101828" font-weight="650">下载 JAR 安装包</text>
-<g transform="translate(404 232) scale(1.1666666667)" fill="none" stroke="#101828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></g>
+<text x="28" y="154" font-size="25" fill="#93C5FD" font-weight="600" id="download-note">已内置调教优化版 Baritone</text>
+<text x="28" y="189" font-size="23" fill="#FBBF24" font-weight="650" id="baritone-warning">请卸载自行安装的 Baritone</text>
+<text x="28" y="224" font-size="22" fill="#A9B8CC" font-weight="400" id="fabric-api">Fabric API  0.141.6+1.21.11</text>
+<rect x="25" y="249" width="430" height="62" rx="15" fill="#93C5FD"/>
+<g transform="translate(44 267) scale(1.1666666667)" fill="none" stroke="#101828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 15v5h16v-5"/></g>
+<text x="88" y="290" font-size="24" fill="#101828" font-weight="650">下载 JAR 安装包</text>
+<g transform="translate(404 267) scale(1.1666666667)" fill="none" stroke="#101828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></g>
 </g></svg>

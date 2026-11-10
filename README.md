@@ -48,22 +48,24 @@
 <!-- homepage:downloads:start -->
 当前正式版 **1.2**。选择与你的 Minecraft 一致的版本，正式版按钮直接下载 JAR。
 
-<p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.21.11-light.svg?v=1.2-ef4db20d" width="194" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.21.11-dark.svg?v=1.2-150a2bbe" width="194" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.1.2-light.svg?v=1.2-1a07b76c" width="194" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.1.2-dark.svg?v=1.2-53834831" width="194" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.2-light.svg?v=1.2-6d5121a3" width="194" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.2-dark.svg?v=1.2-2bab0891" width="194" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.3-light.svg?v=1.2-b0a7c538" width="194" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.3-dark.svg?v=1.2-82b39624" width="194" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · Baritone 寻路已内置"></a>
-</p>
+> [!IMPORTANT]
+> **yiyiaddon 已内置经过调教优化的 Baritone。请卸载自行安装的 Baritone，避免重复加载或冲突。**
+> 无需另外下载或安装 Baritone。
 
-**Baritone 寻路已整合进 yiyiaddon 的 JAR，无需另外下载或安装 Baritone。**
+<p align="center">
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.21.11-light.svg?v=1.2-cb340690" width="194" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.21.11-dark.svg?v=1.2-ad1fb8cb" width="194" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.1.2-light.svg?v=1.2-d7bc50e6" width="194" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.1.2-dark.svg?v=1.2-6a11cfcc" width="194" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.2-light.svg?v=1.2-63ee23be" width="194" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.2-dark.svg?v=1.2-5ee44b47" width="194" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.3-light.svg?v=1.2-d5a65c44" width="194" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.3-dark.svg?v=1.2-f9f30730" width="194" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+</p>
 
 **运行环境** &nbsp; Windows x64 · Fabric Loader 0.19.5+ · 1.21.11 使用 Java 21，26 系列使用 Java 25
 
-1. 退出游戏，将对应版本的 JAR 放入游戏实例的 <code>mods</code> 文件夹。
+1. 退出游戏，将自行安装的 Baritone JAR 移出当前实例的 <code>mods</code> 文件夹，再放入对应版本的 yiyiaddon JAR。
 2. 安装配套 **Fabric API**，移出重复旧包。
 3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。
 
