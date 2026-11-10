@@ -98,6 +98,14 @@ function fold(label, content) {
   return `<details>\n<summary>${label}</summary>\n\n${content}\n</details>`;
 }
 
+// 原封面和相邻图注始终直接显示；兼容历史发布中的 HTML 与 Markdown 图片。
+function originalCoverBlocks(release) {
+  const markdownBlocks = [...release.originalIntro.matchAll(/^!\[[^\]\r\n]*\]\([^\r\n]+\)(?:\r?\n\*[^\r\n]+\*)?/gm)]
+    .map(match => match[0]);
+  return [...(release.coverImageBlocks || []), ...markdownBlocks]
+    .sort((a, b) => release.originalIntro.indexOf(a) - release.originalIntro.indexOf(b));
+}
+
 function environmentAlt(release) {
   if (release.tag === 'v1.2') {
     return '运行环境：Windows x64；Fabric Loader 0.19.5+。Minecraft 1.21.11：Fabric API 0.141.6+1.21.11、Java 21；26.1.2：0.155.2+26.1.2、Java 25；26.2：0.161.0+26.2、Java 25；26.3：0.164.0+26.3、Java 25。';
@@ -134,7 +142,8 @@ function composeRelease(release, assets, options) {
   const stableUrl = `${repository}/releases/latest`;
   const docsUrl = `${options.docPrefix}功能指南.md`;
   const status = release.prerelease ? '历史测试版' : (release.tag === 'v1.2' ? '正式版' : '历史正式版');
-  const parts = [`**yiyiaddon ${version} · ${status}**\n\n${release.summary}`];
+  const covers = originalCoverBlocks(release);
+  const parts = [...covers, `**yiyiaddon ${version} · ${status}**\n\n${release.summary}`];
 
   if (assets.length) {
     const games = assets.map(asset => asset.minecraftVersion).join(' / ');
@@ -176,11 +185,12 @@ function composeRelease(release, assets, options) {
   // 完整更新正文和原反馈信息均按原始字符保留，避免丢失特定旧版说明。
   parts.push(fold('本版更新亮点与完整记录', release.highlightsSegment + release.detailsSegment + release.originalFeedback));
 
-  const historical = [withoutOldNavigation(release.originalIntro)];
+  const historicalIntro = covers.reduce((text, cover) => text.replace(cover, ''), withoutOldNavigation(release.originalIntro));
+  const historical = [historicalIntro];
   if (release.historicalEnvironment) historical.push(release.historicalEnvironment);
   else historical.push(historicalDownloadRecord(release.downloadSegment));
   if (release.sourceDocumentSupplement) historical.push(release.sourceDocumentSupplement);
-  parts.push(fold('发布时的封面与说明', historical.join('\n\n')));
+  parts.push(fold(covers.length ? '发布时的补充说明' : '发布时的封面与说明', historical.join('\n\n')));
   parts.push(heading(2, 'book', '文档与支持', options));
   parts.push(supportGrid(options));
 
@@ -192,6 +202,11 @@ function composeRelease(release, assets, options) {
 }
 
 function verifyPreservation(release, body) {
+  for (const cover of originalCoverBlocks(release)) {
+    if (!body.slice(0, body.indexOf('<details>')).includes(cover) || body.split(cover).length !== 2) {
+      throw new Error(`${release.tag} 原封面与图注必须在折叠区之前完整显示一次。`);
+    }
+  }
   for (const name of ['highlightsSegment', 'detailsSegment', 'originalFeedback', 'historicalEnvironment', 'updateSummaryComment', 'sourceDocumentSupplement']) {
     if (release[name] && !body.includes(release[name])) throw new Error(`${release.tag} 丢失原始字段 ${name}。`);
   }
