@@ -1,0 +1,141 @@
+{
+  "upstream": "https://github.com/primer/octicons",
+  "commit": "68ec2de8d0ddfcbb7497da01d0b7d98eb5593020",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 GitHub Inc.",
+  "fetchedDate": "2026-11-10",
+  "icons": [
+    {
+      "name": "download",
+      "filename": "download-24.svg",
+      "blob": "8886f0318035172d1f05e7af3eba564c3ded1f31",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/download-24.svg"
+    },
+    {
+      "name": "package",
+      "filename": "package-24.svg",
+      "blob": "22862c660ce7b285e91e1fc7e88be8ec1f4fd403",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/package-24.svg"
+    },
+    {
+      "name": "book",
+      "filename": "book-24.svg",
+      "blob": "72e3ca2aa5047cba6289513e094b3a88c3a29ba6",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/book-24.svg"
+    },
+    {
+      "name": "history",
+      "filename": "history-24.svg",
+      "blob": "e6b07f6d0434c9e593592d637e24ca22888c3556",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/history-24.svg"
+    },
+    {
+      "name": "gear",
+      "filename": "gear-24.svg",
+      "blob": "b301c8f35f01b565c2d5c63612672827822a3874",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/gear-24.svg"
+    },
+    {
+      "name": "comment-discussion",
+      "filename": "comment-discussion-24.svg",
+      "blob": "b36b39964d54e11c029175c1b4818bea413def77",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/comment-discussion-24.svg"
+    },
+    {
+      "name": "bug",
+      "filename": "bug-24.svg",
+      "blob": "b1520a4b2e99c9cd21987693bb8ce7c96a7b0cc7",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/bug-24.svg"
+    },
+    {
+      "name": "shield-check",
+      "filename": "shield-check-24.svg",
+      "blob": "8de95b7476b90156e2ef87db05adb792e7de421e",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/shield-check-24.svg"
+    },
+    {
+      "name": "check-circle",
+      "filename": "check-circle-24.svg",
+      "blob": "f54b1418765b2daa14b314a8a8f6cf72e5c76d09",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/check-circle-24.svg"
+    },
+    {
+      "name": "link-external",
+      "filename": "link-external-24.svg",
+      "blob": "7079399dfa7503b011dc67a537ccdd7d52dbed3e",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/link-external-24.svg"
+    },
+    {
+      "name": "device-desktop",
+      "filename": "device-desktop-24.svg",
+      "blob": "44756ccc34a405116103c14663f4e8a1f3d8e3d1",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/device-desktop-24.svg"
+    },
+    {
+      "name": "cpu",
+      "filename": "cpu-24.svg",
+      "blob": "c9f8516f4cea44c58a8a40ef0e53ae25aa288aec",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/cpu-24.svg"
+    },
+    {
+      "name": "terminal",
+      "filename": "terminal-24.svg",
+      "blob": "5cd9ef5c12ae685c0015a7122c280fcd94498abc",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/terminal-24.svg"
+    },
+    {
+      "name": "versions",
+      "filename": "versions-24.svg",
+      "blob": "766daeabc30304b29a6094eeb0e6da5a4896950d",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/versions-24.svg"
+    },
+    {
+      "name": "alert",
+      "filename": "alert-24.svg",
+      "blob": "3ddf101c2f7e46fcbe41b733b79478f8306f639a",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/alert-24.svg"
+    },
+    {
+      "name": "question",
+      "filename": "question-24.svg",
+      "blob": "9e09efdd8e73b5724d4dfb3d8ab6adff58a1631d",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/question-24.svg"
+    },
+    {
+      "name": "rocket",
+      "filename": "rocket-24.svg",
+      "blob": "ab89b57f4b350c29c5000d037dd3ac1b4998a480",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/rocket-24.svg"
+    },
+    {
+      "name": "tools",
+      "filename": "tools-24.svg",
+      "blob": "2dd47acbc0ce7b5dcf196696a9a69328342d3eb2",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/tools-24.svg"
+    },
+    {
+      "name": "file-code",
+      "filename": "file-code-24.svg",
+      "blob": "8286688d85f85d8427a61f8d414b636607647ce8",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/file-code-24.svg"
+    },
+    {
+      "name": "report",
+      "filename": "report-24.svg",
+      "blob": "7d875979371731e3173b60a4d21a3a8e9a305d38",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/report-24.svg"
+    },
+    {
+      "name": "sparkle",
+      "filename": "sparkle-24.svg",
+      "blob": "9cba410b6b52906f8eee9788c9d70561568f95c6",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/sparkle-24.svg"
+    },
+    {
+      "name": "list-unordered",
+      "filename": "list-unordered-24.svg",
+      "blob": "01ae450be1a4cedf9bd50279a0d4b57e6accd41a",
+      "url": "https://github.com/primer/octicons/blob/68ec2de8d0ddfcbb7497da01d0b7d98eb5593020/icons/list-unordered-24.svg"
+    }
+  ]
+}

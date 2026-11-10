@@ -1,5 +1,7 @@
+import { heading, navRow } from './发布页面组件.mjs';
+
 /** 从 GitHub Release API 的真实分类、发布时间、正文兼容表和附件清单生成归档。 */
-export function buildReleaseHistory({ catalog, latest, repository }) {
+export function buildReleaseHistory({ catalog, latest, repository, root }) {
   const byTag = new Map();
   for (const release of [...catalog.flat(), latest]) {
     if (!release || release.draft) continue;
@@ -85,16 +87,17 @@ export function buildReleaseHistory({ catalog, latest, repository }) {
     '| --- | --- | --- | --- |',
     ...list.map(row),
   ].join('\n') : '暂无已发布版本。';
-  const markdown = `# 历史版本\n\n` +
+  const ui = { root, assetPrefix: "../", docPrefix: "../" };
+  const markdown = `${heading(1, "history", "历史版本", ui)}\n\n` +
     `当前推荐 [**yiyiaddon ${label(latest.tag_name.replace(/^v/, ''))} 正式版**](${releaseUrl(latest)})。首次安装或日常更新，请优先使用当前正式版。\n\n` +
-    `[正式版本](#stable) &nbsp; · &nbsp; [测试版本](#beta) &nbsp; · &nbsp; [返回首页](../README.md)\n\n` +
-    `收录 **${stable.length} 个正式版**、**${beta.length} 个测试版**。发布时间统一为 **Asia/Shanghai（UTC+8）**，使用 Release 首次发布时间。Minecraft 范围取自各版发布说明；附件只列 Release 中实际存在且已上传完成的 JAR / ZIP。\n\n` +
+    `${navRow([{name:"stable",href:"#user-content-stable",label:"正式版本"},{name:"beta",href:"#user-content-beta",label:"测试版本"},{name:"download",href:`${repository}/releases/latest`,label:"当前正式版"}], ui)}\n\n` +
+    `收录 **${stable.length} 个正式版** · **${beta.length} 个测试版**。时间按北京时间显示。下载仅列出当前仍可获取的真实 JAR 或 ZIP 附件。\n\n` +
     `<!-- 此页由 工具/更新公开首页.mjs 根据 GitHub Release API 自动生成；请在对应 Release 中维护分类、正文与附件。 -->\n\n` +
-    `${anchors('stable')}\n\n## 正式版本\n\n` +
-    `正式版按发布时间从新到旧排列。版本名打开对应更新记录，下方游戏版本链接下载该版的实际安装附件。\n\n` +
+    `${anchors('stable')}\n\n${heading(2, "check-circle", "正式版本", ui)}\n\n` +
+    `点击版本名查看更新记录，点击 Minecraft 版本下载安装包。ZIP 文件需要先解压。\n\n` +
     `${table(stable)}\n\n` +
-    `${anchors('beta')}\n\n## 测试版本\n\n` +
-    `测试版单独归档。**没有附件的版本仅保留更新记录，不提供安装下载。** 表中的 Minecraft 范围是当时发布说明记录的范围，不代表目前仍有对应安装包。\n\n` +
+    `${anchors('beta')}\n\n${heading(2, "versions", "测试版本", ui)}\n\n` +
+    `**没有附件的测试版仅保留更新记录。** Minecraft 范围为当时发布说明的记录；日常使用推荐当前正式版。\n\n` +
     `${table(beta)}\n\n` +
     `[返回当前正式版 →](${repository}/releases/latest) &nbsp; · &nbsp; [查看 GitHub 全部发布 →](${repository}/releases)\n`;
   return { markdown, counts: { stable: stable.length, beta: beta.length } };

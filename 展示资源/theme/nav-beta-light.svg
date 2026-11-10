@@ -1,13 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="380" height="116" viewBox="0 0 380 116" role="img" aria-label="测试版本">
-<title>测试版本</title>
-<defs>
-<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#F8FAFD"/></linearGradient>
-<radialGradient id="glow" cx="100%" cy="0%" r="110%"><stop stop-color="#7C3AED" stop-opacity=".06"/><stop offset=".8" stop-color="#7C3AED" stop-opacity="0"/></radialGradient>
-</defs>
-<g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
-<rect x="1" y="1" width="378" height="102" rx="23" fill="url(#bg)" stroke="#D8C7F4" stroke-width="1.5"/>
-<rect x="1" y="1" width="378" height="102" rx="23" fill="url(#glow)"/>
-<g transform="translate(28 31) scale(1.5833333333)" fill="none" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 19a1.3 1.3 0 0 0 1.1 2h13.8A1.3 1.3 0 0 0 20 19L14 9V3M7.5 14h9"/></g>
-<text x="83" y="65" font-size="32" fill="#172437" font-weight="600">测试版本</text>
-<g transform="translate(320 38) scale(1.1666666667)" fill="none" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></g>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="104" viewBox="0 0 380 104" role="img" aria-label="测试版本">
+<title>测试版本</title><!-- Icons: GitHub Octicons, MIT; see ../icons/octicons/LICENSE. -->
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#f6f8fa"/></linearGradient></defs>
+<rect x="1" y="1" width="378" height="98" rx="20" fill="url(#bg)" stroke="#d1d9e0" stroke-width="1.5"/>
+<g transform="translate(27 31) scale(1.4166666666666667)" fill="#0969da"><path d="M10 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2Zm-.5-2a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V4a.5.5 0 0 0-.5-.5H10a.5.5 0 0 0-.5.5ZM6.17 4.165a.75.75 0 0 1-.335 1.006c-.228.114-.295.177-.315.201a.035.035 0 0 0-.008.016.423.423 0 0 0-.012.112v13c0 .07.008.102.012.112a.03.03 0 0 0 .008.016c.02.024.087.087.315.201a.749.749 0 1 1-.67 1.342c-.272-.136-.58-.315-.81-.598C4.1 19.259 4 18.893 4 18.5v-13c0-.393.1-.759.355-1.073.23-.283.538-.462.81-.598a.75.75 0 0 1 1.006.336ZM2.15 5.624a.75.75 0 0 1-.274 1.025c-.15.087-.257.17-.32.245C1.5 6.96 1.5 6.99 1.5 7v10c0 .01 0 .04.056.106.063.074.17.158.32.245a.75.75 0 0 1-.752 1.298C.73 18.421 0 17.907 0 17V7c0-.907.73-1.42 1.124-1.65a.75.75 0 0 1 1.025.274Z"/></g>
+<text x="82" y="64" font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="32" fill="#1f2328" font-weight="600">测试版本</text>
+<g transform="translate(326 39) scale(0.9583333333333334)" fill="#59636e"><path d="M15.5 2.25a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0V4.06l-6.22 6.22a.75.75 0 1 1-1.06-1.06L19.94 3h-3.69a.75.75 0 0 1-.75-.75Z"/><path d="M2.5 4.25c0-.966.784-1.75 1.75-1.75h8.5a.75.75 0 0 1 0 1.5h-8.5a.25.25 0 0 0-.25.25v15.5c0 .138.112.25.25.25h15.5a.25.25 0 0 0 .25-.25v-8.5a.75.75 0 0 1 1.5 0v8.5a1.75 1.75 0 0 1-1.75 1.75H4.25a1.75 1.75 0 0 1-1.75-1.75V4.25Z"/></g>
+</svg>

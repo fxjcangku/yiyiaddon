@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="349" viewBox="0 0 480 349" role="img" aria-label="下载 Minecraft 26.2 · yiyiaddon 1.0 · ZIP（需解压）">
+<title>下载 Minecraft 26.2 · yiyiaddon 1.0 · ZIP（需解压）</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#182331"/><stop offset="1" stop-color="#101720"/></linearGradient>
+<radialGradient id="glow" cx="100%" cy="0%" r="110%"><stop stop-color="#FDA4AF" stop-opacity=".09"/><stop offset=".8" stop-color="#FDA4AF" stop-opacity="0"/></radialGradient>
+</defs>
+<g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
+<rect x="1" y="1" width="478" height="335" rx="24" fill="url(#bg)" stroke="#60414B" stroke-width="1.5"/>
+<rect x="1" y="1" width="478" height="335" rx="24" fill="url(#glow)"/>
+<text x="28" y="45" font-size="21" fill="#A9B8CC" font-weight="600" letter-spacing="1.7">MINECRAFT</text>
+<text x="452" y="45" font-size="20" fill="#FDA4AF" font-weight="650" id="release-version" text-anchor="end">1.0</text>
+<text x="27" y="111" font-size="52" fill="#F3F6FC" font-weight="700" id="game-version" letter-spacing="-1">26.2</text>
+<text x="28" y="154" font-size="25" fill="#FDA4AF" font-weight="600" id="download-note">已内置 Baritone</text>
+<text x="28" y="189" font-size="23" fill="#FBBF24" font-weight="650" id="baritone-warning">请勿重复安装 Baritone</text>
+<text x="28" y="224" font-size="22" fill="#A9B8CC" font-weight="400" id="fabric-api">Fabric API  0.161.0+26.2</text>
+<rect x="25" y="249" width="430" height="62" rx="15" fill="#FDA4AF"/>
+<g transform="translate(44 267) scale(1.1666666666666667)" fill="#101828"><path d="M4.75 17.25a.75.75 0 0 1 .75.75v2.25c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V18a.75.75 0 0 1 1.5 0v2.25A1.75 1.75 0 0 1 18.25 22H5.75A1.75 1.75 0 0 1 4 20.25V18a.75.75 0 0 1 .75-.75Z"/><path d="M5.22 9.97a.749.749 0 0 1 1.06 0l4.97 4.969V2.75a.75.75 0 0 1 1.5 0v12.189l4.97-4.969a.749.749 0 1 1 1.06 1.06l-6.25 6.25a.749.749 0 0 1-1.06 0l-6.25-6.25a.749.749 0 0 1 0-1.06Z"/></g>
+<text x="88" y="290" font-size="24" fill="#101828" font-weight="650">下载 ZIP 安装包</text>
+<g transform="translate(404 267) scale(1.1666666667)" fill="none" stroke="#101828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></g>
+</g></svg>

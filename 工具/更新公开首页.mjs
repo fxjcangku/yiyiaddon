@@ -3,12 +3,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildReleaseHistory } from './生成历史版本.mjs';
+import { heading, panel, navRow } from './发布页面组件.mjs';
 
 /** 根据真实 Release 刷新正式版首页与分类归档；不读取模组源码，不发布或修改安装包。 */
 const args = process.argv.slice(2);
 const option = name => { const at = args.indexOf(name); return at < 0 ? null : args[at + 1]; };
 const root = path.resolve(option('--root') || fileURLToPath(new URL('../', import.meta.url)));
 const readJson = name => { const file = option(name); if (!file) throw new Error(`缺少参数 ${name}`); return JSON.parse(fs.readFileSync(file, 'utf8')); };
+const ui = { root };
 const latest = readJson('--latest');
 const catalog = readJson('--catalog').flat();
 const repository = 'https://github.com/fxjcangku/yiyiaddon';
@@ -173,12 +175,21 @@ if (brandStartCount === 0 && brandEndCount === 0) {
 }
 const card = item => {
   const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${baritoneSummary}`;
-  return themes.map(theme => `  <a href="${item.url}#gh-${theme}-mode-only"><img src="${themedUrl(`download-${item.game}`, theme, item.version)}" width="194" alt="${xml(label)}"></a>`).join('\n');
+  return themes.map(theme => `  <a href="${item.url}#gh-${theme}-mode-only"><img src="${themedUrl(`download-${item.game}`, theme, item.version)}" width="24%" alt="${xml(label)}"></a>`).join('\n');
 };
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
 const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
-const section = `当前正式版 **${xml(version)}**。选择与你的 Minecraft 一致的版本，正式版按钮直接下载 JAR。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n> [!IMPORTANT]\n> **yiyiaddon 已内置经过调教优化的 Baritone。${baritoneWarning}，避免重复加载或冲突。**\n> 无需另外下载或安装 Baritone。\n\n${cardStrip}\n\n**运行环境** &nbsp; Windows x64 · Fabric Loader 0.19.5+ · ${fixedPortAvailable ? "1.21.11 使用 Java 21，26 系列使用 Java 25" : "Java 25"}\n\n1. 退出游戏，将自行安装的 Baritone JAR 移出当前实例的 <code>mods</code> 文件夹，再放入对应版本的 yiyiaddon JAR。\n2. 安装配套 **Fabric API**，移出重复旧包。\n3. 启动游戏，默认按 **G** 打开界面，按模块说明完成配置。\n\n[详细安装指南 →](安装指南.md) &nbsp; · &nbsp; [正式版更新记录 →](${repository}/releases/latest) &nbsp; · &nbsp; [版本与兼容 →](版本说明.md)`;
+const environment = panel(fixedPortAvailable ? "panel-environment" : "panel-environment-26",
+  `运行环境：Windows x64；Fabric Loader 0.19.5+；${fixedPortAvailable ? "Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25" : "Java 25"}。`, "安装指南.md", ui);
+const installation = panel("panel-install", "安装步骤：1 退出游戏，移出旧版 yiyiaddon，卸载自行安装的 Baritone；2 将对应版本 JAR 与 Fabric API 放入实例 mods 文件夹；3 启动游戏，按 G 打开界面并完成配置。", "安装指南.md", ui);
+const installationLinks = navRow([
+  { name: "install", href: "安装指南.md", label: "安装指南" },
+  { name: "compat", href: "版本说明.md", label: "版本兼容" },
+  { name: "release", href: `${repository}/releases/latest`, label: "正式版更新记录" },
+], ui);
+const section = `当前正式版 **${xml(version)}** · 选择与你的 Minecraft 版本一致的安装包。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n> [!IMPORTANT]\n> **已内置经过调教优化的 Baritone。${baritoneWarning}，避免重复加载或冲突。**\n\n${cardStrip}\n\n${heading(4, "device-desktop", "运行环境", ui)}\n\n${environment}\n\n${heading(4, "package", "三步完成安装", ui)}\n\n${installation}\n\n${installationLinks}`;
+
 // 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
 const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
 if ((readme.match(/<!-- homepage:downloads:start -->/g) || []).length !== 1
@@ -193,7 +204,7 @@ const historyButtons = ['stable', 'beta'].map(kind => themes.map(theme => {
   const href = `发布说明/历史版本.md#user-content-${kind}#gh-${theme}-mode-only`;
   return `  <a href="${href}"><img src="${src}" width="160" alt="${kind === 'stable' ? '正式版本' : '测试版本'}"></a>`;
 }).join('')).join('\n');
-const historySection = `<!-- homepage:history:start -->\n### 历史版本\n\n当前推荐使用最新正式版；正式版与测试版分开查看。\n\n<p align="center">\n${historyButtons}\n</p>\n<!-- homepage:history:end -->`;
+const historySection = `<!-- homepage:history:start -->\n${heading(3, "history", "历史版本", ui)}\n\n旧版安装包与测试记录分开归档；日常使用推荐最新正式版。\n\n<p align="center">\n${historyButtons}\n</p>\n<!-- homepage:history:end -->`;
 const historyPattern = /<!-- homepage:history:start -->[\s\S]*?<!-- homepage:history:end -->/;
 const historyStartCount = (readme.match(/<!-- homepage:history:start -->/g) || []).length;
 const historyEndCount = (readme.match(/<!-- homepage:history:end -->/g) || []).length;
@@ -203,7 +214,7 @@ if (historyStartCount === 0 && historyEndCount === 0) {
   if (historyStartCount !== 1 || historyEndCount !== 1 || !historyPattern.test(readme)) throw new Error('历史入口边界缺失或重复，停止覆盖');
   readme = readme.replace(historyPattern, historySection);
 }
-const history = buildReleaseHistory({ catalog, latest, repository });
+const history = buildReleaseHistory({ catalog, latest, repository, root });
 outputs.set(path.join(root, '发布说明/历史版本.md'), history.markdown);
 // 下一版正式发布后，移除已兑现的旧预告，避免首页继续显示“尚无安装包”。
 const previewPattern = /<!-- homepage:preview:start -->[\s\S]*?<!-- homepage:preview:end -->\n*/;
