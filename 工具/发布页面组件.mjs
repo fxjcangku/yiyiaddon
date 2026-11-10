@@ -16,6 +16,13 @@ export function docLink(name, options = {}) {
 }
 // GitHub 根据链接片段选择本站主题；不依赖操作系统的 prefers-color-scheme。
 export function themePair(name, href, alt, width = '100%', options = {}) {
+  // Release 页的 themed-picture 会跟随 GitHub 手动主题改写媒体条件。
+  // #gh-*-mode-only 仅用于仓库 Markdown，发布列表不加载那组隐藏规则。
+  if (options.release) {
+    const dark = html(asset(`展示资源/theme/${name}-dark.svg`, options));
+    const light = html(asset(`展示资源/theme/${name}-light.svg`, options));
+    return `<a href="${html(href)}"><picture><source media="(prefers-color-scheme: dark)" srcset="${dark}"><source media="(prefers-color-scheme: light)" srcset="${light}"><img src="${light}" width="${html(width)}" alt="${html(alt)}"></picture></a>`;
+  }
   return ['light', 'dark'].map(theme => `<a href="${html(href)}#gh-${theme}-mode-only"><img src="${html(asset(`展示资源/theme/${name}-${theme}.svg`, options))}" width="${html(width)}" alt="${html(alt)}"></a>`).join('');
 }
 export function icon(name, options = {}, size = 24) {

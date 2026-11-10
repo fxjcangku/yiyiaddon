@@ -215,6 +215,7 @@ function main() {
   const options = {
     root: args.root,
     assetPrefix: `https://raw.githubusercontent.com/fxjcangku/yiyiaddon/${args['asset-ref']}/`,
+    release: true,
     docPrefix: `${repository}/blob/master/`,
   };
   const sourceOptions = { root: args.root, assetPrefix: '../', docPrefix: '../' };
