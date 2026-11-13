@@ -1,0 +1,26 @@
+{
+  "createdDate": "2026-11-13",
+  "tool": "built-in image_gen.imagegen",
+  "kind": "original promotional concept art",
+  "nativeDimensions": {
+    "width": 1672,
+    "height": 941
+  },
+  "exportDimensions": [
+    {
+      "width": 768,
+      "height": 432
+    },
+    {
+      "width": 1536,
+      "height": 864
+    },
+    {
+      "width": 3840,
+      "height": 2160
+    }
+  ],
+  "native4K": false,
+  "notes": "The 3840x2160 asset is an enlarged display export from the 1672x941 generated original. Concept artwork, not gameplay evidence. No mod version or release claim appears in the artwork.",
+  "prompt": "Use case: ads-marketing. Create one premium cinematic landscape hero artwork for the Minecraft automation mod yiyiaddon, 16:9 composition, target 3840x2160 pixels. Scene: beautiful authentic Minecraft voxel cherry-blossom lakeshore at dawn, soft pink-white blocky cherry trees, crystal clear water with realistic high-end shader reflections, a restrained small white quartz structure at the distant edge, delicate volumetric sun rays through morning haze. Subject: a very large flat square Minecraft carpet map-art construction platform in the foreground, with a clearly visible coherent completed pixel mosaic of a majestic indigo Great Wave with white foam and a distant mountain. The mosaic is built from individual thin square carpet blocks, geometrically convincing regular voxel grid, 128x128 map-art impression; perspective is an elevated cinematic three-quarter view that shows nearly the entire finished artwork. A narrow remaining work edge and a neat row of material chests hint at automatic placement, no robot, no human, no character. Style: polished high-end Minecraft ray-traced game cinematic concept rendering, richly detailed block surfaces, crisp grid, rich navy-blue wave contrasting warm sunrise and pastel cherry blossoms, refined HDR lighting, depth, realistic shadow and reflected light, premium editorial campaign. Keep the upper quarter spacious and calm sky for typography. Render exact large elegant Chinese headline '全自动地图画' in the upper sky, warm ivory clean bold sans-serif, beautiful spacious editorial typography. Render small lowercase 'yiyiaddon' directly above the headline. These are the only texts. Both texts should be sharp and completely legible, integrated naturally without obstructing the carpet artwork. Keep key content within central safe area so it works on a responsive website. No version numbers, no dates, no 'coming soon', no release claims, no interface panels, no Minecraft logo, no extra captions, no watermark, no human faces, no crown or brand avatar. The image should communicate unlocking beautiful automated map-art creation."
+}

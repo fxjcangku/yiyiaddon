@@ -51,12 +51,13 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
     && asset.size > 0 && asset.state === 'uploaded').flatMap(asset => {
       const prefix = `yiyiaddon-${release.tag_name.replace(/^v/, '')}-`;
       const suffix = asset.name.startsWith(prefix) ? asset.name.slice(prefix.length) : '';
-      const game = suffix.match(/^(\d+(?:\.\d+)+)\.(?:jar|zip)$/i)?.[1];
-      if (!game) return []; // 日志或诊断 ZIP 不冒充按游戏版本分包的安装附件。
+      const match = suffix.match(/^(\d+(?:\.\d+)+)(?:-(desktop))?\.(jar|zip)$/i);
+      if (!match || (match[2] && match[3].toLowerCase() !== 'jar')) return []; // 日志或诊断 ZIP 不冒充按游戏版本分包的安装附件。
+      const game = match[1];
       const plain = `${repository}/releases/download/${release.tag_name}/${asset.name}`;
       const encoded = `${repository}/releases/download/${encodeURIComponent(release.tag_name)}/${encodeURIComponent(asset.name)}`;
       if (asset.browser_download_url !== plain && asset.browser_download_url !== encoded) throw new Error(`历史附件链接不属于本仓库：${asset.name}`);
-      return [{ ...asset, game, format: asset.name.split('.').at(-1).toUpperCase() }];
+      return [{ ...asset, game, target: match[2] ? 'desktop' : 'windows-x64', format: match[3].toUpperCase() }];
     });
   const row = release => {
     const assets = packageAssets(release);
@@ -73,7 +74,7 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
       attachment = ['JAR', 'ZIP'].filter(format => assets.some(asset => asset.format === format)).map(format => {
         const group = assets.filter(asset => asset.format === format).sort((a, b) => (a.game || a.name).localeCompare(b.game || b.name, 'en', { numeric: true }));
         return `**${format} × ${group.length}**${format === 'ZIP' ? '（需解压）' : ''}<br>`
-          + group.map(asset => `[${label(asset.game || asset.name)}](${asset.browser_download_url})`).join(' · ');
+          + group.map(asset => `[${label(asset.game + (asset.target === 'desktop' ? ' · Windows / Mac' : ''))}](${asset.browser_download_url})`).join(' · ');
       }).join('<br>');
     } else if ((release.assets || []).length) {
       attachment = `无可用安装包 · **仅更新记录**（[查看 ${release.assets.length} 个附件](${releaseUrl(release)})）`;

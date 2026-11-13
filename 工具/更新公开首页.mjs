@@ -56,12 +56,15 @@ function fabricDependency(body, game) {
 const downloads = games.map(game => {
   for (const release of candidates) {
     const number = release.tag_name.replace(/^v/, '');
-    const asset = (release.assets || []).find(item => item.name === `yiyiaddon-${number}-${game}.jar`
-      && item.size > 0 && item.state === 'uploaded');
+    // 同一正式版本优先取真实 desktop 附件；历史无后缀包只表示 Windows x64。
+    const names = [`yiyiaddon-${number}-${game}-desktop.jar`, `yiyiaddon-${number}-${game}.jar`];
+    const asset = names.map(name => (release.assets || []).find(item => item.name === name
+      && item.size > 0 && item.state === 'uploaded')).find(Boolean);
     if (!asset) continue;
     if (asset.browser_download_url !== [repository, "releases/download", release.tag_name, asset.name].join("/")) throw new Error('安装包链接不属于本仓库');
     const dependency = fabricDependency(release.body, game);
-    return { game, version: number, url: asset.browser_download_url, dependency, tag: release.tag_name };
+    const target = asset.name.endsWith('-desktop.jar') ? 'desktop' : 'windows-x64';
+    return { game, version: number, url: asset.browser_download_url, dependency, tag: release.tag_name, target };
   }
   if (game === '1.21.11') return null;
   throw new Error(`未找到 Minecraft ${game} 的正式 JAR，保留现有首页`);
@@ -69,6 +72,20 @@ const downloads = games.map(game => {
 const fixedPortAvailable = downloads.some(item => item.game === '1.21.11');
 const latestGames = downloads.filter(item => item.tag === latest.tag_name).map(item => item.game);
 if (!latestGames.length) throw new Error('最新正式版没有可核实安装包，保留现有首页');
+const desktopGames = downloads.filter(item => item.target === 'desktop').map(item => item.game);
+const platformLabel = item => item.target === 'desktop' ? 'Windows x64 与 Apple Silicon Mac' : '仅 Windows x64';
+const platformStatus = desktopGames.length === 0
+  ? '**Mac 原生适配已完成 发布准备中** · desktop 通用安装包尚未上传 下方现有正式附件仅适用于 Windows x64'
+  : desktopGames.length === downloads.length
+    ? '下方正式附件均为 **desktop 通用电脑包** · Windows x64 与 Apple Silicon macOS ARM64 共用同一游戏版本的 JAR'
+    : `**Minecraft ${desktopGames.join(' / ')}** 已提供 Windows x64 与 Apple Silicon Mac 共用的 desktop 包 其余下载仍仅适用于 Windows x64`;
+// 只兑现本次 1.3 准备状态：必须有该正式版真实上传的 desktop 附件。
+const preparedRelease = candidates.find(item => item.tag_name === 'v1.3');
+const mapartPublished = !!preparedRelease && games.some(game => (preparedRelease.assets || []).some(asset => {
+  const name = `yiyiaddon-1.3-${game}-desktop.jar`;
+  return asset.name === name && asset.state === 'uploaded' && asset.size > 0
+    && asset.browser_download_url === `${repository}/releases/download/v1.3/${name}`;
+}));
 
 /** 保留封面、按钮的排版，只更新稳定 ID 对应的发布文字；旧槽位兼容原有资源。 */
 function textSlot(svg, id, selector, value) {
@@ -129,7 +146,7 @@ for (const item of downloads) {
     svg = textSlot(svg, 'fabric-api', null, item.dependency ? `Fabric API  ${item.dependency}` : '配套 Fabric API 见下载页');
     svg = textSlot(svg, 'download-note', null, baritoneNote);
     svg = textSlot(svg, 'baritone-warning', null, baritoneWarning);
-    const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${baritoneSummary}`;
+    const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${platformLabel(item)} · ${baritoneSummary}`;
     svg = svg.replace(/aria-label="[^"]*"/, `aria-label="${xml(label)}"`).replace(/<title>[^<]*<\/title>/, `<title>${xml(label)}</title>`);
     outputs.set(file, svg);
     // 保留旧图片 URL 的输出兼容；现行首页仅引用新的明暗组件。
@@ -138,6 +155,20 @@ for (const item of downloads) {
 }
 const readmePath = path.join(root, 'README.md');
 let readme = fs.readFileSync(readmePath, 'utf8').replaceAll('\r\n', '\n');
+const mapartStatus = mapartPublished
+  ? `**全自动地图画已随 1.3 正式发布** · 安装包按游戏版本与实际平台提供\n\n[查看 1.3 更新记录](${repository}/releases/tag/v1.3) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview)`
+  : `**功能已完成 正在准备 1.3 发布** · 新安装包尚未上传 当前正式下载仍为 ${xml(version)}\n\n[查看 1.3 发布准备](发布准备/1.3.md) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview) · [官网发布准备](https://www.yiyiaddon.asia/release.html?prepare=1.3)`;
+const desktopStatus = `新增 **macOS ARM64 原生适配** 对应游戏版本的 **desktop 通用电脑包** 面向 Windows x64 与 Apple Silicon Mac\n\n`
+  + (mapartPublished
+    ? 'Mac 请使用原生 ARM64 Java 下方按各游戏版本标明实际可下载平台 历史无平台后缀附件仍仅适用于 Windows x64'
+    : `Mac 请使用原生 ARM64 Java 现有 ${xml(version)} 无平台后缀附件仍仅适用于 Windows x64 新 desktop 附件上传后提供真实下载入口`);
+for (const [name, content] of [['mapart-status', mapartStatus], ['desktop-status', desktopStatus]]) {
+  const pattern = new RegExp(`<!-- homepage:${name}:start -->[\\s\\S]*?<!-- homepage:${name}:end -->`);
+  if ((readme.match(new RegExp(`<!-- homepage:${name}:start -->`, 'g')) || []).length !== 1
+      || (readme.match(new RegExp(`<!-- homepage:${name}:end -->`, 'g')) || []).length !== 1
+      || !pattern.test(readme)) throw new Error(`发布准备区域 ${name} 边界缺失或重复，停止覆盖`);
+  readme = readme.replace(pattern, `<!-- homepage:${name}:start -->\n${content}\n<!-- homepage:${name}:end -->`);
+}
 // 固定适配预告独立于下一版摘要：正式版号递增不能被视为该游戏版本已经有公开安装包。
 const fixedPortPattern = /<!-- homepage:fixed-port:start -->[\s\S]*?<!-- homepage:fixed-port:end -->/;
 const fixedPort = !fixedPortAvailable && readme.match(fixedPortPattern)?.[0];
@@ -174,21 +205,21 @@ if (brandStartCount === 0 && brandEndCount === 0) {
   readme = readme.replace(brandPattern, brandSection);
 }
 const card = item => {
-  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${baritoneSummary}`;
+  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${platformLabel(item)} · ${baritoneSummary}`;
   return themes.map(theme => `  <a href="${item.url}#gh-${theme}-mode-only"><img src="${themedUrl(`download-${item.game}`, theme, item.version)}" width="24%" alt="${xml(label)}"></a>`).join('\n');
 };
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
 const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
-const environment = panel(fixedPortAvailable ? "panel-environment" : "panel-environment-26",
-  `运行环境：Windows x64；Fabric Loader 0.19.5+；${fixedPortAvailable ? "Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25" : "Java 25"}。`, "安装指南.md", ui);
+const environment = panel("panel-environment-desktop",
+  `电脑通用包支持 Windows x64 与 Apple Silicon macOS ARM64；Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25。当前可下载平台见上方说明。`, "安装指南.md", ui);
 const installation = panel("panel-install", "安装步骤：1 退出游戏，移出旧版 yiyiaddon，卸载自行安装的 Baritone；2 将对应版本 JAR 与 Fabric API 放入实例 mods 文件夹；3 启动游戏，按 G 打开界面并完成配置。", "安装指南.md", ui);
 const installationLinks = navRow([
   { name: "install", href: "安装指南.md", label: "安装指南" },
   { name: "compat", href: "版本说明.md", label: "版本兼容" },
   { name: "release", href: `${repository}/releases/latest`, label: "正式版更新记录" },
 ], ui);
-const section = `当前正式版 **${xml(version)}** · 选择与你的 Minecraft 版本一致的安装包。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n> [!IMPORTANT]\n> **已内置经过调教优化的 Baritone。${baritoneWarning}，避免重复加载或冲突。**\n\n${cardStrip}\n\n${heading(4, "device-desktop", "运行环境", ui)}\n\n${environment}\n\n${heading(4, "package", "三步完成安装", ui)}\n\n${installation}\n\n${installationLinks}`;
+const section = `当前正式版 **${xml(version)}** · 选择与你的 Minecraft 版本一致的安装包。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n${platformStatus}\n\n> [!IMPORTANT]\n> **已内置经过调教优化的 Baritone。${baritoneWarning}，避免重复加载或冲突。**\n\n${cardStrip}\n\n${heading(4, "device-desktop", "运行环境", ui)}\n\n${environment}\n\n${heading(4, "package", "三步完成安装", ui)}\n\n${installation}\n\n${installationLinks}`;
 
 // 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
 const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
