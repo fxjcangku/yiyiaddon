@@ -1,4 +1,4 @@
-import { heading, navRow } from './发布页面组件.mjs';
+import { heading, navRow, ensureWebsiteEntry } from './发布页面组件.mjs';
 
 /** 从 GitHub Release API 的真实分类、发布时间、正文兼容表和附件清单生成归档。 */
 export function buildReleaseHistory({ catalog, latest, repository, root }) {
@@ -101,5 +101,5 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
     `**没有附件的测试版仅保留更新记录。** Minecraft 范围为当时发布说明的记录；日常使用推荐当前正式版。\n\n` +
     `${table(beta)}\n\n` +
     `[返回当前正式版 →](${repository}/releases/latest) &nbsp; · &nbsp; [查看 GitHub 全部发布 →](${repository}/releases)\n`;
-  return { markdown, counts: { stable: stable.length, beta: beta.length } };
+  return { markdown: ensureWebsiteEntry(markdown, ui), counts: { stable: stable.length, beta: beta.length } };
 }

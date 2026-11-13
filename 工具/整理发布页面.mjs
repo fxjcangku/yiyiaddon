@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { themePair, navRow, heading, supportGrid, panel, repository } from './发布页面组件.mjs';
+import { themePair, navRow, heading, supportGrid, panel, repository, ensureWebsiteEntry } from './发布页面组件.mjs';
 
 const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
 const sha256 = text => createHash('sha256').update(text).digest('hex');
@@ -179,7 +179,7 @@ function composeRelease(release, assets, options) {
     { name: 'release', href: release.releaseUrl, label: `${version} 完整更新记录` },
     { name: 'stable', href: stableUrl, label: '当前正式版本' },
   ], options));
-  const prefix = parts.join('\n\n');
+  const prefix = ensureWebsiteEntry(parts.join('\n\n'), options);
   if (previewCharacterCount(prefix) > 400) throw new Error(`${release.tag} 首屏原生正文超过 400 字符。`);
 
   // 完整更新正文和原反馈信息均按原始字符保留，避免丢失特定旧版说明。
@@ -196,7 +196,7 @@ function composeRelease(release, assets, options) {
 
   // 保留解析器使用的原始表格，但不占列表预览的可见正文字符数。
   parts.push(`<!-- release:compatibility\n${compatibilityTables(release).join('\n\n')}\n-->`);
-  let body = parts.join('\n\n') + '\n';
+  let body = ensureWebsiteEntry(parts.join('\n\n') + '\n', options);
   if (release.updateSummaryComment) body += '\n' + release.updateSummaryComment;
   return { body, prefixCharacters: previewCharacterCount(prefix) };
 }

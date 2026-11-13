@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildReleaseHistory } from './生成历史版本.mjs';
-import { heading, panel, navRow } from './发布页面组件.mjs';
+import { heading, panel, navRow, ensureWebsiteEntry } from './发布页面组件.mjs';
 
 /** 根据真实 Release 刷新正式版首页与分类归档；不读取模组源码，不发布或修改安装包。 */
 const args = process.argv.slice(2);
@@ -75,7 +75,7 @@ if (!latestGames.length) throw new Error('最新正式版没有可核实安装�
 const desktopGames = downloads.filter(item => item.target === 'desktop').map(item => item.game);
 const platformLabel = item => item.target === 'desktop' ? 'Windows x64 与 Apple Silicon Mac' : '仅 Windows x64';
 const platformStatus = desktopGames.length === 0
-  ? '**Mac 原生适配已完成 发布准备中** · desktop 通用安装包尚未上传 下方现有正式附件仅适用于 Windows x64'
+  ? ''
   : desktopGames.length === downloads.length
     ? '下方正式附件均为 **desktop 通用电脑包** · Windows x64 与 Apple Silicon macOS ARM64 共用同一游戏版本的 JAR'
     : `**Minecraft ${desktopGames.join(' / ')}** 已提供 Windows x64 与 Apple Silicon Mac 共用的 desktop 包 其余下载仍仅适用于 Windows x64`;
@@ -164,9 +164,10 @@ const desktopStatus = `新增 **macOS ARM64 原生适配** 对应游戏版本的
     : `Mac 请使用原生 ARM64 Java 现有 ${xml(version)} 无平台后缀附件仍仅适用于 Windows x64 新 desktop 附件上传后提供真实下载入口`);
 for (const [name, content] of [['mapart-status', mapartStatus], ['desktop-status', desktopStatus]]) {
   const pattern = new RegExp(`<!-- homepage:${name}:start -->[\\s\\S]*?<!-- homepage:${name}:end -->`);
-  if ((readme.match(new RegExp(`<!-- homepage:${name}:start -->`, 'g')) || []).length !== 1
-      || (readme.match(new RegExp(`<!-- homepage:${name}:end -->`, 'g')) || []).length !== 1
-      || !pattern.test(readme)) throw new Error(`发布准备区域 ${name} 边界缺失或重复，停止覆盖`);
+  const starts = (readme.match(new RegExp(`<!-- homepage:${name}:start -->`, 'g')) || []).length;
+  const ends = (readme.match(new RegExp(`<!-- homepage:${name}:end -->`, 'g')) || []).length;
+  if (starts === 0 && ends === 0) continue; // 首页未展示准备模块时不强行补回。
+  if (starts !== 1 || ends !== 1 || !pattern.test(readme)) throw new Error(`发布准备区域 ${name} 边界缺失或重复，停止覆盖`);
   readme = readme.replace(pattern, `<!-- homepage:${name}:start -->\n${content}\n<!-- homepage:${name}:end -->`);
 }
 // 固定适配预告独立于下一版摘要：正式版号递增不能被视为该游戏版本已经有公开安装包。
@@ -211,15 +212,16 @@ const card = item => {
 // 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
 const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
 const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
-const environment = panel("panel-environment-desktop",
-  `电脑通用包支持 Windows x64 与 Apple Silicon macOS ARM64；Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25。当前可下载平台见上方说明。`, "安装指南.md", ui);
+const environment = desktopGames.length
+  ? panel("panel-environment-desktop", "电脑通用包支持 Windows x64 与 Apple Silicon macOS ARM64；Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25。当前可下载平台见上方说明。", "安装指南.md", ui)
+  : panel(fixedPortAvailable ? "panel-environment" : "panel-environment-26", `运行环境：Windows x64；Fabric Loader 0.19.5+；${fixedPortAvailable ? "Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25" : "Java 25"}。`, "安装指南.md", ui);
 const installation = panel("panel-install", "安装步骤：1 退出游戏，移出旧版 yiyiaddon，卸载自行安装的 Baritone；2 将对应版本 JAR 与 Fabric API 放入实例 mods 文件夹；3 启动游戏，按 G 打开界面并完成配置。", "安装指南.md", ui);
 const installationLinks = navRow([
   { name: "install", href: "安装指南.md", label: "安装指南" },
   { name: "compat", href: "版本说明.md", label: "版本兼容" },
   { name: "release", href: `${repository}/releases/latest`, label: "正式版更新记录" },
 ], ui);
-const section = `当前正式版 **${xml(version)}** · 选择与你的 Minecraft 版本一致的安装包。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n${platformStatus}\n\n> [!IMPORTANT]\n> **已内置经过调教优化的 Baritone。${baritoneWarning}，避免重复加载或冲突。**\n\n${cardStrip}\n\n${heading(4, "device-desktop", "运行环境", ui)}\n\n${environment}\n\n${heading(4, "package", "三步完成安装", ui)}\n\n${installation}\n\n${installationLinks}`;
+const section = `当前正式版 **${xml(version)}** · 选择与你的 Minecraft 版本一致的安装包。${fixedPort ? " 预告卡仅供查看。" : ""}\n\n${platformStatus ? platformStatus + '\n\n' : ''}> [!IMPORTANT]\n> **已内置经过调教优化的 Baritone。${baritoneWarning}，避免重复加载或冲突。**\n\n${cardStrip}\n\n${heading(4, "device-desktop", "运行环境", ui)}\n\n${environment}\n\n${heading(4, "package", "三步完成安装", ui)}\n\n${installation}\n\n${installationLinks}`;
 
 // 自动区域用明确边界，避免新增功能区、图标导航和人工文案被一次发布整段覆盖。
 const sectionPattern = /<!-- homepage:downloads:start -->[\s\S]*?<!-- homepage:downloads:end -->/;
@@ -274,7 +276,7 @@ if (fixedPort) {
     throw new Error('适配预告没有保留在下载区第一张，停止覆盖');
   }
 }
-outputs.set(readmePath, readme);
+outputs.set(readmePath, ensureWebsiteEntry(readme, { ...ui, inline: true }));
 // 所有输入和槽位先验证，再写文件；工作流仅在全部成功后提交允许的玩家展示文件。
 for (const [file, content] of outputs) {
   fs.mkdirSync(path.dirname(file), { recursive: true });

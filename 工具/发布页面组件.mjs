@@ -35,6 +35,37 @@ export function navRow(items, options = {}) {
   const width = items.length >= 4 ? '23%' : '27%';
   return `<p align="center">\n${items.map(item => `  ${themePair(`nav-${item.name}`, item.href, item.label, item.width || width, options)}`).join('\n')}\n</p>`;
 }
+const websiteStart = '<!-- yiyiaddon:website:start -->';
+const websiteEnd = '<!-- yiyiaddon:website:end -->';
+export function websiteEntry(options = {}) {
+  return `${websiteStart}\n<p align="center">\n  ${themePair('nav-website', 'https://www.yiyiaddon.asia/', '官网', '160', options)}\n</p>\n${websiteEnd}`;
+}
+/** 官网入口与已有导航共用主题资源；重复刷新只保留一处入口。 */
+export function ensureWebsiteEntry(body, options = {}) {
+  if (options.inline) {
+    const navigation = [...body.matchAll(/<p\b[^>]*>[\s\S]*?<\/p>/g)].filter(match =>
+      /\/theme\/nav-download-(?:light|dark)\.svg/.test(match[0])
+      && /\/theme\/nav-guide-(?:light|dark)\.svg/.test(match[0]));
+    if (navigation.length !== 1) throw new Error('首页主导航缺失或重复，停止添加官网入口');
+    const original = navigation[0][0];
+    const cleaned = original.replace(/^[ \t]*[^\n]*\/theme\/nav-website-(?:light|dark)\.svg[^\n]*\n/gm, '');
+    const updated = cleaned.replace(/\n<\/p>$/, `\n  ${themePair('nav-website', 'https://www.yiyiaddon.asia/', '官网', '160', options)}\n</p>`);
+    return body.replace(original, updated);
+  }
+  const starts = body.split(websiteStart).length - 1;
+  const ends = body.split(websiteEnd).length - 1;
+  const pattern = /<!-- yiyiaddon:website:start -->[\s\S]*?<!-- yiyiaddon:website:end -->/;
+  if (starts || ends) {
+    if (starts !== 1 || ends !== 1 || !pattern.test(body)) throw new Error('官网入口边界缺失或重复');
+    return body.replace(pattern, websiteEntry(options));
+  }
+  if (/\/theme\/nav-website-(?:light|dark)\.svg/.test(body)) throw new Error('发现未标记的官网入口，停止重复添加');
+  const section = body.search(/^##\s+/m);
+  const navigation = [...body.matchAll(/<p\b[^>]*>[\s\S]*?<\/p>/g)].find(match => /\/theme\/nav-/.test(match[0]));
+  const candidates = [section, navigation?.index ?? -1, body.indexOf('<details>')].filter(index => index >= 0);
+  const at = candidates.length ? Math.min(...candidates) : body.length;
+  return `${body.slice(0, at)}${websiteEntry(options)}\n\n${body.slice(at)}`;
+}
 export function panel(name, alt, href, options = {}) {
   return `<p align="center">\n${themePair(name, href, alt, '100%', options)}\n</p>`;
 }
