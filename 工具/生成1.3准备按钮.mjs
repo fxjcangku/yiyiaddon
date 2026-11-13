@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { composePreparedRelease } from './1.3准备页布局.mjs';
 
 // 仅生成 1.3 发布准备卡与其正文区块 不读取 Release 不创建版本或安装包
 // 正式附件上传后的下载区继续由真实 Release 数据生成 不在此预造下载链接
@@ -118,7 +119,7 @@ function updateBody(file, release) {
     if (body.split(table).length !== 2) throw new Error(`未找到唯一 1.3 原始安装依赖表 ${file}`);
     next = body.replace(table, block(release));
   }
-  outputs.set(file, next);
+  outputs.set(file, composePreparedRelease(next, { root, release }));
 }
 
 updateBody(path.join(root, '发布准备/1.3.md'), false);
