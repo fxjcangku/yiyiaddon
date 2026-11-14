@@ -1,8 +1,8 @@
 <p align="center">
   <a href="https://www.yiyiaddon.asia/">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact-mac.gif?v=20ae4c35">
-    <img src="展示资源/yiyiaddon-module-cover-mac.gif?v=cb887843" width="100%" alt="yiyiaddon 动态功能展示 · Windows x64 / Mac 系统 ARM64 · Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3 · 点击进入官网">
+    <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact-1.2.gif?v=81e7a084">
+    <img src="展示资源/yiyiaddon-module-cover-1.2.gif?v=b7a7a473" width="100%" alt="yiyiaddon 动态功能展示 · Windows x64 / Mac 系统 ARM64 · Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3 · 点击进入官网">
   </picture>
   </a><br>
   <sub>功能概念动画；实际界面与可用功能以所安装版本及服务器支持为准。</sub>
