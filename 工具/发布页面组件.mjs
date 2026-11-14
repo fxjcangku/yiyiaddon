@@ -51,18 +51,8 @@ export function websiteEntry(options = {}) {
   }
   return `${websiteStart}\n<p align="center">\n  ${cards}\n</p>\n${websiteEnd}`;
 }
-/** 独立官网介绍卡只保留一处；inline 仍用于首页原有的小导航快捷入口。 */
+/** 官网入口统一使用独立介绍卡，只保留一处。 */
 export function ensureWebsiteEntry(body, options = {}) {
-  if (options.inline) {
-    const navigation = [...body.matchAll(/<p\b[^>]*>[\s\S]*?<\/p>/g)].filter(match =>
-      /\/theme\/nav-download-(?:light|dark)\.svg/.test(match[0])
-      && /\/theme\/nav-guide-(?:light|dark)\.svg/.test(match[0]));
-    if (navigation.length !== 1) throw new Error('首页主导航缺失或重复，停止添加官网入口');
-    const original = navigation[0][0];
-    const cleaned = original.replace(/^[ \t]*[^\n]*\/theme\/nav-website-(?:light|dark)\.svg[^\n]*\n/gm, '');
-    const updated = cleaned.replace(/\n<\/p>$/, `\n  ${themePair('nav-website', 'https://www.yiyiaddon.asia/', '官网', '160', options)}\n</p>`);
-    return body.replace(original, updated);
-  }
   const starts = body.split(websiteStart).length - 1;
   const ends = body.split(websiteEnd).length - 1;
   const pattern = /<!-- yiyiaddon:website:start -->[\s\S]*?<!-- yiyiaddon:website:end -->/;

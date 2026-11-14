@@ -35,7 +35,6 @@
   <a href="功能指南.md#gh-light-mode-only"><img src="展示资源/theme/nav-guide-light.svg?v=26b07cc2" width="160" alt="功能指南"></a><a href="功能指南.md#gh-dark-mode-only"><img src="展示资源/theme/nav-guide-dark.svg?v=7edc555f" width="160" alt="功能指南"></a>
   <a href="界面预览.md#gh-light-mode-only"><img src="展示资源/theme/nav-preview-light.svg?v=ed63cda6" width="160" alt="界面预览"></a><a href="界面预览.md#gh-dark-mode-only"><img src="展示资源/theme/nav-preview-dark.svg?v=7a2739ed" width="160" alt="界面预览"></a>
   <a href="https://github.com/fxjcangku/yiyiaddon/issues#gh-light-mode-only"><img src="展示资源/theme/nav-feedback-light.svg?v=d32fd15a" width="160" alt="问题反馈"></a><a href="https://github.com/fxjcangku/yiyiaddon/issues#gh-dark-mode-only"><img src="展示资源/theme/nav-feedback-dark.svg?v=b0d01d0b" width="160" alt="问题反馈"></a>
-  <a href="https://www.yiyiaddon.asia/#gh-light-mode-only"><img src="展示资源/theme/nav-website-light.svg?v=99191d43" width="160" alt="官网"></a><a href="https://www.yiyiaddon.asia/#gh-dark-mode-only"><img src="展示资源/theme/nav-website-dark.svg?v=725d34bc" width="160" alt="官网"></a>
 </p>
 
 **yiyiaddon** 是面向《我的世界》Java 版的独立 **Minecraft Fabric 客户端自动化模组**。围绕 **星露谷农场、星露谷钓鱼、全自动地图画**，提供自动挖矿、自动附魔、物资补给与分类卸货，把常见的**我的世界自动化脚本**需求整合到中文设置界面。任务通知与运行统计集中展示，各服务器独立保存配置。

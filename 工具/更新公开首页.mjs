@@ -382,7 +382,7 @@ if (fixedPort) {
     throw new Error('适配预告没有保留在下载区第一张，停止覆盖');
   }
 }
-outputs.set(readmePath, ensureWebsiteEntry(readme, { ...ui, inline: true }));
+outputs.set(readmePath, ensureWebsiteEntry(readme, ui));
 // 所有输入和槽位先验证，再写文件；工作流仅在全部成功后提交允许的玩家展示文件。
 for (const [file, content] of outputs) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
