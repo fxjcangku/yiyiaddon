@@ -38,9 +38,20 @@ export function navRow(items, options = {}) {
 const websiteStart = '<!-- yiyiaddon:website:start -->';
 const websiteEnd = '<!-- yiyiaddon:website:end -->';
 export function websiteEntry(options = {}) {
-  return `${websiteStart}\n<p align="center">\n  ${themePair('nav-website', 'https://www.yiyiaddon.asia/', '官网', '160', options)}\n</p>\n${websiteEnd}`;
+  const href = 'https://www.yiyiaddon.asia/';
+  const alt = '进入 yiyiaddon 官网 · www.yiyiaddon.asia · 功能演示、按游戏版本选择下载、安装指南、更新记录；请先确认版本与平台要求。';
+  const source = (theme, compact = false) => html(asset(`展示资源/theme/website-feature-${compact ? 'compact-' : ''}${theme}.svg`, options));
+  let cards;
+  if (options.release) {
+    // Release 不使用 #gh-*-mode-only：保持一个可点击 picture，手机优先选择竖版。
+    // 每张 SVG 自带完整背景和文字对比，页面主题与系统主题不同时仍然清晰。
+    cards = `<a href="${href}"><picture><source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="${source('dark', true)}"><source media="(max-width: 640px) and (prefers-color-scheme: light)" srcset="${source('light', true)}"><source media="(max-width: 640px)" srcset="${source('light', true)}"><source media="(prefers-color-scheme: dark)" srcset="${source('dark')}"><source media="(prefers-color-scheme: light)" srcset="${source('light')}"><img src="${source('light')}" width="100%" alt="${html(alt)}"></picture></a>`;
+  } else {
+    cards = ['light', 'dark'].map(theme => `<a href="${href}#gh-${theme}-mode-only"><picture><source media="(max-width: 640px)" srcset="${source(theme, true)}"><img src="${source(theme)}" width="100%" alt="${html(alt)}"></picture></a>`).join('\n  ');
+  }
+  return `${websiteStart}\n<p align="center">\n  ${cards}\n</p>\n${websiteEnd}`;
 }
-/** 官网入口与已有导航共用主题资源；重复刷新只保留一处入口。 */
+/** 独立官网介绍卡只保留一处；inline 仍用于首页原有的小导航快捷入口。 */
 export function ensureWebsiteEntry(body, options = {}) {
   if (options.inline) {
     const navigation = [...body.matchAll(/<p\b[^>]*>[\s\S]*?<\/p>/g)].filter(match =>

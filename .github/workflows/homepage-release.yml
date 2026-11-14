@@ -39,9 +39,13 @@ jobs:
             file="展示资源/homepage-20261023/$asset"
             if [ -f "$file" ]; then git add -- "$file"; fi
           done
-          # 只暂存刷新工具生成的品牌与下载组件，静态导航和功能卡由人工维护。
+          # 只暂存刷新工具生成的品牌、下载与平台组件，静态导航和功能卡由人工维护。
           for theme in light dark; do
             git add -- "展示资源/theme/brand-$theme.svg" "展示资源/theme/brand-compact-$theme.svg"
+            for asset in panel-environment-platforms-$theme.svg panel-environment-platforms-compact-$theme.svg; do
+              file="展示资源/theme/$asset"
+              if [ -f "$file" ]; then git add -- "$file"; fi
+            done
             for game in 1.21.11 26.1.2 26.2 26.3; do
               file="展示资源/theme/download-$game-$theme.svg"
               if [ -f "$file" ]; then git add -- "$file"; fi

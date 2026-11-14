@@ -1,22 +1,31 @@
 <p align="center">
+  <a href="https://www.yiyiaddon.asia/">
   <picture>
     <source media="(max-width: 640px)" srcset="展示资源/yiyiaddon-module-cover-compact-1.2.gif?v=81e7a084">
-    <img src="展示资源/yiyiaddon-module-cover-1.2.gif?v=b7a7a473" width="100%" alt="yiyiaddon 动态功能展示 · Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3">
-  </picture><br>
+    <img src="展示资源/yiyiaddon-module-cover-1.2.gif?v=b7a7a473" width="100%" alt="yiyiaddon 动态功能展示 · Windows x64 / Mac 系统 ARM64 · Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3 · 点击进入官网">
+  </picture>
+  </a><br>
   <sub>功能概念动画；实际界面与可用功能以所安装版本及服务器支持为准。</sub>
 </p>
+
+<!-- yiyiaddon:website:start -->
+<p align="center">
+  <a href="https://www.yiyiaddon.asia/#gh-light-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/website-feature-compact-light.svg?v=fdaf7a3d"><img src="展示资源/theme/website-feature-light.svg?v=b33e09aa" width="100%" alt="进入 yiyiaddon 官网 · www.yiyiaddon.asia · 功能演示、按游戏版本选择下载、安装指南、更新记录；请先确认版本与平台要求。"></picture></a>
+  <a href="https://www.yiyiaddon.asia/#gh-dark-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/website-feature-compact-dark.svg?v=c941900b"><img src="展示资源/theme/website-feature-dark.svg?v=99d8e8c1" width="100%" alt="进入 yiyiaddon 官网 · www.yiyiaddon.asia · 功能演示、按游戏版本选择下载、安装指南、更新记录；请先确认版本与平台要求。"></picture></a>
+</p>
+<!-- yiyiaddon:website:end -->
 
 <!-- homepage:brand:start -->
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-light-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.2-a7167847">
-    <img src="展示资源/theme/brand-light.svg?v=1.2-a380e79f" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.2-c5dd43ac">
+    <img src="展示资源/theme/brand-light.svg?v=1.2-9377aad6" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac 系统 ARM64 · 1.3 通用包待上传。">
   </picture>
 </a>
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-dark-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.2-1c63acac">
-    <img src="展示资源/theme/brand-dark.svg?v=1.2-d962da31" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.2-b725c303">
+    <img src="展示资源/theme/brand-dark.svg?v=1.2-d8580407" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.2；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac 系统 ARM64 · 1.3 通用包待上传。">
   </picture>
 </a>
 <!-- homepage:brand:end -->
@@ -31,9 +40,11 @@
 
 **yiyiaddon** 是面向《我的世界》Java 版的独立 **Minecraft Fabric 客户端自动化模组**。围绕 **星露谷农场、星露谷钓鱼、全自动地图画**，提供自动挖矿、自动附魔、物资补给与分类卸货，把常见的**我的世界自动化脚本**需求整合到中文设置界面。任务通知与运行统计集中展示，各服务器独立保存配置。
 
-这里的星露谷指 **Minecraft 服务器中的农场与钓鱼玩法**，需要按所在服务器的资源包和菜单配置。地图画与 Mac 通用包的说明及附件状态见 [1.3 发布准备](发布准备/1.3.md)，现有正式版下载保持下方对应版本。
+这里的星露谷指 **Minecraft 服务器中的农场与钓鱼玩法**，需要按所在服务器的资源包和菜单配置。
 
-Minecraft Fabric automation mod for server farming, fishing, mapart, mining, enchanting and inventory logistics, with a Chinese configuration UI.
+**支持平台：Windows（Win）x64 / Mac（macOS）ARM64。** Mac 使用原生 ARM64 Java；各游戏版本的可下载平台和安装包状态见下方下载区。地图画与 Mac 通用包的详细说明见 [1.3 发布准备](发布准备/1.3.md)。
+
+Minecraft Fabric automation mod for server farming, fishing, mapart, mining, enchanting and inventory logistics, with a Chinese configuration UI. Platform support: Windows x64 and Mac (macOS) ARM64. Check the download section for package availability and platform requirements.
 
 ### <img src="展示资源/icons/octicons/tools-24.svg?v=50ab7961" width="24" height="24" alt=""> 开发协作
 
@@ -57,14 +68,14 @@ Minecraft Fabric automation mod for server farming, fishing, mapart, mining, enc
 > **已内置经过调教优化的 Baritone。请卸载自行安装的 Baritone，避免重复加载或冲突。**
 
 <p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.21.11-light.svg?v=1.2-cbc5a7ca" width="24%" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.21.11-dark.svg?v=1.2-3c588968" width="24%" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.1.2-light.svg?v=1.2-f5364f0f" width="24%" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.1.2-dark.svg?v=1.2-642ea2c1" width="24%" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.2-light.svg?v=1.2-7c05fc3e" width="24%" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.2-dark.svg?v=1.2-1e1ca3f8" width="24%" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.3-light.svg?v=1.2-68e6ea28" width="24%" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.3-dark.svg?v=1.2-d28e0d25" width="24%" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.21.11-light.svg?v=1.2-d2a519b7" width="24%" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.21.11-dark.svg?v=1.2-d143934c" width="24%" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.1.2-light.svg?v=1.2-c45b3cb4" width="24%" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.1.2-dark.svg?v=1.2-f5c37cb1" width="24%" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.2-light.svg?v=1.2-f1f002a3" width="24%" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.2-dark.svg?v=1.2-7b1d2897" width="24%" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.3-light.svg?v=1.2-b69a54a1" width="24%" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
+  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.3-dark.svg?v=1.2-57d6f3ae" width="24%" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
 </p>
 
 #### <img src="展示资源/icons/octicons/device-desktop-24.svg?v=0c1b5a88" width="24" height="24" alt=""> 运行环境
@@ -72,7 +83,8 @@ Minecraft Fabric automation mod for server farming, fishing, mapart, mining, enc
 **Mac 系统**请使用 **ARM64 Java**，Intel Mac 不在当前支持范围。请按上方各游戏版本标注的平台下载安装包；仅标注 Windows x64 的附件不适用于 Mac。完整要求见 [安装指南](安装指南.md)。
 
 <p align="center">
-<a href="安装指南.md#gh-light-mode-only"><img src="展示资源/theme/panel-environment-light.svg?v=c6d65d4f" width="100%" alt="运行环境：Windows x64；Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25。"></a><a href="安装指南.md#gh-dark-mode-only"><img src="展示资源/theme/panel-environment-dark.svg?v=e915e9e5" width="100%" alt="运行环境：Windows x64；Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25。"></a>
+<a href="安装指南.md#gh-light-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-light.svg?v=1.2-85558392"><img src="展示资源/theme/panel-environment-platforms-light.svg?v=1.2-89b65c30" width="100%" alt="Windows x64 正式版可下载；Mac 系统 ARM64 · 1.3 通用包待上传。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
+<a href="安装指南.md#gh-dark-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-dark.svg?v=1.2-8d78e97d"><img src="展示资源/theme/panel-environment-platforms-dark.svg?v=1.2-54a0a2b0" width="100%" alt="Windows x64 正式版可下载；Mac 系统 ARM64 · 1.3 通用包待上传。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
 </p>
 
 #### <img src="展示资源/icons/octicons/package-24.svg?v=3fe57ae5" width="24" height="24" alt=""> 三步完成安装
