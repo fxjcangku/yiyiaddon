@@ -47,12 +47,12 @@ Minecraft Fabric automation mod for server farming, fishing, mapart, mining, enc
 
 ### <img src="展示资源/icons/octicons/tools-24.svg?v=50ab7961" width="24" height="24" alt=""> 开发协作
 
-由 **fxjcangku** 维护，主要借助 **Claude** 与 **OpenAI Codex** 编写代码、迭代功能和修复问题。
+由 **fxjcangku** 维护，**Claude** 负责前端设计与界面设置，**OpenAI Codex** 负责代码编写。
 
 <p align="center">
   <a href="https://github.com/fxjcangku#gh-light-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-light.svg?v=b7d9797e" width="260" alt="fxjcangku · 项目维护、需求规划、测试与发布"></a><a href="https://github.com/fxjcangku#gh-dark-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-dark.svg?v=8a665ab1" width="260" alt="fxjcangku · 项目维护、需求规划、测试与发布"></a>
-  <a href="https://github.com/claude#gh-light-mode-only"><img src="展示资源/theme/collaboration-claude-light.svg?v=0150b9a6" width="260" alt="Claude · Anthropic 代码协作"></a><a href="https://github.com/claude#gh-dark-mode-only"><img src="展示资源/theme/collaboration-claude-dark.svg?v=cc4666e1" width="260" alt="Claude · Anthropic 代码协作"></a>
-  <a href="https://github.com/codex#gh-light-mode-only"><img src="展示资源/theme/collaboration-codex-light.svg?v=4428bcbc" width="260" alt="Codex · OpenAI 代码协作"></a><a href="https://github.com/codex#gh-dark-mode-only"><img src="展示资源/theme/collaboration-codex-dark.svg?v=bc55a8bd" width="260" alt="Codex · OpenAI 代码协作"></a>
+  <a href="https://github.com/claude#gh-light-mode-only"><img src="展示资源/theme/collaboration-claude-light.svg?v=473986b1" width="260" alt="Claude · Anthropic · 前端设计与界面设置"></a><a href="https://github.com/claude#gh-dark-mode-only"><img src="展示资源/theme/collaboration-claude-dark.svg?v=78041559" width="260" alt="Claude · Anthropic · 前端设计与界面设置"></a>
+  <a href="https://github.com/codex#gh-light-mode-only"><img src="展示资源/theme/collaboration-codex-light.svg?v=f6ae45bb" width="260" alt="Codex · OpenAI · 代码编写"></a><a href="https://github.com/codex#gh-dark-mode-only"><img src="展示资源/theme/collaboration-codex-dark.svg?v=c61d5ddb" width="260" alt="Codex · OpenAI · 代码编写"></a>
 </p>
 
 <a name="download#gh-light-mode-only"></a>
