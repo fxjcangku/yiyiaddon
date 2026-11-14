@@ -37,13 +37,24 @@
   <a href="https://github.com/fxjcangku/yiyiaddon/issues#gh-light-mode-only"><img src="展示资源/theme/nav-feedback-light.svg?v=d32fd15a" width="160" alt="问题反馈"></a><a href="https://github.com/fxjcangku/yiyiaddon/issues#gh-dark-mode-only"><img src="展示资源/theme/nav-feedback-dark.svg?v=b0d01d0b" width="160" alt="问题反馈"></a>
 </p>
 
-**yiyiaddon** 是面向《我的世界》Java 版的独立 **Minecraft Fabric 客户端自动化模组**。围绕 **星露谷农场、星露谷钓鱼、全自动地图画**，提供自动挖矿、自动附魔、物资补给与分类卸货，把常见的**我的世界自动化脚本**需求整合到中文设置界面。任务通知与运行统计集中展示，各服务器独立保存配置。
+### 模组简介
 
-这里的星露谷指 **Minecraft 服务器中的农场与钓鱼玩法**，需要按所在服务器的资源包和菜单配置。
+**yiyiaddon** 是《我的世界》Java 版的自动化模组，基于 Fabric，将常用自动化操作集中到中文界面。
 
-**支持平台：Windows（Win）x64 / Mac（macOS）ARM64。** Mac 使用原生 ARM64 Java；各游戏版本的可下载平台和安装包状态见下方下载区。地图画与 Mac 通用包的详细说明见 [1.3 发布准备](发布准备/1.3.md)。
+- **核心玩法**：星露谷农场、星露谷钓鱼、全自动地图画
+- **日常作业**：自动挖矿、自动附魔、物资补给、分类卸货
+- **任务管理**：任务通知、运行统计、按服务器保存配置
 
-Minecraft Fabric automation mod for server farming, fishing, mapart, mining, enchanting and inventory logistics, with a Chinese configuration UI. Platform support: Windows x64 and Mac (macOS) ARM64. Check the download section for package availability and platform requirements.
+**支持系统**：Windows x64 · Mac 系统 ARM64
+
+<details>
+<summary>安装与使用说明</summary>
+
+- **Mac 系统**：使用原生 ARM64 Java，可下载的平台与安装包状态以下载区标注为准。
+- **服务器适配**：星露谷功能面向 Minecraft 服务器中的农场与钓鱼玩法，需按所在服务器的资源包和菜单配置。
+- **相关文档**：[安装指南](安装指南.md) · [1.3 发布准备](发布准备/1.3.md)
+
+</details>
 
 ### <img src="展示资源/icons/octicons/tools-24.svg?v=50ab7961" width="24" height="24" alt=""> 开发协作
 
