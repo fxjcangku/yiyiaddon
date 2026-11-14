@@ -29,7 +29,11 @@
   <a href="https://www.yiyiaddon.asia/#gh-light-mode-only"><img src="展示资源/theme/nav-website-light.svg?v=99191d43" width="160" alt="官网"></a><a href="https://www.yiyiaddon.asia/#gh-dark-mode-only"><img src="展示资源/theme/nav-website-dark.svg?v=725d34bc" width="160" alt="官网"></a>
 </p>
 
-**yiyiaddon** 是一款独立的 Minecraft Fabric 客户端模组，支持农场、钓鱼、挖矿、附魔与物资管理。中文界面集中展示聊天、任务通知与运行统计，各服务器独立保存配置。
+**yiyiaddon** 是面向《我的世界》Java 版的独立 **Minecraft Fabric 客户端自动化模组**。围绕 **星露谷农场、星露谷钓鱼、全自动地图画**，提供自动挖矿、自动附魔、物资补给与分类卸货，把常见的**我的世界自动化脚本**需求整合到中文设置界面。任务通知与运行统计集中展示，各服务器独立保存配置。
+
+这里的星露谷指 **Minecraft 服务器中的农场与钓鱼玩法**，需要按所在服务器的资源包和菜单配置。地图画与 Mac 通用包的说明及附件状态见 [1.3 发布准备](发布准备/1.3.md)，现有正式版下载保持下方对应版本。
+
+Minecraft Fabric automation mod for server farming, fishing, mapart, mining, enchanting and inventory logistics, with a Chinese configuration UI.
 
 ### <img src="展示资源/icons/octicons/tools-24.svg?v=50ab7961" width="24" height="24" alt=""> 开发协作
 
@@ -64,6 +68,8 @@
 </p>
 
 #### <img src="展示资源/icons/octicons/device-desktop-24.svg?v=0c1b5a88" width="24" height="24" alt=""> 运行环境
+
+**Mac 系统**请使用 **ARM64 Java**，Intel Mac 不在当前支持范围。请按上方各游戏版本标注的平台下载安装包；仅标注 Windows x64 的附件不适用于 Mac。完整要求见 [安装指南](安装指南.md)。
 
 <p align="center">
 <a href="安装指南.md#gh-light-mode-only"><img src="展示资源/theme/panel-environment-light.svg?v=c6d65d4f" width="100%" alt="运行环境：Windows x64；Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25。"></a><a href="安装指南.md#gh-dark-mode-only"><img src="展示资源/theme/panel-environment-dark.svg?v=e915e9e5" width="100%" alt="运行环境：Windows x64；Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25。"></a>
@@ -126,3 +132,4 @@
 </table>
 
 <p align="center"><sub>本仓库提供公开介绍与安装包。请遵守所在服务器规则。本项目与 Mojang、Microsoft 无关联。</sub></p>
+

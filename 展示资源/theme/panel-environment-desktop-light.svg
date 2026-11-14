@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="200" viewBox="0 0 1200 200" role="img" aria-labelledby="title desc">
-<title id="title">Windows 与 Apple Silicon Mac 电脑通用包</title>
-<desc id="desc">电脑通用包支持目标：Windows x64 与 Apple Silicon macOS ARM64；模组加载器：Fabric Loader 0.19.5+；Java 版本：1.21.11 版本 · Java 21，26 系列 · Java 25</desc>
+<title id="title">Windows 与 Mac 电脑通用包</title>
+<desc id="desc">电脑通用包支持目标：Windows x64 与 Mac 系统 ARM64；模组加载器：Fabric Loader 0.19.5+；Java 版本：1.21.11 版本 · Java 21，26 系列 · Java 25</desc>
 <!-- Icons: GitHub Octicons, MIT; see LICENSE. Source 68ec2de8d0ddfcbb7497da01d0b7d98eb5593020. -->
 <rect width="1200" height="200" fill="#ffffff"/>
 <g font-family="'Noto Sans CJK SC', 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif">
@@ -10,7 +10,7 @@
 <text id="card-0-heading" x="66" y="50" font-size="28" font-weight="650" fill="#1f2328">电脑平台</text>
 <path d="M24 72H364" stroke="#d0d7de"/>
 <text id="card-0-line-0" x="24" y="112" font-size="22" font-weight="400" fill="#57606a">Windows x64</text>
-<text id="card-0-line-1" x="24" y="148" font-size="22" font-weight="400" fill="#57606a">macOS Apple Silicon ARM64</text>
+<text id="card-0-line-1" x="24" y="148" font-size="22" font-weight="400" fill="#57606a">Mac 系统 ARM64</text>
 </g>
 <g transform="translate(406 0)">
 <rect x="1" y="1" width="386" height="198" rx="18" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>

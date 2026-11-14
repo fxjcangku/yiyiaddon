@@ -21,7 +21,7 @@ const games = [
   { game: '26.3', java: 25, api: '0.164.0+26.3', light: ['#6D28D9', '#D8CAEF'], dark: ['#C4B5FD', '#49405F'] },
 ];
 const outputs = new Map();
-const label = item => `Minecraft ${item.game} · yiyiaddon 1.3 电脑通用包 · Windows x64 与 Apple Silicon macOS ARM64 · Java ${item.java} · Fabric API ${item.api} · 安装包待上传 查看安装要求`;
+const label = item => `Minecraft ${item.game} · yiyiaddon 1.3 电脑通用包 · Windows x64 与 Mac 系统 ARM64 · Java ${item.java} · Fabric API ${item.api} · 安装包待上传 查看安装要求`;
 const icon = (name, x, y, size, color) => {
   const original = fs.readFileSync(path.join(root, `展示资源/icons/octicons/${name}-24.svg`), 'utf8');
   const paths = original.match(/<path\b[^>]*\/>/g);
@@ -54,7 +54,7 @@ for (const item of games) {
 ${icon('device-desktop', 28, 136, 26, accent)}
 <text x="65" y="158" font-size="25" fill="${accent}" font-weight="600">电脑通用包</text>
 <text x="28" y="194" font-size="22" fill="${ink}" font-weight="500">Windows x64 + Mac ARM64</text>
-<text x="28" y="224" font-size="20" fill="${muted}">macOS Apple Silicon</text>
+<text x="28" y="224" font-size="20" fill="${muted}">Mac 系统</text>
 <path d="M28 244H452" stroke="${border}"/>
 ${icon('cpu', 28, 262, 23, muted)}
 <text x="65" y="281" font-size="22" fill="${ink}" font-weight="600">Java ${item.java}</text>
