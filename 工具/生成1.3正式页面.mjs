@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { composeRelease } from './整理发布页面.mjs';
 import { games, repository, packageAssets, requireDualPlatformRelease, fabricDependency } from './发行附件.mjs';
 
@@ -23,6 +24,10 @@ function finalPlatformText(text) {
 
 export function compose13FormalPage(original, catalogRelease, options) {
   const draftPreview = options.draftPreview === true;
+  if (options.publicationBody && (!draftPreview || catalogRelease.draft !== true
+      || !/^[a-f\d]{40}$/i.test(options.assetRef || '') || options.release === false)) {
+    throw new Error('发布请求正文仅允许真实 1.3 草稿的本地预览，并须使用确切 40 位资源提交 SHA');
+  }
   if (catalogRelease.tag_name !== 'v1.3') throw new Error('该入口只处理真实 v1.3 快照');
   requireDualPlatformRelease(catalogRelease, games, { draftPreview });
   const assets = packageAssets(catalogRelease, { draftPreview });
@@ -63,7 +68,9 @@ export function compose13FormalPage(original, catalogRelease, options) {
     .replace('当前八包尚未上传，不能把历史 desktop 或 Windows 包改名充当分系统构建。', '本页提供八个独立混淆 JAR，请按 Minecraft 版本和运行系统选择。')
     .replace(/^当前没有可下载的 1\.3 附件[^\n]*$/m, '四个游戏版本各提供 Windows x64 与 Mac x64 两个独立下载入口，历史无平台后缀包继续保留其 Windows x64 兼容范围。')
     .replace('1. 正式附件提供后 先核对', '1. 先核对');
-  const compatibility = section(body, 'compatibility')
+  const priorRegressionNote = '以下为发布准备期间的既有功能回归记录，最终分系统安装包的逐包验证结果单独记录。';
+  const compatibility = section(body, 'compatibility').replaceAll(priorRegressionNote + '\n', '').replace(/\n{3,}/g, '\n\n')
+    .replace('## 兼容与运行\n', `## 兼容与运行\n\n${priorRegressionNote}\n`)
     .replace('宣传封面为功能概念图 1.3 分系统安装包尚未上传', '宣传封面为功能概念图，请以具体版本、系统与场景的实际验收记录为准');
   const hashes = ['## 文件校验', '', '| Minecraft | 系统 | 文件 | 字节数 | SHA-256 |', '| --- | --- | --- | ---: | --- |',
     ...assets.sort((a, b) => games.indexOf(a.game) - games.indexOf(b.game) || ((a.target === 'mac-arm64') - (b.target === 'mac-arm64')))
@@ -142,16 +149,30 @@ function main() {
   }
   const outputDir = path.resolve(output);
   if (outputDir === root || outputDir.startsWith(root + path.sep)) throw new Error('交付目录必须位于公开工作树之外');
+  const publicationBody = args.includes('--publication-body');
+  if (publicationBody && !args.includes('--draft-preview')) throw new Error('--publication-body 必须配合 --draft-preview');
   const catalogRelease = JSON.parse(fs.readFileSync(releaseFile, 'utf8'));
   const formalSource = path.join(root, '发布说明/1.3.md');
   const original = fs.readFileSync(fs.existsSync(formalSource) ? formalSource : path.join(root, '发布准备/1.3.md'), 'utf8');
   const result = compose13FormalPage(original, catalogRelease, { root, assetRef, draftPreview: args.includes('--draft-preview') });
+  let publication;
+  if (publicationBody) {
+    publication = compose13FormalPage(original, catalogRelease, { root, assetRef, draftPreview: true, publicationBody: true });
+    if (execFileSync('git', ['-C', root, 'cat-file', '-t', assetRef], { encoding: 'utf8' }).trim() !== 'commit') {
+      throw new Error('资源引用必须是真实 Git 提交');
+    }
+    for (const [relative, content] of publication.generatedAssets) {
+      const committed = execFileSync('git', ['-C', root, 'show', `${assetRef}:${relative}`], { encoding: 'utf8' });
+      if (committed !== content) throw new Error(`资源提交中的 SVG 与当前真实附件生成结果不同：${relative}`);
+    }
+  }
   for (const [relative, content] of result.generatedAssets) {
     const file = path.join(outputDir, relative);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, content);
   }
   fs.writeFileSync(path.join(outputDir, 'release-body.md'), result.body);
+  if (publication) fs.writeFileSync(path.join(outputDir, 'release-publication-body.md'), publication.body);
   if (!catalogRelease.draft) {
     const repositoryPage = compose13FormalPage(original, catalogRelease, { root, assetRef, release: false });
     const stagedDocs = published13Guides(root);
@@ -165,7 +186,7 @@ function main() {
   }
   console.log(JSON.stringify({ mode: catalogRelease.draft ? 'draft-preview' : 'published', modules: result.modules,
     entries: result.entries, prefixCharacters: result.prefixCharacters, assets: result.assets.length,
-    generatedImages: result.generatedAssets.size, outputDir }, null, 2));
+    generatedImages: result.generatedAssets.size, publicationBody: !!publication, outputDir }, null, 2));
 }
 
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) main();

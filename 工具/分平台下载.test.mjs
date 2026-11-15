@@ -260,3 +260,41 @@ test('正式 CLI 暂存指南与主题页，正式源可重复生成且准备工
       { stdio: ['ignore', 'pipe', 'pipe'] }), /不能覆盖/);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
+test('原始草稿八包可绑定真实资源提交后生成原子发布正文，拒绝占位或错图', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'yiyi-publish-body-13-'));
+  try {
+    const stagedRoot = path.join(temp, 'public');
+    fs.cpSync(root, stagedRoot, { recursive: true, filter: src => !src.includes(`${path.sep}.git${path.sep}`)
+      && (fs.statSync(src).isDirectory() || /\.(mjs|cjs|md|svg|json)$/.test(src)) });
+    const draft = synthetic('1.3'); draft.draft = true; draft.published_at = null;
+    draft.assets.forEach(asset => { asset.digest = `sha256:${'c'.repeat(64)}`; });
+    const snapshot = path.join(temp, 'draft.json'); fs.writeFileSync(snapshot, JSON.stringify(draft));
+    const originalSnapshot = fs.readFileSync(snapshot, 'utf8');
+    const run = (output, assetRef, publication = false) => JSON.parse(execFileSync(process.execPath,
+      [path.join(stagedRoot, '工具/生成1.3正式页面.mjs'), '--root', stagedRoot, '--release', snapshot,
+        '--output-dir', output, '--asset-ref', assetRef, '--draft-preview', ...(publication ? ['--publication-body'] : [])],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    const preview = path.join(temp, 'preview'); run(preview, 'PUBLIC_ASSET_REF');
+    fs.cpSync(path.join(preview, '展示资源'), path.join(stagedRoot, '展示资源'), { recursive: true });
+    const git = args => execFileSync('git', ['-C', stagedRoot, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    git(['init', '--quiet']);
+    const imageFiles = fs.readdirSync(path.join(preview, '展示资源/theme')).map(file => `展示资源/theme/${file}`);
+    assert.equal(imageFiles.length, 16); git(['add', '--', ...imageFiles]);
+    git(['-c', 'user.name=Local fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--quiet', '-m', 'local generated image fixture']);
+    const assetRef = git(['rev-parse', 'HEAD']);
+    const intended = path.join(temp, 'intended'); assert.equal(run(intended, assetRef, true).publicationBody, true);
+    const publication = fs.readFileSync(path.join(intended, 'release-publication-body.md'), 'utf8');
+    assert.match(publication, /yiyiaddon 1.3 · 正式版/); assert.doesNotMatch(publication, /正式发布稿（草稿）|PUBLIC_ASSET_REF/);
+    assert.ok(publication.includes(assetRef));
+    assert.match(publication, /既有功能回归记录/);
+    assert.match(fs.readFileSync(path.join(intended, 'release-body.md'), 'utf8'), /正式发布稿（草稿）/);
+    assert.equal(fs.existsSync(path.join(intended, '安装指南.md')), false);
+    assert.equal(fs.readFileSync(snapshot, 'utf8'), originalSnapshot);
+    assert.throws(() => run(path.join(temp, 'placeholder'), 'PUBLIC_ASSET_REF', true), /确切 40 位/);
+    const altered = path.join(stagedRoot, imageFiles[0]); fs.appendFileSync(altered, '\n<!-- inconsistent fixture -->');
+    git(['add', '--', imageFiles[0]]);
+    git(['-c', 'user.name=Local fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--quiet', '-m', 'local inconsistent fixture']);
+    assert.throws(() => run(path.join(temp, 'wrong-image'), git(['rev-parse', 'HEAD']), true), /SVG 与当前真实附件生成结果不同/);
+    assert.equal(fs.existsSync(path.join(temp, 'wrong-image')), false);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});

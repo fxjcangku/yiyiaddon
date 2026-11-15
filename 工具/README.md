@@ -36,4 +36,17 @@ node 工具/生成1.3正式页面.mjs --release /private/v1.3-published.json \
 
 上传后的草稿尚未公开时可加 `--draft-preview`。该模式只接受标签为 v1.3、八包均 uploaded 且带真实摘要的原始草稿快照，保留 `draft=true` 与空发布时间，标题明确标为草稿，只输出本地正文和资源。它不生成公开指南、不写 README，也不能绕过首页的真实正式版门槛。`PUBLIC_ASSET_REF` 仅供提交前本地排版预览，发送实际正文前须替换为已上传资源的确切提交 SHA。工具不调用 GitHub 发布接口。
 
+发布前资源与正文按同一份真实草稿快照处理。
+
+1. 八包上传后，先使用 `--draft-preview --asset-ref PUBLIC_ASSET_REF` 输出私有预览。只把输出内的 `展示资源/theme/release-1.3-<MC>-{windows,mac}-{light,dark}.svg` 共 16 个图片文件复制到公开仓库并提交。此时 README 和当前指南保持真实公开状态。
+2. 推送并回读这个资源提交，使用其确切 SHA 再运行草稿预览，并加 `--publication-body`。工具逐一读取该 Git 提交中的 16 个 SVG，与真实附件生成结果比较，任何错图或缺图均停止。正文资源引用使用该 SHA，不能继续保留占位符。
+3. `release-body.md` 继续显示草稿身份，额外的 `release-publication-body.md` 是供正式发布请求使用的本地预备正文。该文件使用正式标题，不猜测发布时间，不改动输入中的草稿状态和空发布时间，也不生成公开指南。八包与发布验证决策由发布执行者另行完成，再将此正文用于实际正式发布请求。
+4. 发布后回读真实公开快照，使用普通模式生成带真实日期的正式页和指南，再刷新首页与历史索引。既有功能回归记录与本次最终安装包验证分开填写，不能把旧记录当作当前包或双系统实机通过。
+
+```sh
+node 工具/生成1.3正式页面.mjs --release /private/v1.3-draft-uploaded.json \
+  --draft-preview --publication-body --asset-ref <已推送资源提交的40位SHA> \
+  --output-dir /private/v1.3-publication
+```
+
 合成八包回归只在内存和隔离临时目录进行，不访问网络，也不写入仓库 README 或实际 Release。真实 1.2 最小快照位于 `测试数据/1.2公开附件.json`。

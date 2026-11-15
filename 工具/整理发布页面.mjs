@@ -161,7 +161,7 @@ export function composeRelease(release, assets, options) {
   const stableUrl = `${repository}/releases/latest`;
   const docsUrl = `${options.docPrefix}功能指南.md`;
   const modern = assets.some(asset => asset.suffix === 'win64' || asset.suffix === 'mac64');
-  const status = options.draftPreview ? '正式发布稿（草稿）' : release.prerelease ? '历史测试版' : (release.tag === (options.latestTag || 'v1.2') ? '正式版' : '历史正式版');
+  const status = options.draftPreview && !options.publicationBody ? '正式发布稿（草稿）' : release.prerelease ? '历史测试版' : (release.tag === (options.latestTag || 'v1.2') ? '正式版' : '历史正式版');
   const covers = originalCoverBlocks(release);
   const parts = [...covers, `**yiyiaddon ${version} · ${status}**\n\n${release.summary}`];
 
