@@ -42,7 +42,7 @@ const text = (x, y, copy, size, fill = '#eefaff', extra = '') => `<text x="${fmt
 const rect = (x, y, width, height, fill, extra = '') => `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(width)}" height="${fmt(height)}" fill="${fill}" ${extra}/>`;
 const rounded = (x, y, width, height, fill, radius, extra = '') => rect(x, y, width, height, fill, `rx="${radius}" ${extra}`);
 const windowsIcon = '<path fill="currentColor" d="M2 3h9v8H2zm11 0h9v8h-9zM2 13h9v8H2zm11 0h9v8h-9z"/>';
-// 图标保留平台轮廓；所有可见平台名称使用 Mac。
+// 图标保留平台轮廓；平台展示名使用 Mac x64；实际架构仍为 ARM64。
 const macIcon = '<path fill="currentColor" d="M17.1 12.6c0-2 1.6-3 1.7-3.1-1-1.5-2.5-1.7-3-1.8-1.3-.1-2.6.8-3.2.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.9.9-3.6 2.2-1.5 2.6-.4 6.4 1.1 8.5.7 1 1.5 2.1 2.6 2 1-.1 1.4-.7 2.7-.7s1.6.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.1 1.1-2.2 1.2-2.3-.1 0-2.1-.8-2.1-3.5zM15 6.3c.6-.8 1.1-1.8 1-2.8-1 .1-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.8 1.1.1 2.1-.6 2.8-1.5z"/>';
 const platformIcon = (kind, x, y, size = 18) => `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 24 24" color="#9cf6ff">${kind === 'win' ? windowsIcon : macIcon}</svg>`;
 
@@ -55,11 +55,11 @@ function platformPanel(x, y, width, compact, flat = false) {
     + platformIcon('win', x + 13, row - (compact ? 19 : 15), compact ? 22 : 18)
     + text(x + (compact ? 44 : 39), row, 'Windows x64', font, '#e7faff', 'font-weight="600"')
     + platformIcon('mac', macX, row - (compact ? 19 : 15), compact ? 22 : 18)
-    + text(macX + (compact ? 31 : 25), row, 'Mac 系统 ARM64', font, '#e7faff', 'font-weight="600"')
+    + text(macX + (compact ? 31 : 25), row, 'Mac x64', font, '#e7faff', 'font-weight="600"')
     + (compact
-      ? text(x + 15, y + 49, '1.3 Mac 通用包待上传', 14, '#efc58c')
+      ? text(x + 15, y + 49, '1.3 Mac x64 待上传 · ARM64 Java', 14, '#efc58c')
       : rect(x + 14, y + 39, width - 28, 1, '#8eedf6', 'opacity=".15"')
-        + text(x + 15, y + height - 13, '1.3 Mac 通用包待上传', flat ? 10 : 11, '#efc58c', 'letter-spacing=".7"'));
+        + text(x + 15, y + height - 13, '1.3 Mac x64 待上传 · ARM64 Java', flat ? 10 : 11, '#efc58c', 'letter-spacing=".7"'));
 }
 
 function svgIcon(kind) {

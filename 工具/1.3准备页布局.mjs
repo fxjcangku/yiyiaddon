@@ -54,7 +54,7 @@ export function composePreparedRelease(original, { root, release }) {
   const summaryComment = requiredMatch(body, /(<!-- yiyiaddon:update-summary\s*[\s\S]*?-->)/, '更新摘要');
   const summary = JSON.parse(requiredMatch(summaryComment, /<!-- yiyiaddon:update-summary\s*([\s\S]*?)-->/, '更新摘要数据'));
   const overview = markedOr(body, 'overview', () => requiredMatch(body,
-    /\*\*全自动地图画 与 Mac 原生适配\*\*\s*\n\s*\n([\s\S]*?)\n\s*\n\*\*/, '概述'));
+    /\*\*全自动地图画 与 Mac(?: x64)? 原生适配\*\*\s*\n\s*\n([\s\S]*?)\n\s*\n\*\*/, '概述'));
   const notes = markedOr(body, 'notes', () => requiredMatch(body,
     /(^## 详细更新记录\n[\s\S]*?)(?=^## 兼容与运行\n)/m, '18 模块完整更新记录'));
   const install = markedOr(body, 'install', () => requiredMatch(body,
@@ -78,16 +78,16 @@ export function composePreparedRelease(original, { root, release }) {
   const preparedCards = `<!-- yiyiaddon:prepared-downloads:start -->\n${cards}\n<!-- yiyiaddon:prepared-downloads:end -->`;
   const prefix = [
     cover,
-    '**yiyiaddon 1.3 · 全自动地图画与 Mac 原生适配**',
+    '**yiyiaddon 1.3 · 全自动地图画与 Mac x64 原生适配**',
     '导入投影 连续铺设 自动补货 成图锁定 同步完善农场 附魔 聊天与运行反馈',
-    'Minecraft **1.21.11 / 26.1.2 / 26.2 / 26.3** · Windows x64 与 Mac',
+    'Minecraft **1.21.11 / 26.1.2 / 26.2 / 26.3** · Windows x64 与 Mac x64',
     '**安装包待上传** · 下方版本卡查看安装要求 当前正式下载仍为 1.2',
     '> [!IMPORTANT]\n> 已内置经过调教优化的 Baritone **请卸载自行安装的 Baritone** 避免重复加载或冲突',
     websiteEntry(options),
     heading(2, 'download', '下载与安装', options),
     preparedCards,
-    panel('panel-environment-desktop', '运行环境：Windows x64 与 Mac 系统 ARM64；Fabric Loader 0.19.5+；1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 使用原生 ARM64 Java。1.3 安装包待上传。', guideUrl, options),
-    panel('panel-install', '正式附件上传后的安装步骤：1 退出游戏，移出旧版 yiyiaddon 与自行安装的 Baritone；2 将对应版本 desktop JAR 与 Fabric API 放入 mods；3 启动后按 G 打开界面并完成配置。', guideUrl, options),
+    panel('panel-environment-desktop', '运行环境：Windows x64 与 Mac x64（实际 ARM64）；Fabric Loader 0.19.5+；1.21.11 使用 Java 21，26 系列使用 Java 25；Mac x64 为展示名，使用原生 ARM64 Java，不支持 Intel Mac。1.3 分系统安装包待上传。', guideUrl, options),
+    panel('panel-install', '正式附件上传后的安装步骤：1 退出游戏，移出旧版 yiyiaddon 与自行安装的 Baritone；2 将对应游戏版本与系统的独立 JAR 与 Fabric API 放入 mods；3 启动后按 G 打开界面并完成配置。', guideUrl, options),
     navRow([
       { name: 'install', href: guideUrl, label: '安装指南' },
       { name: 'guide', href: `${options.docPrefix}功能指南.md`, label: '功能指南' },
@@ -105,7 +105,7 @@ export function composePreparedRelease(original, { root, release }) {
   ].join('\n\n');
   const supplementary = [
     '## 下载与安装',
-    fold('查看可复制的版本依赖表', `${dependencyTable}\n\n四个版本分别使用对应的 desktop JAR Fabric Loader 统一使用 0.19.5 或以上`),
+    fold('查看可复制的版本依赖表', `${dependencyTable}\n\n四个游戏版本各计划提供 win64 与 mac64 两份独立混淆 JAR 共八包 当前均待上传 Fabric Loader 统一使用 0.19.5 或以上`),
     wrap('install', install),
     wrap('compatibility', compatibility),
     '<sub>封面为功能概念图 不作为实机验收截图</sub>',

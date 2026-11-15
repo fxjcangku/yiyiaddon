@@ -21,7 +21,7 @@ const games = [
   { game: '26.3', java: 25, api: '0.164.0+26.3', light: ['#6D28D9', '#D8CAEF'], dark: ['#C4B5FD', '#49405F'] },
 ];
 const outputs = new Map();
-const label = item => `Minecraft ${item.game} · yiyiaddon 1.3 电脑通用包 · Windows x64 与 Mac 系统 ARM64 · Java ${item.java} · Fabric API ${item.api} · 安装包待上传 查看安装要求`;
+const label = item => `Minecraft ${item.game} · yiyiaddon 1.3 分系统安装包 · Windows x64 与 Mac x64（ARM64） · Java ${item.java} · Fabric API ${item.api} · 安装包待上传 查看安装要求`;
 const icon = (name, x, y, size, color) => {
   const original = fs.readFileSync(path.join(root, `展示资源/icons/octicons/${name}-24.svg`), 'utf8');
   const paths = original.match(/<path\b[^>]*\/>/g);
@@ -39,7 +39,7 @@ for (const item of games) {
     const buttonInk = dark ? '#101828' : '#FFFFFF';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="432" viewBox="0 0 480 432" role="img" aria-label="${title}">
 <title>${title}</title>
-<desc>1.3 安装包尚未上传 本卡仅打开安装要求 Intel Mac 不在支持范围 Fabric Loader 0.19.5 或以上 已内置调教优化版 Baritone</desc>
+<desc>1.3 安装包尚未上传 本卡仅打开安装要求 Mac x64 为展示名 实际仅支持 ARM64 并使用 ARM64 Java Intel Mac 不在支持范围 Fabric Loader 0.19.5 或以上 已内置调教优化版 Baritone</desc>
 <!-- 图标沿用 GitHub 官方 Octicons 路径 来源与 MIT 许可见 展示资源/icons/octicons -->
 <defs>
 <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${dark ? '#182331' : '#FFFFFF'}"/><stop offset="1" stop-color="${dark ? '#101720' : '#F8FAFD'}"/></linearGradient>
@@ -52,9 +52,9 @@ for (const item of games) {
 <text x="452" y="45" font-size="20" fill="${accent}" font-weight="650" text-anchor="end">1.3</text>
 <text x="27" y="111" font-size="52" fill="${ink}" font-weight="700" letter-spacing="-1">${item.game}</text>
 ${icon('device-desktop', 28, 136, 26, accent)}
-<text x="65" y="158" font-size="25" fill="${accent}" font-weight="600">电脑通用包</text>
-<text x="28" y="194" font-size="22" fill="${ink}" font-weight="500">Windows x64 + Mac ARM64</text>
-<text x="28" y="224" font-size="20" fill="${muted}">Mac 系统</text>
+<text x="65" y="158" font-size="25" fill="${accent}" font-weight="600">分系统安装包</text>
+<text x="28" y="194" font-size="22" fill="${ink}" font-weight="500">Windows x64 · win64</text>
+<text x="28" y="224" font-size="20" fill="${muted}">Mac x64 · mac64 · ARM64</text>
 <path d="M28 244H452" stroke="${border}"/>
 ${icon('cpu', 28, 262, 23, muted)}
 <text x="65" y="281" font-size="22" fill="${ink}" font-weight="600">Java ${item.java}</text>
@@ -101,7 +101,7 @@ ${games.map(item => card(item, release)).join('\n')}
 
 ${table}
 
-四个版本分别使用对应的 desktop JAR Fabric Loader 统一使用 0.19.5 或以上
+四个游戏版本各计划提供 win64 与 mac64 两份独立混淆 JAR 共八包 当前均待上传 Fabric Loader 统一使用 0.19.5 或以上
 
 </details>
 ${end}`;

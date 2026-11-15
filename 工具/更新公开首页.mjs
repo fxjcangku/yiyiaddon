@@ -73,12 +73,12 @@ const fixedPortAvailable = downloads.some(item => item.game === '1.21.11');
 const latestGames = downloads.filter(item => item.tag === latest.tag_name).map(item => item.game);
 if (!latestGames.length) throw new Error('最新正式版没有可核实安装包，保留现有首页');
 const desktopGames = downloads.filter(item => item.target === 'desktop').map(item => item.game);
-const platformLabel = item => item.target === 'desktop' ? 'Windows x64 与 Mac 系统 ARM64' : '仅 Windows x64';
+const platformLabel = item => item.target === 'desktop' ? 'Windows x64 与 Mac x64（ARM64）' : '仅 Windows x64';
 const platformStatus = desktopGames.length === 0
   ? ''
   : desktopGames.length === downloads.length
-    ? '下方正式附件均为 **desktop 通用电脑包** · Windows x64 与 Mac 系统 ARM64 共用同一游戏版本的 JAR'
-    : `**Minecraft ${desktopGames.join(' / ')}** 已提供 Windows x64 与 Mac 共用的 desktop 包 其余下载仍仅适用于 Windows x64`;
+    ? '下方正式附件均为 **desktop 通用电脑包** · Windows x64 与 Mac x64 共用同一游戏版本的 JAR'
+    : `**Minecraft ${desktopGames.join(' / ')}** 已提供 Windows x64 与 Mac x64 共用的 desktop 包 其余下载仍仅适用于 Windows x64`;
 // 只兑现本次 1.3 准备状态：必须有该正式版真实上传的 desktop 附件。
 const preparedRelease = candidates.find(item => item.tag_name === 'v1.3');
 const mapartPublished = !!preparedRelease && games.some(game => (preparedRelease.assets || []).some(asset => {
@@ -88,8 +88,8 @@ const mapartPublished = !!preparedRelease && games.some(game => (preparedRelease
 }));
 const macAvailability = desktopGames.length === downloads.length ? '通用包已提供'
   : desktopGames.length ? '部分版本已提供'
-    : mapartPublished ? '通用包见 1.3 发布页' : '1.3 通用包待上传';
-const platformOverview = `Windows x64 正式版可下载；Mac 系统 ARM64 · ${macAvailability}`;
+    : mapartPublished ? '通用包见 1.3 发布页' : '1.3 独立包待上传';
+const platformOverview = `Windows x64 正式版可下载；Mac x64（实际 ARM64） · ${macAvailability}`;
 
 /** 保留封面、按钮的排版，只更新稳定 ID 对应的发布文字；旧槽位兼容原有资源。 */
 function textSlot(svg, id, selector, value) {
@@ -119,7 +119,7 @@ const themedDownloadName = (game, theme) => `download-${game}-${theme}.svg`;
 // 首次正式发布四个版本时使用新路径，避开旧路径缓存。
 const brandName = compact => 'brand' + (compact ? '-compact' : '') + (fixedPortAvailable ? '-release.svg' : '-compat.svg');
 const downloadName = game => 'download-' + game + (fixedPortAvailable ? '-release.svg' : '.svg');
-// 平台标志沿用官网与后台的原生路径；所有读者可见标签只使用 Windows / Mac。
+// 平台标志沿用官网与后台的原生路径；所有读者可见标签只使用 Windows x64 / Mac x64；ARM64 技术要求另外说明。
 const platformPaths = {
   windows: 'M2 2h9v9H2zm11 0h9v9h-9zM2 13h9v9H2zm11 0h9v9h-9z',
   mac: 'M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701',
@@ -141,7 +141,7 @@ function addBrandPlatforms(svg, compact) {
 <rect x="38" y="258" width="236" height="44" rx="13" fill="#20372f" stroke="#344253"/>
 ${platformIcon('windows', 50, 269, 22, '#91ebd4')}<text x="84" y="288" font-size="22" font-weight="600" fill="#e2eaf5">Windows x64</text>
 <rect x="288" y="258" width="314" height="44" rx="13" fill="#2b2a29" stroke="#67523b"/>
-${platformIcon('mac', 300, 268, 24, '#f4c585')}<text x="336" y="288" font-size="22" font-weight="600" fill="#e2eaf5">Mac 系统 ARM64</text>
+${platformIcon('mac', 300, 268, 24, '#f4c585')}<text x="336" y="288" font-size="22" font-weight="600" fill="#e2eaf5">Mac x64</text>
 <text x="42" y="329" font-size="19" fill="#91ebd4">正式安装包可下载</text><text x="292" y="329" font-size="19" fill="#f4c585">${xml(macAvailability)}</text>
 </g>`;
     return svg.replace('<path d="M36 354h568"', `${badges}<path d="M36 354h568"`);
@@ -150,7 +150,7 @@ ${platformIcon('mac', 300, 268, 24, '#f4c585')}<text x="336" y="288" font-size="
 <rect x="38" y="279" width="212" height="34" rx="11" fill="#20372f" stroke="#344253"/>
 ${platformIcon('windows', 50, 286, 20, '#91ebd4')}<text x="82" y="302" font-size="18" font-weight="600" fill="#e2eaf5">Windows x64</text>
 <rect x="264" y="279" width="466" height="34" rx="11" fill="#2b2a29" stroke="#67523b"/>
-${platformIcon('mac', 276, 285, 22, '#f4c585')}<text x="310" y="302" font-size="18" font-weight="600" fill="#e2eaf5">Mac 系统 ARM64</text>
+${platformIcon('mac', 276, 285, 22, '#f4c585')}<text x="310" y="302" font-size="18" font-weight="600" fill="#e2eaf5">Mac x64</text>
 <text x="715" y="301" text-anchor="end" font-size="16" fill="#f4c585">${xml(macAvailability)}</text>
 </g>`;
   return svg.replace('<path d="M40 328h690"', `${badges}<path d="M40 328h690"`)
@@ -173,8 +173,8 @@ function downloadPlatformCard(source, item, theme) {
   const definitions = source.match(/<defs>[\s\S]*?<\/defs>/)?.[0];
   if (!definitions) throw new Error(`下载卡缺少渐变 ${item.game}`);
   const onAccent = theme === 'dark' ? '#101828' : '#FFFFFF';
-  const macStatus = item.target === 'desktop' ? '同一 JAR 可用' : mapartPublished ? '请查看版本说明' : '1.3 通用包待上传';
-  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${platformLabel(item)} · Mac 系统 ARM64：${macStatus} · ${baritoneSummary}`;
+  const macStatus = item.target === 'desktop' ? '同一 JAR 可用' : mapartPublished ? '请查看版本说明' : '1.3 独立包待上传';
+  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${platformLabel(item)} · Mac x64：${macStatus} · ${baritoneSummary}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="425" viewBox="0 0 480 425" role="img" aria-label="${xml(label)}">
 <title>${xml(label)}</title>
 ${definitions}
@@ -185,7 +185,7 @@ ${definitions}
 <text x="452" y="45" font-size="20" fill="${accent}" font-weight="650" id="release-version" text-anchor="end">${xml(item.version)}</text>
 <text x="27" y="111" font-size="52" fill="${ink}" font-weight="700" id="game-version" letter-spacing="-1">${xml(item.game)}</text>
 ${platformIcon('windows', 28, 134, 22, accent)}<text x="62" y="154" font-size="22" font-weight="600" fill="${ink}">Windows x64</text><text x="452" y="153" text-anchor="end" font-size="18" fill="${accent}">现可下载</text>
-${platformIcon('mac', 28, 170, 23, accent)}<text x="62" y="191" font-size="22" font-weight="600" fill="${ink}">Mac 系统 ARM64</text><text x="452" y="190" text-anchor="end" font-size="18" fill="${item.target === 'desktop' ? accent : warning}">${xml(macStatus)}</text>
+${platformIcon('mac', 28, 170, 23, accent)}<text x="62" y="191" font-size="22" font-weight="600" fill="${ink}">Mac x64</text><text x="452" y="190" text-anchor="end" font-size="18" fill="${item.target === 'desktop' ? accent : warning}">${xml(macStatus)}</text>
 <path d="M28 209H452" stroke="${border}"/>
 <text x="28" y="241" font-size="25" fill="${accent}" font-weight="600" id="download-note">${xml(baritoneNote)}</text>
 <text x="28" y="275" font-size="23" fill="${warning}" font-weight="650" id="baritone-warning">${xml(baritoneWarning)}</text>
@@ -205,13 +205,13 @@ function environmentPlatforms(theme, compact) {
   const panelFrame = (x, y, w, h) => `<rect x="${x + 1}" y="${y + 1}" width="${w}" height="${h}" rx="18" fill="${color.bg}" stroke="${color.border}" stroke-width="1.5"/>`;
   const platformNote = desktopGames.length && desktopGames.length < downloads.length ? `Mac 可下载：${desktopGames.join(' / ')}` : 'Mac 使用 ARM64 Java · Intel Mac 暂不支持';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">
-<title id="title">Windows 与 Mac 系统 · 运行环境</title><desc id="desc">${xml(platformOverview)}。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java，暂不支持 Intel Mac。</desc>
+<title id="title">Windows x64 与 Mac x64 · 运行环境</title><desc id="desc">${xml(platformOverview)}。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java，暂不支持 Intel Mac。</desc>
 <g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
 ${panelFrame(0, 0, platformWidth, 266)}
 ${octicon('device-desktop', 24, 27, 28, color.accent)}<text x="66" y="50" font-size="28" font-weight="650" fill="${color.ink}">电脑平台</text><path d="M24 72H${platformWidth - 22}" stroke="${color.border}"/>
 ${platformIcon('windows', 24, 96, 28, color.accent)}<text x="68" y="118" font-size="25" font-weight="600" fill="${color.ink}">Windows x64</text><text x="${platformWidth - 23}" y="116" text-anchor="end" font-size="19" fill="${color.accent}">正式版可下载</text>
 <rect x="16" y="141" width="${platformWidth - 30}" height="67" rx="12" fill="${color.tint}"/>
-${platformIcon('mac', 25, 158, 30, color.mac)}<text x="68" y="179" font-size="25" font-weight="600" fill="${color.ink}">Mac 系统 ARM64</text><text x="${platformWidth - 23}" y="198" text-anchor="end" font-size="19" fill="${color.mac}">${xml(macAvailability)}</text>
+${platformIcon('mac', 25, 158, 30, color.mac)}<text x="68" y="179" font-size="25" font-weight="600" fill="${color.ink}">Mac x64</text><text x="${platformWidth - 23}" y="198" text-anchor="end" font-size="19" fill="${color.mac}">${xml(macAvailability)}</text>
 <text x="24" y="241" font-size="18" fill="${color.muted}">${xml(platformNote)}</text>
 ${panelFrame(secondX, secondaryY, secondaryWidth, compact ? 208 : 266)}
 ${octicon('package', secondX + 24, secondaryY + 27, 28, color.accent)}<text x="${secondX + 66}" y="${secondaryY + 50}" font-size="28" font-weight="650" fill="${color.ink}">模组加载器</text><path d="M${secondX + 24} ${secondaryY + 72}H${secondX + secondaryWidth - 22}" stroke="${color.border}"/>
@@ -264,10 +264,10 @@ let readme = fs.readFileSync(readmePath, 'utf8').replaceAll('\r\n', '\n');
 const mapartStatus = mapartPublished
   ? `**全自动地图画已随 1.3 正式发布** · 安装包按游戏版本与实际平台提供\n\n[查看 1.3 更新记录](${repository}/releases/tag/v1.3) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview)`
   : `**功能已完成 正在准备 1.3 发布** · 新安装包尚未上传 当前正式下载仍为 ${xml(version)}\n\n[查看 1.3 发布准备](发布准备/1.3.md) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview) · [官网发布准备](https://www.yiyiaddon.asia/release.html?prepare=1.3)`;
-const desktopStatus = `新增 **macOS ARM64 原生适配** 对应游戏版本的 **desktop 通用电脑包** 面向 Windows x64 与 Mac\n\n`
+const desktopStatus = `新增 **macOS ARM64 原生适配** 1.3 计划按四个游戏版本分别提供 **win64 与 mac64 独立包** 共八包 展示名为 Windows x64 与 Mac x64\n\n`
   + (mapartPublished
     ? 'Mac 请使用原生 ARM64 Java 下方按各游戏版本标明实际可下载平台 历史无平台后缀附件仍仅适用于 Windows x64'
-    : `Mac 请使用原生 ARM64 Java 现有 ${xml(version)} 无平台后缀附件仍仅适用于 Windows x64 新 desktop 附件上传后提供真实下载入口`);
+    : `Mac 请使用原生 ARM64 Java 现有 ${xml(version)} 无平台后缀附件仍仅适用于 Windows x64 新分系统附件公开后按真实平台提供下载入口`);
 for (const [name, content] of [['mapart-status', mapartStatus], ['desktop-status', desktopStatus]]) {
   const pattern = new RegExp(`<!-- homepage:${name}:start -->[\\s\\S]*?<!-- homepage:${name}:end -->`);
   const starts = (readme.match(new RegExp(`<!-- homepage:${name}:start -->`, 'g')) || []).length;
@@ -320,7 +320,7 @@ const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...dow
 const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
 const environmentLabel = `${platformOverview}。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。`;
 const environment = `<p align="center">\n${themes.map(theme => `<a href="安装指南.md#gh-${theme}-mode-only"><picture><source media="(max-width: 640px)" srcset="${themedUrl('panel-environment-platforms-compact', theme, version)}"><img src="${themedUrl('panel-environment-platforms', theme, version)}" width="100%" alt="${xml(environmentLabel)}"></picture></a>`).join('\n')}\n</p>`;
-const macEnvironmentNote = '**Mac 系统**请使用 **ARM64 Java**，Intel Mac 不在当前支持范围。请按上方各游戏版本标注的平台下载安装包；仅标注 Windows x64 的附件不适用于 Mac。完整要求见 [安装指南](安装指南.md)。';
+const macEnvironmentNote = '**Mac x64** 是页面展示名，实际支持 **macOS ARM64**，请使用 **ARM64 Java**；Intel Mac 不在当前支持范围。请按上方各游戏版本标注的平台下载安装包；仅标注 Windows x64 的附件不适用于 Mac。完整要求见 [安装指南](安装指南.md)。';
 const installation = panel("panel-install", "安装步骤：1 退出游戏，移出旧版 yiyiaddon，卸载自行安装的 Baritone；2 将对应版本 JAR 与 Fabric API 放入实例 mods 文件夹；3 启动游戏，按 G 打开界面并完成配置。", "安装指南.md", ui);
 const installationLinks = navRow([
   { name: "install", href: "安装指南.md", label: "安装指南" },

@@ -74,7 +74,7 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
       attachment = ['JAR', 'ZIP'].filter(format => assets.some(asset => asset.format === format)).map(format => {
         const group = assets.filter(asset => asset.format === format).sort((a, b) => (a.game || a.name).localeCompare(b.game || b.name, 'en', { numeric: true }));
         return `**${format} × ${group.length}**${format === 'ZIP' ? '（需解压）' : ''}<br>`
-          + group.map(asset => `[${label(asset.game + (asset.target === 'desktop' ? ' · Windows / Mac' : ''))}](${asset.browser_download_url})`).join(' · ');
+          + group.map(asset => `[${label(asset.game + (asset.target === 'desktop' ? ' · Windows x64 / Mac x64（ARM64）' : ''))}](${asset.browser_download_url})`).join(' · ');
       }).join('<br>');
     } else if ((release.assets || []).length) {
       attachment = `无可用安装包 · **仅更新记录**（[查看 ${release.assets.length} 个附件](${releaseUrl(release)})）`;
