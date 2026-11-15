@@ -9,6 +9,10 @@ import { composePreparedRelease } from './1.3准备页布局.mjs';
 const args = process.argv.slice(2);
 const option = name => { const at = args.indexOf(name); return at < 0 ? null : args[at + 1]; };
 const root = path.resolve(option('--root') || fileURLToPath(new URL('../', import.meta.url)));
+const formalPage = path.join(root, '发布说明/1.3.md');
+if (fs.existsSync(formalPage) && /yiyiaddon 1\.3 · 正式版/.test(fs.readFileSync(formalPage, 'utf8'))) {
+  throw new Error('1.3 已转为正式正文，请使用 生成1.3正式页面.mjs；准备生成器不能覆盖当前正式展示');
+}
 const draftBody = option('--draft-body');
 const check = args.includes('--check');
 const website = 'https://www.yiyiaddon.asia/release.html?prepare=1.3';

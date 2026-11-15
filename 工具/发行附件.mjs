@@ -9,9 +9,14 @@ export function isPublishedRelease(release, { includePrerelease = false } = {}) 
     && typeof release.published_at === 'string' && Number.isFinite(Date.parse(release.published_at));
 }
 
-/** 只接受真实 uploaded 附件；无后缀历史包只适用于 Windows，desktop 保留原共享边界。 */
-export function packageAssets(release, { includePrerelease = false, allowLegacyZip = false } = {}) {
-  if (!isPublishedRelease(release, { includePrerelease })) return [];
+function is13DraftPreview(release, draftPreview) {
+  return draftPreview === true && release?.tag_name === 'v1.3' && release.draft === true
+    && release.prerelease === false && release.published_at === null;
+}
+
+/** 默认只读取已公开附件；draftPreview 仅供八包上传后的本地 1.3 正文预览。 */
+export function packageAssets(release, { includePrerelease = false, allowLegacyZip = false, draftPreview = false } = {}) {
+  if (!isPublishedRelease(release, { includePrerelease }) && !is13DraftPreview(release, draftPreview)) return [];
   const version = release.tag_name.slice(1);
   const prefix = `yiyiaddon-${version}-`;
   const seen = new Set();
@@ -80,15 +85,20 @@ export function selectHomepageDownloads(latest, catalog) {
 }
 
 /** 新 1.3 发版门槛：四版本八个专用 JAR；历史 desktop 不计作两份独立构建。 */
-export function requireDualPlatformRelease(release, requiredGames = games) {
-  if (!isPublishedRelease(release)) throw new Error('双平台正式页必须使用真实已公开正式版');
-  const pairs = releaseGamePairs(release);
+export function requireDualPlatformRelease(release, requiredGames = games, options = {}) {
+  if (!isPublishedRelease(release) && !is13DraftPreview(release, options.draftPreview)) {
+    throw new Error('双平台正式页必须使用真实已公开正式版；1.3 草稿只允许显式本地预览');
+  }
+  const pairs = releaseGamePairs(release, options);
   for (const game of requiredGames) {
     const pair = pairs.find(item => item.game === game);
     if (pair?.windows?.suffix !== 'win64' || pair?.mac?.suffix !== 'mac64'
         || pair.windows.format !== 'JAR' || pair.mac.format !== 'JAR') {
       throw new Error(`${release.tag_name} / ${game} 缺少同版 win64 与 mac64 独立 JAR`);
     }
+  }
+  if (release.tag_name === 'v1.3' && release.assets.length !== requiredGames.length * 2) {
+    throw new Error('1.3 发布附件必须恰好为四版本八个独立 JAR');
   }
   return pairs.filter(pair => requiredGames.includes(pair.game));
 }

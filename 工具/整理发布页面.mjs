@@ -92,7 +92,7 @@ function packageAssets(release, catalogRelease) {
 function downloadCards(release, assets, options) {
   const version = release.tag.replace(/^v/, '');
   if (assets.some(asset => asset.suffix === 'win64' || asset.suffix === 'mac64')) {
-    const pairs = (release.tag === 'v1.3' ? requireDualPlatformRelease(options.catalogRelease)
+    const pairs = (release.tag === 'v1.3' ? requireDualPlatformRelease(options.catalogRelease, undefined, { draftPreview: options.draftPreview })
       : releaseGamePairs(options.catalogRelease)).map(item => ({ ...item, dependency: fabricDependency(options.catalogRelease.body, item.game) }));
     return renderPlatformDownloadGrid(pairs, { ...options,
       names: item => ({ windows: `release-${version}-${item.game}-windows`, mac: `release-${version}-${item.game}-mac` }) });
@@ -155,13 +155,13 @@ export function previewCharacterCount(text) {
 
 export function composeRelease(release, assets, options) {
   // 放在任何布局分支之前，防止仅有无后缀/desktop 包时绕过 1.3 八包门槛。
-  if (release.tag === 'v1.3') requireDualPlatformRelease(options.catalogRelease);
+  if (release.tag === 'v1.3') requireDualPlatformRelease(options.catalogRelease, undefined, { draftPreview: options.draftPreview });
   const version = release.tag.replace(/^v/, '');
   const guideUrl = `${options.docPrefix}安装指南.md`;
   const stableUrl = `${repository}/releases/latest`;
   const docsUrl = `${options.docPrefix}功能指南.md`;
   const modern = assets.some(asset => asset.suffix === 'win64' || asset.suffix === 'mac64');
-  const status = release.prerelease ? '历史测试版' : (release.tag === (options.latestTag || 'v1.2') ? '正式版' : '历史正式版');
+  const status = options.draftPreview ? '正式发布稿（草稿）' : release.prerelease ? '历史测试版' : (release.tag === (options.latestTag || 'v1.2') ? '正式版' : '历史正式版');
   const covers = originalCoverBlocks(release);
   const parts = [...covers, `**yiyiaddon ${version} · ${status}**\n\n${release.summary}`];
 

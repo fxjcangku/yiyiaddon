@@ -200,3 +200,63 @@ test('完整 CLI 只在隔离目录生成，当前快照与模拟八包均可重
     assert.equal(fs.readFileSync(path.join(temp, 'README.md'), 'utf8'), paired);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
+
+test('1.3 正式正文复用既定封面和 18 组 146 条，逐附件列出实际摘要', async () => {
+  const { compose13FormalPage } = await import('./生成1.3正式页面.mjs');
+  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布准备/1.3.md'), 'utf8');
+  const release = synthetic('1.3');
+  release.assets.forEach((asset, index) => { asset.digest = `sha256:${String(index).repeat(64)}`; });
+  const result = compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' });
+  assert.equal(result.modules, 18); assert.equal(result.entries, 146); assert.equal(result.generatedAssets.size, 16);
+  assert.equal((result.body.match(/mapart-kobe-clean-1536.webp/g) || []).length, 1);
+  assert.equal((result.body.match(/<!-- yiyiaddon:update-summary/g) || []).length, 1);
+  assert.match(result.body, /1.3 · 正式版/);
+  assert.doesNotMatch(result.body, /安装包待上传|安装包尚未上传|当前正式下载仍为 1\.2|prepare=1\.3|计划按每个 Minecraft/);
+  for (const asset of release.assets) assert.ok(result.body.includes(asset.digest.slice(7)) && result.body.includes(asset.browser_download_url));
+  assert.equal(compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' }).body, result.body);
+});
+test('已上传八包的 1.3 草稿仅在显式本地预览模式下生成，保留真实发布状态', async () => {
+  const { compose13FormalPage } = await import('./生成1.3正式页面.mjs');
+  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布准备/1.3.md'), 'utf8');
+  const release = synthetic('1.3'); release.draft = true; release.published_at = null;
+  release.assets.forEach(asset => { asset.digest = `sha256:${'a'.repeat(64)}`; });
+  assert.throws(() => compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' }), /真实已公开/);
+  const result = compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF', draftPreview: true });
+  assert.match(result.body, /正式发布稿（草稿）/);
+  assert.equal(release.draft, true); assert.equal(release.published_at, null);
+  assert.equal(packageAssets(release).length, 0);
+  assert.throws(() => selectHomepageDownloads(release, [real]), /真实已公开/);
+});
+test('1.3 真实八包门槛拒绝额外附件，正式正文拒绝无摘要文件', async () => {
+  const { compose13FormalPage } = await import('./生成1.3正式页面.mjs');
+  const release = synthetic('1.3'); release.assets.push({ name: 'diagnostic.zip' });
+  assert.throws(() => requireDualPlatformRelease(release), /恰好/);
+  release.assets.pop();
+  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布准备/1.3.md'), 'utf8');
+  assert.throws(() => compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' }), /SHA-256/);
+});
+test('正式 CLI 暂存指南与主题页，正式源可重复生成且准备工具拒绝覆盖', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'yiyi-formal-13-'));
+  try {
+    const stagedRoot = path.join(temp, 'public');
+    fs.cpSync(root, stagedRoot, { recursive: true, filter: src => !src.includes(`${path.sep}.git${path.sep}`)
+      && (fs.statSync(src).isDirectory() || /\.(mjs|cjs|md|svg|json)$/.test(src)) });
+    const live = synthetic('1.3'); live.assets.forEach(asset => { asset.digest = `sha256:${'b'.repeat(64)}`; });
+    const snapshot = path.join(temp, 'snapshot.json'); fs.writeFileSync(snapshot, JSON.stringify(live));
+    const run = output => JSON.parse(execFileSync(process.execPath, [path.join(stagedRoot, '工具/生成1.3正式页面.mjs'),
+      '--root', stagedRoot, '--release', snapshot, '--output-dir', output, '--asset-ref', 'PUBLIC_ASSET_REF'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    const output = path.join(temp, 'output'); assert.equal(run(output).mode, 'published');
+    for (const file of ['安装指南.md', '版本说明.md', '功能指南.md']) {
+      assert.doesNotMatch(fs.readFileSync(path.join(output, file), 'utf8'), /待上传|尚未上传|1\.3 计划/);
+    }
+    for (const file of ['安装指南.md', '版本说明.md', '功能指南.md', '发布准备/1.3.md', '发布说明/1.3.md']) {
+      const dest = path.join(stagedRoot, file); fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(path.join(output, file), dest);
+    }
+    const next = path.join(temp, 'next'); run(next);
+    assert.equal(fs.readFileSync(path.join(next, 'release-body.md'), 'utf8'), fs.readFileSync(path.join(output, 'release-body.md'), 'utf8'));
+    assert.throws(() => execFileSync(process.execPath, [path.join(stagedRoot, '工具/生成1.3准备按钮.mjs'), '--root', stagedRoot],
+      { stdio: ['ignore', 'pipe', 'pipe'] }), /不能覆盖/);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});

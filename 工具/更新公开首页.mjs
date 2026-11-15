@@ -105,7 +105,7 @@ ${platformIcon('mac', 276, 285, 22, '#f4c585')}<text x="310" y="302" font-size="
 </g>`;
   return svg.replace('<path d="M40 328h690"', `${badges}<path d="M40 328h690"`)
     .replace('x="840" y="292" width="146"', 'x="840" y="292" width="210"')
-    .replace('>正式安装包可用</text>', `>${desktopGames.length ? '平台状态见下载区' : 'Windows 版可下载'}</text>`);
+    .replace('>正式安装包可用</text>', `>${macGames.length === downloads.length ? '双系统包可下载' : desktopGames.length ? '平台状态见下载区' : 'Windows 版可下载'}</text>`);
 }
 function environmentPlatforms(theme, compact) {
   const color = theme === 'dark'
@@ -173,7 +173,9 @@ let readme = fs.readFileSync(readmePath, 'utf8').replaceAll('\r\n', '\n');
 const mapartStatus = mapartPublished
   ? `**全自动地图画已随 1.3 正式发布** · 安装包按游戏版本与实际平台提供\n\n[查看 1.3 更新记录](${repository}/releases/tag/v1.3) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview)`
   : `**功能已完成 正在准备 1.3 发布** · 新安装包尚未上传 当前正式下载仍为 ${xml(version)}\n\n[查看 1.3 发布准备](发布准备/1.3.md) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview) · [官网发布准备](https://www.yiyiaddon.asia/release.html?prepare=1.3)`;
-const desktopStatus = `新增 **macOS ARM64 原生适配** 1.3 计划按四个游戏版本分别提供 **win64 与 mac64 独立包** 共八包 展示名为 Windows x64 与 Mac x64\n\n`
+const desktopStatus = (mapartPublished
+  ? `新增 **macOS ARM64 原生适配** 1.3 按四个游戏版本分别提供 **win64 与 mac64 独立包** 共八包 展示名为 Windows x64 与 Mac x64\n\n`
+  : `新增 **macOS ARM64 原生适配** 1.3 计划按四个游戏版本分别提供 **win64 与 mac64 独立包** 共八包 展示名为 Windows x64 与 Mac x64\n\n`)
   + (mapartPublished
     ? 'Mac 请使用原生 ARM64 Java 下方按各游戏版本标明实际可下载平台 历史无平台后缀附件仍仅适用于 Windows x64'
     : `Mac 请使用原生 ARM64 Java 现有 ${xml(version)} 无平台后缀附件仍仅适用于 Windows x64 新分系统附件公开后按真实平台提供下载入口`);
@@ -284,6 +286,9 @@ if (fixedPort) {
       || finalSection.indexOf('homepage:fixed-port:start') > finalSection.indexOf(`href="${downloads[0].url}`)) {
     throw new Error('适配预告没有保留在下载区第一张，停止覆盖');
   }
+}
+if (mapartPublished) {
+  readme = readme.replaceAll('[1.3 发布准备](发布准备/1.3.md)', `[1.3 正式更新](${repository}/releases/tag/v1.3)`);
 }
 outputs.set(readmePath, ensureWebsiteEntry(readme, ui));
 // 所有输入和槽位先验证，再写文件；工作流仅在全部成功后提交允许的玩家展示文件。
