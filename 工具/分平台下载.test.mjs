@@ -131,6 +131,8 @@ test('真实 1.2 展示四个 Windows 链接与四个无链接 Mac 状态', () =
   assert.equal(hrefs(html).length, 4); assert.equal((html.match(/<td /g) || []).length, 4);
   assert.equal((html.match(/Mac x64 待发布，无下载链接/g) || []).length, 4);
   assert.ok([...generatedAssets.values()].some(svg => svg.includes('下载 Windows x64')));
+  assert.ok([...generatedAssets.keys()].every(name => /^展示资源\/theme\/download-1\.2-(1\.21\.11|26\.1\.2|26\.2|26\.3)-(windows|mac)-(light|dark)\.svg$/.test(name)));
+  assert.ok(html.includes('download-1.2-26.2-windows-light.svg'));
 });
 test('完整八包生成四组相邻原生双按钮，平台资源分别命名', () => {
   const release = synthetic(); const { html, generatedAssets, pairs } = presentation(release);
@@ -139,6 +141,7 @@ test('完整八包生成四组相邻原生双按钮，平台资源分别命名',
   cells.forEach((cell, index) => assert.deepEqual(hrefs(cell[1]), [pairs[index].windows.browser_download_url, pairs[index].mac.browser_download_url]));
   assert.ok([...generatedAssets.keys()].some(name => name.includes('-mac-')));
   assert.ok([...generatedAssets.values()].some(svg => svg.includes('下载 Mac x64')));
+  assert.ok([...generatedAssets.keys()].every(name => name.startsWith(`展示资源/theme/download-${release.tag_name.slice(1)}-`)));
 });
 test('模板拒绝串游戏、串发布和交换平台对象', () => {
   const pairs = releaseGamePairs(synthetic());

@@ -79,7 +79,8 @@ ${enabled ? `<g transform="translate(404 38) scale(1.1666666667)" fill="none" st
 /** 每个游戏版本保持 Windows 原入口，Mac 使用相邻的独立原生链接；缺包时只显示无链接状态图。 */
 export function renderPlatformDownloadGrid(pairs, options) {
   if (!(options.generatedAssets instanceof Map)) throw new Error('下载组件需要生成资源 Map');
-  const names = options.names || (item => ({ windows: `download-${item.game}`, mac: `download-${item.game}-mac` }));
+  // GitHub raw 的分支路径可能仍缓存旧内容；发行版本与平台进入真实路径，不能仅依赖 query。
+  const names = options.names || (item => ({ windows: `download-${item.version}-${item.game}-windows`, mac: `download-${item.version}-${item.game}-mac` }));
   const cells = pairs.map(item => {
     if (!item.windows || item.windows.game !== item.game || item.windows.tag !== item.tag
         || item.windows.version !== item.version || item.windows.format !== 'JAR'

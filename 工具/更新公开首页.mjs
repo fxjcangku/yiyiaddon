@@ -161,7 +161,7 @@ const downloadGrid = renderPlatformDownloadGrid(downloads, { ...ui, generatedAss
 for (const [relative, content] of generatedDownloadAssets) outputs.set(path.join(root, relative), content);
 // 保留旧卡片 URL 的兼容输出；两个下载入口各自使用明确的平台资源与实际附件。
 for (const item of downloads) {
-  outputs.set(path.join(folder, downloadName(item.game)), generatedDownloadAssets.get(`展示资源/theme/download-${item.game}-dark.svg`));
+  outputs.set(path.join(folder, downloadName(item.game)), generatedDownloadAssets.get(`展示资源/theme/download-${item.version}-${item.game}-windows-dark.svg`));
 }
 for (const theme of themes) {
   for (const compact of [false, true]) {

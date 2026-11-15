@@ -53,6 +53,11 @@ jobs:
               if [ -f "$file" ]; then git add -- "$file"; fi
               file="展示资源/theme/download-$game-mac-$theme.svg"
               if [ -f "$file" ]; then git add -- "$file"; fi
+              for platform in windows mac; do
+                for file in 展示资源/theme/download-*-$game-$platform-$theme.svg; do
+                  if [ -f "$file" ]; then git add -- "$file"; fi
+                done
+              done
             done
           done
           if git diff --cached --quiet; then

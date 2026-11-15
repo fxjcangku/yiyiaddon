@@ -15,7 +15,9 @@ node 工具/更新公开首页.mjs --latest /path/to/latest.json --catalog /path
 node --test 工具/分平台下载.test.mjs
 ```
 
-`.github/workflows/homepage-release.yml` 在刷新前运行上述回归测试，暂存白名单包含四版本的 Windows 卡片与 `download-<游戏版本>-mac-<主题>.svg`。以后变更生成文件名时同步白名单，避免只有 README 更新而按钮资源遗漏。历史归档由 `生成历史版本.mjs` 识别实际新后缀；旧已发布说明、日期、附件和无后缀 Windows 记录不因模板更新改写。
+首页下载图片使用 `download-<模组版本>-<游戏版本>-<windows|mac>-<主题>.svg`，把实际版本与平台放进路径，避免 GitHub raw 分支路径缓存沿用旧按钮。原有固定路径图片继续保留，作为配色模板及历史兼容资源，不删旧图。
+
+`.github/workflows/homepage-release.yml` 在刷新前运行上述回归测试，暂存白名单包含这些分版本、分平台资源。以后变更生成文件名时同步白名单，避免只有 README 更新而按钮资源遗漏。历史归档由 `生成历史版本.mjs` 识别实际新后缀；旧已发布说明、日期、附件和无后缀 Windows 记录不因模板更新改写。
 
 ## 1.3 准备与正式 Release
 
