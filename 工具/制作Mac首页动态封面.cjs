@@ -57,9 +57,9 @@ function platformPanel(x, y, width, compact, flat = false) {
     + platformIcon('mac', macX, row - (compact ? 19 : 15), compact ? 22 : 18)
     + text(macX + (compact ? 31 : 25), row, 'Mac x64', font, '#e7faff', 'font-weight="600"')
     + (compact
-      ? text(x + 15, y + 49, '1.3 Mac x64 待上传 · ARM64 Java', 14, '#efc58c')
+      ? text(x + 15, y + 49, 'Mac x64 · ARM64 Java', 14, '#efc58c')
       : rect(x + 14, y + 39, width - 28, 1, '#8eedf6', 'opacity=".15"')
-        + text(x + 15, y + height - 13, '1.3 Mac x64 待上传 · ARM64 Java', flat ? 10 : 11, '#efc58c', 'letter-spacing=".7"'));
+        + text(x + 15, y + height - 13, 'Mac x64 · ARM64 Java', flat ? 10 : 11, '#efc58c', 'letter-spacing=".7"'));
 }
 
 function svgIcon(kind) {
