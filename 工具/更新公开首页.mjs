@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildReleaseHistory } from './生成历史版本.mjs';
 import { heading, panel, navRow, ensureWebsiteEntry } from './发布页面组件.mjs';
+import { games, isPublishedRelease, packageAssets, selectHomepageDownloads, fabricDependency } from './发行附件.mjs';
+import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 
 /** 根据真实 Release 刷新正式版首页与分类归档；不读取模组源码，不发布或修改安装包。 */
 const args = process.argv.slice(2);
@@ -14,81 +16,29 @@ const ui = { root };
 const latest = readJson('--latest');
 const catalog = readJson('--catalog').flat();
 const repository = 'https://github.com/fxjcangku/yiyiaddon';
-if (!latest || latest.draft || latest.prerelease || !/^v\d/.test(latest.tag_name)) throw new Error('Latest 必须是真实正式版');
+if (!isPublishedRelease(latest)) throw new Error('Latest 必须是真实已公开正式版');
 const version = latest.tag_name.slice(1);
-const stable = catalog.filter(item => !item.draft && !item.prerelease && item.tag_name !== latest.tag_name)
-  .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at));
-const candidates = [latest, ...stable];
-const games = ['1.21.11', '26.1.2', '26.2', '26.3'];
 const baritoneNote = '已内置调教优化版 Baritone';
 const baritoneWarning = '请卸载自行安装的 Baritone';
 const baritoneSummary = `${baritoneNote} · ${baritoneWarning}`;
 const xml = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
-/** 按表头识别兼容表，兼容旧四列与新三列排版；不从固定列号或其他游戏版本猜依赖。 */
-function fabricDependency(body, game) {
-  const clean = value => value.trim().replaceAll('**', '').replaceAll('__', '').replaceAll('`', '');
-  const cells = line => {
-    if (!line.includes('|')) return null;
-    return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(clean);
-  };
-  const lines = String(body || '').split('\n');
-  for (let at = 0; at < lines.length - 1; at++) {
-    const headers = cells(lines[at]);
-    if (!headers) continue;
-    const gameColumn = headers.findIndex(value => /^(?:Minecraft(?:\s*版本)?|游戏版本)$/i.test(value));
-    const apiColumn = headers.findIndex(value => /^(?:配套\s*)?Fabric\s+API$/i.test(value));
-    const separator = cells(lines[at + 1]);
-    if (gameColumn < 0 || apiColumn < 0 || !separator
-        || separator.length !== headers.length || !separator.every(value => /^:?-{3,}:?$/.test(value))) continue;
-    for (let rowAt = at + 2; rowAt < lines.length; rowAt++) {
-      const row = cells(lines[rowAt]);
-      if (!row) break;
-      if (row[gameColumn] !== game) continue;
-      const dependency = row[apiColumn]?.match(/\b(\d+\.\d+\.\d+\+(\d+(?:\.\d+)+))\b/);
-      return dependency?.[2] === game ? dependency[1] : null;
-    }
-  }
-  return null;
-}
-
-/** 每条游戏版本独立选择最新正式附件；没有该线新包时不能把另一条线或预告冒充可下载包。 */
-const downloads = games.map(game => {
-  for (const release of candidates) {
-    const number = release.tag_name.replace(/^v/, '');
-    // 同一正式版本优先取真实 desktop 附件；历史无后缀包只表示 Windows x64。
-    const names = [`yiyiaddon-${number}-${game}-desktop.jar`, `yiyiaddon-${number}-${game}.jar`];
-    const asset = names.map(name => (release.assets || []).find(item => item.name === name
-      && item.size > 0 && item.state === 'uploaded')).find(Boolean);
-    if (!asset) continue;
-    if (asset.browser_download_url !== [repository, "releases/download", release.tag_name, asset.name].join("/")) throw new Error('安装包链接不属于本仓库');
-    const dependency = fabricDependency(release.body, game);
-    const target = asset.name.endsWith('-desktop.jar') ? 'desktop' : 'windows-x64';
-    return { game, version: number, url: asset.browser_download_url, dependency, tag: release.tag_name, target };
-  }
-  if (game === '1.21.11') return null;
-  throw new Error(`未找到 Minecraft ${game} 的正式 JAR，保留现有首页`);
-}).filter(Boolean);
+const { candidates, downloads: selectedDownloads } = selectHomepageDownloads(latest, catalog);
+const downloads = selectedDownloads.map(item => ({ ...item,
+  dependency: fabricDependency(candidates.find(release => release.tag_name === item.tag).body, item.game) }));
 const fixedPortAvailable = downloads.some(item => item.game === '1.21.11');
 const latestGames = downloads.filter(item => item.tag === latest.tag_name).map(item => item.game);
 if (!latestGames.length) throw new Error('最新正式版没有可核实安装包，保留现有首页');
-const desktopGames = downloads.filter(item => item.target === 'desktop').map(item => item.game);
-const platformLabel = item => item.target === 'desktop' ? 'Windows x64 与 Mac x64（ARM64）' : '仅 Windows x64';
-const platformStatus = desktopGames.length === 0
-  ? ''
-  : desktopGames.length === downloads.length
-    ? '下方正式附件均为 **desktop 通用电脑包** · Windows x64 与 Mac x64 共用同一游戏版本的 JAR'
-    : `**Minecraft ${desktopGames.join(' / ')}** 已提供 Windows x64 与 Mac x64 共用的 desktop 包 其余下载仍仅适用于 Windows x64`;
-// 只兑现本次 1.3 准备状态：必须有该正式版真实上传的 desktop 附件。
+const desktopGames = downloads.filter(item => item.windows.suffix === 'desktop' && item.mac?.suffix === 'desktop').map(item => item.game);
+const macGames = downloads.filter(item => item.mac).map(item => item.game);
+const platformStatus = !macGames.length ? '' : desktopGames.length === downloads.length
+  ? '下方为真实历史 desktop 通用附件 · Windows x64 与 Mac x64 两个入口指向同一游戏版本的原 JAR'
+  : '**Windows x64 与 Mac x64 分别下载** · 每个按钮只对应同一游戏版本与同一正式 Release 的真实附件 缺失平台保持待发布';
 const preparedRelease = candidates.find(item => item.tag_name === 'v1.3');
-const mapartPublished = !!preparedRelease && games.some(game => (preparedRelease.assets || []).some(asset => {
-  const name = `yiyiaddon-1.3-${game}-desktop.jar`;
-  return asset.name === name && asset.state === 'uploaded' && asset.size > 0
-    && asset.browser_download_url === `${repository}/releases/download/v1.3/${name}`;
-}));
-const macAvailability = desktopGames.length === downloads.length ? '通用包已提供'
-  : desktopGames.length ? '部分版本已提供'
-    : mapartPublished ? '通用包见 1.3 发布页' : '1.3 独立包待上传';
+const mapartPublished = packageAssets(preparedRelease).some(asset => asset.format === 'JAR');
+const macAvailability = macGames.length === downloads.length ? (desktopGames.length === downloads.length ? '历史通用包可用' : '分系统包可下载')
+  : macGames.length ? '部分版本可下载'
+    : mapartPublished ? '各版本 Mac 包待提供' : '1.3 独立包待上传';
 const platformOverview = `Windows x64 正式版可下载；Mac x64（实际 ARM64） · ${macAvailability}`;
 
 /** 保留封面、按钮的排版，只更新稳定 ID 对应的发布文字；旧槽位兼容原有资源。 */
@@ -157,44 +107,6 @@ ${platformIcon('mac', 276, 285, 22, '#f4c585')}<text x="310" y="302" font-size="
     .replace('x="840" y="292" width="146"', 'x="840" y="292" width="210"')
     .replace('>正式安装包可用</text>', `>${desktopGames.length ? '平台状态见下载区' : 'Windows 版可下载'}</text>`);
 }
-/** 沿用每条版本线的主题配色；明确区分当前可下载附件与 Mac 发布准备。 */
-function downloadPlatformCard(source, item, theme) {
-  const attribute = (selector, name) => {
-    const element = source.match(selector)?.[0];
-    const value = element?.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1];
-    if (!value) throw new Error(`下载卡缺少 ${item.game} ${name} 配色槽`);
-    return value;
-  };
-  const accent = attribute(/<text\b[^>]*\bid="download-note"[^>]*>/, 'fill');
-  const ink = attribute(/<text\b[^>]*\bid="game-version"[^>]*>/, 'fill');
-  const muted = attribute(/<text\b[^>]*\bid="fabric-api"[^>]*>/, 'fill');
-  const warning = attribute(/<text\b[^>]*\bid="baritone-warning"[^>]*>/, 'fill');
-  const border = attribute(/<rect\b[^>]*\bfill="url\(#bg\)"[^>]*>/, 'stroke');
-  const definitions = source.match(/<defs>[\s\S]*?<\/defs>/)?.[0];
-  if (!definitions) throw new Error(`下载卡缺少渐变 ${item.game}`);
-  const onAccent = theme === 'dark' ? '#101828' : '#FFFFFF';
-  const macStatus = item.target === 'desktop' ? '同一 JAR 可用' : mapartPublished ? '请查看版本说明' : '1.3 独立包待上传';
-  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${platformLabel(item)} · Mac x64：${macStatus} · ${baritoneSummary}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="425" viewBox="0 0 480 425" role="img" aria-label="${xml(label)}">
-<title>${xml(label)}</title>
-${definitions}
-<g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
-<rect x="1" y="1" width="478" height="411" rx="24" fill="url(#bg)" stroke="${border}" stroke-width="1.5"/>
-<rect x="1" y="1" width="478" height="411" rx="24" fill="url(#glow)"/>
-<text x="28" y="45" font-size="21" fill="${muted}" font-weight="600" letter-spacing="1.7">MINECRAFT</text>
-<text x="452" y="45" font-size="20" fill="${accent}" font-weight="650" id="release-version" text-anchor="end">${xml(item.version)}</text>
-<text x="27" y="111" font-size="52" fill="${ink}" font-weight="700" id="game-version" letter-spacing="-1">${xml(item.game)}</text>
-${platformIcon('windows', 28, 134, 22, accent)}<text x="62" y="154" font-size="22" font-weight="600" fill="${ink}">Windows x64</text><text x="452" y="153" text-anchor="end" font-size="18" fill="${accent}">现可下载</text>
-${platformIcon('mac', 28, 170, 23, accent)}<text x="62" y="191" font-size="22" font-weight="600" fill="${ink}">Mac x64</text><text x="452" y="190" text-anchor="end" font-size="18" fill="${item.target === 'desktop' ? accent : warning}">${xml(macStatus)}</text>
-<path d="M28 209H452" stroke="${border}"/>
-<text x="28" y="241" font-size="25" fill="${accent}" font-weight="600" id="download-note">${xml(baritoneNote)}</text>
-<text x="28" y="275" font-size="23" fill="${warning}" font-weight="650" id="baritone-warning">${xml(baritoneWarning)}</text>
-<text x="28" y="309" font-size="22" fill="${muted}" font-weight="400" id="fabric-api">${xml(item.dependency ? `Fabric API  ${item.dependency}` : '配套 Fabric API 见下载页')}</text>
-<rect x="25" y="331" width="430" height="62" rx="15" fill="${accent}"/>
-${octicon('download', 44, 349, 28, onAccent)}<text x="88" y="372" font-size="24" fill="${onAccent}" font-weight="650">${item.target === 'desktop' ? '下载电脑通用包' : '下载 Windows JAR'}</text>
-<g transform="translate(404 349) scale(1.1666666667)" fill="none" stroke="${onAccent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></g>
-</g></svg>\n`;
-}
 function environmentPlatforms(theme, compact) {
   const color = theme === 'dark'
     ? { bg: '#161b22', border: '#30363d', ink: '#e6edf3', muted: '#b1bac4', accent: '#79c0ff', mac: '#e9c38e', tint: '#242322' }
@@ -203,7 +115,7 @@ function environmentPlatforms(theme, compact) {
   const platformWidth = compact ? 638 : 474, secondaryWidth = compact ? 308 : 344;
   const secondX = compact ? 0 : 494, thirdX = compact ? 330 : 854, secondaryY = compact ? 278 : 0;
   const panelFrame = (x, y, w, h) => `<rect x="${x + 1}" y="${y + 1}" width="${w}" height="${h}" rx="18" fill="${color.bg}" stroke="${color.border}" stroke-width="1.5"/>`;
-  const platformNote = desktopGames.length && desktopGames.length < downloads.length ? `Mac 可下载：${desktopGames.join(' / ')}` : 'Mac 使用 ARM64 Java · Intel Mac 暂不支持';
+  const platformNote = macGames.length && macGames.length < downloads.length ? `Mac 可下载：${macGames.join(' / ')}` : 'Mac 使用 ARM64 Java · Intel Mac 暂不支持';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">
 <title id="title">Windows x64 与 Mac x64 · 运行环境</title><desc id="desc">${xml(platformOverview)}。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java，暂不支持 Intel Mac。</desc>
 <g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
@@ -244,15 +156,12 @@ for (const compact of [false, true]) {
     outputs.set(path.join(themeFolder, themedBrandName(compact, theme)), theme === 'light' ? lightBrand(svg) : svg);
   }
 }
+const generatedDownloadAssets = new Map();
+const downloadGrid = renderPlatformDownloadGrid(downloads, { ...ui, generatedAssets: generatedDownloadAssets });
+for (const [relative, content] of generatedDownloadAssets) outputs.set(path.join(root, relative), content);
+// 保留旧卡片 URL 的兼容输出；两个下载入口各自使用明确的平台资源与实际附件。
 for (const item of downloads) {
-  for (const theme of themes) {
-    // 每条游戏版本各读自己的明暗模板，避免 1.21.11 再次复制成 26.1.2 的颜色。
-    const file = path.join(themeFolder, themedDownloadName(item.game, theme));
-    const svg = downloadPlatformCard(fs.readFileSync(file, 'utf8'), item, theme);
-    outputs.set(file, svg);
-    // 保留旧图片 URL 的输出兼容；现行首页仅引用新的明暗组件。
-    if (theme === 'dark') outputs.set(path.join(folder, downloadName(item.game)), svg);
-  }
+  outputs.set(path.join(folder, downloadName(item.game)), generatedDownloadAssets.get(`展示资源/theme/download-${item.game}-dark.svg`));
 }
 for (const theme of themes) {
   for (const compact of [false, true]) {
@@ -311,13 +220,7 @@ if (brandStartCount === 0 && brandEndCount === 0) {
   if (brandStartCount !== 1 || brandEndCount !== 1 || !brandPattern.test(readme)) throw new Error('品牌区域边界缺失或重复，停止覆盖');
   readme = readme.replace(brandPattern, brandSection);
 }
-const card = item => {
-  const label = `下载 Minecraft ${item.game} JAR · 正式版 ${item.version} · ${platformLabel(item)} · ${baritoneSummary}`;
-  return themes.map(theme => `  <a href="${item.url}#gh-${theme}-mode-only"><img src="${themedUrl(`download-${item.game}`, theme, item.version)}" width="24%" alt="${xml(label)}"></a>`).join('\n');
-};
-// 四卡共用一个段落，桌面同排，较窄的阅读区由浏览器自然换行。
-const cards = [...(fixedPort ? [readme.match(fixedPortPattern)[0]] : []), ...downloads.map(card)];
-const cardStrip = `<p align="center">\n${cards.join('\n')}\n</p>`;
+const cardStrip = `${fixedPort || ''}${fixedPort ? '\n\n' : ''}${downloadGrid}`;
 const environmentLabel = `${platformOverview}。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。`;
 const environment = `<p align="center">\n${themes.map(theme => `<a href="安装指南.md#gh-${theme}-mode-only"><picture><source media="(max-width: 640px)" srcset="${themedUrl('panel-environment-platforms-compact', theme, version)}"><img src="${themedUrl('panel-environment-platforms', theme, version)}" width="100%" alt="${xml(environmentLabel)}"></picture></a>`).join('\n')}\n</p>`;
 const macEnvironmentNote = '**Mac x64** 是页面展示名，实际支持 **macOS ARM64**，请使用 **ARM64 Java**；Intel Mac 不在当前支持范围。请按上方各游戏版本标注的平台下载安装包；仅标注 Windows x64 的附件不适用于 Mac。完整要求见 [安装指南](安装指南.md)。';
@@ -378,7 +281,7 @@ if (fixedPort && withoutImageVersion(readme.match(fixedPortPattern)?.[0]) !== wi
 if (fixedPort) {
   const finalSection = readme.match(sectionPattern)?.[0] || '';
   if (!finalSection.includes(readme.match(fixedPortPattern)[0])
-      || finalSection.indexOf('homepage:fixed-port:start') > finalSection.indexOf(`href="${downloads[0].url}"`)) {
+      || finalSection.indexOf('homepage:fixed-port:start') > finalSection.indexOf(`href="${downloads[0].url}`)) {
     throw new Error('适配预告没有保留在下载区第一张，停止覆盖');
   }
 }

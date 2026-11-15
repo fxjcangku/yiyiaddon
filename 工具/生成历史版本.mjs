@@ -1,3 +1,4 @@
+import { packageAssets as publishedPackageAssets } from './发行附件.mjs';
 import { heading, navRow, ensureWebsiteEntry } from './发布页面组件.mjs';
 
 /** 从 GitHub Release API 的真实分类、发布时间、正文兼容表和附件清单生成归档。 */
@@ -47,18 +48,7 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
     }
     return [...result].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
   };
-  const packageAssets = release => (release.assets || []).filter(asset => /\.(?:jar|zip)$/i.test(asset.name)
-    && asset.size > 0 && asset.state === 'uploaded').flatMap(asset => {
-      const prefix = `yiyiaddon-${release.tag_name.replace(/^v/, '')}-`;
-      const suffix = asset.name.startsWith(prefix) ? asset.name.slice(prefix.length) : '';
-      const match = suffix.match(/^(\d+(?:\.\d+)+)(?:-(desktop))?\.(jar|zip)$/i);
-      if (!match || (match[2] && match[3].toLowerCase() !== 'jar')) return []; // 日志或诊断 ZIP 不冒充按游戏版本分包的安装附件。
-      const game = match[1];
-      const plain = `${repository}/releases/download/${release.tag_name}/${asset.name}`;
-      const encoded = `${repository}/releases/download/${encodeURIComponent(release.tag_name)}/${encodeURIComponent(asset.name)}`;
-      if (asset.browser_download_url !== plain && asset.browser_download_url !== encoded) throw new Error(`历史附件链接不属于本仓库：${asset.name}`);
-      return [{ ...asset, game, target: match[2] ? 'desktop' : 'windows-x64', format: match[3].toUpperCase() }];
-    });
+  const packageAssets = release => publishedPackageAssets(release, { includePrerelease: true, allowLegacyZip: true });
   const row = release => {
     const assets = packageAssets(release);
     const declared = declaredGames(release.body);
@@ -72,9 +62,9 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
     let attachment = '无附件 · **仅更新记录**';
     if (assets.length) {
       attachment = ['JAR', 'ZIP'].filter(format => assets.some(asset => asset.format === format)).map(format => {
-        const group = assets.filter(asset => asset.format === format).sort((a, b) => (a.game || a.name).localeCompare(b.game || b.name, 'en', { numeric: true }));
+        const group = assets.filter(asset => asset.format === format).sort((a, b) => (a.game || a.name).localeCompare(b.game || b.name, 'en', { numeric: true }) || ((a.target === 'mac-arm64') - (b.target === 'mac-arm64')));
         return `**${format} × ${group.length}**${format === 'ZIP' ? '（需解压）' : ''}<br>`
-          + group.map(asset => `[${label(asset.game + (asset.target === 'desktop' ? ' · Windows x64 / Mac x64（ARM64）' : ''))}](${asset.browser_download_url})`).join(' · ');
+          + group.map(asset => `[${label(asset.game + (asset.target === 'desktop' ? ' · Windows x64 / Mac x64（ARM64）' : asset.suffix === 'mac64' ? ' · Mac x64（ARM64）' : asset.suffix === 'win64' ? ' · Windows x64' : ''))}](${asset.browser_download_url})`).join(' · ');
       }).join('<br>');
     } else if ((release.assets || []).length) {
       attachment = `无可用安装包 · **仅更新记录**（[查看 ${release.assets.length} 个附件](${releaseUrl(release)})）`;

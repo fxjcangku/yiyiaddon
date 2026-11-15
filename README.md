@@ -77,16 +77,26 @@
 > [!IMPORTANT]
 > **已内置经过调教优化的 Baritone。请卸载自行安装的 Baritone，避免重复加载或冲突。**
 
-<p align="center">
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.21.11-light.svg?v=1.2-73825a0a" width="24%" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.21.11-dark.svg?v=1.2-16fa63c6" width="24%" alt="下载 Minecraft 1.21.11 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.1.2-light.svg?v=1.2-7df33e4d" width="24%" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.1.2-dark.svg?v=1.2-bf50e9bc" width="24%" alt="下载 Minecraft 26.1.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.2-light.svg?v=1.2-22f6fb10" width="24%" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.2-dark.svg?v=1.2-afdeea7c" width="24%" alt="下载 Minecraft 26.2 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.3-light.svg?v=1.2-68a1d07d" width="24%" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-  <a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.3-dark.svg?v=1.2-d3b809c9" width="24%" alt="下载 Minecraft 26.3 JAR · 正式版 1.2 · 仅 Windows x64 · 已内置调教优化版 Baritone · 请卸载自行安装的 Baritone"></a>
-</p>
+<table align="center">
+<tbody><tr>
+<td width="25%" valign="top">
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.21.11-light.svg?v=abdfc4a6" width="220" alt="下载 Windows x64 · Minecraft 1.21.11 · yiyiaddon 1.2"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.21.11-dark.svg?v=f914288f" width="220" alt="下载 Windows x64 · Minecraft 1.21.11 · yiyiaddon 1.2"></a><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="展示资源/theme/download-1.21.11-mac-dark.svg?v=3ce74701"><source media="(prefers-color-scheme: light)" srcset="展示资源/theme/download-1.21.11-mac-light.svg?v=644948a8"><img src="展示资源/theme/download-1.21.11-mac-light.svg?v=644948a8" width="220" alt="Mac x64 待发布，无下载链接 · Minecraft 1.21.11 · yiyiaddon 1.2 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></picture>
+</td>
+<td width="25%" valign="top">
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.1.2-light.svg?v=67473023" width="220" alt="下载 Windows x64 · Minecraft 26.1.2 · yiyiaddon 1.2"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.1.2-dark.svg?v=90483712" width="220" alt="下载 Windows x64 · Minecraft 26.1.2 · yiyiaddon 1.2"></a><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="展示资源/theme/download-26.1.2-mac-dark.svg?v=1b69e1a1"><source media="(prefers-color-scheme: light)" srcset="展示资源/theme/download-26.1.2-mac-light.svg?v=0ac0e8bf"><img src="展示资源/theme/download-26.1.2-mac-light.svg?v=0ac0e8bf" width="220" alt="Mac x64 待发布，无下载链接 · Minecraft 26.1.2 · yiyiaddon 1.2 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></picture>
+</td>
+<td width="25%" valign="top">
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.2-light.svg?v=164795cb" width="220" alt="下载 Windows x64 · Minecraft 26.2 · yiyiaddon 1.2"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.2-dark.svg?v=7519be1d" width="220" alt="下载 Windows x64 · Minecraft 26.2 · yiyiaddon 1.2"></a><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="展示资源/theme/download-26.2-mac-dark.svg?v=d6fc6f38"><source media="(prefers-color-scheme: light)" srcset="展示资源/theme/download-26.2-mac-light.svg?v=3859c86b"><img src="展示资源/theme/download-26.2-mac-light.svg?v=3859c86b" width="220" alt="Mac x64 待发布，无下载链接 · Minecraft 26.2 · yiyiaddon 1.2 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></picture>
+</td>
+<td width="25%" valign="top">
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-light-mode-only"><img src="展示资源/theme/download-26.3-light.svg?v=5033e6fb" width="220" alt="下载 Windows x64 · Minecraft 26.3 · yiyiaddon 1.2"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar#gh-dark-mode-only"><img src="展示资源/theme/download-26.3-dark.svg?v=1e1439dc" width="220" alt="下载 Windows x64 · Minecraft 26.3 · yiyiaddon 1.2"></a><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="展示资源/theme/download-26.3-mac-dark.svg?v=879e833e"><source media="(prefers-color-scheme: light)" srcset="展示资源/theme/download-26.3-mac-light.svg?v=a0249d3c"><img src="展示资源/theme/download-26.3-mac-light.svg?v=a0249d3c" width="220" alt="Mac x64 待发布，无下载链接 · Minecraft 26.3 · yiyiaddon 1.2 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></picture>
+</td>
+</tr></tbody>
+</table>
 
 #### <img src="展示资源/icons/octicons/device-desktop-24.svg?v=0c1b5a88" width="24" height="24" alt=""> 运行环境
 

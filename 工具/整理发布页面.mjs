@@ -16,6 +16,8 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { themePair, navRow, heading, supportGrid, panel, repository, ensureWebsiteEntry } from './发布页面组件.mjs';
+import { isPublishedRelease, packageAssets as publishedPackageAssets, releaseGamePairs, requireDualPlatformRelease, fabricDependency } from './发行附件.mjs';
+import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 
 const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
 const sha256 = text => createHash('sha256').update(text).digest('hex');
@@ -24,7 +26,7 @@ const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
 function parseArguments(argv) {
   const result = {};
-  const allowed = new Set(['catalog', 'analysis', 'root', 'asset-ref', 'output']);
+  const allowed = new Set(['catalog', 'analysis', 'root', 'asset-ref', 'output', 'latest']);
   for (let i = 0; i < argv.length; i += 2) {
     const key = argv[i]?.replace(/^--/, '');
     if (!argv[i]?.startsWith('--') || !allowed.has(key) || !argv[i + 1]) {
@@ -66,6 +68,7 @@ function compatibilityTables(release) {
 function packageAssets(release, catalogRelease) {
   const liveAssets = catalogRelease.assets || [];
   const verified = release.attachments || [];
+  const recognized = publishedPackageAssets(catalogRelease, { includePrerelease: true, allowLegacyZip: true });
   if (liveAssets.length !== verified.length) throw new Error(`${release.tag} 的附件清单已变化。`);
   for (const asset of verified) {
     const live = liveAssets.find(item => item.id === asset.id);
@@ -75,13 +78,25 @@ function packageAssets(release, catalogRelease) {
     if (!['jar', 'zip'].includes(String(asset.packageKind).toLowerCase()) || !asset.minecraftVersion) {
       throw new Error(`${release.tag} 未识别的安装附件：${asset.name}`);
     }
+    const parsed = recognized.find(item => item.id === asset.id && item.name === asset.name);
+    if (!parsed || parsed.game !== asset.minecraftVersion || parsed.packageKind !== String(asset.packageKind).toLowerCase()
+        || (asset.target && asset.target !== parsed.target)) {
+      throw new Error(`${release.tag} 附件平台、游戏版本或格式与真实文件名不一致：${asset.name}`);
+    }
   }
   const order = ['1.21.11', '26.1.2', '26.2', '26.3'];
-  return [...verified].sort((a, b) => order.indexOf(a.minecraftVersion) - order.indexOf(b.minecraftVersion));
+  return verified.map(asset => ({ ...asset, ...recognized.find(item => item.id === asset.id && item.name === asset.name) }))
+    .sort((a, b) => order.indexOf(a.minecraftVersion) - order.indexOf(b.minecraftVersion) || ((a.target === 'mac-arm64') - (b.target === 'mac-arm64')));
 }
 
 function downloadCards(release, assets, options) {
   const version = release.tag.replace(/^v/, '');
+  if (assets.some(asset => asset.suffix === 'win64' || asset.suffix === 'mac64')) {
+    const pairs = (release.tag === 'v1.3' ? requireDualPlatformRelease(options.catalogRelease)
+      : releaseGamePairs(options.catalogRelease)).map(item => ({ ...item, dependency: fabricDependency(options.catalogRelease.body, item.game) }));
+    return renderPlatformDownloadGrid(pairs, { ...options,
+      names: item => ({ windows: `release-${version}-${item.game}-windows`, mac: `release-${version}-${item.game}-mac` }) });
+  }
   const width = release.tag === 'v1.2' ? '24%' : '32%';
   const cards = assets.map(asset => {
     const name = release.tag === 'v1.2'
@@ -106,14 +121,16 @@ function originalCoverBlocks(release) {
     .sort((a, b) => release.originalIntro.indexOf(a) - release.originalIntro.indexOf(b));
 }
 
-function environmentAlt(release) {
+function environmentAlt(release, modern = false) {
+  if (modern) return '运行环境：Windows x64；Mac x64 为展示名，实际为 ARM64，使用 ARM64 Java，不支持 Intel Mac。Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；按本页对应版本选择独立 JAR 和 Fabric API。';
   if (release.tag === 'v1.2') {
     return '运行环境：Windows x64；Fabric Loader 0.19.5+。Minecraft 1.21.11：Fabric API 0.141.6+1.21.11、Java 21；26.1.2：0.155.2+26.1.2、Java 25；26.2：0.161.0+26.2、Java 25；26.3：0.164.0+26.3、Java 25。';
   }
   return '运行环境：Windows x64、Java 25、Fabric Loader 0.19.5+。Minecraft 26.1.2：Fabric API 0.155.2+26.1.2；26.2：0.161.0+26.2；26.3：0.164.0+26.3。';
 }
 
-function installationPanel(release, options, guideUrl) {
+function installationPanel(release, options, guideUrl, modern = false) {
+  if (modern) return panel('panel-install', '安装步骤：1 退出游戏并移出旧包及自行安装的 Baritone；2 按同一游戏版本与系统选择 win64 或 mac64 JAR，和匹配 Fabric API 放入 mods；3 启动后按 G 配置。Mac 使用 ARM64 Java。', guideUrl, options);
   if (release.tag === 'v1.2') {
     return panel('panel-install', '安装步骤：1 退出游戏，移出旧版或重复的 yiyiaddon 和自行安装的 Baritone；2 将对应 JAR 与 Fabric API 放入 mods；3 启动后按 G 打开界面并配置。', guideUrl, options);
   }
@@ -136,17 +153,20 @@ export function previewCharacterCount(text) {
     .trim());
 }
 
-function composeRelease(release, assets, options) {
+export function composeRelease(release, assets, options) {
+  // 放在任何布局分支之前，防止仅有无后缀/desktop 包时绕过 1.3 八包门槛。
+  if (release.tag === 'v1.3') requireDualPlatformRelease(options.catalogRelease);
   const version = release.tag.replace(/^v/, '');
   const guideUrl = `${options.docPrefix}安装指南.md`;
   const stableUrl = `${repository}/releases/latest`;
   const docsUrl = `${options.docPrefix}功能指南.md`;
-  const status = release.prerelease ? '历史测试版' : (release.tag === 'v1.2' ? '正式版' : '历史正式版');
+  const modern = assets.some(asset => asset.suffix === 'win64' || asset.suffix === 'mac64');
+  const status = release.prerelease ? '历史测试版' : (release.tag === (options.latestTag || 'v1.2') ? '正式版' : '历史正式版');
   const covers = originalCoverBlocks(release);
   const parts = [...covers, `**yiyiaddon ${version} · ${status}**\n\n${release.summary}`];
 
   if (assets.length) {
-    const games = assets.map(asset => asset.minecraftVersion).join(' / ');
+    const games = [...new Set(assets.map(asset => asset.minecraftVersion))].join(' / ');
     const kinds = [...new Set(assets.map(asset => asset.packageKind.toUpperCase()))].join(' / ');
     parts.push(`Minecraft **${games}** · 本页提供 **${assets.length} 个 ${kinds} 安装包**。`);
     if (release.tag === 'v1.2') {
@@ -162,8 +182,8 @@ function composeRelease(release, assets, options) {
     }
     parts.push(heading(2, 'download', '下载与安装', options));
     parts.push(downloadCards(release, assets, options));
-    parts.push(panel(release.tag === 'v1.2' ? 'panel-environment' : 'panel-environment-26', environmentAlt(release), guideUrl, options));
-    parts.push(installationPanel(release, options, guideUrl));
+    parts.push(panel(modern ? 'panel-environment-desktop' : release.tag === 'v1.2' ? 'panel-environment' : 'panel-environment-26', environmentAlt(release, modern), guideUrl, options));
+    parts.push(installationPanel(release, options, guideUrl, modern));
     if (release.tag === 'v1.1') parts.push('聊天功能在聊天框的「设置」中调整。');
   } else {
     // 测试版已撤包：此处只说明历史范围，不借用新版环境或安装步骤。
@@ -227,20 +247,28 @@ function main() {
   const analysis = readJson(args.analysis);
   if (!Array.isArray(catalog) || !Array.isArray(analysis.releases)) throw new Error('catalog 或 analysis 结构无效。');
   if (catalog.length !== analysis.releases.length) throw new Error('catalog 与 analysis 的 Release 数量不同。');
+  const latest = args.latest ? readJson(args.latest) : catalog.filter(item => isPublishedRelease(item))
+    .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at))[0];
+  if (!isPublishedRelease(latest) || !catalog.some(item => item.id === latest.id && item.tag_name === latest.tag_name)) {
+    throw new Error('最新正式版必须来自本次真实公开目录；可用 --latest 指定 GitHub latest 快照');
+  }
+  const generatedAssets = new Map();
   const options = {
     root: args.root,
     assetPrefix: `https://raw.githubusercontent.com/fxjcangku/yiyiaddon/${args['asset-ref']}/`,
     release: true,
     docPrefix: `${repository}/blob/master/`,
+    latestTag: latest.tag_name,
+    generatedAssets,
   };
-  const sourceOptions = { root: args.root, assetPrefix: '../', docPrefix: '../' };
+  const sourceOptions = { root: args.root, assetPrefix: '../', docPrefix: '../', latestTag: latest.tag_name, generatedAssets };
   const prepared = analysis.releases.map(release => {
     const item = catalog.find(candidate => candidate.id === release.id && candidate.tag_name === release.tag);
     if (!item || sha256(item.body || '') !== release.originalBodySha256) throw new Error(`${release.tag} 原文与分析快照不一致。`);
     if (item.prerelease !== release.prerelease || item.draft) throw new Error(`${release.tag} 状态与快照不同，或仍为草稿。`);
     const assets = packageAssets(release, item);
-    const rendered = composeRelease(release, assets, options);
-    const source = composeRelease(release, assets, sourceOptions);
+    const rendered = composeRelease(release, assets, { ...options, catalogRelease: item });
+    const source = composeRelease(release, assets, { ...sourceOptions, catalogRelease: item });
     verifyPreservation(release, rendered.body);
     verifyPreservation(release, source.body);
     const notesPath = release.notesPath || (release.tag === 'v1.1' ? '发布说明/1.1.md' : null);
@@ -248,6 +276,11 @@ function main() {
     return { id: release.id, tag: release.tag, body: rendered.body, notesPath, source: source.body, prefixCharacters: rendered.prefixCharacters };
   });
   if (new Set(prepared.map(item => item.notesPath)).size !== prepared.length) throw new Error('发布说明路径重复。');
+  for (const [relative, content] of generatedAssets) {
+    const destination = path.join(args.root, relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, content);
+  }
   for (const item of prepared) {
     const destination = path.join(args.root, item.notesPath);
     fs.mkdirSync(path.dirname(destination), { recursive: true });

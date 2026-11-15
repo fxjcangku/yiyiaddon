@@ -1,0 +1,41 @@
+{
+  "id": 433351792,
+  "name": "yiyiaddon 1.2｜正式版 · 支持 Minecraft 1.21.11 星露谷农场钓鱼适配更多服务器",
+  "tag_name": "v1.2",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2026-11-04T00:10:00Z",
+  "html_url": "https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.2",
+  "body": "| Minecraft | 配套 Fabric API | Java |\r\n| --- | --- | --- |\r\n| **1.21.11** | `0.141.6+1.21.11` | **21** |\r\n| **26.1.2** | `0.155.2+26.1.2` | **25** |\r\n| **26.2** | `0.161.0+26.2` | **25** |\r\n| **26.3** | `0.164.0+26.3` | **25** |",
+  "assets": [
+    {
+      "id": 710176612,
+      "name": "yiyiaddon-1.2-1.21.11.jar",
+      "state": "uploaded",
+      "size": 44704659,
+      "browser_download_url": "https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-1.21.11.jar"
+    },
+    {
+      "id": 707563540,
+      "name": "yiyiaddon-1.2-26.1.2.jar",
+      "state": "uploaded",
+      "size": 44689572,
+      "browser_download_url": "https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.1.2.jar"
+    },
+    {
+      "id": 707563524,
+      "name": "yiyiaddon-1.2-26.2.jar",
+      "state": "uploaded",
+      "size": 44704996,
+      "browser_download_url": "https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.2.jar"
+    },
+    {
+      "id": 707563525,
+      "name": "yiyiaddon-1.2-26.3.jar",
+      "state": "uploaded",
+      "size": 44712554,
+      "browser_download_url": "https://github.com/fxjcangku/yiyiaddon/releases/download/v1.2/yiyiaddon-1.2-26.3.jar"
+    }
+  ],
+  "fixture_note": "真实 v1.2 公开接口的最小字段快照；body 保留原兼容表，不随未来发版改写。"
+}

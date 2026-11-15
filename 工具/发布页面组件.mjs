@@ -8,7 +8,8 @@ export const html = value => String(value).replaceAll('&', '&amp;').replaceAll('
 const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
 function asset(relative, options = {}) {
   const file = path.join(options.root || defaultRoot, relative);
-  const digest = createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 8);
+  const generated = options.generatedAssets?.get(relative);
+  const digest = createHash('sha256').update(generated ?? fs.readFileSync(file)).digest('hex').slice(0, 8);
   return `${options.assetPrefix || ''}${relative}?v=${digest}`;
 }
 export function docLink(name, options = {}) {
@@ -18,10 +19,11 @@ export function docLink(name, options = {}) {
 export function themePair(name, href, alt, width = '100%', options = {}) {
   // Release 页的 themed-picture 会跟随 GitHub 手动主题改写媒体条件。
   // #gh-*-mode-only 仅用于仓库 Markdown，发布列表不加载那组隐藏规则。
-  if (options.release) {
+  if (options.release || !href) {
     const dark = html(asset(`展示资源/theme/${name}-dark.svg`, options));
     const light = html(asset(`展示资源/theme/${name}-light.svg`, options));
-    return `<a href="${html(href)}"><picture><source media="(prefers-color-scheme: dark)" srcset="${dark}"><source media="(prefers-color-scheme: light)" srcset="${light}"><img src="${light}" width="${html(width)}" alt="${html(alt)}"></picture></a>`;
+    const picture = `<picture><source media="(prefers-color-scheme: dark)" srcset="${dark}"><source media="(prefers-color-scheme: light)" srcset="${light}"><img src="${light}" width="${html(width)}" alt="${html(alt)}"></picture>`;
+    return href ? `<a href="${html(href)}">${picture}</a>` : picture;
   }
   return ['light', 'dark'].map(theme => `<a href="${html(href)}#gh-${theme}-mode-only"><img src="${html(asset(`展示资源/theme/${name}-${theme}.svg`, options))}" width="${html(width)}" alt="${html(alt)}"></a>`).join('');
 }

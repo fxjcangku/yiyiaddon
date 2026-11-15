@@ -22,6 +22,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: master
+      - name: 验证真实附件选择与双平台下载模板
+        run: node --test 工具/分平台下载.test.mjs
       - name: 从真实发布和附件更新首页与分类归档
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,6 +50,8 @@ jobs:
             done
             for game in 1.21.11 26.1.2 26.2 26.3; do
               file="展示资源/theme/download-$game-$theme.svg"
+              if [ -f "$file" ]; then git add -- "$file"; fi
+              file="展示资源/theme/download-$game-mac-$theme.svg"
               if [ -f "$file" ]; then git add -- "$file"; fi
             done
           done
