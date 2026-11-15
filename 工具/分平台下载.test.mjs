@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { games, repository, packageAssets, releaseGamePairs, selectHomepageDownloads, requireDualPlatformRelease, fabricDependency } from './发行附件.mjs';
+import { games, repository, packageAssets, releaseGamePairs, selectHomepageDownloads, requireDualPlatformRelease, fabricDependency, assetDownloadUrl } from './发行附件.mjs';
 import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 import { buildReleaseHistory } from './生成历史版本.mjs';
 import { composeRelease } from './整理发布页面.mjs';
@@ -267,6 +267,8 @@ test('原始草稿八包可绑定真实资源提交后生成原子发布正文�
     fs.cpSync(root, stagedRoot, { recursive: true, filter: src => !src.includes(`${path.sep}.git${path.sep}`)
       && (fs.statSync(src).isDirectory() || /\.(mjs|cjs|md|svg|json)$/.test(src)) });
     const draft = synthetic('1.3'); draft.draft = true; draft.published_at = null;
+    draft.html_url = `${repository}/releases/tag/untagged-1234567890abcdef1234`;
+    draft.assets.forEach(asset => { asset.browser_download_url = asset.browser_download_url.replace('/v1.3/', '/untagged-1234567890abcdef1234/'); });
     draft.assets.forEach(asset => { asset.digest = `sha256:${'c'.repeat(64)}`; });
     const snapshot = path.join(temp, 'draft.json'); fs.writeFileSync(snapshot, JSON.stringify(draft));
     const originalSnapshot = fs.readFileSync(snapshot, 'utf8');
@@ -286,6 +288,8 @@ test('原始草稿八包可绑定真实资源提交后生成原子发布正文�
     const publication = fs.readFileSync(path.join(intended, 'release-publication-body.md'), 'utf8');
     assert.match(publication, /yiyiaddon 1.3 · 正式版/); assert.doesNotMatch(publication, /正式发布稿（草稿）|PUBLIC_ASSET_REF/);
     assert.ok(publication.includes(assetRef));
+    assert.doesNotMatch(publication, /untagged-/);
+    assert.match(publication, /releases\/download\/v1\.3\//);
     assert.match(publication, /既有功能回归记录/);
     assert.match(fs.readFileSync(path.join(intended, 'release-body.md'), 'utf8'), /正式发布稿（草稿）/);
     assert.equal(fs.existsSync(path.join(intended, '安装指南.md')), false);
@@ -297,4 +301,31 @@ test('原始草稿八包可绑定真实资源提交后生成原子发布正文�
     assert.throws(() => run(path.join(temp, 'wrong-image'), git(['rev-parse', 'HEAD']), true), /SVG 与当前真实附件生成结果不同/);
     assert.equal(fs.existsSync(path.join(temp, 'wrong-image')), false);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+test('GitHub untagged 草稿必须匹配本 Release 实际页面 slug，公开 URL 判据保持精确', () => {
+  const draft = synthetic('1.3'); draft.draft = true; draft.published_at = null;
+  const slug = 'untagged-1234567890abcdef1234';
+  draft.html_url = `${repository}/releases/tag/${slug}`;
+  draft.assets.forEach(asset => { asset.browser_download_url = `${repository}/releases/download/${slug}/${asset.name}`; });
+  const original = JSON.stringify(draft);
+  const parsed = packageAssets(draft, { draftPreview: true });
+  assert.equal(parsed.length, 8); assert.equal(requireDualPlatformRelease(draft, undefined, { draftPreview: true }).length, 4);
+  for (const asset of parsed) {
+    assert.ok(assetDownloadUrl(asset).includes(slug));
+    assert.equal(assetDownloadUrl(asset, { publicationBody: true }), `${repository}/releases/download/v1.3/${asset.name}`);
+  }
+  assert.equal(JSON.stringify(draft), original); assert.equal(packageAssets(draft).length, 0);
+  for (const mutate of [
+    release => { release.html_url = release.html_url.replace('/yiyiaddon/', '/other/'); },
+    release => { release.html_url += '?redirect=other'; },
+    release => { release.assets[0].browser_download_url = release.assets[0].browser_download_url.replace(slug, 'untagged-00000000000000000000'); },
+    release => { release.assets[0].browser_download_url += '?redirect=other'; },
+    release => { release.assets[0].browser_download_url = release.assets[0].browser_download_url.replace('/yiyiaddon/', '/other/'); },
+    release => { release.draft = false; release.published_at = '2026-11-16T00:00:00Z'; },
+  ]) {
+    const changed = clone(draft); mutate(changed);
+    assert.throws(() => packageAssets(changed, { draftPreview: true }), /不一致/);
+  }
+  const incomplete = clone(draft); incomplete.assets.pop();
+  assert.throws(() => requireDualPlatformRelease(incomplete, undefined, { draftPreview: true }), /独立 JAR/);
 });

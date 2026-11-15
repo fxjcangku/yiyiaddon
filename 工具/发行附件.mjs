@@ -17,6 +17,8 @@ function is13DraftPreview(release, draftPreview) {
 /** 默认只读取已公开附件；draftPreview 仅供八包上传后的本地 1.3 正文预览。 */
 export function packageAssets(release, { includePrerelease = false, allowLegacyZip = false, draftPreview = false } = {}) {
   if (!isPublishedRelease(release, { includePrerelease }) && !is13DraftPreview(release, draftPreview)) return [];
+  const draftSlug = is13DraftPreview(release, draftPreview)
+    ? String(release.html_url || '').match(/^https:\/\/github[.]com\/fxjcangku\/yiyiaddon\/releases\/tag\/(untagged-[a-f\d]+)$/i)?.[1] : null;
   const version = release.tag_name.slice(1);
   const prefix = `yiyiaddon-${version}-`;
   const seen = new Set();
@@ -31,7 +33,10 @@ export function packageAssets(release, { includePrerelease = false, allowLegacyZ
     if (format !== 'JAR' && (!allowLegacyZip || suffix)) continue;
     const plain = `${repository}/releases/download/${release.tag_name}/${asset.name}`;
     const encoded = `${repository}/releases/download/${encodeURIComponent(release.tag_name)}/${encodeURIComponent(asset.name)}`;
-    if (asset.browser_download_url !== plain && asset.browser_download_url !== encoded) {
+    const draftUrl = draftSlug ? `${repository}/releases/download/${draftSlug}/${asset.name}` : null;
+    const encodedDraftUrl = draftSlug ? `${repository}/releases/download/${draftSlug}/${encodeURIComponent(asset.name)}` : null;
+    if (asset.browser_download_url !== plain && asset.browser_download_url !== encoded
+        && (!draftSlug || (asset.browser_download_url !== draftUrl && asset.browser_download_url !== encodedDraftUrl))) {
       throw new Error(`安装附件链接与仓库、版本或文件名不一致：${asset.name}`);
     }
     if (seen.has(asset.name)) throw new Error(`同名安装附件重复：${asset.name}`);
@@ -39,10 +44,15 @@ export function packageAssets(release, { includePrerelease = false, allowLegacyZ
     if (slots.has(slot)) throw new Error(`同一平台附件命名重复：${asset.name}`);
     seen.add(asset.name);
     slots.add(slot);
-    result.push({ ...asset, game, minecraftVersion: game, version, tag: release.tag_name, suffix, format,
+    result.push({ ...asset, ...(draftSlug ? { publication_download_url: plain } : {}), game, minecraftVersion: game, version, tag: release.tag_name, suffix, format,
       packageKind: format.toLowerCase(), target: suffix === 'mac64' ? 'mac-arm64' : suffix === 'desktop' ? 'desktop' : 'windows-x64' });
   }
   return result;
+}
+
+/** 草稿仍保存 API 原 URL；仅本地正式发布请求正文使用同 tag 的预备目标。 */
+export function assetDownloadUrl(asset, { publicationBody = false } = {}) {
+  return publicationBody && asset.publication_download_url ? asset.publication_download_url : asset.browser_download_url;
 }
 
 export function choosePlatformPackage(assets, platform) {

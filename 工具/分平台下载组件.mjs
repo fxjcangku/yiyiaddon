@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { html as xml, themePair } from './发布页面组件.mjs';
+import { assetDownloadUrl } from './发行附件.mjs';
 
 const baritoneNote = '已内置调教优化版 Baritone';
 const baritoneWarning = '请卸载自行安装的 Baritone';
@@ -96,9 +97,9 @@ export function renderPlatformDownloadGrid(pairs, options) {
       options.generatedAssets.set(`展示资源/theme/${name.windows}-${theme}.svg`, downloadPlatformCard(source, item, theme, options));
       options.generatedAssets.set(`展示资源/theme/${name.mac}-${theme}.svg`, macDownloadButton(source, item, theme, options));
     }
-    const windows = themePair(name.windows, item.windows.browser_download_url,
+    const windows = themePair(name.windows, assetDownloadUrl(item.windows, options),
       `下载 Windows x64 · Minecraft ${item.game} · yiyiaddon ${item.version}`, '220', options);
-    const mac = themePair(name.mac, item.mac?.browser_download_url || null,
+    const mac = themePair(name.mac, item.mac ? assetDownloadUrl(item.mac, options) : null,
       `${item.mac ? '下载 Mac x64' : 'Mac x64 待发布，无下载链接'} · Minecraft ${item.game} · yiyiaddon ${item.version} · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac`, '220', options);
     return `<td width="25%" valign="top">\n${windows}<br>\n${mac}\n</td>`;
   });

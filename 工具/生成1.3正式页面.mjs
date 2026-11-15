@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { composeRelease } from './整理发布页面.mjs';
-import { games, repository, packageAssets, requireDualPlatformRelease, fabricDependency } from './发行附件.mjs';
+import { games, repository, packageAssets, requireDualPlatformRelease, fabricDependency, assetDownloadUrl } from './发行附件.mjs';
 
 const marker = (name, text) => `<!-- yiyiaddon:release-${name}:start -->\n${text.trim()}\n<!-- yiyiaddon:release-${name}:end -->`;
 function section(body, name) {
@@ -59,7 +59,7 @@ export function compose13FormalPage(original, catalogRelease, options) {
       const pair = assets.filter(asset => asset.game === item.game);
       const links = ['windows-x64', 'mac-arm64'].map(target => {
         const asset = pair.find(value => value.target === target);
-        return `[下载 ${target === 'windows-x64' ? 'Windows x64' : 'Mac x64'}](${asset.browser_download_url})`;
+        return `[下载 ${target === 'windows-x64' ? 'Windows x64' : 'Mac x64'}](${assetDownloadUrl(asset, options)})`;
       }).join(' · ');
       return `| ${item.game} | ${links} | ${item.java} | \`${item.api}\` |`;
     })].join('\n');
@@ -74,7 +74,7 @@ export function compose13FormalPage(original, catalogRelease, options) {
     .replace('宣传封面为功能概念图 1.3 分系统安装包尚未上传', '宣传封面为功能概念图，请以具体版本、系统与场景的实际验收记录为准');
   const hashes = ['## 文件校验', '', '| Minecraft | 系统 | 文件 | 字节数 | SHA-256 |', '| --- | --- | --- | ---: | --- |',
     ...assets.sort((a, b) => games.indexOf(a.game) - games.indexOf(b.game) || ((a.target === 'mac-arm64') - (b.target === 'mac-arm64')))
-      .map(asset => `| ${asset.game} | ${asset.target === 'windows-x64' ? 'Windows x64' : 'Mac x64（实际 ARM64）'} | [${asset.name}](${asset.browser_download_url}) | ${asset.size} | \`${asset.digest.slice(7)}\` |`)].join('\n');
+      .map(asset => `| ${asset.game} | ${asset.target === 'windows-x64' ? 'Windows x64' : 'Mac x64（实际 ARM64）'} | [${asset.name}](${assetDownloadUrl(asset, options)}) | ${asset.size} | \`${asset.digest.slice(7)}\` |`)].join('\n');
   const publishedDate = draftPreview ? '' : ` · ${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(catalogRelease.published_at))}`;
   const release = {
     tag: 'v1.3', prerelease: false, releaseUrl: `${repository}/releases/tag/v1.3`,
