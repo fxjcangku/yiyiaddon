@@ -19,13 +19,13 @@
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-light-mode-only">
   <picture>
     <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.3-836f9f4d">
-    <img src="展示资源/theme/brand-light.svg?v=1.3-f90c24ff" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。">
+    <img src="展示资源/theme/brand-light.svg?v=1.3-0a29b221" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。">
   </picture>
 </a>
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-dark-mode-only">
   <picture>
     <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.3-86e7e8a8">
-    <img src="展示资源/theme/brand-dark.svg?v=1.3-51cb2963" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。">
+    <img src="展示资源/theme/brand-dark.svg?v=1.3-b012125c" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。">
   </picture>
 </a>
 <!-- homepage:brand:end -->
