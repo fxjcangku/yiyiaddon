@@ -83,25 +83,23 @@ const octicon = (name, x, y, size, color) => {
 };
 function addBrandPlatforms(svg, compact) {
   if (compact) {
-    svg = svg.replace('height="442" viewBox="0 0 640 442"', 'height="520" viewBox="0 0 640 520"')
-      .replaceAll('height="428"', 'height="506"').replace('M36 278h568', 'M36 354h568')
-      .replace('x="38" y="320"', 'x="38" y="397"').replace('x="162" y="324"', 'x="162" y="401"')
-      .replace('x="38" y="368"', 'x="38" y="446"').replaceAll('y="401" font-size="17"', 'y="478" font-size="17"');
+    svg = svg.replace('height="442" viewBox="0 0 640 442"', 'height="492" viewBox="0 0 640 492"')
+      .replaceAll('height="428"', 'height="478"').replace('M36 278h568', 'M36 328h568')
+      .replace('x="38" y="320"', 'x="38" y="370"').replace('x="162" y="324"', 'x="162" y="374"')
+      .replace('x="38" y="368"', 'x="38" y="418"').replaceAll('y="401" font-size="17"', 'y="451" font-size="17"');
     const badges = `<g id="platform-badges">
 <rect x="38" y="258" width="236" height="44" rx="13" fill="#20372f" stroke="#344253"/>
 ${platformIcon('windows', 50, 269, 22, '#91ebd4')}<text x="84" y="288" font-size="22" font-weight="600" fill="#e2eaf5">Windows x64</text>
-<rect x="288" y="258" width="314" height="44" rx="13" fill="#2b2a29" stroke="#67523b"/>
+<rect x="288" y="258" width="236" height="44" rx="13" fill="#2b2a29" stroke="#67523b"/>
 ${platformIcon('mac', 300, 268, 24, '#f4c585')}<text x="336" y="288" font-size="22" font-weight="600" fill="#e2eaf5">Mac x64</text>
-<text x="42" y="329" font-size="19" fill="#91ebd4">正式安装包可下载</text><text x="292" y="329" font-size="19" fill="#f4c585">${xml(macAvailability)}</text>
 </g>`;
-    return svg.replace('<path d="M36 354h568"', `${badges}<path d="M36 354h568"`);
+    return svg.replace('<path d="M36 328h568"', `${badges}<path d="M36 328h568"`);
   }
   const badges = `<g id="platform-badges">
 <rect x="38" y="279" width="212" height="34" rx="11" fill="#20372f" stroke="#344253"/>
 ${platformIcon('windows', 50, 286, 20, '#91ebd4')}<text x="82" y="302" font-size="18" font-weight="600" fill="#e2eaf5">Windows x64</text>
-<rect x="264" y="279" width="466" height="34" rx="11" fill="#2b2a29" stroke="#67523b"/>
+<rect x="264" y="279" width="212" height="34" rx="11" fill="#2b2a29" stroke="#67523b"/>
 ${platformIcon('mac', 276, 285, 22, '#f4c585')}<text x="310" y="302" font-size="18" font-weight="600" fill="#e2eaf5">Mac x64</text>
-<text x="715" y="301" text-anchor="end" font-size="16" fill="#f4c585">${xml(macAvailability)}</text>
 </g>`;
   return svg.replace('<path d="M40 328h690"', `${badges}<path d="M40 328h690"`)
     .replace('x="840" y="292" width="146"', 'x="840" y="292" width="210"')
@@ -109,8 +107,8 @@ ${platformIcon('mac', 276, 285, 22, '#f4c585')}<text x="310" y="302" font-size="
 }
 function environmentPlatforms(theme, compact) {
   const color = theme === 'dark'
-    ? { bg: '#161b22', border: '#30363d', ink: '#e6edf3', muted: '#b1bac4', accent: '#79c0ff', mac: '#e9c38e', tint: '#242322' }
-    : { bg: '#ffffff', border: '#d0d7de', ink: '#1f2328', muted: '#59636e', accent: '#0969da', mac: '#86531b', tint: '#fff8ee' };
+    ? { bg: '#161b22', border: '#30363d', ink: '#e6edf3', muted: '#b1bac4', accent: '#79c0ff', mac: '#e9c38e' }
+    : { bg: '#ffffff', border: '#d0d7de', ink: '#1f2328', muted: '#59636e', accent: '#0969da', mac: '#86531b' };
   const width = compact ? 640 : 1200, height = compact ? 488 : 268;
   const platformWidth = compact ? 638 : 474, secondaryWidth = compact ? 308 : 344;
   const secondX = compact ? 0 : 494, thirdX = compact ? 330 : 854, secondaryY = compact ? 278 : 0;
@@ -121,9 +119,12 @@ function environmentPlatforms(theme, compact) {
 <g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
 ${panelFrame(0, 0, platformWidth, 266)}
 ${octicon('device-desktop', 24, 27, 28, color.accent)}<text x="66" y="50" font-size="28" font-weight="650" fill="${color.ink}">电脑平台</text><path d="M24 72H${platformWidth - 22}" stroke="${color.border}"/>
-${platformIcon('windows', 24, 96, 28, color.accent)}<text x="68" y="118" font-size="25" font-weight="600" fill="${color.ink}">Windows x64</text><text x="${platformWidth - 23}" y="116" text-anchor="end" font-size="19" fill="${color.accent}">正式版可下载</text>
-<rect x="16" y="141" width="${platformWidth - 30}" height="67" rx="12" fill="${color.tint}"/>
-${platformIcon('mac', 25, 158, 30, color.mac)}<text x="68" y="179" font-size="25" font-weight="600" fill="${color.ink}">Mac x64</text><text x="${platformWidth - 23}" y="198" text-anchor="end" font-size="19" fill="${color.mac}">${xml(macAvailability)}</text>
+<g id="platform-windows-row">
+${platformIcon('windows', 24, 96, 28, color.accent)}<text id="platform-windows-label" x="68" y="118" font-size="25" font-weight="600" fill="${color.ink}">Windows x64</text><text id="platform-windows-status" x="${platformWidth - 23}" y="118" text-anchor="end" font-size="19" fill="${color.accent}">正式版可下载</text>
+</g>
+<g id="platform-mac-row">
+${platformIcon('mac', 24, 156, 28, color.mac)}<text id="platform-mac-label" x="68" y="178" font-size="25" font-weight="600" fill="${color.ink}">Mac x64</text><text id="platform-mac-status" x="${platformWidth - 23}" y="178" text-anchor="end" font-size="19" fill="${color.mac}">${xml(macAvailability)}</text>
+</g>
 <text x="24" y="241" font-size="18" fill="${color.muted}">${xml(platformNote)}</text>
 ${panelFrame(secondX, secondaryY, secondaryWidth, compact ? 208 : 266)}
 ${octicon('package', secondX + 24, secondaryY + 27, 28, color.accent)}<text x="${secondX + 66}" y="${secondaryY + 50}" font-size="28" font-weight="650" fill="${color.ink}">模组加载器</text><path d="M${secondX + 24} ${secondaryY + 72}H${secondX + secondaryWidth - 22}" stroke="${color.border}"/>

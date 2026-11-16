@@ -15,7 +15,7 @@ const real = JSON.parse(fs.readFileSync(new URL('./测试数据/1.2公开附件.
 const clone = value => JSON.parse(JSON.stringify(value));
 // 合成版本只在内存与测试临时目录使用；不访问网络，不写回仓库 README，不发布 Release。
 function synthetic(version = '99.0.0', suffixes = ['win64', 'mac64']) {
-  const release = { ...clone(real), id: 990000, tag_name: `v${version}`, name: `本地测试 ${version}`,
+  const release = { ...clone(real), id: 990000, tag_name: `v${version}`, name: `yiyiaddon ${version}｜本地测试`,
     published_at: '2026-11-15T00:00:00Z', html_url: `${repository}/releases/tag/v${version}`, assets: [] };
   for (const game of games) for (const suffix of suffixes) {
     const name = `yiyiaddon-${version}-${game}${suffix ? `-${suffix}` : ''}.jar`;
@@ -196,7 +196,24 @@ test('完整 CLI 只在隔离目录生成，当前快照与模拟八包均可重
     const latest = synthetic(); assert.equal(run(latest).downloads.length, 4);
     const paired = fs.readFileSync(path.join(temp, 'README.md'), 'utf8');
     assert.equal(hrefs(paired).filter(url => /\/releases\/download\//.test(url)).length, 16);
-    assert.ok(paired.includes('下载 Mac x64')); run(latest);
+    assert.ok(paired.includes('下载 Mac x64'));
+    for (const theme of ['light', 'dark']) for (const compact of ['', '-compact']) {
+      const brand = fs.readFileSync(path.join(temp, `展示资源/theme/brand${compact}-${theme}.svg`), 'utf8');
+      const badges = brand.match(/<g id="platform-badges">([\s\S]*?)<\/g>\s*<path/)?.[1];
+      assert.ok(badges);
+      const badgeWidths = [...badges.matchAll(/<rect[^>]*width="(\d+)"/g)].map(match => Number(match[1]));
+      assert.equal(badgeWidths.length, 2); assert.equal(badgeWidths[0], badgeWidths[1]);
+      assert.doesNotMatch(badges, /可下载|待上传/);
+      const environment = fs.readFileSync(path.join(temp, `展示资源/theme/panel-environment-platforms${compact}-${theme}.svg`), 'utf8');
+      for (const platform of ['windows', 'mac']) {
+        const labelY = environment.match(new RegExp(`id="platform-${platform}-label"[^>]*y="(\\d+)"`))?.[1];
+        const statusY = environment.match(new RegExp(`id="platform-${platform}-status"[^>]*y="(\\d+)"`))?.[1];
+        assert.ok(labelY); assert.equal(labelY, statusY);
+        assert.doesNotMatch(environment.match(new RegExp(`<g id="platform-${platform}-row">([\\s\\S]*?)<\\/g>\\s*<\\/g>`))?.[1] || '', /<rect/);
+      }
+      assert.match(environment, /ARM64 Java · Intel Mac 暂不支持/);
+    }
+    run(latest);
     assert.equal(fs.readFileSync(path.join(temp, 'README.md'), 'utf8'), paired);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
@@ -210,7 +227,7 @@ test('1.3 正式正文复用既定封面和 18 组 146 条，逐附件列出实�
   assert.equal(result.modules, 18); assert.equal(result.entries, 146); assert.equal(result.generatedAssets.size, 16);
   assert.equal((result.body.match(/mapart-kobe-clean-1536.webp/g) || []).length, 1);
   assert.equal((result.body.match(/<!-- yiyiaddon:update-summary/g) || []).length, 1);
-  assert.match(result.body, /1.3 · 正式版/);
+  assert.ok(result.body.includes(`**${release.name}**`));
   assert.doesNotMatch(result.body, /安装包待上传|安装包尚未上传|当前正式下载仍为 1\.2|prepare=1\.3|计划按每个 Minecraft/);
   for (const asset of release.assets) assert.ok(result.body.includes(asset.digest.slice(7)) && result.body.includes(asset.browser_download_url));
   assert.equal(compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' }).body, result.body);
@@ -286,7 +303,7 @@ test('原始草稿八包可绑定真实资源提交后生成原子发布正文�
     const assetRef = git(['rev-parse', 'HEAD']);
     const intended = path.join(temp, 'intended'); assert.equal(run(intended, assetRef, true).publicationBody, true);
     const publication = fs.readFileSync(path.join(intended, 'release-publication-body.md'), 'utf8');
-    assert.match(publication, /yiyiaddon 1.3 · 正式版/); assert.doesNotMatch(publication, /正式发布稿（草稿）|PUBLIC_ASSET_REF/);
+    assert.ok(publication.includes(`**${draft.name}**`)); assert.doesNotMatch(publication, /正式发布稿（草稿）|PUBLIC_ASSET_REF/);
     assert.ok(publication.includes(assetRef));
     assert.doesNotMatch(publication, /untagged-/);
     assert.match(publication, /releases\/download\/v1\.3\//);

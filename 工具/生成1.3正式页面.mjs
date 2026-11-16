@@ -78,6 +78,7 @@ export function compose13FormalPage(original, catalogRelease, options) {
   const publishedDate = draftPreview ? '' : ` · ${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(catalogRelease.published_at))}`;
   const release = {
     tag: 'v1.3', prerelease: false, releaseUrl: `${repository}/releases/tag/v1.3`,
+    featureTitle: catalogRelease.name || 'yiyiaddon 1.3｜全自动地图画与 Mac 适配',
     summary: `全自动地图画与 Mac x64 原生适配${publishedDate}`,
     originalIntro: cover, coverImageBlocks: [cover], introNotices: [],
     downloadSegment: dependencyTable,
