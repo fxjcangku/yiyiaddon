@@ -18,14 +18,14 @@
 <!-- homepage:brand:start -->
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-light-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.3-33fce32d">
-    <img src="展示资源/theme/brand-light.svg?v=1.3-57d7cdd3" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.3-3707d77d">
+    <img src="展示资源/theme/brand-light.svg?v=1.3-a492117e" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。">
   </picture>
 </a>
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-dark-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.3-c61ba319">
-    <img src="展示资源/theme/brand-dark.svg?v=1.3-1f82cc58" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.3-d2640856">
+    <img src="展示资源/theme/brand-dark.svg?v=1.3-7e887cce" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。">
   </picture>
 </a>
 <!-- homepage:brand:end -->
@@ -105,8 +105,8 @@
 **Mac x64** 是页面展示名，实际支持 **macOS ARM64**，请使用 **ARM64 Java**；Intel Mac 不在当前支持范围。请按上方各游戏版本标注的平台下载安装包；仅标注 Windows x64 的附件不适用于 Mac。完整要求见 [安装指南](安装指南.md)。
 
 <p align="center">
-<a href="安装指南.md#gh-light-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-light.svg?v=1.3-11a12a78"><img src="展示资源/theme/panel-environment-platforms-light.svg?v=1.3-61d473d8" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
-<a href="安装指南.md#gh-dark-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-dark.svg?v=1.3-5855c9aa"><img src="展示资源/theme/panel-environment-platforms-dark.svg?v=1.3-cb9e76cf" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 分系统包可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
+<a href="安装指南.md#gh-light-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-light.svg?v=1.3-cb2ba3e2"><img src="展示资源/theme/panel-environment-platforms-light.svg?v=1.3-eb8480c1" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
+<a href="安装指南.md#gh-dark-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-dark.svg?v=1.3-ca3c9ca8"><img src="展示资源/theme/panel-environment-platforms-dark.svg?v=1.3-9a233f39" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
 </p>
 
 #### <img src="展示资源/icons/octicons/package-24.svg?v=3fe57ae5" width="24" height="24" alt=""> 三步完成安装

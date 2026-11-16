@@ -36,7 +36,7 @@ const platformStatus = !macGames.length ? '' : desktopGames.length === downloads
   : '**Windows x64 与 Mac x64 分别下载** · 每个按钮只对应同一游戏版本与同一正式 Release 的真实附件 缺失平台保持待发布';
 const preparedRelease = candidates.find(item => item.tag_name === 'v1.3');
 const mapartPublished = packageAssets(preparedRelease).some(asset => asset.format === 'JAR');
-const macAvailability = macGames.length === downloads.length ? (desktopGames.length === downloads.length ? '历史通用包可用' : '分系统包可下载')
+const macAvailability = macGames.length === downloads.length ? (desktopGames.length === downloads.length ? '历史通用包可用' : '正式版可下载')
   : macGames.length ? '部分版本可下载'
     : mapartPublished ? '各版本 Mac 包待提供' : '1.3 独立包待上传';
 const platformOverview = `Windows x64 正式版可下载；Mac x64（实际 ARM64） · ${macAvailability}`;
