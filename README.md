@@ -30,6 +30,13 @@
 </a>
 <!-- homepage:brand:end -->
 
+<!-- homepage:online-count:start -->
+<p align="center">
+  <a href="https://www.yiyiaddon.asia/#gh-light-mode-only"><img src="https://www.yiyiaddon.asia/api/stats/github.svg?theme=light" width="440" alt="当前在线玩家人数，点击进入 yiyiaddon 官网"></a>
+  <a href="https://www.yiyiaddon.asia/#gh-dark-mode-only"><img src="https://www.yiyiaddon.asia/api/stats/github.svg?theme=dark" width="440" alt="当前在线玩家人数，点击进入 yiyiaddon 官网"></a>
+</p>
+<!-- homepage:online-count:end -->
+
 <p align="center">
   <a href="#user-content-download#gh-light-mode-only"><img src="展示资源/theme/nav-download-light.svg?v=57965b6c" width="160" alt="立即下载"></a><a href="#user-content-download#gh-dark-mode-only"><img src="展示资源/theme/nav-download-dark.svg?v=b2124f4f" width="160" alt="立即下载"></a>
   <a href="功能指南.md#gh-light-mode-only"><img src="展示资源/theme/nav-guide-light.svg?v=26b07cc2" width="160" alt="功能指南"></a><a href="功能指南.md#gh-dark-mode-only"><img src="展示资源/theme/nav-guide-dark.svg?v=7edc555f" width="160" alt="功能指南"></a>
