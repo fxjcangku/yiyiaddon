@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-/** 使用实际八包快照和既有 18 组正文生成本地交付目录，不调用发布接口。 */
+/** 使用实际八包快照和本版正文生成本地交付目录；保留 1.3 历史入口，不调用发布接口。 */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { composeRelease } from './整理发布页面.mjs';
-import { games, repository, packageAssets, requireDualPlatformRelease, fabricDependency, assetDownloadUrl } from './发行附件.mjs';
+import { games, repository, packageAssets, requireDualPlatformRelease, fabricDependency, assetDownloadUrl, usesSplitPackages } from './发行附件.mjs';
 
 const marker = (name, text) => `<!-- yiyiaddon:release-${name}:start -->\n${text.trim()}\n<!-- yiyiaddon:release-${name}:end -->`;
 function section(body, name) {
   const start = `<!-- yiyiaddon:release-${name}:start -->`;
   const end = `<!-- yiyiaddon:release-${name}:end -->`;
   if (body.split(start).length !== 2 || body.split(end).length !== 2 || body.indexOf(start) > body.indexOf(end)) {
-    throw new Error(`原 1.3 正文缺少唯一 ${name} 内容边界`);
+    throw new Error(`本版正文缺少唯一 ${name} 内容边界`);
   }
   return body.slice(body.indexOf(start) + start.length, body.indexOf(end)).trim();
 }
@@ -22,13 +22,15 @@ function finalPlatformText(text) {
     .replaceAll('八个独立安装包尚未上传', '八个独立安装包分别对应游戏版本与运行系统');
 }
 
-export function compose13FormalPage(original, catalogRelease, options) {
+export function composeFormalPage(original, catalogRelease, options) {
+  if (!usesSplitPackages(catalogRelease?.tag_name)) throw new Error('该入口只处理 1.3 起真实分包系列快照');
+  const version = catalogRelease.tag_name.slice(1);
+  const original13 = version === '1.3';
   const draftPreview = options.draftPreview === true;
   if (options.publicationBody && (!draftPreview || catalogRelease.draft !== true
       || !/^[a-f\d]{40}$/i.test(options.assetRef || '') || options.release === false)) {
-    throw new Error('发布请求正文仅允许真实 1.3 草稿的本地预览，并须使用确切 40 位资源提交 SHA');
+    throw new Error('发布请求正文仅允许真实草稿的本地预览，并须使用确切 40 位资源提交 SHA');
   }
-  if (catalogRelease.tag_name !== 'v1.3') throw new Error('该入口只处理真实 v1.3 快照');
   requireDualPlatformRelease(catalogRelease, games, { draftPreview });
   const assets = packageAssets(catalogRelease, { draftPreview });
   for (const asset of assets) {
@@ -40,11 +42,15 @@ export function compose13FormalPage(original, catalogRelease, options) {
   const notes = finalPlatformText(section(body, 'notes'));
   const modules = (notes.match(/<summary><strong>/g) || []).length;
   const entries = (notes.match(/^- \*\*(?:新增|优化|修复|说明)\*\*/gm) || []).length;
-  if (modules !== 18 || entries !== 146) throw new Error(`原正文必须为 18 组 146 条，实际 ${modules} 组 ${entries} 条`);
+  if (original13 ? modules !== 18 || entries !== 146 : modules < 1 || entries < 1) {
+    throw new Error(original13 ? `原正文必须为 18 组 146 条，实际 ${modules} 组 ${entries} 条` : '本版必须提供实际更新分组与条目');
+  }
   const comments = [...body.matchAll(/<!-- yiyiaddon:update-summary\s*([\s\S]*?)-->/g)];
   if (comments.length !== 1) throw new Error('必须保留一份更新摘要');
   const summary = JSON.parse(comments[0][1]);
-  if (summary.version !== '1.3' || summary.items?.length !== 4) throw new Error('原更新摘要版本或四项亮点不一致');
+  if (summary.version !== version || !Array.isArray(summary.items) || !summary.items.length
+      || summary.items.some(item => typeof item !== 'string' || !item.trim())
+      || original13 && summary.items.length !== 4) throw new Error('本版更新摘要版本或亮点不一致');
   summary.items = summary.items.map(finalPlatformText);
   const updateSummaryComment = `<!-- yiyiaddon:update-summary\n${JSON.stringify(summary, null, 2)}\n-->`;
   const highlights = body.match(/(## 本次亮点\n[\s\S]*?)<!-- yiyiaddon:release-notes:start -->/)?.[1];
@@ -54,7 +60,7 @@ export function compose13FormalPage(original, catalogRelease, options) {
     if (!api) throw new Error(`原正文缺少 Minecraft ${game} 的实际 Fabric API 依赖`);
     return { game, java: game === '1.21.11' ? 21 : 25, api };
   });
-  const dependencyTable = ['| 游戏版本 | 1.3 安装包 | Java | Fabric API |', '| --- | --- | --- | --- |',
+  const dependencyTable = [`| 游戏版本 | ${version} 安装包 | Java | Fabric API |`, '| --- | --- | --- | --- |',
     ...dependencies.map(item => {
       const pair = assets.filter(asset => asset.game === item.game);
       const links = ['windows-x64', 'mac-arm64'].map(target => {
@@ -69,17 +75,20 @@ export function compose13FormalPage(original, catalogRelease, options) {
     .replace(/^当前没有可下载的 1\.3 附件[^\n]*$/m, '四个游戏版本各提供 Windows x64 与 Mac x64 两个独立下载入口，历史无平台后缀包继续保留其 Windows x64 兼容范围。')
     .replace('1. 正式附件提供后 先核对', '1. 先核对');
   const priorRegressionNote = '以下为发布准备期间的既有功能回归记录，最终分系统安装包的逐包验证结果单独记录。';
-  const compatibility = section(body, 'compatibility').replaceAll(priorRegressionNote + '\n', '').replace(/\n{3,}/g, '\n\n')
+  const compatibility = original13 ? section(body, 'compatibility').replaceAll(priorRegressionNote + '\n', '').replace(/\n{3,}/g, '\n\n')
     .replace('## 兼容与运行\n', `## 兼容与运行\n\n${priorRegressionNote}\n`)
-    .replace('宣传封面为功能概念图 1.3 分系统安装包尚未上传', '宣传封面为功能概念图，请以具体版本、系统与场景的实际验收记录为准');
+    .replace('宣传封面为功能概念图 1.3 分系统安装包尚未上传', '宣传封面为功能概念图，请以具体版本、系统与场景的实际验收记录为准')
+    : section(body, 'compatibility');
   const hashes = ['## 文件校验', '', '| Minecraft | 系统 | 文件 | 字节数 | SHA-256 |', '| --- | --- | --- | ---: | --- |',
     ...assets.sort((a, b) => games.indexOf(a.game) - games.indexOf(b.game) || ((a.target === 'mac-arm64') - (b.target === 'mac-arm64')))
       .map(asset => `| ${asset.game} | ${asset.target === 'windows-x64' ? 'Windows x64' : 'Mac x64（实际 ARM64）'} | [${asset.name}](${assetDownloadUrl(asset, options)}) | ${asset.size} | \`${asset.digest.slice(7)}\` |`)].join('\n');
   const publishedDate = draftPreview ? '' : ` · ${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(catalogRelease.published_at))}`;
+  const currentSummary = original13 ? '全自动地图画与 Mac x64 原生适配'
+    : String(catalogRelease.name || '').split(/[｜|]/).slice(1).join(' · ').trim() || 'Windows x64 与 Mac x64 分系统安装包';
   const release = {
-    tag: 'v1.3', prerelease: false, releaseUrl: `${repository}/releases/tag/v1.3`,
-    featureTitle: catalogRelease.name || 'yiyiaddon 1.3｜全自动地图画与 Mac 适配',
-    summary: `全自动地图画与 Mac x64 原生适配${publishedDate}`,
+    tag: catalogRelease.tag_name, prerelease: false, releaseUrl: `${repository}/releases/tag/${catalogRelease.tag_name}`,
+    featureTitle: catalogRelease.name || `yiyiaddon ${version}｜全自动地图画与 Mac 适配`,
+    summary: `${currentSummary}${publishedDate}`,
     originalIntro: cover, coverImageBlocks: [cover], introNotices: [],
     downloadSegment: dependencyTable,
     highlightsSegment: finalPlatformText(highlights), detailsSegment: marker('notes', notes),
@@ -90,19 +99,23 @@ export function compose13FormalPage(original, catalogRelease, options) {
   const generatedAssets = new Map();
   const releaseLayout = options.release !== false;
   const result = composeRelease(release, assets, { ...options, generatedAssets,
-    release: releaseLayout, latestTag: 'v1.3', draftPreview, catalogRelease,
+    release: releaseLayout, latestTag: catalogRelease.tag_name, draftPreview,
+    catalogRelease: { ...catalogRelease, body },
     assetPrefix: releaseLayout ? `https://raw.githubusercontent.com/fxjcangku/yiyiaddon/${options.assetRef}/` : '../',
     docPrefix: releaseLayout ? `${repository}/blob/master/` : '../',
   });
-  if ((result.body.match(/<summary><strong>/g) || []).length !== 18
-      || (section(result.body, 'notes').match(/^- \*\*(?:新增|优化|修复|说明)\*\*/gm) || []).length !== 146) {
+  if ((result.body.match(/<summary><strong>/g) || []).length !== modules
+      || (section(result.body, 'notes').match(/^- \*\*(?:新增|优化|修复|说明)\*\*/gm) || []).length !== entries) {
     throw new Error('生成后完整更新条目丢失');
   }
   if (/安装包待上传|安装包尚未上传|当前正式下载仍为 1\.2|等待正式附件上传|prepare=1\.3/.test(result.body)) {
-    throw new Error('正式正文仍含当前 1.3 准备状态');
+    throw new Error('正式正文仍含旧准备状态');
   }
   return { ...result, generatedAssets, modules, entries, assets };
 }
+
+// 保留原 1.3 调用者；新版本必须使用属于本版的正文与摘要。
+export const compose13FormalPage = composeFormalPage;
 
 /** 仅在真实正式版模式下暂存当前指南；历史附件和验证记录原样保留。 */
 function published13Guides(root) {
@@ -139,6 +152,20 @@ function published13Guides(root) {
   return output;
 }
 
+function publishedCurrentGuides(root, version) {
+  const output = published13Guides(root);
+  if (version === '1.3') return output;
+  for (const file of ['安装指南.md', '版本说明.md']) {
+    const source = output.get(file);
+    const previous = source.match(/\*\*(\d+(?:\.\d+)+) (?:正式版提供|已正式发布)/)?.[1];
+    if (!previous) throw new Error(`无法定位当前安装版本：${file}`);
+    const pattern = new RegExp(previous.replaceAll('.', '\\.') + '(?![\\d.])', 'g');
+    output.set(file, source.replace(pattern, version));
+  }
+  // 功能指南的 1.3 介绍继续记载实际首次提供版本，不改写历史功能来源。
+  return output;
+}
+
 function main() {
   const args = process.argv.slice(2);
   const option = name => { const at = args.indexOf(name); return at < 0 ? null : args[at + 1]; };
@@ -153,12 +180,16 @@ function main() {
   const publicationBody = args.includes('--publication-body');
   if (publicationBody && !args.includes('--draft-preview')) throw new Error('--publication-body 必须配合 --draft-preview');
   const catalogRelease = JSON.parse(fs.readFileSync(releaseFile, 'utf8'));
-  const formalSource = path.join(root, '发布说明/1.3.md');
-  const original = fs.readFileSync(fs.existsSync(formalSource) ? formalSource : path.join(root, '发布准备/1.3.md'), 'utf8');
-  const result = compose13FormalPage(original, catalogRelease, { root, assetRef, draftPreview: args.includes('--draft-preview') });
+  if (!usesSplitPackages(catalogRelease?.tag_name)) throw new Error('需要 1.3 起真实分包系列快照');
+  const version = catalogRelease.tag_name.slice(1);
+  const formalSource = path.join(root, `发布说明/${version}.md`);
+  const originalSource = option('--source') || (fs.existsSync(formalSource) ? formalSource : path.join(root, `发布准备/${version}.md`));
+  if (!fs.existsSync(originalSource)) throw new Error(`需要本版正文源 --source；不复用旧版更新记录：${version}`);
+  const original = fs.readFileSync(originalSource, 'utf8');
+  const result = composeFormalPage(original, catalogRelease, { root, assetRef, draftPreview: args.includes('--draft-preview') });
   let publication;
   if (publicationBody) {
-    publication = compose13FormalPage(original, catalogRelease, { root, assetRef, draftPreview: true, publicationBody: true });
+    publication = composeFormalPage(original, catalogRelease, { root, assetRef, draftPreview: true, publicationBody: true });
     if (execFileSync('git', ['-C', root, 'cat-file', '-t', assetRef], { encoding: 'utf8' }).trim() !== 'commit') {
       throw new Error('资源引用必须是真实 Git 提交');
     }
@@ -175,10 +206,10 @@ function main() {
   fs.writeFileSync(path.join(outputDir, 'release-body.md'), result.body);
   if (publication) fs.writeFileSync(path.join(outputDir, 'release-publication-body.md'), publication.body);
   if (!catalogRelease.draft) {
-    const repositoryPage = compose13FormalPage(original, catalogRelease, { root, assetRef, release: false });
-    const stagedDocs = published13Guides(root);
-    stagedDocs.set('发布说明/1.3.md', repositoryPage.body);
-    stagedDocs.set('发布准备/1.3.md', '# yiyiaddon 1.3 已正式发布\n\n[查看完整正式更新记录](../发布说明/1.3.md) · [下载 1.3](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.3) · [安装指南](../安装指南.md)\n\n四个 Minecraft 版本各提供 Windows x64 与 Mac x64 两份独立 JAR。Mac x64 为展示名，实际支持 macOS ARM64，使用 ARM64 Java，不支持 Intel Mac。\n');
+    const repositoryPage = composeFormalPage(original, catalogRelease, { root, assetRef, release: false });
+    const stagedDocs = publishedCurrentGuides(root, version);
+    stagedDocs.set(`发布说明/${version}.md`, repositoryPage.body);
+    stagedDocs.set(`发布准备/${version}.md`, `# yiyiaddon ${version} 已正式发布\n\n[查看完整正式更新记录](../发布说明/${version}.md) · [下载 ${version}](${repository}/releases/tag/${catalogRelease.tag_name}) · [安装指南](../安装指南.md)\n\n四个 Minecraft 版本各提供 Windows x64 与 Mac x64 两份独立 JAR。Mac x64 为展示名，实际支持 macOS ARM64，使用 ARM64 Java，不支持 Intel Mac。\n`);
     for (const [relative, content] of stagedDocs) {
       const file = path.join(outputDir, relative);
       fs.mkdirSync(path.dirname(file), { recursive: true });

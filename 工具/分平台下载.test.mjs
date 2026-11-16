@@ -96,20 +96,20 @@ test('ZIP 只保留无后缀历史 Windows 归档，不作为 Mac 或当前直�
   assert.equal(packageAssets(release, { allowLegacyZip: true }).length, 4);
   assert.ok(releaseGamePairs(release, { allowLegacyZip: true }).every(pair => !pair.mac));
 });
-test('新版本缺 Mac 时不跨版本借用旧 desktop', () => {
-  const latest = synthetic('99.0.0', ['win64']);
-  const old = synthetic('98.0.0', ['desktop']); old.published_at = '2026-11-14T00:00:00Z';
+test('历史兼容系列缺 Mac 时不跨版本借用旧 desktop', () => {
+  const latest = synthetic('1.2.1', ['win64']);
+  const old = synthetic('1.2', ['desktop']); old.published_at = '2026-11-14T00:00:00Z';
   const selected = selectHomepageDownloads(latest, [old, latest]).downloads;
   assert.ok(selected.every(pair => pair.tag === latest.tag_name && pair.mac === null));
 });
-test('只有新 Mac 包时保留旧首页，不移除真实 Windows 入口', () => {
-  assert.throws(() => selectHomepageDownloads(synthetic('99.0.0', ['mac64']), [real]), /最新正式版没有可核实 Windows/);
+test('历史兼容系列只有 Mac 包时保留旧首页，不移除真实 Windows 入口', () => {
+  assert.throws(() => selectHomepageDownloads(synthetic('1.2.1', ['mac64']), [real]), /最新正式版没有可核实 Windows/);
 });
-test('某游戏没有新版附件时保留该游戏真实旧版且不跨游戏取包', () => {
-  const latest = synthetic(); latest.assets = latest.assets.filter(asset => !asset.name.includes('-26.3-'));
+test('历史兼容系列某游戏没有新附件时保留该游戏真实旧版且不跨游戏取包', () => {
+  const latest = synthetic('1.2.1'); latest.assets = latest.assets.filter(asset => !asset.name.includes('-26.3-'));
   const pairs = selectHomepageDownloads(latest, [real]).downloads;
   assert.equal(pairs.find(pair => pair.game === '26.3').version, '1.2');
-  assert.ok(pairs.filter(pair => pair.game !== '26.3').every(pair => pair.version === '99.0.0'));
+  assert.ok(pairs.filter(pair => pair.game !== '26.3').every(pair => pair.version === '1.2.1'));
 });
 test('1.3 专用包门槛要求四个游戏版本各自的 Windows 与 Mac', () => {
   const release = synthetic('1.3'); assert.equal(requireDualPlatformRelease(release).length, 4);
@@ -180,6 +180,8 @@ test('完整 CLI 只在隔离目录生成，当前快照与模拟八包均可重
   try {
     fs.cpSync(root, temp, { recursive: true, filter: src => !src.includes(`${path.sep}.git${path.sep}`)
       && (fs.statSync(src).isDirectory() || /\.(mjs|cjs|md|svg|json)$/.test(src)) });
+    // 旧准备区只在隔离夹具中补入，验证后续版本不会重新生成1.3待发布状态。
+    fs.appendFileSync(path.join(temp, 'README.md'), '\n<!-- homepage:mapart-status:start -->\n合成准备状态\n<!-- homepage:mapart-status:end -->\n');
     const run = latest => {
       fs.writeFileSync(path.join(temp, 'latest.json'), JSON.stringify(latest));
       fs.writeFileSync(path.join(temp, 'catalog.json'), JSON.stringify([latest, real]));
@@ -193,10 +195,14 @@ test('完整 CLI 只在隔离目录生成，当前快照与模拟八包均可重
     const incomplete = synthetic('1.3'); incomplete.assets.shift();
     assert.throws(() => run(incomplete), /独立 JAR/);
     assert.equal(fs.readFileSync(path.join(temp, 'README.md'), 'utf8'), current);
-    const latest = synthetic(); assert.equal(run(latest).downloads.length, 4);
+    const latest = synthetic('1.3.1'); assert.equal(run(latest).downloads.length, 4);
     const paired = fs.readFileSync(path.join(temp, 'README.md'), 'utf8');
     assert.equal(hrefs(paired).filter(url => /\/releases\/download\//.test(url)).length, 16);
     assert.ok(paired.includes('下载 Mac x64'));
+    assert.ok(paired.includes('全自动地图画已随 1.3 正式发布'));
+    assert.doesNotMatch(paired, /功能已完成 正在准备 1\.3 发布|1\.3 独立包待上传/);
+    const online = fs.readFileSync(path.join(root, 'README.md'), 'utf8').match(/<!-- homepage:online-count:start -->[\s\S]*?<!-- homepage:online-count:end -->/)[0];
+    assert.ok(paired.includes(online), '保留原在线人数图片与两个主题入口');
     for (const theme of ['light', 'dark']) for (const compact of ['', '-compact']) {
       const brand = fs.readFileSync(path.join(temp, `展示资源/theme/brand${compact}-${theme}.svg`), 'utf8');
       const badges = brand.match(/<g id="platform-badges">([\s\S]*?)<\/g>\s*<path/)?.[1];
@@ -345,4 +351,84 @@ test('GitHub untagged 草稿必须匹配本 Release 实际页面 slug，公开 U
   }
   const incomplete = clone(draft); incomplete.assets.pop();
   assert.throws(() => requireDualPlatformRelease(incomplete, undefined, { draftPreview: true }), /独立 JAR/);
+});
+
+function patchSource(version = '1.3.1') {
+  const original = fs.readFileSync(path.join(root, '发布说明/1.3.md'), 'utf8');
+  const cover = original.match(/^(<p align="center">[\s\S]*?<\/p>)/)[1];
+  const marker = (name, text) => `<!-- yiyiaddon:release-${name}:start -->\n${text}\n<!-- yiyiaddon:release-${name}:end -->`;
+  const dependencies = '| 游戏版本 | Java | Fabric API |\n| --- | --- | --- |\n'
+    + games.map(game => `| ${game} | ${game === '1.21.11' ? 21 : 25} | ${fabricDependency(original, game)} |`).join('\n');
+  return [cover, '## 本次亮点\n\n本段仅为隔离生成器夹具，不表示真实发布。',
+    marker('notes', '## 详细更新记录\n\n<details>\n<summary><strong>合成测试分组</strong></summary>\n\n- **修复** 合成条目仅用于验证版本和附件隔离\n\n</details>'),
+    marker('feedback', '仅隔离夹具。'), marker('install', '按实际游戏版本和系统选择本版独立 JAR。'),
+    marker('compatibility', '## 兼容与运行\n\n本合成夹具没有执行游戏实机，不复用旧版29项断言。'), dependencies,
+    `<!-- yiyiaddon:update-summary\n${JSON.stringify({ version, items: ['仅隔离生成器夹具'] })}\n-->`].join('\n\n');
+}
+
+test('1.3.1 草稿和正式页使用本版正文及八包，不误用1.3历史或推定旧版实测', async () => {
+  const { composeFormalPage } = await import('./生成1.3正式页面.mjs');
+  const live = synthetic('1.3.1'); live.assets.forEach(asset => { asset.digest = `sha256:${'d'.repeat(64)}`; });
+  live.body = ''; // 新草稿正文尚未提交时，卡片依赖从显式本版正文源提取。
+  const original = patchSource(), historical = fs.readFileSync(path.join(root, '发布说明/1.3.md'), 'utf8');
+  const result = composeFormalPage(original, live, { root, assetRef: 'PUBLIC_ASSET_REF' });
+  assert.equal(result.modules, 1); assert.equal(result.entries, 1); assert.equal(result.generatedAssets.size, 16);
+  assert.match(result.body, /yiyiaddon 1\.3\.1｜本地测试/);
+  assert.match(result.body, /"version": "1\.3\.1"/);
+  assert.ok([...result.generatedAssets.keys()].every(file => file.includes('release-1.3.1-')));
+  for (const game of games) {
+    const cards = [...result.generatedAssets.entries()].filter(([file]) => file.includes('-' + game + '-windows-'));
+    assert.equal(cards.length, 2);
+    assert.ok(cards.every(([, svg]) => svg.includes(fabricDependency(original, game))));
+  }
+  assert.equal((result.body.match(/mapart-kobe-clean-1536.webp/g) || []).length, 1);
+  assert.doesNotMatch(result.body, /实际通过 29 项|原 18 组|修复版/);
+  for (const asset of live.assets) assert.ok(result.body.includes(asset.browser_download_url) && result.body.includes(asset.digest.slice(7)));
+  assert.throws(() => composeFormalPage(patchSource('1.3'), live, { root, assetRef: 'PUBLIC_ASSET_REF' }), /摘要版本/);
+  for (const index of [0, 1, 6, 7]) {
+    const incomplete = clone(live); incomplete.assets.splice(index, 1);
+    assert.throws(() => selectHomepageDownloads(incomplete, [synthetic('1.3')]), /独立 JAR/);
+  }
+  const extra = clone(live); extra.assets.push({ name: 'extra.zip' });
+  assert.throws(() => requireDualPlatformRelease(extra), /恰好/);
+  const draft = clone(live); draft.draft = true; draft.published_at = null;
+  const slug = 'untagged-1234567890abcdef1234'; draft.html_url = `${repository}/releases/tag/${slug}`;
+  draft.assets.forEach(asset => { asset.browser_download_url = asset.browser_download_url.replace('/v1.3.1/', '/' + slug + '/'); });
+  assert.equal(packageAssets(draft).length, 0);
+  assert.throws(() => composeFormalPage(original, draft, { root, assetRef: 'PUBLIC_ASSET_REF' }), /真实已公开/);
+  const preview = composeFormalPage(original, draft, { root, assetRef: 'PUBLIC_ASSET_REF', draftPreview: true });
+  assert.match(preview.body, /正式发布稿（草稿）/);
+  assert.ok(preview.body.includes('/' + slug + '/'));
+  const publication = composeFormalPage(original, draft, { root, assetRef: 'a'.repeat(40), draftPreview: true, publicationBody: true });
+  assert.ok(publication.body.includes('/releases/download/v1.3.1/'));
+  assert.doesNotMatch(publication.body, /\/releases\/download\/v1\.3\//);
+  assert.equal(draft.draft, true); assert.equal(draft.published_at, null);
+  assert.equal(fs.readFileSync(path.join(root, '发布说明/1.3.md'), 'utf8'), historical);
+});
+
+test('1.3.1 CLI必须显式本版源，只在仓外暂存新正式页与当前指南，保留旧发布文件', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'yiyi-formal-patch-'));
+  try {
+    const stagedRoot = path.join(temp, 'public');
+    fs.cpSync(root, stagedRoot, { recursive: true, filter: src => !src.includes(`${path.sep}.git${path.sep}`)
+      && (fs.statSync(src).isDirectory() || /\.(mjs|cjs|md|svg|json)$/.test(src)) });
+    const historical = fs.readFileSync(path.join(stagedRoot, '发布说明/1.3.md'), 'utf8');
+    const live = synthetic('1.3.1'); live.assets.forEach(asset => { asset.digest = `sha256:${'e'.repeat(64)}`; });
+    const snapshot = path.join(temp, 'snapshot.json'), source = path.join(temp, 'patch.md');
+    fs.writeFileSync(snapshot, JSON.stringify(live)); fs.writeFileSync(source, patchSource());
+    const run = (output, explicit = true) => JSON.parse(execFileSync(process.execPath,
+      [path.join(stagedRoot, '工具/生成1.3正式页面.mjs'), '--root', stagedRoot, '--release', snapshot,
+        '--output-dir', output, '--asset-ref', 'PUBLIC_ASSET_REF', ...(explicit ? ['--source', source] : [])],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    assert.throws(() => run(path.join(temp, 'missing'), false), /需要本版正文源/);
+    assert.equal(fs.existsSync(path.join(temp, 'missing')), false);
+    const output = path.join(temp, 'output'); assert.equal(run(output).mode, 'published');
+    assert.ok(fs.existsSync(path.join(output, '发布说明/1.3.1.md')));
+    assert.equal(fs.existsSync(path.join(output, '发布说明/1.3.md')), false);
+    assert.match(fs.readFileSync(path.join(output, '安装指南.md'), 'utf8'), /1\.3\.1 正式版提供八个/);
+    assert.match(fs.readFileSync(path.join(output, '版本说明.md'), 'utf8'), /1\.3\.1 已正式发布/);
+    assert.equal(fs.readFileSync(path.join(stagedRoot, '发布说明/1.3.md'), 'utf8'), historical);
+    assert.equal(fs.existsSync(path.join(stagedRoot, '发布说明/1.3.1.md')), false);
+    assert.throws(() => run(stagedRoot), /公开工作树之外/);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });

@@ -9,15 +9,21 @@ export function isPublishedRelease(release, { includePrerelease = false } = {}) 
     && typeof release.published_at === 'string' && Number.isFinite(Date.parse(release.published_at));
 }
 
-function is13DraftPreview(release, draftPreview) {
-  return draftPreview === true && release?.tag_name === 'v1.3' && release.draft === true
+/** 1.3 起的正式系列均使用四版本八专用包，历史 1.2 及更早入口保留原语义。 */
+export function usesSplitPackages(tag) {
+  const match = /^v(\d+)\.(\d+)(?:\.(\d+))?$/.exec(tag || '');
+  return !!match && (Number(match[1]) > 1 || Number(match[1]) === 1 && Number(match[2]) >= 3);
+}
+
+function isDraftPreview(release, draftPreview) {
+  return draftPreview === true && usesSplitPackages(release?.tag_name) && release.draft === true
     && release.prerelease === false && release.published_at === null;
 }
 
-/** 默认只读取已公开附件；draftPreview 仅供八包上传后的本地 1.3 正文预览。 */
+/** 默认只读取已公开附件；draftPreview 仅供八包上传后的本地正文预览。 */
 export function packageAssets(release, { includePrerelease = false, allowLegacyZip = false, draftPreview = false } = {}) {
-  if (!isPublishedRelease(release, { includePrerelease }) && !is13DraftPreview(release, draftPreview)) return [];
-  const draftSlug = is13DraftPreview(release, draftPreview)
+  if (!isPublishedRelease(release, { includePrerelease }) && !isDraftPreview(release, draftPreview)) return [];
+  const draftSlug = isDraftPreview(release, draftPreview)
     ? String(release.html_url || '').match(/^https:\/\/github[.]com\/fxjcangku\/yiyiaddon\/releases\/tag\/(untagged-[a-f\d]+)$/i)?.[1] : null;
   const version = release.tag_name.slice(1);
   const prefix = `yiyiaddon-${version}-`;
@@ -76,8 +82,8 @@ export function releaseGamePairs(release, options = {}) {
 /** 每游戏沿用最新可核实 Windows 版本，Mac 必须来自同一 Release，不能跨版拼成一对。 */
 export function selectHomepageDownloads(latest, catalog) {
   if (!isPublishedRelease(latest)) throw new Error('Latest 必须是真实已公开正式版');
-  // 1.3 的既定发行范围是四版本八专用包；不能靠历史 Windows 回退掩盖漏包。
-  if (latest.tag_name === 'v1.3') requireDualPlatformRelease(latest);
+  // 新分包系列不能靠历史 Windows 回退掩盖漏包。
+  if (usesSplitPackages(latest.tag_name)) requireDualPlatformRelease(latest);
   const stable = catalog.filter(item => isPublishedRelease(item) && item.tag_name !== latest.tag_name)
     .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at));
   const candidates = [latest, ...stable];
@@ -94,10 +100,10 @@ export function selectHomepageDownloads(latest, catalog) {
   return { candidates, downloads };
 }
 
-/** 新 1.3 发版门槛：四版本八个专用 JAR；历史 desktop 不计作两份独立构建。 */
+/** 分包发版门槛：四版本八个专用 JAR；历史 desktop 不计作两份独立构建。 */
 export function requireDualPlatformRelease(release, requiredGames = games, options = {}) {
-  if (!isPublishedRelease(release) && !is13DraftPreview(release, options.draftPreview)) {
-    throw new Error('双平台正式页必须使用真实已公开正式版；1.3 草稿只允许显式本地预览');
+  if (!isPublishedRelease(release) && !isDraftPreview(release, options.draftPreview)) {
+    throw new Error('双平台正式页必须使用真实已公开正式版；草稿只允许显式本地预览');
   }
   const pairs = releaseGamePairs(release, options);
   for (const game of requiredGames) {
@@ -107,8 +113,8 @@ export function requireDualPlatformRelease(release, requiredGames = games, optio
       throw new Error(`${release.tag_name} / ${game} 缺少同版 win64 与 mac64 独立 JAR`);
     }
   }
-  if (release.tag_name === 'v1.3' && release.assets.length !== requiredGames.length * 2) {
-    throw new Error('1.3 发布附件必须恰好为四版本八个独立 JAR');
+  if (release.assets.length !== requiredGames.length * 2) {
+    throw new Error(`${release.tag_name} 发布附件必须恰好为四版本八个独立 JAR`);
   }
   return pairs.filter(pair => requiredGames.includes(pair.game));
 }

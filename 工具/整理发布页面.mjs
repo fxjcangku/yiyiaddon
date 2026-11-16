@@ -16,7 +16,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { themePair, navRow, heading, supportGrid, panel, repository, ensureWebsiteEntry } from './发布页面组件.mjs';
-import { isPublishedRelease, packageAssets as publishedPackageAssets, releaseGamePairs, requireDualPlatformRelease, fabricDependency } from './发行附件.mjs';
+import { isPublishedRelease, packageAssets as publishedPackageAssets, releaseGamePairs, requireDualPlatformRelease, fabricDependency, usesSplitPackages } from './发行附件.mjs';
 import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 
 const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -92,7 +92,7 @@ function packageAssets(release, catalogRelease) {
 function downloadCards(release, assets, options) {
   const version = release.tag.replace(/^v/, '');
   if (assets.some(asset => asset.suffix === 'win64' || asset.suffix === 'mac64')) {
-    const pairs = (release.tag === 'v1.3' ? requireDualPlatformRelease(options.catalogRelease, undefined, { draftPreview: options.draftPreview })
+    const pairs = (usesSplitPackages(release.tag) ? requireDualPlatformRelease(options.catalogRelease, undefined, { draftPreview: options.draftPreview })
       : releaseGamePairs(options.catalogRelease)).map(item => ({ ...item, dependency: fabricDependency(options.catalogRelease.body, item.game) }));
     return renderPlatformDownloadGrid(pairs, { ...options,
       names: item => ({ windows: `release-${version}-${item.game}-windows`, mac: `release-${version}-${item.game}-mac` }) });
@@ -154,8 +154,8 @@ export function previewCharacterCount(text) {
 }
 
 export function composeRelease(release, assets, options) {
-  // 放在任何布局分支之前，防止仅有无后缀/desktop 包时绕过 1.3 八包门槛。
-  if (release.tag === 'v1.3') requireDualPlatformRelease(options.catalogRelease, undefined, { draftPreview: options.draftPreview });
+  // 放在任何布局分支之前，防止仅有无后缀/desktop 包时绕过新系列八包门槛。
+  if (usesSplitPackages(release.tag)) requireDualPlatformRelease(options.catalogRelease, undefined, { draftPreview: options.draftPreview });
   const version = release.tag.replace(/^v/, '');
   const guideUrl = `${options.docPrefix}安装指南.md`;
   const stableUrl = `${repository}/releases/latest`;

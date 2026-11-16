@@ -8,7 +8,7 @@
 
 `更新公开首页.mjs` 依据真实公开目录刷新 README、品牌图、下载图和历史归档。每个游戏版本保留 Windows 卡片入口，并在同一单元内显示独立的 Mac 按钮；没有 Mac 包时显示无链接的待发布状态。两按钮使用同尺寸和字号，原生链接在 Markdown 中独立存在，不依赖 SVG 图片内部点击区域。旧版附件按所属 Release 保留，原有动态封面继续复用。
 
-当 latest 为 1.3 时，首页入口先执行四版本八专用包门槛，再生成任何文件；缺任意 Windows 或 Mac 包都会停止并保留现有首页，不能拿旧 1.2 补齐后宣称 1.3 已完整发布。其他历史版本仍保留按游戏版本回退到实际 Windows 安装包的兼容行为。
+当 latest 为 1.3 起的分包系列（含 1.3.1）时，首页入口先执行四版本八专用包门槛，再生成任何文件；缺任意 Windows 或 Mac 包都会停止并保留现有首页，不能拿旧版本补齐后宣称本版已完整发布。1.2 及更早历史系列仍保留按游戏版本回退到实际 Windows 安装包的兼容行为。
 
 ```sh
 node 工具/更新公开首页.mjs --latest /path/to/latest.json --catalog /path/to/catalog.json
@@ -50,3 +50,15 @@ node 工具/生成1.3正式页面.mjs --release /private/v1.3-draft-uploaded.jso
 ```
 
 合成八包回归只在内存和隔离临时目录进行，不访问网络，也不写入仓库 README 或实际 Release。真实 1.2 最小快照位于 `测试数据/1.2公开附件.json`。
+
+## 后续分包版本
+
+上述正式页入口保留旧名称并支持 1.3.1 等后续正式系列。新版本必须提供属于本版的 `--source` 正文，或已存在的 `发布说明/<版本>.md`／`发布准备/<版本>.md`；不自动借用 1.3 的18组146条及实测结论。正文须保留既定地图画封面、notes/install/compatibility/feedback 边界、四版依赖表与本版 `yiyiaddon:update-summary`。1.3 的原严格条目门槛保持，后续版本使用自身非空分组和条目。
+
+```sh
+node 工具/生成1.3正式页面.mjs --release /private/v1.3.1-draft-uploaded.json \
+  --source /private/1.3.1.md --draft-preview --asset-ref PUBLIC_ASSET_REF \
+  --output-dir /private/v1.3.1-preview
+```
+
+资源提交回读后可追加 `--publication-body` 并传确切资源 SHA；真实公开后去掉草稿参数重新生成当前指南与 `发布说明/1.3.1.md`。输出仅在指定仓外目录，旧 `发布说明/1.3.md` 与1.3附件保持。公开标题沿用本版真实 name，不自动添加“修复版”。未公开快照不能更新 README 或当前安装指南。
