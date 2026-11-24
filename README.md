@@ -73,7 +73,7 @@
   <a href="https://github.com/claude#gh-light-mode-only"><img src="展示资源/theme/collaboration-claude-light.svg?v=20261124b" width="260" alt="Claude 界面设计与交互优化"></a><a href="https://github.com/claude#gh-dark-mode-only"><img src="展示资源/theme/collaboration-claude-dark.svg?v=20261124b" width="260" alt="Claude 界面设计与交互优化"></a>
   <a href="https://github.com/codex#gh-light-mode-only"><img src="展示资源/theme/collaboration-codex-light.svg?v=20261124b" width="260" alt="OpenAI Codex 功能开发与代码实现"></a><a href="https://github.com/codex#gh-dark-mode-only"><img src="展示资源/theme/collaboration-codex-dark.svg?v=20261124b" width="260" alt="OpenAI Codex 功能开发与代码实现"></a>
   <a href="https://gemini.google.com/#gh-light-mode-only"><img src="展示资源/theme/collaboration-antigravity-light.svg?v=20261124b" width="260" alt="Google Gemini Bug 修复与代码优化"></a><a href="https://gemini.google.com/#gh-dark-mode-only"><img src="展示资源/theme/collaboration-antigravity-dark.svg?v=20261124b" width="260" alt="Google Gemini Bug 修复与代码优化"></a>
-  <a href="https://github.com/MoonshotAI#gh-light-mode-only"><img src="展示资源/theme/collaboration-kimi-light.svg?v=20261125a" width="260" alt="Kimi 实机验证与问题修复"></a><a href="https://github.com/MoonshotAI#gh-dark-mode-only"><img src="展示资源/theme/collaboration-kimi-dark.svg?v=20261125a" width="260" alt="Kimi 实机验证与问题修复"></a>
+  <a href="https://github.com/kimi-agent-bot#gh-light-mode-only"><img src="展示资源/theme/collaboration-kimi-light.svg?v=20261125a" width="260" alt="Kimi 实机验证与问题修复"></a><a href="https://github.com/kimi-agent-bot#gh-dark-mode-only"><img src="展示资源/theme/collaboration-kimi-dark.svg?v=20261125a" width="260" alt="Kimi 实机验证与问题修复"></a>
 </p>
 <!-- homepage:collaboration:end -->
 
