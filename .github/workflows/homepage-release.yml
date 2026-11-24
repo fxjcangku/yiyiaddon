@@ -23,7 +23,7 @@ jobs:
         with:
           ref: master
       - name: 验证真实附件选择与双平台下载模板
-        run: node --test 工具/分平台下载.test.mjs
+        run: node --test .github/工具/分平台下载.test.mjs
       - name: 从真实发布和附件更新首页与分类归档
         env:
           GH_TOKEN: ${{ github.token }}
@@ -31,11 +31,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ] && [ "${{ inputs.migrate_legacy_zip }}" = 'true' ]; then
-            python3 "工具/迁移旧发布为JAR.py"
+            python3 ".github/工具/迁移旧发布为JAR.py"
           fi
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/homepage-latest.json"
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/homepage-catalog.json"
-          node "工具/更新公开首页.mjs" --latest "$RUNNER_TEMP/homepage-latest.json" --catalog "$RUNNER_TEMP/homepage-catalog.json"
+          node ".github/工具/更新公开首页.mjs" --latest "$RUNNER_TEMP/homepage-latest.json" --catalog "$RUNNER_TEMP/homepage-catalog.json"
           git add -- README.md 发布说明/历史版本.md 展示资源/homepage-20261023/brand-compat.svg 展示资源/homepage-20261023/brand-compact-compat.svg 展示资源/homepage-20261023/download-26.1.2.svg 展示资源/homepage-20261023/download-26.2.svg 展示资源/homepage-20261023/download-26.3.svg
           for asset in brand-release.svg brand-compact-release.svg download-1.21.11-release.svg download-26.1.2-release.svg download-26.2-release.svg download-26.3-release.svg; do
             file="展示资源/homepage-20261023/$asset"

@@ -11,8 +11,8 @@
 当 latest 为 1.3 起的分包系列（含 1.3.1）时，首页入口先执行四版本八专用包门槛，再生成任何文件；缺任意 Windows 或 Mac 包都会停止并保留现有首页，不能拿旧版本补齐后宣称本版已完整发布。1.2 及更早历史系列仍保留按游戏版本回退到实际 Windows 安装包的兼容行为。
 
 ```sh
-node 工具/更新公开首页.mjs --latest /path/to/latest.json --catalog /path/to/catalog.json
-node --test 工具/分平台下载.test.mjs
+node .github/工具/更新公开首页.mjs --latest /path/to/latest.json --catalog /path/to/catalog.json
+node --test .github/工具/分平台下载.test.mjs
 ```
 
 首页下载图片使用 `download-<模组版本>-<游戏版本>-<windows|mac>-<主题>.svg`，把实际版本与平台放进路径，避免 GitHub raw 分支路径缓存沿用旧按钮。原有固定路径图片继续保留，作为配色模板及历史兼容资源，不删旧图。
@@ -30,7 +30,7 @@ node --test 工具/分平台下载.test.mjs
 `生成1.3正式页面.mjs` 从现有完整 1.3 正文提取 18 组 146 条记录，复用 `composeRelease` 生成布局。它读取本次实际八包快照，核对准确附件清单和 SHA-256，在公开工作树之外暂存正文、资源、安装指南、功能指南与版本说明。正常模式只接受真实已公开 v1.3，完成后以 `发布说明/1.3.md` 为后续生成源，原准备地址变为正式记录指引。真实发布时间按北京时间显示，图内按钮与摘要来自当前附件。
 
 ```sh
-node 工具/生成1.3正式页面.mjs --release /private/v1.3-published.json \
+node .github/工具/生成1.3正式页面.mjs --release /private/v1.3-published.json \
   --output-dir /private/v1.3-pages --asset-ref <资源提交的40位SHA>
 ```
 
@@ -44,7 +44,7 @@ node 工具/生成1.3正式页面.mjs --release /private/v1.3-published.json \
 4. 发布后回读真实公开快照，使用普通模式生成带真实日期的正式页和指南，再刷新首页与历史索引。既有功能回归记录与本次最终安装包验证分开填写，不能把旧记录当作当前包或双系统实机通过。
 
 ```sh
-node 工具/生成1.3正式页面.mjs --release /private/v1.3-draft-uploaded.json \
+node .github/工具/生成1.3正式页面.mjs --release /private/v1.3-draft-uploaded.json \
   --draft-preview --publication-body --asset-ref <已推送资源提交的40位SHA> \
   --output-dir /private/v1.3-publication
 ```
@@ -53,10 +53,10 @@ node 工具/生成1.3正式页面.mjs --release /private/v1.3-draft-uploaded.jso
 
 ## 后续分包版本
 
-上述正式页入口保留旧名称并支持 1.3.1 等后续正式系列。新版本必须提供属于本版的 `--source` 正文，或已存在的 `发布说明/<版本>.md`／`发布准备/<版本>.md`；不自动借用 1.3 的18组146条及实测结论。正文须保留既定地图画封面、notes/install/compatibility/feedback 边界、四版依赖表与本版 `yiyiaddon:update-summary`。1.3 的原严格条目门槛保持，后续版本使用自身非空分组和条目。
+上述正式页入口保留旧名称并支持 1.3.1 等后续正式系列。新版本必须提供属于本版的 `--source` 正文，或已存在的 `发布说明/<版本>.md`／`发布说明/发布准备/<版本>.md`；不自动借用 1.3 的18组146条及实测结论。正文须保留既定地图画封面、notes/install/compatibility/feedback 边界、四版依赖表与本版 `yiyiaddon:update-summary`。1.3 的原严格条目门槛保持，后续版本使用自身非空分组和条目。
 
 ```sh
-node 工具/生成1.3正式页面.mjs --release /private/v1.3.1-draft-uploaded.json \
+node .github/工具/生成1.3正式页面.mjs --release /private/v1.3.1-draft-uploaded.json \
   --source /private/1.3.1.md --draft-preview --asset-ref PUBLIC_ASSET_REF \
   --output-dir /private/v1.3.1-preview
 ```

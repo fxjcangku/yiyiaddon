@@ -2,7 +2,7 @@
 /**
  * 用核实过的 Release 附件和原文生成紧凑的发布页；不调用 GitHub 写入接口。
  *
- * node 工具/整理发布页面.mjs --catalog ../catalog-before.json \
+ * node .github/工具/整理发布页面.mjs --catalog ../catalog-before.json \
  *   --analysis ../release-analysis.json --root . --asset-ref <commit> \
  *   --output ../release-bodies-generated.json
  *
@@ -19,7 +19,7 @@ import { themePair, navRow, heading, supportGrid, panel, repository, ensureWebsi
 import { isPublishedRelease, packageAssets as publishedPackageAssets, releaseGamePairs, requireDualPlatformRelease, fabricDependency, usesSplitPackages } from './发行附件.mjs';
 import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 
-const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
+const defaultRoot = fileURLToPath(new URL('../../', import.meta.url));
 const sha256 = text => createHash('sha256').update(text).digest('hex');
 const unicodeLength = text => [...text].length;
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));

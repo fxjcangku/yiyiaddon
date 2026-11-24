@@ -4,9 +4,9 @@
  * 使用 SVG/Sharp 直接渲染动画图层；不修改原始场景 PNG 或历史 1.2 GIF。
  *
  * 安装依赖：npm install --no-save sharp
- * 完整生成：node 工具/制作Mac首页动态封面.cjs --render /tmp/yiyiaddon-cover
- * 代表帧检查：node 工具/制作Mac首页动态封面.cjs --preview /tmp/yiyiaddon-cover
- * 已有帧编码：node 工具/制作Mac首页动态封面.cjs --encode /tmp/yiyiaddon-cover
+ * 完整生成：node .github/工具/制作Mac首页动态封面.cjs --render /tmp/yiyiaddon-cover
+ * 代表帧检查：node .github/工具/制作Mac首页动态封面.cjs --preview /tmp/yiyiaddon-cover
+ * 已有帧编码：node .github/工具/制作Mac首页动态封面.cjs --encode /tmp/yiyiaddon-cover
  * 命令末尾可加 compact 或 wide，仅重建指定布局。
  *
  * 两种布局各 36 个渲染帧，每帧 140 ms；末帧增加 1000 ms，共 6040 ms 无限循环。
@@ -18,8 +18,8 @@ const path = require('node:path');
 const sharp = require('sharp');
 const mode = process.argv[2] || '--render';
 if (!['--preview', '--encode', '--render'].includes(mode)) throw new Error('请选择 --preview / --encode / --render');
-const workDir = path.resolve(process.argv[3] || path.join(__dirname, '..', '.cover-render'));
-const assets = path.resolve(__dirname, '..', '展示资源');
+const workDir = path.resolve(process.argv[3] || path.join(__dirname, '..', '..', '.cover-render'));
+const assets = path.resolve(__dirname, '..', '..', '展示资源');
 const scenePath = path.join(assets, 'beta3-原创3D模块全景.png');
 const frameCount = 36;
 const variantName = process.argv[4];

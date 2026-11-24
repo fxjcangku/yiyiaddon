@@ -8,7 +8,7 @@ import { composePreparedRelease } from './1.3准备页布局.mjs';
 // 正式附件上传后的下载区继续由真实 Release 数据生成 不在此预造下载链接
 const args = process.argv.slice(2);
 const option = name => { const at = args.indexOf(name); return at < 0 ? null : args[at + 1]; };
-const root = path.resolve(option('--root') || fileURLToPath(new URL('../', import.meta.url)));
+const root = path.resolve(option('--root') || fileURLToPath(new URL('../../', import.meta.url)));
 const formalPage = path.join(root, '发布说明/1.3.md');
 if (fs.existsSync(formalPage) && /^\*\*yiyiaddon 1\.3\s*(?:·|｜|\|)/m.test(fs.readFileSync(formalPage, 'utf8'))) {
   throw new Error('1.3 已转为正式正文，请使用 生成1.3正式页面.mjs；准备生成器不能覆盖当前正式展示');
@@ -78,7 +78,7 @@ ${icon('link-external', 404, 360, 26, buttonInk)}
 const asset = (game, theme, release) => {
   const relative = `展示资源/1.3/download-${game}-${theme}.svg`;
   const digest = createHash('sha256').update(outputs.get(path.join(root, relative))).digest('hex').slice(0, 8);
-  return `${release ? raw : '../'}${relative}?v=${digest}`;
+  return `${release ? raw : '../../'}${relative}?v=${digest}`;
 };
 const card = (item, release) => {
   const alt = xml(label(item));
@@ -126,7 +126,7 @@ function updateBody(file, release) {
   outputs.set(file, composePreparedRelease(next, { root, release }));
 }
 
-updateBody(path.join(root, '发布准备/1.3.md'), false);
+updateBody(path.join(root, '发布说明/发布准备/1.3.md'), false);
 if (draftBody) updateBody(path.resolve(draftBody), true);
 let changed = 0;
 for (const [file, content] of outputs) {

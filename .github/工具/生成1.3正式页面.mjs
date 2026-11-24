@@ -145,7 +145,12 @@ function published13Guides(root) {
   };
   for (const [file, replacements] of Object.entries(changes)) {
     let content = fs.readFileSync(path.join(root, file), 'utf8');
-    for (const [before, after] of replacements) content = content.replaceAll(before, after);
+    for (const [before, after] of replacements) {
+      content = content.replaceAll(before, after);
+      if (before.includes('](发布准备/')) {
+        content = content.replaceAll(before.replace('](发布准备/', '](发布说明/发布准备/'), after);
+      }
+    }
     if (/待上传|尚未上传|1\.3 计划|当前公开正式版仍为/.test(content)) throw new Error(`当前指南仍含 1.3 准备状态：${file}`);
     output.set(file, content);
   }
@@ -169,7 +174,7 @@ function publishedCurrentGuides(root, version) {
 function main() {
   const args = process.argv.slice(2);
   const option = name => { const at = args.indexOf(name); return at < 0 ? null : args[at + 1]; };
-  const root = path.resolve(option('--root') || fileURLToPath(new URL('../', import.meta.url)));
+  const root = path.resolve(option('--root') || fileURLToPath(new URL('../../', import.meta.url)));
   const releaseFile = option('--release'), output = option('--output-dir');
   const assetRef = option('--asset-ref');
   if (!releaseFile || !output || !/^(?:[a-f\d]{40}|PUBLIC_ASSET_REF)$/i.test(assetRef || '')) {
@@ -183,7 +188,7 @@ function main() {
   if (!usesSplitPackages(catalogRelease?.tag_name)) throw new Error('需要 1.3 起真实分包系列快照');
   const version = catalogRelease.tag_name.slice(1);
   const formalSource = path.join(root, `发布说明/${version}.md`);
-  const originalSource = option('--source') || (fs.existsSync(formalSource) ? formalSource : path.join(root, `发布准备/${version}.md`));
+  const originalSource = option('--source') || (fs.existsSync(formalSource) ? formalSource : path.join(root, `发布说明/发布准备/${version}.md`));
   if (!fs.existsSync(originalSource)) throw new Error(`需要本版正文源 --source；不复用旧版更新记录：${version}`);
   const original = fs.readFileSync(originalSource, 'utf8');
   const result = composeFormalPage(original, catalogRelease, { root, assetRef, draftPreview: args.includes('--draft-preview') });
@@ -209,7 +214,7 @@ function main() {
     const repositoryPage = composeFormalPage(original, catalogRelease, { root, assetRef, release: false });
     const stagedDocs = publishedCurrentGuides(root, version);
     stagedDocs.set(`发布说明/${version}.md`, repositoryPage.body);
-    stagedDocs.set(`发布准备/${version}.md`, `# yiyiaddon ${version} 已正式发布\n\n[查看完整正式更新记录](../发布说明/${version}.md) · [下载 ${version}](${repository}/releases/tag/${catalogRelease.tag_name}) · [安装指南](../安装指南.md)\n\n四个 Minecraft 版本各提供 Windows x64 与 Mac x64 两份独立 JAR。Mac x64 为展示名，实际支持 macOS ARM64，使用 ARM64 Java，不支持 Intel Mac。\n`);
+    stagedDocs.set(`发布说明/发布准备/${version}.md`, `# yiyiaddon ${version} 已正式发布\n\n[查看完整正式更新记录](../${version}.md) · [下载 ${version}](${repository}/releases/tag/${catalogRelease.tag_name}) · [安装指南](../../安装指南.md)\n\n四个 Minecraft 版本各提供 Windows x64 与 Mac x64 两份独立 JAR。Mac x64 为展示名，实际支持 macOS ARM64，使用 ARM64 Java，不支持 Intel Mac。\n`);
     for (const [relative, content] of stagedDocs) {
       const file = path.join(outputDir, relative);
       fs.mkdirSync(path.dirname(file), { recursive: true });

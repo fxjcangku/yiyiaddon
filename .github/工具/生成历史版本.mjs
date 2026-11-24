@@ -83,7 +83,7 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
     `当前推荐 [**yiyiaddon ${label(latest.tag_name.replace(/^v/, ''))} 正式版**](${releaseUrl(latest)})。首次安装或日常更新，请优先使用当前正式版。\n\n` +
     `${navRow([{name:"stable",href:"#user-content-stable",label:"正式版本"},{name:"beta",href:"#user-content-beta",label:"测试版本"},{name:"download",href:`${repository}/releases/latest`,label:"当前正式版"}], ui)}\n\n` +
     `收录 **${stable.length} 个正式版** · **${beta.length} 个测试版**。时间按北京时间显示。下载仅列出当前仍可获取的真实 JAR 或 ZIP 附件。\n\n` +
-    `<!-- 此页由 工具/更新公开首页.mjs 根据 GitHub Release API 自动生成；请在对应 Release 中维护分类、正文与附件。 -->\n\n` +
+    `<!-- 此页由 .github/工具/更新公开首页.mjs 根据 GitHub Release API 自动生成；请在对应 Release 中维护分类、正文与附件。 -->\n\n` +
     `${anchors('stable')}\n\n${heading(2, "check-circle", "正式版本", ui)}\n\n` +
     `点击版本名查看更新记录，点击 Minecraft 版本下载安装包。ZIP 文件需要先解压。\n\n` +
     `${table(stable)}\n\n` +

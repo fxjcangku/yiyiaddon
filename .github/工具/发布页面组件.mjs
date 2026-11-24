@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 export const repository = 'https://github.com/fxjcangku/yiyiaddon';
 export const html = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
+const defaultRoot = fileURLToPath(new URL('../../', import.meta.url));
 function asset(relative, options = {}) {
   const file = path.join(options.root || defaultRoot, relative);
   const generated = options.generatedAssets?.get(relative);

@@ -10,7 +10,7 @@ import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 /** 根据真实 Release 刷新正式版首页与分类归档；不读取模组源码，不发布或修改安装包。 */
 const args = process.argv.slice(2);
 const option = name => { const at = args.indexOf(name); return at < 0 ? null : args[at + 1]; };
-const root = path.resolve(option('--root') || fileURLToPath(new URL('../', import.meta.url)));
+const root = path.resolve(option('--root') || fileURLToPath(new URL('../../', import.meta.url)));
 const readJson = name => { const file = option(name); if (!file) throw new Error(`缺少参数 ${name}`); return JSON.parse(fs.readFileSync(file, 'utf8')); };
 const ui = { root };
 const latest = readJson('--latest');
@@ -173,7 +173,7 @@ const readmePath = path.join(root, 'README.md');
 let readme = fs.readFileSync(readmePath, 'utf8').replaceAll('\r\n', '\n');
 const mapartStatus = mapartPublished
   ? `**全自动地图画已随 1.3 正式发布** · 安装包按游戏版本与实际平台提供\n\n[查看 1.3 更新记录](${repository}/releases/tag/v1.3) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview)`
-  : `**功能已完成 正在准备 1.3 发布** · 新安装包尚未上传 当前正式下载仍为 ${xml(version)}\n\n[查看 1.3 发布准备](发布准备/1.3.md) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview) · [官网发布准备](https://www.yiyiaddon.asia/release.html?prepare=1.3)`;
+  : `**功能已完成 正在准备 1.3 发布** · 新安装包尚未上传 当前正式下载仍为 ${xml(version)}\n\n[查看 1.3 发布准备](发布说明/发布准备/1.3.md) · [地图画使用说明](功能指南.md#全自动地图画) · [官网功能展示](https://www.yiyiaddon.asia/#mapart-preview) · [官网发布准备](https://www.yiyiaddon.asia/release.html?prepare=1.3)`;
 const desktopStatus = (mapartPublished
   ? `新增 **macOS ARM64 原生适配** 1.3 按四个游戏版本分别提供 **win64 与 mac64 独立包** 共八包 展示名为 Windows x64 与 Mac x64\n\n`
   : `新增 **macOS ARM64 原生适配** 1.3 计划按四个游戏版本分别提供 **win64 与 mac64 独立包** 共八包 展示名为 Windows x64 与 Mac x64\n\n`)
@@ -289,7 +289,7 @@ if (fixedPort) {
   }
 }
 if (mapartPublished) {
-  readme = readme.replaceAll('[1.3 发布准备](发布准备/1.3.md)', `[1.3 正式更新](${repository}/releases/tag/v1.3)`);
+  readme = readme.replace(/\[1\.3 发布准备\]\((?:发布说明\/)?发布准备\/1\.3\.md\)/g, `[1.3 正式更新](${repository}/releases/tag/v1.3)`);
 }
 outputs.set(readmePath, ensureWebsiteEntry(readme, ui));
 // 所有输入和槽位先验证，再写文件；工作流仅在全部成功后提交允许的玩家展示文件。

@@ -44,8 +44,8 @@ export function composePreparedRelease(original, { root, release }) {
   const options = {
     root,
     release,
-    assetPrefix: release ? 'https://raw.githubusercontent.com/fxjcangku/yiyiaddon/master/' : '../',
-    docPrefix: release ? `${repository}/blob/master/` : '../',
+    assetPrefix: release ? 'https://raw.githubusercontent.com/fxjcangku/yiyiaddon/master/' : '../../',
+    docPrefix: release ? `${repository}/blob/master/` : '../../',
   };
   const guideUrl = `${options.docPrefix}安装指南.md`;
   const prepareUrl = 'https://www.yiyiaddon.asia/release.html?prepare=1.3';

@@ -10,7 +10,7 @@ import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 import { buildReleaseHistory } from './生成历史版本.mjs';
 import { composeRelease } from './整理发布页面.mjs';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const real = JSON.parse(fs.readFileSync(new URL('./测试数据/1.2公开附件.json', import.meta.url), 'utf8'));
 const clone = value => JSON.parse(JSON.stringify(value));
 // 合成版本只在内存与测试临时目录使用；不访问网络，不写回仓库 README，不发布 Release。
@@ -185,7 +185,7 @@ test('完整 CLI 只在隔离目录生成，当前快照与模拟八包均可重
     const run = latest => {
       fs.writeFileSync(path.join(temp, 'latest.json'), JSON.stringify(latest));
       fs.writeFileSync(path.join(temp, 'catalog.json'), JSON.stringify([latest, real]));
-      return JSON.parse(execFileSync(process.execPath, [path.join(temp, '工具/更新公开首页.mjs'), '--root', temp,
+      return JSON.parse(execFileSync(process.execPath, [path.join(temp, '.github/工具/更新公开首页.mjs'), '--root', temp,
         '--latest', path.join(temp, 'latest.json'), '--catalog', path.join(temp, 'catalog.json')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
     };
     assert.equal(run(real).downloads.length, 4);
@@ -226,7 +226,7 @@ test('完整 CLI 只在隔离目录生成，当前快照与模拟八包均可重
 
 test('1.3 正式正文复用既定封面和 18 组 146 条，逐附件列出实际摘要', async () => {
   const { compose13FormalPage } = await import('./生成1.3正式页面.mjs');
-  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布准备/1.3.md'), 'utf8');
+  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布说明/发布准备/1.3.md'), 'utf8');
   const release = synthetic('1.3');
   release.assets.forEach((asset, index) => { asset.digest = `sha256:${String(index).repeat(64)}`; });
   const result = compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' });
@@ -240,7 +240,7 @@ test('1.3 正式正文复用既定封面和 18 组 146 条，逐附件列出实�
 });
 test('已上传八包的 1.3 草稿仅在显式本地预览模式下生成，保留真实发布状态', async () => {
   const { compose13FormalPage } = await import('./生成1.3正式页面.mjs');
-  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布准备/1.3.md'), 'utf8');
+  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布说明/发布准备/1.3.md'), 'utf8');
   const release = synthetic('1.3'); release.draft = true; release.published_at = null;
   release.assets.forEach(asset => { asset.digest = `sha256:${'a'.repeat(64)}`; });
   assert.throws(() => compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' }), /真实已公开/);
@@ -255,7 +255,7 @@ test('1.3 真实八包门槛拒绝额外附件，正式正文拒绝无摘要文�
   const release = synthetic('1.3'); release.assets.push({ name: 'diagnostic.zip' });
   assert.throws(() => requireDualPlatformRelease(release), /恰好/);
   release.assets.pop();
-  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布准备/1.3.md'), 'utf8');
+  const original = fs.readFileSync(path.join(root, fs.existsSync(path.join(root, '发布说明/1.3.md')) ? '发布说明/1.3.md' : '发布说明/发布准备/1.3.md'), 'utf8');
   assert.throws(() => compose13FormalPage(original, release, { root, assetRef: 'PUBLIC_ASSET_REF' }), /SHA-256/);
 });
 test('正式 CLI 暂存指南与主题页，正式源可重复生成且准备工具拒绝覆盖', () => {
@@ -266,20 +266,20 @@ test('正式 CLI 暂存指南与主题页，正式源可重复生成且准备工
       && (fs.statSync(src).isDirectory() || /\.(mjs|cjs|md|svg|json)$/.test(src)) });
     const live = synthetic('1.3'); live.assets.forEach(asset => { asset.digest = `sha256:${'b'.repeat(64)}`; });
     const snapshot = path.join(temp, 'snapshot.json'); fs.writeFileSync(snapshot, JSON.stringify(live));
-    const run = output => JSON.parse(execFileSync(process.execPath, [path.join(stagedRoot, '工具/生成1.3正式页面.mjs'),
+    const run = output => JSON.parse(execFileSync(process.execPath, [path.join(stagedRoot, '.github/工具/生成1.3正式页面.mjs'),
       '--root', stagedRoot, '--release', snapshot, '--output-dir', output, '--asset-ref', 'PUBLIC_ASSET_REF'],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
     const output = path.join(temp, 'output'); assert.equal(run(output).mode, 'published');
     for (const file of ['安装指南.md', '版本说明.md', '功能指南.md']) {
       assert.doesNotMatch(fs.readFileSync(path.join(output, file), 'utf8'), /待上传|尚未上传|1\.3 计划/);
     }
-    for (const file of ['安装指南.md', '版本说明.md', '功能指南.md', '发布准备/1.3.md', '发布说明/1.3.md']) {
+    for (const file of ['安装指南.md', '版本说明.md', '功能指南.md', '发布说明/发布准备/1.3.md', '发布说明/1.3.md']) {
       const dest = path.join(stagedRoot, file); fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(path.join(output, file), dest);
     }
     const next = path.join(temp, 'next'); run(next);
     assert.equal(fs.readFileSync(path.join(next, 'release-body.md'), 'utf8'), fs.readFileSync(path.join(output, 'release-body.md'), 'utf8'));
-    assert.throws(() => execFileSync(process.execPath, [path.join(stagedRoot, '工具/生成1.3准备按钮.mjs'), '--root', stagedRoot],
+    assert.throws(() => execFileSync(process.execPath, [path.join(stagedRoot, '.github/工具/生成1.3准备按钮.mjs'), '--root', stagedRoot],
       { stdio: ['ignore', 'pipe', 'pipe'] }), /不能覆盖/);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
@@ -296,7 +296,7 @@ test('原始草稿八包可绑定真实资源提交后生成原子发布正文�
     const snapshot = path.join(temp, 'draft.json'); fs.writeFileSync(snapshot, JSON.stringify(draft));
     const originalSnapshot = fs.readFileSync(snapshot, 'utf8');
     const run = (output, assetRef, publication = false) => JSON.parse(execFileSync(process.execPath,
-      [path.join(stagedRoot, '工具/生成1.3正式页面.mjs'), '--root', stagedRoot, '--release', snapshot,
+      [path.join(stagedRoot, '.github/工具/生成1.3正式页面.mjs'), '--root', stagedRoot, '--release', snapshot,
         '--output-dir', output, '--asset-ref', assetRef, '--draft-preview', ...(publication ? ['--publication-body'] : [])],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
     const preview = path.join(temp, 'preview'); run(preview, 'PUBLIC_ASSET_REF');
@@ -412,12 +412,16 @@ test('1.3.1 CLI必须显式本版源，只在仓外暂存新正式页与当前�
     const stagedRoot = path.join(temp, 'public');
     fs.cpSync(root, stagedRoot, { recursive: true, filter: src => !src.includes(`${path.sep}.git${path.sep}`)
       && (fs.statSync(src).isDirectory() || /\.(mjs|cjs|md|svg|json)$/.test(src)) });
+    // 模拟尚未准备 1.3.1 正文的工作树，不依赖当前实际发布状态。
+    for (const file of ['发布说明/1.3.1.md', '发布说明/发布准备/1.3.1.md']) {
+      fs.rmSync(path.join(stagedRoot, file), { force: true });
+    }
     const historical = fs.readFileSync(path.join(stagedRoot, '发布说明/1.3.md'), 'utf8');
     const live = synthetic('1.3.1'); live.assets.forEach(asset => { asset.digest = `sha256:${'e'.repeat(64)}`; });
     const snapshot = path.join(temp, 'snapshot.json'), source = path.join(temp, 'patch.md');
     fs.writeFileSync(snapshot, JSON.stringify(live)); fs.writeFileSync(source, patchSource());
     const run = (output, explicit = true) => JSON.parse(execFileSync(process.execPath,
-      [path.join(stagedRoot, '工具/生成1.3正式页面.mjs'), '--root', stagedRoot, '--release', snapshot,
+      [path.join(stagedRoot, '.github/工具/生成1.3正式页面.mjs'), '--root', stagedRoot, '--release', snapshot,
         '--output-dir', output, '--asset-ref', 'PUBLIC_ASSET_REF', ...(explicit ? ['--source', source] : [])],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
     assert.throws(() => run(path.join(temp, 'missing'), false), /需要本版正文源/);
