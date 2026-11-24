@@ -66,13 +66,14 @@
 <!-- homepage:collaboration:start -->
 ### <img src="展示资源/icons/octicons/tools-24.svg?v=50ab7961" width="24" height="24" alt=""> 开发协作
 
-由 **fxjcangku** 负责项目维护、需求规划与测试发布。**Claude** 负责界面设计与交互优化，**OpenAI Codex** 负责功能开发与代码实现，**Gemini** 负责 Bug 修复与代码优化。
+由 **fxjcangku** 负责项目维护、需求规划与测试发布。**Claude** 负责界面设计与交互优化，**OpenAI Codex** 负责功能开发与代码实现，**Gemini** 负责 Bug 修复与代码优化，**Kimi** 负责实机验证与问题修复。
 
 <p align="center">
   <a href="https://github.com/fxjcangku#gh-light-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-light.svg?v=20261124b" width="260" alt="fxjcangku 项目维护与需求规划及测试发布"></a><a href="https://github.com/fxjcangku#gh-dark-mode-only"><img src="展示资源/theme/collaboration-fxjcangku-dark.svg?v=20261124b" width="260" alt="fxjcangku 项目维护与需求规划及测试发布"></a>
   <a href="https://github.com/claude#gh-light-mode-only"><img src="展示资源/theme/collaboration-claude-light.svg?v=20261124b" width="260" alt="Claude 界面设计与交互优化"></a><a href="https://github.com/claude#gh-dark-mode-only"><img src="展示资源/theme/collaboration-claude-dark.svg?v=20261124b" width="260" alt="Claude 界面设计与交互优化"></a>
   <a href="https://github.com/codex#gh-light-mode-only"><img src="展示资源/theme/collaboration-codex-light.svg?v=20261124b" width="260" alt="OpenAI Codex 功能开发与代码实现"></a><a href="https://github.com/codex#gh-dark-mode-only"><img src="展示资源/theme/collaboration-codex-dark.svg?v=20261124b" width="260" alt="OpenAI Codex 功能开发与代码实现"></a>
   <a href="https://gemini.google.com/#gh-light-mode-only"><img src="展示资源/theme/collaboration-antigravity-light.svg?v=20261124b" width="260" alt="Google Gemini Bug 修复与代码优化"></a><a href="https://gemini.google.com/#gh-dark-mode-only"><img src="展示资源/theme/collaboration-antigravity-dark.svg?v=20261124b" width="260" alt="Google Gemini Bug 修复与代码优化"></a>
+  <a href="https://github.com/MoonshotAI#gh-light-mode-only"><img src="展示资源/theme/collaboration-kimi-light.svg?v=20261125a" width="260" alt="Kimi 实机验证与问题修复"></a><a href="https://github.com/MoonshotAI#gh-dark-mode-only"><img src="展示资源/theme/collaboration-kimi-dark.svg?v=20261125a" width="260" alt="Kimi 实机验证与问题修复"></a>
 </p>
 <!-- homepage:collaboration:end -->
 
