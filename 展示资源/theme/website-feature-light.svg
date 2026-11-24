@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="进入 yiyiaddon 官网 · www.yiyiaddon.asia · 功能演示、按游戏版本选择下载、安装指南、更新记录；请先确认版本与平台要求。">
-<title>进入 yiyiaddon 官网 · www.yiyiaddon.asia · 功能演示、按游戏版本选择下载、安装指南、更新记录；请先确认版本与平台要求。</title>
-<desc>官网集中展示模组功能，提供按游戏版本查找下载、核对平台要求、安装指南与更新记录的入口。此卡片不表示历史版本提供新的安装附件。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="进入 yiyiaddon 官网，查看功能演示、版本下载、安装指南和更新记录。">
+<title>进入 yiyiaddon 官网，查看功能演示、版本下载、安装指南和更新记录。</title>
+<desc>在新标签页打开官网时，Windows 可按住 Ctrl 点击，Mac 可按住 ⌘ 点击。</desc>
 <defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5faff"/><stop offset="1" stop-color="#ffffff"/></linearGradient><radialGradient id="glow" cx="100%" cy="0%" r="100%"><stop stop-color="#81dfcb" stop-opacity=".14"/><stop offset=".8" stop-color="#81dfcb" stop-opacity="0"/></radialGradient><linearGradient id="button" x1="0" y1="0" x2="1" y2=".25"><stop stop-color="#a7d9ff"/><stop offset="1" stop-color="#8ee8c9"/></linearGradient></defs>
 <g font-family="Segoe UI, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif">
 <rect x="1" y="1" width="1198" height="298" rx="28" fill="url(#background)" stroke="#bfdaea" stroke-width="2"/>
@@ -21,5 +21,6 @@
 <rect x="828" y="122" width="324" height="82" rx="22" fill="url(#button)"/>
 <text x="971" y="175" font-size="36" fill="#113e48" font-weight="700" text-anchor="middle">进入官网</text>
 <g transform="translate(1092 148) scale(1.25)" fill="none" stroke="#113e48" color="#113e48" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18 18 6M6 6h12v12"/></g>
-<text x="990" y="240" font-size="20" fill="#49647c" font-weight="450" text-anchor="middle">电脑、手机都能轻松查看</text>
+<text x="990" y="238" font-size="20" fill="#49647c" font-weight="550" text-anchor="middle">在新标签页打开</text>
+<text x="990" y="266" font-size="18" fill="#49647c" font-weight="450" text-anchor="middle">Windows 按住 Ctrl 点击，Mac 按住 ⌘ 点击</text>
 </g></svg>

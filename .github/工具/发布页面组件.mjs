@@ -41,7 +41,7 @@ const websiteStart = '<!-- yiyiaddon:website:start -->';
 const websiteEnd = '<!-- yiyiaddon:website:end -->';
 export function websiteEntry(options = {}) {
   const href = 'https://www.yiyiaddon.asia/';
-  const alt = '进入 yiyiaddon 官网 · www.yiyiaddon.asia · 功能演示、按游戏版本选择下载、安装指南、更新记录；请先确认版本与平台要求。';
+  const alt = '进入 yiyiaddon 官网，查看功能演示、版本下载、安装指南和更新记录。 在新标签页打开时，Windows 可按住 Ctrl 点击，Mac 可按住 ⌘ 点击，手机可长按链接。';
   const source = (theme, compact = false) => html(asset(`展示资源/theme/website-feature-${compact ? 'compact-' : ''}${theme}.svg`, options));
   let cards;
   if (options.release) {
