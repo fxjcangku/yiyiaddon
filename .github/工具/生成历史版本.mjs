@@ -59,7 +59,10 @@ export function buildReleaseHistory({ catalog, latest, repository, root }) {
     const current = release.tag_name === latest.tag_name ? ' · 当前推荐' : '';
     const title = `[**${label(release.tag_name.replace(/^v/, ''))}${current}**](${releaseUrl(release)})`
       + (summary ? `<br><sub>${html(summary)}</sub>` : '');
-    let attachment = '无附件 · **仅更新记录**';
+    const archiveNotice = `本版安装附件已归档。请前往[当前正式版](${repository}/releases/latest)下载。`;
+    let attachment = String(release.body || '').includes(archiveNotice)
+      ? `**安装附件已归档** · [下载当前正式版](${repository}/releases/latest)`
+      : '无附件 · **仅更新记录**';
     if (assets.length) {
       attachment = ['JAR', 'ZIP'].filter(format => assets.some(asset => asset.format === format)).map(format => {
         const group = assets.filter(asset => asset.format === format).sort((a, b) => (a.game || a.name).localeCompare(b.game || b.name, 'en', { numeric: true }) || ((a.target === 'mac-arm64') - (b.target === 'mac-arm64')));

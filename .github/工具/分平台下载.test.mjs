@@ -159,6 +159,14 @@ test('历史归档识别八个专用包并标出 Windows x64 与 Mac x64', () =>
   assert.match(result.markdown, /Windows x64/); assert.match(result.markdown, /Mac x64（ARM64）/);
   for (const asset of latest.assets) assert.ok(result.markdown.includes(asset.browser_download_url));
 });
+test('历史归档保留旧版说明并为已归档安装包指向当前正式版', () => {
+  const latest = synthetic();
+  const old = { ...real, assets: [], body: `本版安装附件已归档。请前往[当前正式版](${repository}/releases/latest)下载。\n\n${real.body}` };
+  const { markdown } = buildReleaseHistory({ catalog: [latest, old], latest, repository, root });
+  const oldRow = markdown.split('\n').find(line => line.includes('/releases/tag/v1.2'));
+  assert.ok(oldRow.includes(`**安装附件已归档** · [下载当前正式版](${repository}/releases/latest)`));
+  assert.doesNotMatch(oldRow, /\/releases\/download\/v1\.2\//);
+});
 test('新的正式 Release 模板生成八个按钮、去重游戏版本并保持原记录', () => {
   const live = synthetic('1.3'); const assets = packageAssets(live); const generatedAssets = new Map();
   const release = { tag: live.tag_name, prerelease: false, releaseUrl: live.html_url, summary: '本地模板验证',
