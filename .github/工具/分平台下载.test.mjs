@@ -9,7 +9,9 @@ import { games, repository, packageAssets, releaseGamePairs, selectHomepageDownl
 import { renderPlatformDownloadGrid } from './分平台下载组件.mjs';
 import { buildReleaseHistory } from './生成历史版本.mjs';
 import { composeRelease } from './整理发布页面.mjs';
+import { flatBlockMapArtImage } from './发布页面组件.mjs';
 
+const carpetMapArtImage = 'https://www.yiyiaddon.asia/assets/mapart-kobe-clean-1536.webp';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const real = JSON.parse(fs.readFileSync(new URL('./测试数据/1.2公开附件.json', import.meta.url), 'utf8'));
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -221,6 +223,22 @@ test('完整 CLI 只在隔离目录生成，当前快照与模拟八包均可重
     }
     run(latest);
     assert.equal(fs.readFileSync(path.join(temp, 'README.md'), 'utf8'), paired);
+    assert.doesNotMatch(paired, /全自动地图画（地毯与平面方块）/);
+    const version14 = synthetic('1.4');
+    assert.equal(run(version14).downloads.length, 4);
+    const latestReadme = fs.readFileSync(path.join(temp, 'README.md'), 'utf8');
+    assert.match(latestReadme, /全自动地图画（地毯与平面方块）/);
+    assert.doesNotMatch(latestReadme, /mapart-flat-blocks\.webp|mapart-kobe-clean-1536\.webp/);
+    assert.equal(hrefs(latestReadme).filter(url => url.includes('/releases/download/v1.4/')).length, 16);
+    for (const asset of version14.assets) {
+      assert.equal(hrefs(latestReadme).filter(url => url.split('#')[0] === asset.browser_download_url).length, 2);
+    }
+    const badge = fs.readFileSync(path.join(temp, '展示资源/theme/brand-light.svg'), 'utf8');
+    assert.match(badge, /yiyiaddon 1\.4/);
+    run(version14);
+    assert.equal(fs.readFileSync(path.join(temp, 'README.md'), 'utf8'), latestReadme);
+    run(latest);
+    assert.doesNotMatch(fs.readFileSync(path.join(temp, 'README.md'), 'utf8'), /全自动地图画（地毯与平面方块）/);
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 
@@ -365,6 +383,38 @@ function patchSource(version = '1.3.1') {
     marker('compatibility', '## 兼容与运行\n\n本合成夹具没有执行游戏实机，不复用旧版29项断言。'), dependencies,
     `<!-- yiyiaddon:update-summary\n${JSON.stringify({ version, items: ['仅隔离生成器夹具'] })}\n-->`].join('\n\n');
 }
+
+test('1.4 使用独立方块封面与实际八包，发布图固定到资源提交', async () => {
+  const { composeFormalPage } = await import('./生成1.3正式页面.mjs');
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'yiyi-formal-14-'));
+  try {
+    for (const directory of ['theme', 'icons']) {
+      const link = path.join(temp, '展示资源', directory);
+      fs.mkdirSync(path.dirname(link), { recursive: true });
+      fs.symlinkSync(path.join(root, '展示资源', directory), link);
+    }
+    const live = synthetic('1.4');
+    live.assets.forEach(asset => { asset.digest = 'sha256:' + 'f'.repeat(64); });
+    const assetRef = 'a'.repeat(40);
+    const options = { root: temp, assetRef };
+    const original = patchSource('1.4');
+    const body = original.replace(carpetMapArtImage, '../../' + flatBlockMapArtImage);
+    assert.throws(() => composeFormalPage(original, live, options), /本版平面方块地图画封面/);
+    assert.throws(() => composeFormalPage(body, live, options), /缺少 1\.4 平面方块地图画封面/);
+    const image = path.join(temp, flatBlockMapArtImage);
+    fs.mkdirSync(path.dirname(image), { recursive: true });
+    fs.writeFileSync(image, '仅测试封面文件引用');
+    const release = composeFormalPage(body, live, options);
+    assert.ok(release.body.includes('https://raw.githubusercontent.com/fxjcangku/yiyiaddon/' + assetRef + '/' + flatBlockMapArtImage));
+    assert.ok(!release.body.includes(carpetMapArtImage));
+    assert.equal(hrefs(release.body).filter(url => url.includes('/releases/download/v1.4/')).length, 8);
+    assert.ok(live.assets.every(asset => release.body.includes(asset.digest.slice(7))));
+    const repositoryPage = composeFormalPage(body, live, { ...options, release: false });
+    assert.ok(repositoryPage.body.startsWith('<p align="center">'));
+    assert.ok(repositoryPage.body.includes('src="../' + flatBlockMapArtImage + '"'));
+    assert.ok(!repositoryPage.body.includes('../../' + flatBlockMapArtImage));
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
 
 test('1.3.1 草稿和正式页使用本版正文及八包，不误用1.3历史或推定旧版实测', async () => {
   const { composeFormalPage } = await import('./生成1.3正式页面.mjs');

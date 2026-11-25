@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { composeRelease } from './整理发布页面.mjs';
 import { games, repository, packageAssets, requireDualPlatformRelease, fabricDependency, assetDownloadUrl, usesSplitPackages } from './发行附件.mjs';
+import { flatBlockMapArtImage } from './发布页面组件.mjs';
 
 const marker = (name, text) => `<!-- yiyiaddon:release-${name}:start -->\n${text.trim()}\n<!-- yiyiaddon:release-${name}:end -->`;
+const updateEntryPattern = /^- \*\*(?:新增|优化|修复|说明|调整)\*\*/gm;
 function section(body, name) {
   const start = `<!-- yiyiaddon:release-${name}:start -->`;
   const end = `<!-- yiyiaddon:release-${name}:end -->`;
@@ -37,11 +39,25 @@ export function composeFormalPage(original, catalogRelease, options) {
     if (!/^sha256:[a-f\d]{64}$/.test(asset.digest || '')) throw new Error(`缺少真实附件 SHA-256：${asset.name}`);
   }
   const body = original.replaceAll('\r\n', '\n');
-  const cover = body.match(/^(<p align="center">[\s\S]*?<\/p>)/)?.[1];
-  if (!cover?.includes('mapart-kobe-clean-1536.webp')) throw new Error('必须保留既定地图画封面');
+  const releaseLayout = options.release !== false;
+  let cover = body.match(/^(<p align="center">[\s\S]*?<\/p>)/)?.[1];
+  const coverAsset = version === '1.4' ? flatBlockMapArtImage : null;
+  if (coverAsset) {
+    const source = cover?.match(/<img\s+src="([^"]+)"/)?.[1];
+    if (source !== '../' + coverAsset && source !== '../../' + coverAsset) {
+      throw new Error('1.4 必须使用本版平面方块地图画封面');
+    }
+    if (!fs.statSync(path.join(options.root, coverAsset), { throwIfNoEntry: false })?.isFile()) {
+      throw new Error('缺少 1.4 平面方块地图画封面：' + coverAsset);
+    }
+    const prefix = releaseLayout ? 'https://raw.githubusercontent.com/fxjcangku/yiyiaddon/' + options.assetRef + '/' : '../';
+    cover = cover.replace('src="' + source + '"', 'src="' + prefix + coverAsset + '"');
+  } else if (!cover?.includes('mapart-kobe-clean-1536.webp')) {
+    throw new Error('必须保留既定地图画封面');
+  }
   const notes = finalPlatformText(section(body, 'notes'));
   const modules = (notes.match(/<summary><strong>/g) || []).length;
-  const entries = (notes.match(/^- \*\*(?:新增|优化|修复|说明)\*\*/gm) || []).length;
+  const entries = (notes.match(updateEntryPattern) || []).length;
   if (original13 ? modules !== 18 || entries !== 146 : modules < 1 || entries < 1) {
     throw new Error(original13 ? `原正文必须为 18 组 146 条，实际 ${modules} 组 ${entries} 条` : '本版必须提供实际更新分组与条目');
   }
@@ -97,7 +113,6 @@ export function composeFormalPage(original, catalogRelease, options) {
     updateSummaryComment,
   };
   const generatedAssets = new Map();
-  const releaseLayout = options.release !== false;
   const result = composeRelease(release, assets, { ...options, generatedAssets,
     release: releaseLayout, latestTag: catalogRelease.tag_name, draftPreview,
     catalogRelease: { ...catalogRelease, body },
@@ -105,13 +120,13 @@ export function composeFormalPage(original, catalogRelease, options) {
     docPrefix: releaseLayout ? `${repository}/blob/master/` : '../',
   });
   if ((result.body.match(/<summary><strong>/g) || []).length !== modules
-      || (section(result.body, 'notes').match(/^- \*\*(?:新增|优化|修复|说明)\*\*/gm) || []).length !== entries) {
+      || (section(result.body, 'notes').match(updateEntryPattern) || []).length !== entries) {
     throw new Error('生成后完整更新条目丢失');
   }
   if (/安装包待上传|安装包尚未上传|当前正式下载仍为 1\.2|等待正式附件上传|prepare=1\.3/.test(result.body)) {
     throw new Error('正式正文仍含旧准备状态');
   }
-  return { ...result, generatedAssets, modules, entries, assets };
+  return { ...result, generatedAssets, modules, entries, assets, coverAsset };
 }
 
 // 保留原 1.3 调用者；新版本必须使用属于本版的正文与摘要。
@@ -168,6 +183,22 @@ function publishedCurrentGuides(root, version) {
     output.set(file, source.replace(pattern, version));
   }
   // 功能指南的 1.3 介绍继续记载实际首次提供版本，不改写历史功能来源。
+  if (version === '1.4') {
+    const compatibility = output.get('版本说明.md');
+    output.set('版本说明.md', compatibility
+      .replace('[完整更新记录](发布说明/1.3.md)', '[完整更新记录](发布说明/1.4.md)')
+      .replace('[1.4 兼容与运行](发布说明/1.3.md#兼容与运行)', '[1.4 兼容与运行](发布说明/1.4.md#兼容与运行)'));
+    const overview = '模块入口为「自动生产 → 全自动地图画」处理单张 **128×128 平面 16 色原版地毯** 地图画';
+    const dualMode = [
+      '模块入口为「自动生产 → 全自动地图画」。选择「地毯」或「平面方块」，制作一张 128×128 单层地图画。',
+      '**平面方块模式（1.4）**使用完整方块，支持 NBT、Litematic 和 Schem 投影。导入后可预览施工高度、按整张地图平移并确认西北角。按投影所需方块绑定材料箱，然后选择步行或飞行施工。两种模式分别保存投影、锚点、材料绑定与施工断点，共享食物箱、地图用品箱和制图台。',
+      '### 地毯模式',
+      '地毯模式使用 16 色原版地毯。',
+    ].join('\n\n');
+    const guide = output.get('功能指南.md');
+    if (!guide.includes(overview) && !guide.includes(dualMode)) throw new Error('无法定位地图画功能指南');
+    output.set('功能指南.md', guide.replace(overview, () => dualMode));
+  }
   return output;
 }
 
@@ -202,6 +233,12 @@ function main() {
       const committed = execFileSync('git', ['-C', root, 'show', `${assetRef}:${relative}`], { encoding: 'utf8' });
       if (committed !== content) throw new Error(`资源提交中的 SVG 与当前真实附件生成结果不同：${relative}`);
     }
+  }
+  if (publication?.coverAsset) {
+    const image = fs.readFileSync(path.join(root, publication.coverAsset));
+    const committed = execFileSync('git', ['-C', root, 'show', assetRef + ':' + publication.coverAsset],
+      { maxBuffer: image.length + 1024 });
+    if (!committed.equals(image)) throw new Error('资源提交中的 1.4 封面与审查稿不一致');
   }
   for (const [relative, content] of result.generatedAssets) {
     const file = path.join(outputDir, relative);

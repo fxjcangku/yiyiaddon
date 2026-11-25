@@ -36,6 +36,7 @@ const platformStatus = !macGames.length ? '' : desktopGames.length === downloads
   : '**Windows x64 与 Mac x64 分别下载** · 每个按钮只对应同一游戏版本与同一正式 Release 的真实附件 缺失平台保持待发布';
 const preparedRelease = candidates.find(item => item.tag_name === 'v1.3');
 const mapartPublished = usesSplitPackages(latest.tag_name) || packageAssets(preparedRelease).some(asset => asset.format === 'JAR');
+const flatBlockRelease = candidates.find(item => item.tag_name === 'v1.4');
 const macAvailability = macGames.length === downloads.length ? (desktopGames.length === downloads.length ? '历史通用包可用' : '正式版可下载')
   : macGames.length ? '部分版本可下载'
     : mapartPublished ? '各版本 Mac 包待提供' : '1.3 独立包待上传';
@@ -258,6 +259,15 @@ if (historyStartCount === 0 && historyEndCount === 0) {
 } else {
   if (historyStartCount !== 1 || historyEndCount !== 1 || !historyPattern.test(readme)) throw new Error('历史入口边界缺失或重复，停止覆盖');
   readme = readme.replace(historyPattern, historySection);
+}
+const mapArtDescription = '全自动地图画（地毯与平面方块）';
+const coreModules = '- **核心玩法**：星露谷农场、星露谷钓鱼、全自动地图画';
+if (flatBlockRelease) {
+  readme = readme.replace(coreModules + '\n', coreModules.replace('全自动地图画', mapArtDescription) + '\n')
+    .replace('[安装指南](安装指南.md) · [1.3 正式更新](' + repository + '/releases/tag/v1.3)',
+      '[安装指南](安装指南.md) · [当前正式更新](' + repository + '/releases/latest)');
+} else {
+  readme = readme.replace(coreModules.replace('全自动地图画', mapArtDescription) + '\n', coreModules + '\n');
 }
 const history = buildReleaseHistory({ catalog, latest, repository, root });
 outputs.set(path.join(root, '发布说明/历史版本.md'), history.markdown);

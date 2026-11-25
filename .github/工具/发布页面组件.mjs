@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 export const repository = 'https://github.com/fxjcangku/yiyiaddon';
+export const flatBlockMapArtImage = '展示资源/1.4/mapart-flat-blocks.webp';
 export const html = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const defaultRoot = fileURLToPath(new URL('../../', import.meta.url));
 function asset(relative, options = {}) {
