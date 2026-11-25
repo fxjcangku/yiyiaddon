@@ -182,22 +182,33 @@ function publishedCurrentGuides(root, version) {
     const pattern = new RegExp(previous.replaceAll('.', '\\.') + '(?![\\d.])', 'g');
     output.set(file, source.replace(pattern, version));
   }
-  // 功能指南的 1.3 介绍继续记载实际首次提供版本，不改写历史功能来源。
   if (version === '1.4') {
+    const install = output.get('安装指南.md');
+    output.set('安装指南.md', install.replace('历史无平台后缀包保留原有 Windows 支持范围', '历史无平台后缀包原支持 Windows x64'));
     const compatibility = output.get('版本说明.md');
     output.set('版本说明.md', compatibility
       .replace('[完整更新记录](发布说明/1.3.md)', '[完整更新记录](发布说明/1.4.md)')
-      .replace('[1.4 兼容与运行](发布说明/1.3.md#兼容与运行)', '[1.4 兼容与运行](发布说明/1.4.md#兼容与运行)'));
+      .replace('[1.4 兼容与运行](发布说明/1.3.md#兼容与运行)', '[1.4 兼容与运行](发布说明/1.4.md#兼容与运行)')
+      .replace('历史 `desktop` 附件保持原名与所属 Release 的真实兼容范围', '历史安装包的兼容范围见各自发布记录'));
     const overview = '模块入口为「自动生产 → 全自动地图画」处理单张 **128×128 平面 16 色原版地毯** 地图画';
+    const carpetImage = '<p align="center"><img src="https://www.yiyiaddon.asia/assets/mapart-kobe-clean-1536.webp" width="100%" alt="全自动地图画功能宣传图"></p>';
     const dualMode = [
       '模块入口为「自动生产 → 全自动地图画」。选择「地毯」或「平面方块」，制作一张 128×128 单层地图画。',
-      '**平面方块模式（1.4）**使用完整方块，支持 NBT、Litematic 和 Schem 投影。导入后可预览施工高度、按整张地图平移并确认西北角。按投影所需方块绑定材料箱，然后选择步行或飞行施工。两种模式分别保存投影、锚点、材料绑定与施工断点，共享食物箱、地图用品箱和制图台。',
+      '### 平面方块模式',
+      '1. 导入单层 128×128 的 NBT、Litematic 或 Schem 投影。用预览设置施工高度 Y，可向四个方向整幅移动 128 格，再确认西北角。\n2. 按投影所需的方块物品逐项绑定材料箱，按需准备食物箱、地图用品箱和制图台。\n3. 选择步行或飞行开始施工。模块沿中线推进，核对具体方块状态，按施工需求整组补货。启用锁图时准备空地图与普通透明玻璃板。',
+      '两种模式分别保存投影、锚点、材料箱与施工断点，共享食物箱、地图用品箱和制图台。',
       '### 地毯模式',
+      carpetImage.replace('全自动地图画功能宣传图', '全自动地图画 · 地毯模式宣传图'),
       '地毯模式使用 16 色原版地毯。',
     ].join('\n\n');
     const guide = output.get('功能指南.md');
-    if (!guide.includes(overview) && !guide.includes(dualMode)) throw new Error('无法定位地图画功能指南');
-    output.set('功能指南.md', guide.replace(overview, () => dualMode));
+    const oldOverview = carpetImage + '\n\n' + overview;
+    if (!guide.includes(oldOverview) && !guide.includes(dualMode)) throw new Error('无法定位地图画功能指南');
+    output.set('功能指南.md', guide.replace(oldOverview, () => dualMode)
+      .replace('**1.3 已正式发布**：全自动地图画与 Mac x64 原生适配已随对应独立安装包提供 [查看完整更新说明](发布说明/1.3.md)',
+        '**1.4 已正式发布**，全自动地图画支持地毯与平面方块。四个游戏版本均提供 Windows x64 和 macOS ARM64 安装包。 [查看完整更新说明](发布说明/1.4.md)')
+      .replace('1.3 四个版本各提供 `win64` 与 `mac64` 两包，共八包；旧 1.2 Windows 附件不适用于 Mac，Intel Mac 不在支持范围。',
+        '1.4 的四个游戏版本各提供 `win64` 与 `mac64` 安装包。'));
   }
   return output;
 }
