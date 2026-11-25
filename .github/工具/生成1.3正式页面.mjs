@@ -188,7 +188,7 @@ function publishedCurrentGuides(root, version) {
     const compatibility = output.get('版本说明.md');
     output.set('版本说明.md', compatibility
       .replace('[完整更新记录](发布说明/1.3.md)', '[完整更新记录](发布说明/1.4.md)')
-      .replace('[1.4 兼容与运行](发布说明/1.3.md#兼容与运行)', '[1.4 兼容与运行](发布说明/1.4.md#兼容与运行)')
+      .replace('[1.4 兼容与运行](发布说明/1.3.md#兼容与运行)', '[1.4 兼容与验证范围](发布说明/1.4.md#兼容与验证范围)')
       .replace('历史 `desktop` 附件保持原名与所属 Release 的真实兼容范围', '历史安装包的兼容范围见各自发布记录'));
     const overview = '模块入口为「自动生产 → 全自动地图画」处理单张 **128×128 平面 16 色原版地毯** 地图画';
     const carpetImage = '<p align="center"><img src="https://www.yiyiaddon.asia/assets/mapart-kobe-clean-1536.webp" width="100%" alt="全自动地图画功能宣传图"></p>';
