@@ -18,14 +18,14 @@
 <!-- homepage:brand:start -->
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-light-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.3.1-c8484da9">
-    <img src="展示资源/theme/brand-light.svg?v=1.3.1-90ad98f1" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3.1；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-light.svg?v=1.4-059ca4de">
+    <img src="展示资源/theme/brand-light.svg?v=1.4-e2abada7" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.4；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。">
   </picture>
 </a>
 <a href="https://github.com/fxjcangku/yiyiaddon/releases/latest#gh-dark-mode-only">
   <picture>
-    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.3.1-78486ca2">
-    <img src="展示资源/theme/brand-dark.svg?v=1.3.1-f13a0104" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.3.1；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。">
+    <source media="(max-width: 640px)" srcset="展示资源/theme/brand-compact-dark.svg?v=1.4-0ddfa2c9">
+    <img src="展示资源/theme/brand-dark.svg?v=1.4-d0352dbe" width="100%" alt="yiyiaddon · 独立 Fabric 客户端模组。最新正式版 1.4；Minecraft 1.21.11 / 26.1.2 / 26.2 / 26.3。Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。">
   </picture>
 </a>
 <!-- homepage:brand:end -->
@@ -48,7 +48,7 @@
 
 **yiyiaddon** 是《我的世界》Java 版的自动化模组，基于 Fabric，将常用自动化操作集中到中文界面。
 
-- **核心玩法**：星露谷农场、星露谷钓鱼、全自动地图画
+- **核心玩法**：星露谷农场、星露谷钓鱼、全自动地图画（地毯与平面方块）
 - **日常作业**：自动挖矿、自动附魔、物资补给、分类卸货
 - **任务管理**：任务通知、运行统计、按服务器保存配置
 
@@ -59,7 +59,7 @@
 
 - **Mac x64**：这是页面展示名，实际支持 macOS ARM64，使用原生 ARM64 Java；Intel Mac 不在支持范围。可下载的平台与安装包状态以下载区标注为准。
 - **服务器适配**：星露谷功能面向 Minecraft 服务器中的农场与钓鱼玩法，需按所在服务器的资源包和菜单配置。
-- **相关文档**：[安装指南](安装指南.md) · [1.3 正式更新](https://github.com/fxjcangku/yiyiaddon/releases/tag/v1.3)
+- **相关文档**：[安装指南](安装指南.md) · [当前正式更新](https://github.com/fxjcangku/yiyiaddon/releases/latest)
 
 </details>
 
@@ -83,7 +83,7 @@
 ### <img src="展示资源/icons/octicons/download-24.svg?v=b106e607" width="24" height="24" alt=""> 下载与安装
 
 <!-- homepage:downloads:start -->
-当前正式版 **1.3.1** · 选择与你的 Minecraft 版本一致的安装包。
+当前正式版 **1.4** · 选择与你的 Minecraft 版本一致的安装包。
 
 **Windows x64 与 Mac x64 分别下载** · 每个按钮只对应同一游戏版本与同一正式 Release 的真实附件 缺失平台保持待发布
 
@@ -93,20 +93,20 @@
 <table align="center">
 <tbody><tr>
 <td width="25%" valign="top">
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-1.21.11-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-1.21.11-windows-light.svg?v=afefc91f" width="220" alt="下载 Windows x64 · Minecraft 1.21.11 · yiyiaddon 1.3.1"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-1.21.11-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-1.21.11-windows-dark.svg?v=c72e667e" width="220" alt="下载 Windows x64 · Minecraft 1.21.11 · yiyiaddon 1.3.1"></a><br>
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-1.21.11-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-1.21.11-mac-light.svg?v=6281fc54" width="220" alt="下载 Mac x64 · Minecraft 1.21.11 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-1.21.11-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-1.21.11-mac-dark.svg?v=226a7c52" width="220" alt="下载 Mac x64 · Minecraft 1.21.11 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-1.21.11-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-1.21.11-windows-light.svg?v=5e4e5d1c" width="220" alt="下载 Windows x64 · Minecraft 1.21.11 · yiyiaddon 1.4"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-1.21.11-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-1.21.11-windows-dark.svg?v=1c734b87" width="220" alt="下载 Windows x64 · Minecraft 1.21.11 · yiyiaddon 1.4"></a><br>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-1.21.11-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-1.21.11-mac-light.svg?v=e10d5999" width="220" alt="下载 Mac x64 · Minecraft 1.21.11 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-1.21.11-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-1.21.11-mac-dark.svg?v=b9f326bc" width="220" alt="下载 Mac x64 · Minecraft 1.21.11 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
 </td>
 <td width="25%" valign="top">
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.1.2-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-26.1.2-windows-light.svg?v=154d77d8" width="220" alt="下载 Windows x64 · Minecraft 26.1.2 · yiyiaddon 1.3.1"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.1.2-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-26.1.2-windows-dark.svg?v=55f418cd" width="220" alt="下载 Windows x64 · Minecraft 26.1.2 · yiyiaddon 1.3.1"></a><br>
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.1.2-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-26.1.2-mac-light.svg?v=06593bb5" width="220" alt="下载 Mac x64 · Minecraft 26.1.2 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.1.2-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-26.1.2-mac-dark.svg?v=70999bad" width="220" alt="下载 Mac x64 · Minecraft 26.1.2 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.1.2-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-26.1.2-windows-light.svg?v=331a9bba" width="220" alt="下载 Windows x64 · Minecraft 26.1.2 · yiyiaddon 1.4"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.1.2-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-26.1.2-windows-dark.svg?v=828d5e8d" width="220" alt="下载 Windows x64 · Minecraft 26.1.2 · yiyiaddon 1.4"></a><br>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.1.2-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-26.1.2-mac-light.svg?v=8b6c9746" width="220" alt="下载 Mac x64 · Minecraft 26.1.2 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.1.2-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-26.1.2-mac-dark.svg?v=e92b2337" width="220" alt="下载 Mac x64 · Minecraft 26.1.2 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
 </td>
 <td width="25%" valign="top">
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.2-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-26.2-windows-light.svg?v=4841a9b2" width="220" alt="下载 Windows x64 · Minecraft 26.2 · yiyiaddon 1.3.1"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.2-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-26.2-windows-dark.svg?v=89c082cd" width="220" alt="下载 Windows x64 · Minecraft 26.2 · yiyiaddon 1.3.1"></a><br>
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.2-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-26.2-mac-light.svg?v=53ec21f2" width="220" alt="下载 Mac x64 · Minecraft 26.2 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.2-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-26.2-mac-dark.svg?v=1b017b75" width="220" alt="下载 Mac x64 · Minecraft 26.2 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.2-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-26.2-windows-light.svg?v=d162f78e" width="220" alt="下载 Windows x64 · Minecraft 26.2 · yiyiaddon 1.4"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.2-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-26.2-windows-dark.svg?v=f43d2c56" width="220" alt="下载 Windows x64 · Minecraft 26.2 · yiyiaddon 1.4"></a><br>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.2-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-26.2-mac-light.svg?v=b5478c7e" width="220" alt="下载 Mac x64 · Minecraft 26.2 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.2-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-26.2-mac-dark.svg?v=e12b5ada" width="220" alt="下载 Mac x64 · Minecraft 26.2 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
 </td>
 <td width="25%" valign="top">
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.3-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-26.3-windows-light.svg?v=acf21927" width="220" alt="下载 Windows x64 · Minecraft 26.3 · yiyiaddon 1.3.1"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.3-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-26.3-windows-dark.svg?v=34984c8d" width="220" alt="下载 Windows x64 · Minecraft 26.3 · yiyiaddon 1.3.1"></a><br>
-<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.3-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.3.1-26.3-mac-light.svg?v=0dd54367" width="220" alt="下载 Mac x64 · Minecraft 26.3 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.3.1/yiyiaddon-1.3.1-26.3-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.3.1-26.3-mac-dark.svg?v=793902ee" width="220" alt="下载 Mac x64 · Minecraft 26.3 · yiyiaddon 1.3.1 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.3-win64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-26.3-windows-light.svg?v=a651ad02" width="220" alt="下载 Windows x64 · Minecraft 26.3 · yiyiaddon 1.4"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.3-win64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-26.3-windows-dark.svg?v=35c74068" width="220" alt="下载 Windows x64 · Minecraft 26.3 · yiyiaddon 1.4"></a><br>
+<a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.3-mac64.jar#gh-light-mode-only"><img src="展示资源/theme/download-1.4-26.3-mac-light.svg?v=0acac224" width="220" alt="下载 Mac x64 · Minecraft 26.3 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a><a href="https://github.com/fxjcangku/yiyiaddon/releases/download/v1.4/yiyiaddon-1.4-26.3-mac64.jar#gh-dark-mode-only"><img src="展示资源/theme/download-1.4-26.3-mac-dark.svg?v=5606d9bf" width="220" alt="下载 Mac x64 · Minecraft 26.3 · yiyiaddon 1.4 · 实际 ARM64，需要 ARM64 Java，不支持 Intel Mac"></a>
 </td>
 </tr></tbody>
 </table>
@@ -116,8 +116,8 @@
 **Mac x64** 是页面展示名，实际支持 **macOS ARM64**，请使用 **ARM64 Java**；Intel Mac 不在当前支持范围。请按上方各游戏版本标注的平台下载安装包；仅标注 Windows x64 的附件不适用于 Mac。完整要求见 [安装指南](安装指南.md)。
 
 <p align="center">
-<a href="安装指南.md#gh-light-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-light.svg?v=1.3.1-cb2ba3e2"><img src="展示资源/theme/panel-environment-platforms-light.svg?v=1.3.1-eb8480c1" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
-<a href="安装指南.md#gh-dark-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-dark.svg?v=1.3.1-ca3c9ca8"><img src="展示资源/theme/panel-environment-platforms-dark.svg?v=1.3.1-9a233f39" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
+<a href="安装指南.md#gh-light-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-light.svg?v=1.4-cb2ba3e2"><img src="展示资源/theme/panel-environment-platforms-light.svg?v=1.4-eb8480c1" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
+<a href="安装指南.md#gh-dark-mode-only"><picture><source media="(max-width: 640px)" srcset="展示资源/theme/panel-environment-platforms-compact-dark.svg?v=1.4-ca3c9ca8"><img src="展示资源/theme/panel-environment-platforms-dark.svg?v=1.4-9a233f39" width="100%" alt="Windows x64 正式版可下载；Mac x64（实际 ARM64） · 正式版可下载。Fabric Loader 0.19.5+；Minecraft 1.21.11 使用 Java 21，26 系列使用 Java 25；Mac 需 ARM64 Java。"></picture></a>
 </p>
 
 #### <img src="展示资源/icons/octicons/package-24.svg?v=3fe57ae5" width="24" height="24" alt=""> 三步完成安装
