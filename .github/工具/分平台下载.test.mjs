@@ -424,6 +424,37 @@ test('1.4 使用独立方块封面与实际八包，发布图固定到资源提�
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
 
+test('1.5 可显式沿用已确认的方块封面，八个下载保持本版身份', async () => {
+  const { composeFormalPage } = await import('./生成1.3正式页面.mjs');
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'yiyi-formal-14-'));
+  try {
+    for (const directory of ['theme', 'icons']) {
+      const link = path.join(temp, '展示资源', directory);
+      fs.mkdirSync(path.dirname(link), { recursive: true });
+      fs.symlinkSync(path.join(root, '展示资源', directory), link);
+    }
+    const live = synthetic('1.5');
+    live.assets.forEach(asset => { asset.digest = 'sha256:' + 'f'.repeat(64); });
+    const assetRef = 'a'.repeat(40);
+    const options = { root: temp, assetRef };
+    const original = patchSource('1.5');
+    const body = original.replace(carpetMapArtImage, '../../' + flatBlockMapArtImage);
+    assert.throws(() => composeFormalPage(body, live, options), /缺少 1\.4 平面方块地图画封面/);
+    const image = path.join(temp, flatBlockMapArtImage);
+    fs.mkdirSync(path.dirname(image), { recursive: true });
+    fs.writeFileSync(image, '仅测试封面文件引用');
+    const release = composeFormalPage(body, live, options);
+    assert.ok(release.body.includes('https://raw.githubusercontent.com/fxjcangku/yiyiaddon/' + assetRef + '/' + flatBlockMapArtImage));
+    assert.ok(!release.body.includes(carpetMapArtImage));
+    assert.equal(hrefs(release.body).filter(url => url.includes('/releases/download/v1.5/')).length, 8);
+    assert.ok(live.assets.every(asset => release.body.includes(asset.digest.slice(7))));
+    const repositoryPage = composeFormalPage(body, live, { ...options, release: false });
+    assert.ok(repositoryPage.body.startsWith('<p align="center">'));
+    assert.ok(repositoryPage.body.includes('src="../' + flatBlockMapArtImage + '"'));
+    assert.ok(!repositoryPage.body.includes('../../' + flatBlockMapArtImage));
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
 test('1.3.1 草稿和正式页使用本版正文及八包，不误用1.3历史或推定旧版实测', async () => {
   const { composeFormalPage } = await import('./生成1.3正式页面.mjs');
   const live = synthetic('1.3.1'); live.assets.forEach(asset => { asset.digest = `sha256:${'d'.repeat(64)}`; });

@@ -41,7 +41,10 @@ export function composeFormalPage(original, catalogRelease, options) {
   const body = original.replaceAll('\r\n', '\n');
   const releaseLayout = options.release !== false;
   let cover = body.match(/^(<p align="center">[\s\S]*?<\/p>)/)?.[1];
-  const coverAsset = version === '1.4' ? flatBlockMapArtImage : null;
+  const suppliedCover = cover?.match(/<img\s+src="([^"]+)"/)?.[1];
+  // 后续版本可显式沿用已确认的方块封面，历史1.4仍强制使用其原封面。
+  const coverAsset = version === '1.4' || ['../', '../../'].some(prefix => suppliedCover === prefix + flatBlockMapArtImage)
+    ? flatBlockMapArtImage : null;
   if (coverAsset) {
     const source = cover?.match(/<img\s+src="([^"]+)"/)?.[1];
     if (source !== '../' + coverAsset && source !== '../../' + coverAsset) {
@@ -179,7 +182,7 @@ function publishedCurrentGuides(root, version) {
     const source = output.get(file);
     const previous = source.match(/\*\*(\d+(?:\.\d+)+) (?:正式版提供|已正式发布)/)?.[1];
     if (!previous) throw new Error(`无法定位当前安装版本：${file}`);
-    const pattern = new RegExp(previous.replaceAll('.', '\\.') + '(?![\\d.])', 'g');
+    const pattern = new RegExp(previous.replaceAll('.', '\\.') + '(?!\\d|\\.\\d)', 'g');
     output.set(file, source.replace(pattern, version));
   }
   if (version === '1.4') {
@@ -209,6 +212,14 @@ function publishedCurrentGuides(root, version) {
         '**1.4 已正式发布**，全自动地图画支持地毯与平面方块。四个游戏版本均提供 Windows x64 和 macOS ARM64 安装包。 [查看完整更新说明](发布说明/1.4.md)')
       .replace('1.3 四个版本各提供 `win64` 与 `mac64` 两包，共八包；旧 1.2 Windows 附件不适用于 Mac，Intel Mac 不在支持范围。',
         '1.4 的四个游戏版本各提供 `win64` 与 `mac64` 安装包。'));
+  }
+  if (!['1.3', '1.4'].includes(version)) {
+    for (const [file, content] of output) {
+      const current = content.match(/\*\*(\d+(?:\.\d+)+) (?:正式版提供|已正式发布)/)?.[1];
+      if (!current || current === version) continue;
+      const pattern = new RegExp(current.replaceAll('.', '\\.') + '(?!\\d|\\.\\d)', 'g');
+      output.set(file, content.replace(pattern, version));
+    }
   }
   return output;
 }
