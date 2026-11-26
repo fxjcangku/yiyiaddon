@@ -214,6 +214,12 @@ function publishedCurrentGuides(root, version) {
         '1.4 的四个游戏版本各提供 `win64` 与 `mac64` 安装包。'));
   }
   if (!['1.3', '1.4'].includes(version)) {
+    const [major, minor] = version.split('.').map(Number);
+    if (major > 1 || major === 1 && minor >= 5) {
+      output.set('版本说明.md', output.get('版本说明.md').replace(
+        'Minecraft **1.21.11** 是一次性适配版本，使用 Java 21，后续不随日常更新。26.1.2、26.2、26.3 使用 Java 25。',
+        'Minecraft **1.21.11** 使用 Java 21；26.1.2、26.2、26.3 使用 Java 25。四条版本线分别维护，请使用对应游戏版本的安装包。'));
+    }
     for (const [file, content] of output) {
       const current = content.match(/\*\*(\d+(?:\.\d+)+) (?:正式版提供|已正式发布)/)?.[1];
       if (!current || current === version) continue;
